@@ -4,6 +4,7 @@ import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/fi
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
+import { teNumeroSoci } from '../../lib/socis';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -127,7 +128,7 @@ export default function SociForm() {
           Registrar pagament d'avui
         </button>
       )}
-      {editant && (
+      {editant && teNumeroSoci(dades) && (
         <Link className="btn btn--outline" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
           Veure i imprimir el carnet
         </Link>

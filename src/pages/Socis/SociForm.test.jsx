@@ -155,3 +155,26 @@ describe('SociForm — registrar pagament', () => {
     expect(updateDoc.mock.calls[0][1].numeroSoci).toBeUndefined();
   });
 });
+
+describe('SociForm — enllaç del carnet', () => {
+  it('no mostra l\'enllaç del carnet si el soci encara no té número de soci', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByLabelText('Nom');
+    expect(screen.queryByText('Veure i imprimir el carnet')).not.toBeInTheDocument();
+  });
+
+  it('mostra l\'enllaç del carnet si el soci ja té número de soci', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Veure i imprimir el carnet')).toBeInTheDocument();
+  });
+});
