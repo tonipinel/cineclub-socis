@@ -4,3 +4,9 @@
 .site-header__brand {
   @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
 }
+.site-header__nav {
+  @apply flex items-center gap-4;
+}
+.site-header__link {
+  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-white hover:text-gold;
+}
