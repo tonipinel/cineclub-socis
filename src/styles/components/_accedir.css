@@ -1,0 +1,6 @@
+.accedir {
+  @apply mx-auto flex max-w-sm flex-col gap-2 p-6;
+}
+.accedir__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
