@@ -1,0 +1,6 @@
+.btn {
+  @apply inline-block cursor-pointer rounded-full border-0 bg-gold px-6 py-3 font-display font-bold text-black transition hover:bg-gold-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-60;
+}
+.btn--outline {
+  @apply border-2 border-gold bg-transparent text-gold hover:bg-gold hover:text-black;
+}

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "./components/_header.css";
+@import "./components/_button.css";
+@import "./components/_forms.css";
+@import "./components/_alta-publica.css";
 
 @theme {
   --color-gold: #BF9000;
