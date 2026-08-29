@@ -5,3 +5,6 @@ export const SOCIS_NOU = '/socis/nou';
 export const SOCIS_EDITAR = '/socis/:id';
 export const SOCIS_CARNET = '/socis/:id/carnet';
 export const SOLICITUDS = '/solicituds';
+export const SESSIONS = '/sessions';
+export const SESSIONS_NOVA = '/sessions/nova';
+export const SESSIONS_EDITAR = '/sessions/:id';

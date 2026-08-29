@@ -9,6 +9,8 @@ import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
 import CarnetSoci from './pages/Socis/CarnetSoci';
+import SessionsList from './pages/Sessions/SessionsList';
+import SessionForm from './pages/Sessions/SessionForm';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 
 export default function App() {
@@ -54,6 +56,36 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <CarnetSoci />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SESSIONS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <SessionsList />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SESSIONS_NOVA}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <SessionForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SESSIONS_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <SessionForm />
               </RequireRole>
             </RequireAuth>
           }
