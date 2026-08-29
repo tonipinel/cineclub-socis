@@ -8,6 +8,7 @@ import AltaPublica from './pages/AltaPublica';
 import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
+import CarnetSoci from './pages/Socis/CarnetSoci';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 
 export default function App() {
@@ -43,6 +44,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <SociForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SOCIS_CARNET}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <CarnetSoci />
               </RequireRole>
             </RequireAuth>
           }

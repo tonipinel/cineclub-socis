@@ -1,3 +1,9 @@
+.carnet-pagina {
+  @apply flex flex-col items-center gap-3 p-6;
+}
+.carnet-pagina__tornar {
+  @apply self-start font-body text-sm text-black/70 print:hidden;
+}
 .carnet-wrapper {
   @apply flex flex-col items-center gap-3 p-4;
 }
@@ -6,6 +12,7 @@
 }
 .carnet {
   @apply flex overflow-hidden bg-black;
+  box-sizing: border-box;
   width: 85.6mm;
   height: 54mm;
   border: 0.6mm solid #bf9000;
@@ -40,20 +47,18 @@
 }
 
 @media print {
+  .carnet-pagina {
+    padding: 0;
+  }
   .carnet-wrapper {
     padding: 0;
   }
   .carnet {
     margin: 0;
-    border: none;
     box-shadow: none;
   }
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-  }
-  @page {
-    size: 85.6mm 54mm;
-    margin: 0;
   }
 }

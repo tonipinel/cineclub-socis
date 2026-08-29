@@ -24,7 +24,7 @@ export default function CarnetQR({ soci }) {
   return (
     <div className="carnet-wrapper">
       <button type="button" className="btn carnet-wrapper__accio" onClick={() => window.print()}>
-        Imprimir carnet
+        Imprimir o desar com a PDF
       </button>
       <div className="carnet">
         <div className="carnet__info">
@@ -36,9 +36,6 @@ export default function CarnetQR({ soci }) {
         </div>
         <img className="carnet__qr" src={dataUrl} alt={`Codi QR del carnet de ${soci.nom} ${soci.cognoms}`} />
       </div>
-      <a className="btn btn--outline carnet-wrapper__accio" href={dataUrl} download={`carnet-qr-${soci.numeroSoci ?? soci.id}.png`}>
-        Descarregar només el QR
-      </a>
     </div>
   );
 }

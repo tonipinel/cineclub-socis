@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
-import CarnetQR from '../../components/CarnetQR';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 
 const CAMPS_INICIALS = {
@@ -128,7 +127,11 @@ export default function SociForm() {
           Registrar pagament d'avui
         </button>
       )}
-      {editant && !carregant && <CarnetQR soci={{ id, ...dades }} />}
+      {editant && (
+        <Link className="btn btn--outline" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
+          Veure i imprimir el carnet
+        </Link>
+      )}
     </form>
   );
 }
