@@ -1,6 +1,7 @@
 // Ús: node scripts/bootstrap-admin.js <email> /ruta/a/serviceAccountKey.json
 import { readFileSync } from 'node:fs';
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { buildStaffClaims } from './adminClaims.js';
 
 const [, , email, serviceAccountPath] = process.argv;
@@ -11,9 +12,10 @@ if (!email || !serviceAccountPath) {
 }
 
 const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+const app = initializeApp({ credential: cert(serviceAccount) });
+const auth = getAuth(app);
 
-const user = await admin.auth().getUserByEmail(email);
-await admin.auth().setCustomUserClaims(user.uid, buildStaffClaims('admin'));
+const user = await auth.getUserByEmail(email);
+await auth.setCustomUserClaims(user.uid, buildStaffClaims('admin'));
 
 console.log(`${email} ara té el rol 'admin'.`);

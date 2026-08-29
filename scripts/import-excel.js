@@ -1,7 +1,8 @@
 // Ús: node scripts/import-excel.js /ruta/al/fitxer.xlsx /ruta/a/serviceAccountKey.json
 import { readFileSync } from 'node:fs';
 import ExcelJS from 'exceljs';
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { mapExcelRowToSoci } from './importMapping.js';
 
 const [, , excelPath, serviceAccountPath] = process.argv;
@@ -26,8 +27,8 @@ const CAPCALERES = {
 };
 
 const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-const db = admin.firestore();
+const app = initializeApp({ credential: cert(serviceAccount) });
+const db = getFirestore(app);
 
 const workbook = new ExcelJS.Workbook();
 await workbook.xlsx.readFile(excelPath);
