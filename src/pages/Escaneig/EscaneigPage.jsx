@@ -29,7 +29,8 @@ export default function EscaneigPage() {
     return onSnapshot(q, (snap) => {
       setResum(resumAccessLog(snap.docs.map((d) => d.data())));
     });
-  }, [sessioActiva]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessioActiva?.id]);
 
   useEffect(() => {
     if (!sessioActiva || !('BarcodeDetector' in window)) return undefined;
@@ -38,10 +39,15 @@ export default function EscaneigPage() {
     const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
-      if (!actiu) return;
+      if (!actiu) {
+        s.getTracks().forEach((track) => track.stop());
+        return;
+      }
       stream = s;
       videoRef.current.srcObject = stream;
-      videoRef.current.play();
+      return videoRef.current.play();
+    }).catch(() => {
+      setMissatge({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
     });
 
     const interval = setInterval(async () => {
@@ -60,69 +66,80 @@ export default function EscaneigPage() {
       stream?.getTracks().forEach((track) => track.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessioActiva]);
+  }, [sessioActiva?.id]);
 
   const registrarGeneric = async (codiTiquet) => {
-    await addDoc(collection(db, 'accessLog'), {
-      sessionId: sessioActiva.id,
-      timestamp: serverTimestamp(),
-      escanejatPer: user.uid,
-      tipus: 'generic',
-      codiTiquet,
-      preuAplicat: sessioActiva.preuEntrada,
-    });
-    setMissatge({ tipus: 'ok', text: `Entrada genèrica registrada (${sessioActiva.preuEntrada}€)` });
+    try {
+      await addDoc(collection(db, 'accessLog'), {
+        sessionId: sessioActiva.id,
+        timestamp: serverTimestamp(),
+        escanejatPer: user.uid,
+        tipus: 'generic',
+        codiTiquet,
+        preuAplicat: sessioActiva.preuEntrada,
+      });
+      setMissatge({ tipus: 'ok', text: `Entrada genèrica registrada (${sessioActiva.preuEntrada}€)` });
+    } catch {
+      setMissatge({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
+    }
   };
 
   const processarCodi = async (codiOriginal) => {
     const codi = codiOriginal.trim();
     const ara = Date.now();
-    if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) return;
+    if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) {
+      setMissatge(null);
+      return;
+    }
     ultimCodiRef.current = { codi, moment: ara };
 
-    const identificat = identificarCodi(codi);
+    try {
+      const identificat = identificarCodi(codi);
 
-    if (identificat.tipus === 'desconegut') {
-      setMissatge({ tipus: 'error', text: `Codi no reconegut: ${codi}` });
-      return;
-    }
-
-    if (identificat.tipus === 'soci') {
-      const socisTrobats = await getDocs(
-        query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
-      );
-      if (socisTrobats.empty) {
-        setMissatge({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
+      if (identificat.tipus === 'desconegut') {
+        setMissatge({ tipus: 'error', text: `Codi no reconegut: ${codi}` });
         return;
       }
-      const soci = socisTrobats.docs[0].data();
-      await addDoc(collection(db, 'accessLog'), {
-        sessionId: sessioActiva.id,
-        timestamp: serverTimestamp(),
-        escanejatPer: user.uid,
-        tipus: 'soci',
-        numeroSoci: identificat.numeroSoci,
-      });
-      setMissatge({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}` });
-      return;
-    }
 
-    const repetits = await getDocs(
-      query(
-        collection(db, 'accessLog'),
-        where('sessionId', '==', sessioActiva.id),
-        where('codiTiquet', '==', identificat.codiTiquet)
-      )
-    );
-    if (!repetits.empty) {
-      setMissatge({
-        tipus: 'avis',
-        text: `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió. Confirma si vols comptar-lo igualment.`,
-        onConfirmar: () => registrarGeneric(identificat.codiTiquet),
-      });
-      return;
+      if (identificat.tipus === 'soci') {
+        const socisTrobats = await getDocs(
+          query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
+        );
+        if (socisTrobats.empty) {
+          setMissatge({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
+          return true;
+        }
+        const soci = socisTrobats.docs[0].data();
+        await addDoc(collection(db, 'accessLog'), {
+          sessionId: sessioActiva.id,
+          timestamp: serverTimestamp(),
+          escanejatPer: user.uid,
+          tipus: 'soci',
+          numeroSoci: identificat.numeroSoci,
+        });
+        setMissatge({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}` });
+        return;
+      }
+
+      const repetits = await getDocs(
+        query(
+          collection(db, 'accessLog'),
+          where('sessionId', '==', sessioActiva.id),
+          where('codiTiquet', '==', identificat.codiTiquet)
+        )
+      );
+      if (!repetits.empty) {
+        setMissatge({
+          tipus: 'avis',
+          text: `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió. Confirma si vols comptar-lo igualment.`,
+          onConfirmar: () => registrarGeneric(identificat.codiTiquet),
+        });
+        return;
+      }
+      await registrarGeneric(identificat.codiTiquet);
+    } catch {
+      setMissatge({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
-    await registrarGeneric(identificat.codiTiquet);
   };
 
   const handleCodiManual = (e) => {
@@ -132,7 +149,7 @@ export default function EscaneigPage() {
     setCodiManual('');
   };
 
-  if (sessioActiva === undefined) return <p>Carregant…</p>;
+  if (sessioActiva === undefined) return <p className="escaneig__carregant">Carregant…</p>;
 
   if (!sessioActiva) {
     return (

@@ -7,6 +7,9 @@
 .escaneig__sense-sessio {
   @apply mx-auto max-w-lg p-6 font-body text-black;
 }
+.escaneig__carregant {
+  @apply p-6 font-body text-black;
+}
 .escaneig__video {
   @apply w-full rounded bg-black;
 }

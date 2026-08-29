@@ -90,4 +90,29 @@ describe('EscaneigPage', () => {
     expect(getDocs).not.toHaveBeenCalled();
     expect(addDoc).not.toHaveBeenCalled();
   });
+
+  it('mostra un error si falla la consulta a Firestore', async () => {
+    getDocs.mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    await user.type(await screen.findByLabelText('Codi manual'), 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
+  it('no deixa un missatge obsolet quan es reenvia el mateix codi dins la finestra de debounce', async () => {
+    getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await screen.findByLabelText('Codi manual');
+    await user.type(input, 'L1-014');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+
+    await user.type(input, 'L1-014');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(screen.queryByText('Entrada genèrica registrada (5€)')).not.toBeInTheDocument();
+    expect(addDoc).toHaveBeenCalledTimes(1);
+  });
 });
