@@ -1,0 +1,34 @@
+.tickets-pagina {
+  @apply p-6;
+}
+.tickets-pagina__capcalera {
+  @apply mb-4 flex items-center gap-3 print:hidden;
+}
+.tickets-pagina__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.tickets-graella {
+  @apply flex flex-wrap gap-2;
+}
+.tickets-graella__tiquet {
+  @apply flex flex-col items-center border border-dashed border-black/30 p-1;
+  width: 30mm;
+  break-inside: avoid;
+}
+.tickets-graella__qr {
+  @apply h-auto w-full;
+}
+.tickets-graella__codi {
+  @apply font-body text-black;
+  font-size: 7pt;
+}
+
+@media print {
+  .tickets-pagina {
+    padding: 0;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}

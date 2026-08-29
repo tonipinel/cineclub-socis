@@ -8,6 +8,7 @@
 @import "./components/_solicituds.css";
 @import "./components/_carnet.css";
 @import "./components/_sessions.css";
+@import "./components/_tickets.css";
 
 @theme {
   --color-gold: #BF9000;

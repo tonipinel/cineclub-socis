@@ -11,6 +11,7 @@ import SociForm from './pages/Socis/SociForm';
 import CarnetSoci from './pages/Socis/CarnetSoci';
 import SessionsList from './pages/Sessions/SessionsList';
 import SessionForm from './pages/Sessions/SessionForm';
+import TicketsPage from './pages/Tickets/TicketsPage';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 
 export default function App() {
@@ -86,6 +87,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <SessionForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TICKETS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TicketsPage />
               </RequireRole>
             </RequireAuth>
           }
