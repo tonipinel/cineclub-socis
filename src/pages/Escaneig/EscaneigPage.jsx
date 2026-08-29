@@ -52,7 +52,6 @@ export default function EscaneigPage() {
     const codi = codiOriginal.trim();
     const ara = Date.now();
     if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) {
-      setMissatge(null);
       return;
     }
     ultimCodiRef.current = { codi, moment: ara };
@@ -71,7 +70,7 @@ export default function EscaneigPage() {
         );
         if (socisTrobats.empty) {
           setMissatge({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
-          return true;
+          return;
         }
         const soci = socisTrobats.docs[0].data();
         await addDoc(collection(db, 'accessLog'), {

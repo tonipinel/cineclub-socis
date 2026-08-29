@@ -101,7 +101,7 @@ describe('EscaneigPage', () => {
     expect(addDoc).not.toHaveBeenCalled();
   });
 
-  it('no deixa un missatge obsolet quan es reenvia el mateix codi dins la finestra de debounce', async () => {
+  it('ignora un mateix codi reenviat dins la finestra de debounce, sense duplicar el registre', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
     render(<EscaneigPage />);
@@ -112,7 +112,11 @@ describe('EscaneigPage', () => {
 
     await user.type(input, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    expect(screen.queryByText('Entrada genèrica registrada (5€)')).not.toBeInTheDocument();
+    // El debounce ignora el segon enviament: no es torna a consultar Firestore
+    // ni es duplica el registre, però el missatge de l'escaneig anterior es
+    // manté visible (necessari perquè amb la càmera el mateix codi es torna a
+    // detectar cada ~400ms mentre el QR és davant l'objectiu).
+    expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
     expect(addDoc).toHaveBeenCalledTimes(1);
   });
 });
