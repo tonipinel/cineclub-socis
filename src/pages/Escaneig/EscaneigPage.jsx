@@ -32,42 +32,6 @@ export default function EscaneigPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessioActiva?.id]);
 
-  useEffect(() => {
-    if (!sessioActiva || !('BarcodeDetector' in window)) return undefined;
-    let actiu = true;
-    let stream;
-    const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
-      if (!actiu) {
-        s.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      stream = s;
-      videoRef.current.srcObject = stream;
-      return videoRef.current.play();
-    }).catch(() => {
-      setMissatge({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
-    });
-
-    const interval = setInterval(async () => {
-      if (!videoRef.current?.srcObject) return;
-      try {
-        const barcodes = await detector.detect(videoRef.current);
-        if (barcodes[0]) processarCodi(barcodes[0].rawValue);
-      } catch {
-        // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
-      }
-    }, 400);
-
-    return () => {
-      actiu = false;
-      clearInterval(interval);
-      stream?.getTracks().forEach((track) => track.stop());
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessioActiva?.id]);
-
   const registrarGeneric = async (codiTiquet) => {
     try {
       await addDoc(collection(db, 'accessLog'), {
@@ -141,6 +105,42 @@ export default function EscaneigPage() {
       setMissatge({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
   };
+
+  useEffect(() => {
+    if (!sessioActiva || !('BarcodeDetector' in window)) return undefined;
+    let actiu = true;
+    let stream;
+    const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
+      if (!actiu) {
+        s.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream = s;
+      videoRef.current.srcObject = stream;
+      return videoRef.current.play();
+    }).catch(() => {
+      setMissatge({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
+    });
+
+    const interval = setInterval(async () => {
+      if (!videoRef.current?.srcObject) return;
+      try {
+        const barcodes = await detector.detect(videoRef.current);
+        if (barcodes[0]) processarCodi(barcodes[0].rawValue);
+      } catch {
+        // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
+      }
+    }, 400);
+
+    return () => {
+      actiu = false;
+      clearInterval(interval);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessioActiva?.id]);
 
   const handleCodiManual = (e) => {
     e.preventDefault();
