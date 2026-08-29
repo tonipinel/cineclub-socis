@@ -38,4 +38,25 @@ describe('Header', () => {
     await user.click(botoSortir);
     expect(signOut).toHaveBeenCalledTimes(1);
   });
+
+  it('mostra els enllaços de Sessions, Tiquets i Escaneig quan l\'usuari és admin', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut: vi.fn() });
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Sessions' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tiquets' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Escaneig' })).toBeInTheDocument();
+  });
+
+  it('quan l\'usuari és taquilla, només mostra l\'enllaç d\'Escaneig i el botó de sortir', async () => {
+    const signOut = vi.fn();
+    mockUseAuth.mockReturnValue({ user: { uid: '2' }, role: 'taquilla', signOut });
+    const user = userEvent.setup();
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Escaneig' })).toBeInTheDocument();
+    expect(screen.queryByText('Socis')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
+    const botoSortir = screen.getByRole('button', { name: 'Sortir' });
+    await user.click(botoSortir);
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
 });
