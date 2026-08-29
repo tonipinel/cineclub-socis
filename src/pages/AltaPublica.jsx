@@ -14,6 +14,7 @@ export default function AltaPublica() {
   const [errors, setErrors] = useState({});
   const [enviant, setEnviant] = useState(false);
   const [enviat, setEnviat] = useState(false);
+  const [errorEnviament, setErrorEnviament] = useState(null);
 
   const handleChange = (camp) => (e) => {
     const valor = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -26,13 +27,19 @@ export default function AltaPublica() {
     setErrors(errorsValidacio);
     if (Object.keys(errorsValidacio).length > 0) return;
     setEnviant(true);
-    await addDoc(collection(db, 'solicituds'), {
-      ...dades,
-      timestamp: serverTimestamp(),
-      estat: 'pendent',
-    });
-    setEnviant(false);
-    setEnviat(true);
+    setErrorEnviament(null);
+    try {
+      await addDoc(collection(db, 'solicituds'), {
+        ...dades,
+        timestamp: serverTimestamp(),
+        estat: 'pendent',
+      });
+      setEnviant(false);
+      setEnviat(true);
+    } catch {
+      setEnviant(false);
+      setErrorEnviament("No s'ha pogut desar. Torna-ho a provar.");
+    }
   };
 
   if (enviat) {
@@ -113,6 +120,8 @@ export default function AltaPublica() {
         </label>
         {errors.acceptaDadesPersonals && <p className="form__error">{errors.acceptaDadesPersonals}</p>}
       </div>
+
+      {errorEnviament && <p className="form__error">{errorEnviament}</p>}
 
       <button className="btn" type="submit" disabled={enviant}>
         {enviant ? 'Enviant…' : 'Enviar sol·licitud'}

@@ -39,4 +39,20 @@ describe('AltaPublica', () => {
     expect(await screen.findByText(/Hem rebut la teva sol·licitud/)).toBeInTheDocument();
     expect(addDoc).toHaveBeenCalledTimes(1);
   });
+
+  it('mostra un error i reactiva el botó si l\'enviament falla', async () => {
+    addDoc.mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    render(<AltaPublica />);
+    await user.type(screen.getByLabelText(/^Nom/), 'Anna');
+    await user.type(screen.getByLabelText(/Cognoms/), 'Vidal');
+    await user.type(screen.getByLabelText(/Població/), 'Roda de Berà');
+    await user.type(screen.getByLabelText(/Codi postal/), '43883');
+    await user.type(screen.getByLabelText(/Telèfon/), '600000000');
+    await user.click(screen.getByRole('checkbox', { name: /política de privacitat/i }));
+    await user.click(screen.getByRole('checkbox', { name: /Autoritzo el tractament/i }));
+    await user.click(screen.getByRole('button', { name: /enviar sol·licitud/i }));
+    expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enviar sol·licitud/i })).toBeEnabled();
+  });
 });

@@ -31,6 +31,7 @@ export default function SociForm() {
   const editant = Boolean(id);
   const [dades, setDades] = useState(CAMPS_INICIALS);
   const [carregant, setCarregant] = useState(editant);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,24 +48,34 @@ export default function SociForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editant) {
-      await updateDoc(doc(db, 'socis', id), dades);
-    } else {
-      const data = avui();
-      await addDoc(collection(db, 'socis'), {
-        ...dades,
-        dataAlta: data,
-        ultimPagament: data,
-        actiu: true,
-      });
+    setError(null);
+    try {
+      if (editant) {
+        await updateDoc(doc(db, 'socis', id), dades);
+      } else {
+        const data = avui();
+        await addDoc(collection(db, 'socis'), {
+          ...dades,
+          dataAlta: data,
+          ultimPagament: data,
+          actiu: true,
+        });
+      }
+      navigate(ROUTES.SOCIS);
+    } catch {
+      setError("No s'ha pogut desar. Torna-ho a provar.");
     }
-    navigate(ROUTES.SOCIS);
   };
 
   const handleRegistrarPagament = async () => {
-    const data = avui();
-    await updateDoc(doc(db, 'socis', id), { ultimPagament: data, estatManual: null });
-    setDades((d) => ({ ...d, ultimPagament: data, estatManual: null }));
+    setError(null);
+    try {
+      const data = avui();
+      await updateDoc(doc(db, 'socis', id), { ultimPagament: data, estatManual: null });
+      setDades((d) => ({ ...d, ultimPagament: data, estatManual: null }));
+    } catch {
+      setError("No s'ha pogut desar. Torna-ho a provar.");
+    }
   };
 
   if (carregant) return <p>Carregant…</p>;
@@ -79,6 +90,8 @@ export default function SociForm() {
           <input id={camp} className="form__input" value={dades[camp] ?? ''} onChange={handleChange(camp)} />
         </div>
       ))}
+
+      {error && <p className="form__error">{error}</p>}
 
       <button className="btn" type="submit">Desar</button>
       {editant && (

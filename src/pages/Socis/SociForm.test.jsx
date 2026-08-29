@@ -36,4 +36,22 @@ describe('SociForm — alta', () => {
     expect(dadesDesades.nom).toBe('Anna');
     expect(dadesDesades.dataAlta).toBe(dadesDesades.ultimPagament);
   });
+
+  it('mostra un error i no navega si la creació falla', async () => {
+    addDoc.mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/nou']}>
+        <Routes>
+          <Route path="/socis/nou" element={<SociForm />} />
+          <Route path="/socis" element={<p>Llistat de socis</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.type(screen.getByLabelText('Nom'), 'Anna');
+    await user.type(screen.getByLabelText('Cognoms'), 'Vidal');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
+    expect(screen.queryByText('Llistat de socis')).not.toBeInTheDocument();
+  });
 });
