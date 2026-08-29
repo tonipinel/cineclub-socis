@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // Formulari públic d'alta: qualsevol visitant pot crear una sol·licitud,
+    // però només l'admin la pot llegir, actualitzar (aprovar/descartar) o esborrar.
+    match /solicituds/{id} {
+      allow create: if request.resource.data.keys().hasAll(
+          ['nom', 'cognoms', 'poblacio', 'codiPostal', 'telefon', 'acceptaPrivacitat', 'acceptaDadesPersonals']
+        )
+        && request.resource.data.acceptaPrivacitat == true
+        && request.resource.data.acceptaDadesPersonals == true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Fase 1: només l'admin gestiona socis. Fase 2 hi afegirà lectura per a `taquilla`
+    // (validació de QR a la porta) quan es construeixi la pantalla d'escaneig.
+    match /socis/{id} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
