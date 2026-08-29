@@ -2,15 +2,29 @@ import { describe, it, expect } from 'vitest';
 import { solicitudASoci } from './solicitudASoci';
 
 describe('solicitudASoci', () => {
-  it('mapeja els camps de la sol·licitud i fixa dataAlta/ultimPagament a la data indicada', () => {
+  it('mapeja els camps de la sol·licitud i fixa dataAlta/ultimPagament/numeroSoci a les dades indicades', () => {
     const soci = solicitudASoci(
       { nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883', telefon: '600000000' },
-      '2026-08-29'
+      '2026-08-29',
+      '42'
     );
     expect(soci).toEqual({
+      numeroSoci: '42',
       nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883',
-      telefon: '600000000', correuElectronic: '', dni: '', grupWhatsapp: '',
+      telefon: '600000000', correuElectronic: '', comentaris: '', dni: '', grupWhatsapp: '',
       dataAlta: '2026-08-29', ultimPagament: '2026-08-29', actiu: true,
     });
+  });
+
+  it('conserva els comentaris de la sol·licitud si n\'hi ha', () => {
+    const soci = solicitudASoci(
+      {
+        nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883',
+        telefon: '600000000', comentaris: 'Ve recomanat per un altre soci',
+      },
+      '2026-08-29',
+      '42'
+    );
+    expect(soci.comentaris).toBe('Ve recomanat per un altre soci');
   });
 });

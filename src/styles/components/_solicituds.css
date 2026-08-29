@@ -8,8 +8,11 @@
   @apply flex list-none flex-col gap-2 p-0;
 }
 .solicituds-pendents__item {
-  @apply flex items-center justify-between gap-4 border-b border-black/10 py-2;
+  @apply flex flex-col gap-2 border-b border-black/10 py-3 sm:flex-row sm:items-end sm:justify-between;
 }
 .solicituds-pendents__accions {
-  @apply flex gap-2;
+  @apply flex items-end gap-2;
+}
+.solicituds-pendents__numero {
+  @apply mb-0 w-32;
 }
