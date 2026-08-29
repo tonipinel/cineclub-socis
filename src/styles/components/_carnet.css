@@ -1,0 +1,6 @@
+.carnet-qr {
+  @apply flex flex-col items-center gap-2 p-4;
+}
+.carnet-qr__imatge {
+  @apply h-40 w-40;
+}

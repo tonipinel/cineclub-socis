@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { addDoc, collection, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
+import CarnetQR from '../../components/CarnetQR';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -85,6 +86,7 @@ export default function SociForm() {
           Registrar pagament d'avui
         </button>
       )}
+      {editant && !carregant && <CarnetQR soci={{ id, ...dades }} />}
     </form>
   );
 }
