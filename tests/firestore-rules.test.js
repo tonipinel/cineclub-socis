@@ -5,7 +5,7 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 let testEnv;
 
@@ -69,5 +69,57 @@ describe('firestore.rules — socis', () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
     await assertSucceeds(setDoc(doc(adminDb, 'socis/1'), { nom: 'Test' }));
     await assertSucceeds(getDoc(doc(adminDb, 'socis/1')));
+  });
+});
+
+describe('firestore.rules — sessions', () => {
+  it('impedeix a un visitant no autenticat llegir sessions', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'sessions/1')));
+  });
+
+  it('permet a taquilla llegir sessions però no escriure-hi', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'sessions/1'), { titol: 'Test', activa: true });
+    await assertSucceeds(getDoc(doc(taquillaDb, 'sessions/1')));
+    await assertFails(setDoc(doc(taquillaDb, 'sessions/1'), { titol: 'Hackejat' }));
+  });
+
+  it('permet a un admin llegir i escriure sessions', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'sessions/1'), { titol: 'Test', activa: false }));
+    await assertSucceeds(getDoc(doc(adminDb, 'sessions/1')));
+  });
+});
+
+describe('firestore.rules — accessLog', () => {
+  it('impedeix a un visitant no autenticat crear ni llegir accessLog', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(anonDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci' }));
+    await assertFails(getDoc(doc(anonDb, 'accessLog/1')));
+  });
+
+  it('permet a taquilla crear i llegir accessLog', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    await assertSucceeds(setDoc(doc(taquillaDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci', numeroSoci: 7 }));
+    await assertSucceeds(getDoc(doc(taquillaDb, 'accessLog/1')));
+  });
+
+  it('impedeix actualitzar o esborrar accessLog fins i tot a un admin', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci', numeroSoci: 7 });
+    await assertFails(updateDoc(doc(adminDb, 'accessLog/1'), { tipus: 'generic' }));
+    await assertFails(deleteDoc(doc(adminDb, 'accessLog/1')));
+  });
+});
+
+describe('firestore.rules — socis (Fase 2)', () => {
+  it('permet a taquilla llegir socis però no escriure-hi', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'socis/1'), { nom: 'Test', numeroSoci: 7 });
+    await assertSucceeds(getDoc(doc(taquillaDb, 'socis/1')));
+    await assertFails(updateDoc(doc(taquillaDb, 'socis/1'), { nom: 'Hackejat' }));
   });
 });
