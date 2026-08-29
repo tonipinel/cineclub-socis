@@ -1,3 +1,3 @@
 export function carnetPayload(soci) {
-  return `CINECLUB-SOCI:${soci.id}`;
+  return `SOCI-${soci.numeroSoci}`;
 }

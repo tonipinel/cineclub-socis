@@ -39,6 +39,10 @@
   @apply font-body text-white/70;
   font-size: 7pt;
 }
+.carnet__codi {
+  @apply font-body font-semibold tracking-widest text-white;
+  font-size: 7pt;
+}
 .carnet__qr {
   @apply flex-shrink-0 self-center bg-white;
   width: 40mm;

@@ -14,6 +14,7 @@ describe('CarnetQR', () => {
     expect(qr).toHaveAttribute('src', 'data:image/png;base64,ABC');
     expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Núm. 7')).toBeInTheDocument();
+    expect(screen.getByText('SOCI-7')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Imprimir o desar com a PDF' })).toBeInTheDocument();
   });
 });

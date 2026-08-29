@@ -17,7 +17,7 @@ export default function CarnetQR({ soci }) {
       if (activa) setDataUrl(url);
     });
     return () => { activa = false; };
-  }, [soci.id]);
+  }, [soci]);
 
   if (!dataUrl) return <p>Generant carnet…</p>;
 
@@ -33,6 +33,7 @@ export default function CarnetQR({ soci }) {
           <p className="carnet__nom">{soci.nom} {soci.cognoms}</p>
           <p className="carnet__detall">Núm. {soci.numeroSoci || '—'}</p>
           <p className="carnet__detall">Soci des de {formatDataISO(soci.dataAlta)}</p>
+          <p className="carnet__codi">{carnetPayload(soci)}</p>
         </div>
         <img className="carnet__qr" src={dataUrl} alt={`Codi QR del carnet de ${soci.nom} ${soci.cognoms}`} />
       </div>
