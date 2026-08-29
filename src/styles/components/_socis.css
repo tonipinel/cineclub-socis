@@ -1,3 +1,6 @@
+.socis-list {
+  @apply p-6;
+}
 .socis-list__capcalera {
   @apply mb-4 flex items-center justify-between;
 }
@@ -14,6 +17,12 @@
 .socis-list__taula td {
   @apply border-b border-black/10 px-2 py-2;
 }
+.socis-list__taula tbody tr:nth-child(even) {
+  @apply bg-black/5;
+}
+.socis-list__ordenar {
+  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black;
+}
 .badge {
   @apply inline-block rounded-full border border-dashed px-2 py-0.5 text-xs font-bold uppercase tracking-wide;
 }
@@ -26,9 +35,21 @@
 .badge--vencut {
   @apply border-red-600 text-red-700;
 }
+.badge--nou-registre {
+  @apply border-blue-600 text-blue-700;
+}
 .soci-form {
   @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
 }
+.soci-form__capcalera {
+  @apply flex items-center justify-between gap-2;
+}
 .soci-form__titol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.soci-form__numero {
+  @apply -mt-2 mb-2 font-body text-sm text-black/70;
+}
+.form__input--nomes-lectura {
+  @apply cursor-default bg-black/5 text-black/70;
 }

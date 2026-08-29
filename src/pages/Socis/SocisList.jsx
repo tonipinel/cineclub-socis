@@ -1,30 +1,71 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
-import { calcularEstatSoci, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT } from '../../lib/estatSoci';
-import { filtrarSocis } from '../../lib/socis';
+import { calcularEstatSoci, calcularVenciment, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
+import { filtrarSocis, ordenarSocis, FILTRE_PROXIMA_RENOVACIO } from '../../lib/socis';
 import * as ROUTES from '../../constants/routes';
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
   [ESTAT_PENDENT]: 'Pendent',
   [ESTAT_VENCUT]: 'Vençut',
+  [ESTAT_NOU_REGISTRE]: 'Nou registre',
+};
+
+const COLUMNES = [
+  ['numeroSoci', 'Núm.'],
+  ['nom', 'Nom'],
+  ['cognoms', 'Cognoms'],
+  ['estat', 'Estat'],
+  ['venciment', 'Venciment'],
+];
+
+function formatData(data) {
+  return data.toLocaleDateString('ca-ES');
+}
+
+function NomSoci({ soci }) {
+  return <Link to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.nom}</Link>;
+}
+
+function CognomsSoci({ soci }) {
+  return <Link to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.cognoms}</Link>;
+}
+
+const RENDERITZAR_CELDA = {
+  numeroSoci: (soci) => soci.numeroSoci,
+  nom: (soci) => <NomSoci soci={soci} />,
+  cognoms: (soci) => <CognomsSoci soci={soci} />,
+  estat: (soci) => (
+    <span className={`badge badge--${calcularEstatSoci(soci)}`}>
+      {ETIQUETES_ESTAT[calcularEstatSoci(soci)]}
+    </span>
+  ),
+  venciment: (soci) => formatData(calcularVenciment(soci)),
 };
 
 export default function SocisList() {
   const [socis, setSocis] = useState([]);
   const [cerca, setCerca] = useState('');
   const [estat, setEstat] = useState('tots');
+  const [ordenacio, setOrdenacio] = useState({ columna: 'numeroSoci', direccio: 'desc' });
 
   useEffect(() => {
-    const q = query(collection(db, 'socis'), orderBy('cognoms'));
+    const q = query(collection(db, 'socis'));
     return onSnapshot(q, (snap) => {
       setSocis(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
   }, []);
 
-  const socisFiltrats = filtrarSocis(socis, { cerca, estat });
+  const canviarOrdenacio = (columna) => {
+    setOrdenacio((actual) => {
+      if (actual.columna !== columna) return { columna, direccio: 'asc' };
+      return { columna, direccio: actual.direccio === 'asc' ? 'desc' : 'asc' };
+    });
+  };
+
+  const socisFiltrats = ordenarSocis(filtrarSocis(socis, { cerca, estat }), ordenacio);
 
   return (
     <div className="socis-list">
@@ -44,28 +85,32 @@ export default function SocisList() {
           <option value={ESTAT_AL_DIA}>Estat: Al dia</option>
           <option value={ESTAT_PENDENT}>Estat: Pendent</option>
           <option value={ESTAT_VENCUT}>Estat: Vençut</option>
+          <option value={FILTRE_PROXIMA_RENOVACIO}>Renovació pròxima (30 dies)</option>
         </select>
       </div>
       <table className="socis-list__taula">
         <thead>
           <tr>
-            <th>Núm.</th><th>Nom</th><th>Cognoms</th><th>Estat</th><th></th>
+            {COLUMNES.map(([columna, etiqueta]) => (
+              <th key={columna}>
+                <button
+                  type="button"
+                  className="socis-list__ordenar"
+                  onClick={() => canviarOrdenacio(columna)}
+                >
+                  {etiqueta}
+                  {ordenacio.columna === columna && (ordenacio.direccio === 'asc' ? ' ▲' : ' ▼')}
+                </button>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {socisFiltrats.map((soci) => (
             <tr key={soci.id}>
-              <td>{soci.numeroSoci}</td>
-              <td>{soci.nom}</td>
-              <td>{soci.cognoms}</td>
-              <td>
-                <span className={`badge badge--${calcularEstatSoci(soci)}`}>
-                  {ETIQUETES_ESTAT[calcularEstatSoci(soci)]}
-                </span>
-              </td>
-              <td>
-                <Link to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>Editar</Link>
-              </td>
+              {COLUMNES.map(([columna]) => (
+                <td key={columna}>{RENDERITZAR_CELDA[columna](soci)}</td>
+              ))}
             </tr>
           ))}
         </tbody>

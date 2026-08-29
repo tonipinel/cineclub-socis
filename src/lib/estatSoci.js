@@ -1,18 +1,33 @@
 export const ESTAT_AL_DIA = 'al-dia';
 export const ESTAT_PENDENT = 'pendent';
 export const ESTAT_VENCUT = 'vencut';
+export const ESTAT_NOU_REGISTRE = 'nou-registre';
+
+// Comparem sempre dates de calendari, no instants: `ultimPagament` és una data
+// 'YYYY-MM-DD' sense hora, i `avui` pot tenir qualsevol hora del dia. Construïm
+// totes dues bandes com a mitjanit LOCAL per evitar que la interpretació UTC de
+// `ultimPagament` faci vèncer el soci hores abans d'hora en fusos horaris per
+// davant d'UTC.
+export function calcularVenciment(soci) {
+  const [any, mes, dia] = soci.ultimPagament.split('-').map(Number);
+  return new Date(any + 1, mes - 1, dia);
+}
+
+function dataCalendari(data) {
+  return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+}
 
 export function calcularEstatSoci(soci, avui = new Date()) {
+  if (!soci.numeroSoci) return ESTAT_NOU_REGISTRE;
   if (soci.estatManual === 'pendent') return ESTAT_PENDENT;
-
-  // Comparem dates de calendari, no instants: `ultimPagament` és una data
-  // 'YYYY-MM-DD' sense hora, i `avui` pot tenir qualsevol hora del dia.
-  // Construïm totes dues bandes com a mitjanit LOCAL per evitar que la
-  // interpretació UTC de `ultimPagament` faci vèncer el soci hores abans
-  // d'hora en fusos horaris per davant d'UTC.
-  const [any, mes, dia] = soci.ultimPagament.split('-').map(Number);
-  const venciment = new Date(any + 1, mes - 1, dia);
-  const avuiData = new Date(avui.getFullYear(), avui.getMonth(), avui.getDate());
-
+  const venciment = calcularVenciment(soci);
+  const avuiData = dataCalendari(avui);
   return avuiData > venciment ? ESTAT_VENCUT : ESTAT_AL_DIA;
+}
+
+export function diesFinsVenciment(soci, avui = new Date()) {
+  const MS_PER_DIA = 24 * 60 * 60 * 1000;
+  const venciment = calcularVenciment(soci);
+  const avuiData = dataCalendari(avui);
+  return Math.round((venciment.getTime() - avuiData.getTime()) / MS_PER_DIA);
 }

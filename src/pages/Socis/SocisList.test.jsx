@@ -37,4 +37,26 @@ describe('SocisList', () => {
     expect(screen.queryByText('Anna')).not.toBeInTheDocument();
     expect(screen.getByText('Marc')).toBeInTheDocument();
   });
+
+  it('per defecte ordena per número de soci descendent', () => {
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    const files = screen.getAllByRole('row').slice(1);
+    expect(files[0]).toHaveTextContent('Marc');
+    expect(files[1]).toHaveTextContent('Anna');
+  });
+
+  it('en clicar una capçalera, ordena per aquella columna', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    await user.click(screen.getByRole('button', { name: /^Nom/ }));
+    const files = screen.getAllByRole('row').slice(1);
+    expect(files[0]).toHaveTextContent('Anna');
+    expect(files[1]).toHaveTextContent('Marc');
+  });
+
+  it('el nom i els cognoms enllacen a la fitxa del soci', () => {
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Anna' })).toHaveAttribute('href', '/socis/1');
+    expect(screen.getByRole('link', { name: 'Vidal' })).toHaveAttribute('href', '/socis/1');
+  });
 });

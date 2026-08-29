@@ -12,7 +12,6 @@ const CAMPS_INICIALS = {
 };
 
 const CAMPS_FORMULARI = [
-  ['numeroSoci', 'Número de soci/a'],
   ['nom', 'Nom'],
   ['cognoms', 'Cognoms'],
   ['poblacio', 'Població'],
@@ -33,6 +32,7 @@ export default function SociForm() {
   const [dades, setDades] = useState(CAMPS_INICIALS);
   const [carregant, setCarregant] = useState(editant);
   const [error, setError] = useState(null);
+  const [desbloquejat, setDesbloquejat] = useState(!editant);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +69,10 @@ export default function SociForm() {
   };
 
   const handleRegistrarPagament = async () => {
+    const confirmat = window.confirm(
+      "Confirmes que has rebut el pagament d'avui? Aquesta acció no es pot desfer."
+    );
+    if (!confirmat) return;
     setError(null);
     try {
       const data = avui();
@@ -88,18 +92,37 @@ export default function SociForm() {
 
   return (
     <form className="soci-form" onSubmit={handleSubmit}>
-      <h1 className="soci-form__titol">{editant ? 'Editar soci/a' : "Donar d'alta un/a soci/a"}</h1>
+      <div className="soci-form__capcalera">
+        <h1 className="soci-form__titol">{editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}</h1>
+        {editant && !desbloquejat && (
+          <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
+            Editar dades
+          </button>
+        )}
+      </div>
+
+      {editant && (
+        <p className="soci-form__numero">
+          Número de soci/a: {dades.numeroSoci || "pendent d'assignar"}
+        </p>
+      )}
 
       {CAMPS_FORMULARI.map(([camp, etiqueta]) => (
         <div className="form__field" key={camp}>
           <label className="form__label" htmlFor={camp}>{etiqueta}</label>
-          <input id={camp} className="form__input" value={dades[camp] ?? ''} onChange={handleChange(camp)} />
+          <input
+            id={camp}
+            className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
+            value={dades[camp] ?? ''}
+            onChange={handleChange(camp)}
+            readOnly={!desbloquejat}
+          />
         </div>
       ))}
 
       {error && <p className="form__error">{error}</p>}
 
-      <button className="btn" type="submit">Desar</button>
+      {desbloquejat && <button className="btn" type="submit">Desar</button>}
       {editant && (
         <button className="btn btn--outline" type="button" onClick={handleRegistrarPagament}>
           Registrar pagament d'avui

@@ -33,3 +33,21 @@ export function mapExcelRowToSoci(row, dataImportacio) {
     actiu: true,
   };
 }
+
+// Una fila de l'Excel sense número de soci/a encara no es considera un soci
+// confirmat (no ha pagat la quota) — es tracta igual que una sol·licitud
+// arribada pel formulari públic, pendent de revisió i aprovació manual.
+export function mapExcelRowToSolicitud(row) {
+  return {
+    nom: text(row.nom) ?? '',
+    cognoms: text(row.cognoms) ?? '',
+    poblacio: text(row.poblacio) ?? '',
+    codiPostal: text(row.codiPostal) ?? '',
+    telefon: text(row.telefon) ?? '',
+    correuElectronic: text(row.correuElectronic) ?? '',
+    comentaris: '',
+    acceptaPrivacitat: true,
+    acceptaDadesPersonals: true,
+    estat: 'pendent',
+  };
+}

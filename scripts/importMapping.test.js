@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapExcelRowToSoci } from './importMapping.js';
+import { mapExcelRowToSoci, mapExcelRowToSolicitud } from './importMapping.js';
 
 describe('mapExcelRowToSoci', () => {
   it('mapeja les columnes de l\'Excel i fixa dataAlta/ultimPagament a la data d\'importació', () => {
@@ -44,5 +44,24 @@ describe('mapExcelRowToSoci', () => {
     };
     const soci = mapExcelRowToSoci(row, '2026-08-29');
     expect(soci.correuElectronic).toBe('anna@example.com');
+  });
+});
+
+describe('mapExcelRowToSolicitud', () => {
+  it('mapeja una fila sense número de soci com una sol·licitud pendent', () => {
+    const solicitud = mapExcelRowToSolicitud({
+      nom: 'Gerard', cognoms: 'Fernández', poblacio: 'Roda de Berà',
+      codiPostal: '43883', telefon: '682472336', correuElectronic: 'gerard@example.com',
+    });
+    expect(solicitud).toEqual({
+      nom: 'Gerard', cognoms: 'Fernández', poblacio: 'Roda de Berà',
+      codiPostal: '43883', telefon: '682472336', correuElectronic: 'gerard@example.com',
+      comentaris: '', acceptaPrivacitat: true, acceptaDadesPersonals: true, estat: 'pendent',
+    });
+  });
+
+  it('deixa cadena buida al correu electrònic absent', () => {
+    const solicitud = mapExcelRowToSolicitud({ nom: 'Jesús', cognoms: 'Bolea' });
+    expect(solicitud.correuElectronic).toBe('');
   });
 });

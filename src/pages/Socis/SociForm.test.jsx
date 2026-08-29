@@ -57,10 +57,53 @@ describe('SociForm — alta', () => {
   });
 });
 
+describe('SociForm — mode lectura/edició', () => {
+  beforeEach(() => {
+    updateDoc.mockClear();
+  });
+
+  it('en editar un soci existent, els camps són de només lectura per defecte', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByLabelText('Nom')).toHaveAttribute('readonly');
+    expect(screen.queryByRole('button', { name: 'Desar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar dades' })).toBeInTheDocument();
+  });
+
+  it('en clicar "Editar dades", els camps es tornen editables i apareix Desar', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('Nom')).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
+  });
+
+  it('en crear un soci nou, els camps ja són editables sense cal clicar res', () => {
+    render(
+      <MemoryRouter initialEntries={['/socis/nou']}>
+        <Routes><Route path="/socis/nou" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByLabelText('Nom')).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar dades' })).not.toBeInTheDocument();
+  });
+});
+
 describe('SociForm — registrar pagament', () => {
   beforeEach(() => {
     updateDoc.mockClear();
     getDocs.mockClear();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   function renderEnEdicio() {
@@ -73,6 +116,23 @@ describe('SociForm — registrar pagament', () => {
     );
   }
 
+  it('demana confirmació abans de registrar el pagament', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    renderEnEdicio();
+    await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('no fa res si es cancel·la la confirmació', async () => {
+    window.confirm.mockReturnValue(false);
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    renderEnEdicio();
+    await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
   it('assigna el següent número de soci disponible si encara no en té', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
     getDocs.mockResolvedValueOnce({
@@ -83,7 +143,7 @@ describe('SociForm — registrar pagament', () => {
     await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
     expect(getDocs).toHaveBeenCalledTimes(1);
     expect(updateDoc.mock.calls[0][1].numeroSoci).toBe(42);
-    expect(await screen.findByDisplayValue('42')).toBeInTheDocument();
+    expect(await screen.findByText('Número de soci/a: 42')).toBeInTheDocument();
   });
 
   it('no toca el número de soci si ja en té un', async () => {

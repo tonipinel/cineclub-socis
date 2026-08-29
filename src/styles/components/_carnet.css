@@ -1,6 +1,59 @@
-.carnet-qr {
-  @apply flex flex-col items-center gap-2 p-4;
+.carnet-wrapper {
+  @apply flex flex-col items-center gap-3 p-4;
 }
-.carnet-qr__imatge {
-  @apply h-40 w-40;
+.carnet-wrapper__accio {
+  @apply print:hidden;
+}
+.carnet {
+  @apply flex overflow-hidden bg-black;
+  width: 85.6mm;
+  height: 54mm;
+  border: 0.6mm solid #bf9000;
+  box-shadow: 0 2mm 4mm rgba(0, 0, 0, 0.3);
+}
+.carnet__info {
+  @apply flex flex-1 flex-col justify-center gap-1;
+  padding: 3mm 2mm 3mm 4mm;
+}
+.carnet__logo {
+  @apply h-auto;
+  width: 30mm;
+  margin-bottom: 1mm;
+}
+.carnet__etiqueta {
+  @apply font-display font-bold uppercase tracking-wide text-gold;
+  font-size: 7pt;
+}
+.carnet__nom {
+  @apply font-display font-bold uppercase leading-tight text-white;
+  font-size: 11pt;
+}
+.carnet__detall {
+  @apply font-body text-white/70;
+  font-size: 7pt;
+}
+.carnet__qr {
+  @apply flex-shrink-0 self-center bg-white;
+  width: 40mm;
+  height: 40mm;
+  margin-right: 3mm;
+}
+
+@media print {
+  .carnet-wrapper {
+    padding: 0;
+  }
+  .carnet {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    size: 85.6mm 54mm;
+    margin: 0;
+  }
 }

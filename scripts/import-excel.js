@@ -2,8 +2,8 @@
 import { readFileSync } from 'node:fs';
 import ExcelJS from 'exceljs';
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { mapExcelRowToSoci } from './importMapping.js';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { mapExcelRowToSoci, mapExcelRowToSolicitud } from './importMapping.js';
 
 const [, , excelPath, serviceAccountPath] = process.argv;
 
@@ -37,7 +37,8 @@ const sheet = workbook.worksheets[0];
 const capcaleres = sheet.getRow(1).values.slice(1).map((v) => CAPCALERES[v] ?? null);
 const dataImportacio = new Date().toISOString().slice(0, 10);
 
-let importats = 0;
+let socisImportats = 0;
+let solicitudsImportades = 0;
 for (let numFila = 2; numFila <= sheet.rowCount; numFila += 1) {
   const valors = sheet.getRow(numFila).values.slice(1);
   if (valors.every((v) => v === undefined || v === null)) continue;
@@ -45,17 +46,23 @@ for (let numFila = 2; numFila <= sheet.rowCount; numFila += 1) {
   capcaleres.forEach((camp, i) => {
     if (camp) row[camp] = valors[i];
   });
-  const soci = mapExcelRowToSoci(row, dataImportacio);
-  // Idempotent quan hi ha número de soci/a: l'ID del document és aquest número,
-  // no un ID autogenerat, perquè tornar a executar l'script (p. ex. per corregir
-  // dades) actualitzi el mateix soci en lloc de duplicar-lo. Alguns socis reals
-  // encara no tenen número assignat — per aquests es crea un ID autogenerat
-  // (no idempotent per a ells fins que se'ls assigni un número des de l'app).
-  const ref = soci.numeroSoci
-    ? db.collection('socis').doc(String(soci.numeroSoci))
-    : db.collection('socis').doc();
-  await ref.set(soci, { merge: true });
-  importats += 1;
+
+  if (row.numeroSoci) {
+    const soci = mapExcelRowToSoci(row, dataImportacio);
+    // Idempotent: l'ID del document és el número de soci/a, no un ID autogenerat,
+    // perquè tornar a executar l'script (p. ex. per corregir dades) actualitzi
+    // el mateix soci en lloc de duplicar-lo.
+    await db.collection('socis').doc(String(soci.numeroSoci)).set(soci, { merge: true });
+    socisImportats += 1;
+  } else {
+    // Una fila sense número de soci/a encara no ha pagat la quota — es tracta
+    // igual que una sol·licitud pendent de revisió, no com un soci confirmat.
+    await db.collection('solicituds').add({
+      ...mapExcelRowToSolicitud(row),
+      timestamp: Timestamp.now(),
+    });
+    solicitudsImportades += 1;
+  }
 }
 
-console.log(`Importats ${importats} socis.`);
+console.log(`Importats ${socisImportats} socis i ${solicitudsImportades} sol·licituds pendents.`);
