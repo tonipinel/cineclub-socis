@@ -6,6 +6,8 @@ import { RequireRole } from './auth/RequireRole';
 import Header from './components/Header';
 import AltaPublica from './pages/AltaPublica';
 import Accedir from './pages/Accedir';
+import SocisList from './pages/Socis/SocisList';
+import SociForm from './pages/Socis/SociForm';
 
 export default function App() {
   return (
@@ -19,7 +21,27 @@ export default function App() {
           element={
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
-                <p>Socis (properament)</p>
+                <SocisList />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SOCIS_NOU}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <SociForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SOCIS_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <SociForm />
               </RequireRole>
             </RequireAuth>
           }

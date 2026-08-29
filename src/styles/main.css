@@ -4,6 +4,7 @@
 @import "./components/_forms.css";
 @import "./components/_alta-publica.css";
 @import "./components/_accedir.css";
+@import "./components/_socis.css";
 
 @theme {
   --color-gold: #BF9000;
