@@ -21,4 +21,11 @@ describe('calcularEstatSoci', () => {
     const soci = { ultimPagament: '2026-01-01', estatManual: 'pendent' };
     expect(calcularEstatSoci(soci, new Date('2026-06-01'))).toBe(ESTAT_PENDENT);
   });
+
+  it('retorna Al dia el mateix dia del venciment amb una hora local real (evita el bug de fus horari)', () => {
+    const soci = { ultimPagament: '2025-06-01' };
+    // new Date(any, mes, dia, ...) construeix en hora LOCAL, com fa l'app en producció
+    // (a diferència de new Date('YYYY-MM-DD'), que és mitjanit UTC).
+    expect(calcularEstatSoci(soci, new Date(2026, 5, 1, 15, 0))).toBe(ESTAT_AL_DIA);
+  });
 });
