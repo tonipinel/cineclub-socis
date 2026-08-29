@@ -18,12 +18,12 @@ function text(valor) {
 
 export function mapExcelRowToSoci(row, dataImportacio) {
   return {
-    numeroSoci: valorPla(row.numeroSoci),
-    nom: text(row.nom),
-    cognoms: text(row.cognoms),
-    poblacio: text(row.poblacio),
-    codiPostal: text(row.codiPostal),
-    telefon: text(row.telefon),
+    numeroSoci: valorPla(row.numeroSoci) ?? '',
+    nom: text(row.nom) ?? '',
+    cognoms: text(row.cognoms) ?? '',
+    poblacio: text(row.poblacio) ?? '',
+    codiPostal: text(row.codiPostal) ?? '',
+    telefon: text(row.telefon) ?? '',
     correuElectronic: text(row.correuElectronic) ?? '',
     dni: text(row.dni) ?? '',
     grupWhatsapp: text(row.grupWhatsapp) ?? '',

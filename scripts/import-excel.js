@@ -46,10 +46,15 @@ for (let numFila = 2; numFila <= sheet.rowCount; numFila += 1) {
     if (camp) row[camp] = valors[i];
   });
   const soci = mapExcelRowToSoci(row, dataImportacio);
-  // Idempotent: l'ID del document és el número de soci/a, no un ID autogenerat,
-  // perquè tornar a executar l'script (p. ex. per corregir dades) actualitzi
-  // el mateix soci en lloc de duplicar-lo.
-  await db.collection('socis').doc(String(soci.numeroSoci)).set(soci, { merge: true });
+  // Idempotent quan hi ha número de soci/a: l'ID del document és aquest número,
+  // no un ID autogenerat, perquè tornar a executar l'script (p. ex. per corregir
+  // dades) actualitzi el mateix soci en lloc de duplicar-lo. Alguns socis reals
+  // encara no tenen número assignat — per aquests es crea un ID autogenerat
+  // (no idempotent per a ells fins que se'ls assigni un número des de l'app).
+  const ref = soci.numeroSoci
+    ? db.collection('socis').doc(String(soci.numeroSoci))
+    : db.collection('socis').doc();
+  await ref.set(soci, { merge: true });
   importats += 1;
 }
 

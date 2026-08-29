@@ -28,6 +28,14 @@ describe('mapExcelRowToSoci', () => {
     expect(soci.grupWhatsapp).toBe('');
   });
 
+  it('no genera camps undefined quan falten dades a l\'Excel (Firestore no accepta undefined)', () => {
+    const soci = mapExcelRowToSoci({ numeroSoci: 5, nom: 'Laia', cognoms: 'Puig' }, '2026-08-29');
+    expect(soci.poblacio).toBe('');
+    expect(soci.codiPostal).toBe('');
+    expect(soci.telefon).toBe('');
+    expect(Object.values(soci).every((v) => v !== undefined)).toBe(true);
+  });
+
   it('desempaqueta el valor pla d\'una cel·la amb hipervincle auto-detectat (p. ex. un correu)', () => {
     const row = {
       numeroSoci: 12, nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà',
