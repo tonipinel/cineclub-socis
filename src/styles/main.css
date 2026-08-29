@@ -9,6 +9,7 @@
 @import "./components/_carnet.css";
 @import "./components/_sessions.css";
 @import "./components/_tickets.css";
+@import "./components/_escaneig.css";
 
 @theme {
   --color-gold: #BF9000;

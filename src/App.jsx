@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import * as ROUTES from './constants/routes';
-import { ROLE_ADMIN } from './constants/roles';
+import { ROLE_ADMIN, ROLE_TAQUILLA } from './constants/roles';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import Header from './components/Header';
@@ -13,6 +13,7 @@ import SessionsList from './pages/Sessions/SessionsList';
 import SessionForm from './pages/Sessions/SessionForm';
 import TicketsPage from './pages/Tickets/TicketsPage';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
+import EscaneigPage from './pages/Escaneig/EscaneigPage';
 
 export default function App() {
   return (
@@ -97,6 +98,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <TicketsPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.ESCANEIG}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
+                <EscaneigPage />
               </RequireRole>
             </RequireAuth>
           }
