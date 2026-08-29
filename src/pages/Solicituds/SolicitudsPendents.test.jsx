@@ -14,6 +14,9 @@ vi.mock('firebase/firestore', () => {
     where: vi.fn(),
     doc: vi.fn((...args) => args[args.length - 1]),
     updateDoc: vi.fn().mockResolvedValue(undefined),
+    getDocs: vi.fn().mockResolvedValue({
+      docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }],
+    }),
     writeBatch,
     onSnapshot: (q, callback) => {
       callback({
@@ -27,12 +30,13 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-import { updateDoc, writeBatch, __batchSet, __batchUpdate, __batchCommit } from 'firebase/firestore';
+import { getDocs, updateDoc, writeBatch, __batchSet, __batchUpdate, __batchCommit } from 'firebase/firestore';
 import SolicitudsPendents from './SolicitudsPendents';
 
 describe('SolicitudsPendents', () => {
   beforeEach(() => {
     updateDoc.mockClear();
+    getDocs.mockClear();
     writeBatch.mockClear();
     __batchSet.mockClear();
     __batchUpdate.mockClear();
@@ -40,20 +44,15 @@ describe('SolicitudsPendents', () => {
     __batchCommit.mockResolvedValue(undefined);
   });
 
-  it('el botó Aprovar està desactivat fins que s\'introdueix un número de soci', () => {
-    render(<SolicitudsPendents />);
-    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
-  });
-
-  it('aprova una sol·licitud: crea el soci i marca la sol·licitud com a aprovada en un sol batch', async () => {
+  it('aprova una sol·licitud: assigna el següent número de soci disponible i crea el soci en un sol batch', async () => {
     const user = userEvent.setup();
     render(<SolicitudsPendents />);
-    await user.type(screen.getByLabelText('Número de soci/a'), '42');
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    expect(getDocs).toHaveBeenCalledTimes(1);
     expect(writeBatch).toHaveBeenCalledTimes(1);
     expect(__batchSet).toHaveBeenCalledTimes(1);
     expect(__batchSet.mock.calls[0][1].nom).toBe('Anna');
-    expect(__batchSet.mock.calls[0][1].numeroSoci).toBe('42');
+    expect(__batchSet.mock.calls[0][1].numeroSoci).toBe(42);
     expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'aprovada' });
     expect(__batchCommit).toHaveBeenCalledTimes(1);
   });
@@ -71,7 +70,6 @@ describe('SolicitudsPendents', () => {
     __batchCommit.mockReturnValue(new Promise((resolve) => { resolBatch = resolve; }));
     const user = userEvent.setup();
     render(<SolicitudsPendents />);
-    await user.type(screen.getByLabelText('Número de soci/a'), '42');
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
@@ -82,7 +80,6 @@ describe('SolicitudsPendents', () => {
     __batchCommit.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
     render(<SolicitudsPendents />);
-    await user.type(screen.getByLabelText('Número de soci/a'), '42');
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeEnabled();

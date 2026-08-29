@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { addDoc, collection, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import CarnetQR from '../../components/CarnetQR';
+import { properNumeroSoci } from '../../lib/numeroSoci';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -71,8 +72,13 @@ export default function SociForm() {
     setError(null);
     try {
       const data = avui();
-      await updateDoc(doc(db, 'socis', id), { ultimPagament: data, estatManual: null });
-      setDades((d) => ({ ...d, ultimPagament: data, estatManual: null }));
+      const actualitzacio = { ultimPagament: data, estatManual: null };
+      if (!dades.numeroSoci) {
+        const socisExistents = await getDocs(collection(db, 'socis'));
+        actualitzacio.numeroSoci = properNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
+      }
+      await updateDoc(doc(db, 'socis', id), actualitzacio);
+      setDades((d) => ({ ...d, ...actualitzacio }));
     } catch {
       setError("No s'ha pogut desar. Torna-ho a provar.");
     }

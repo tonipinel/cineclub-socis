@@ -13,6 +13,3 @@
 .solicituds-pendents__accions {
   @apply flex items-end gap-2;
 }
-.solicituds-pendents__numero {
-  @apply mb-0 w-32;
-}
