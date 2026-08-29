@@ -27,4 +27,14 @@ describe('mapExcelRowToSoci', () => {
     expect(soci.dni).toBe('');
     expect(soci.grupWhatsapp).toBe('');
   });
+
+  it('desempaqueta el valor pla d\'una cel·la amb hipervincle auto-detectat (p. ex. un correu)', () => {
+    const row = {
+      numeroSoci: 12, nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà',
+      codiPostal: '43883', telefon: '600000000',
+      correuElectronic: { text: 'anna@example.com', hyperlink: 'mailto:anna@example.com' },
+    };
+    const soci = mapExcelRowToSoci(row, '2026-08-29');
+    expect(soci.correuElectronic).toBe('anna@example.com');
+  });
 });
