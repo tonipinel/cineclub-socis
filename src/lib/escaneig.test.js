@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { identificarCodi, codisDeLot, resumAccessLog } from './escaneig';
+import { carnetPayload } from './carnet';
 
 describe('identificarCodi', () => {
   it('reconeix un codi de soci', () => {
@@ -19,6 +20,10 @@ describe('identificarCodi', () => {
   it('ignora espais en blanc al voltant del codi', () => {
     expect(identificarCodi('  SOCI-7  ')).toEqual({ tipus: 'soci', numeroSoci: 7 });
   });
+
+  it('identifica correctament un codi generat per carnetPayload', () => {
+    expect(identificarCodi(carnetPayload({ numeroSoci: 42 }))).toEqual({ tipus: 'soci', numeroSoci: 42 });
+  });
 });
 
 describe('codisDeLot', () => {
@@ -33,6 +38,10 @@ describe('codisDeLot', () => {
     const codis = codisDeLot('lot2');
     expect(codis[0]).toBe('L2-001');
     expect(codis[149]).toBe('L2-150');
+  });
+
+  it('identifica tots els codis d\'un lot com a tiquets genèrics', () => {
+    expect(codisDeLot('lot2').every((c) => identificarCodi(c).tipus === 'generic')).toBe(true);
   });
 });
 
