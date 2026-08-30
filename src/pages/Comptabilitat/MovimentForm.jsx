@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
@@ -124,7 +124,7 @@ export default function MovimentForm() {
         ? { ...base, direccio: dades.direccio }
         : { ...base, categoria: dades.categoria, metodePagament: dades.metodePagament };
       if (editant) {
-        await updateDoc(doc(db, 'moviments', id), moviment);
+        await setDoc(doc(db, 'moviments', id), moviment);
       } else {
         await addDoc(collection(db, 'moviments'), moviment);
       }

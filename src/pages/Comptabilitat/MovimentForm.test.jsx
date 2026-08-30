@@ -6,7 +6,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
-  updateDoc: vi.fn().mockResolvedValue(undefined),
+  setDoc: vi.fn().mockResolvedValue(undefined),
   deleteDoc: vi.fn().mockResolvedValue(undefined),
   getDoc: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
@@ -16,7 +16,7 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
 }));
 
-import { addDoc, deleteDoc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, deleteDoc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import MovimentForm from './MovimentForm';
 
 const MOVIMENT_EXISTENT = {
@@ -111,6 +111,30 @@ describe('MovimentForm — mode lectura/edició', () => {
     expect(screen.getByLabelText('Concepte')).not.toHaveAttribute('readonly');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+  });
+});
+
+describe('MovimentForm — canviar tipus en editar', () => {
+  it('en canviar el tipus d\'un moviment existent, no deixa camps obsolets del tipus anterior', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'traspas');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    const [, dadesDesades] = setDoc.mock.calls[0];
+    expect(dadesDesades.tipus).toBe('traspas');
+    expect(dadesDesades.direccio).toBe('caixa-a-banc');
+    expect(Object.keys(dadesDesades)).not.toContain('categoria');
+    expect(Object.keys(dadesDesades)).not.toContain('metodePagament');
   });
 });
 
