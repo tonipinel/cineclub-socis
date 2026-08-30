@@ -107,7 +107,7 @@ describe('SessionForm — desar una sessió ja activa', () => {
   });
 });
 
-describe('SessionForm — desglose econòmic', () => {
+describe('SessionForm — desglossament econòmic', () => {
   it('mostra els subtotals per mètode de pagament i un enllaç per afegir un moviment', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, lotActiu: 'lot1', activa: false }),
@@ -131,8 +131,8 @@ describe('SessionForm — desglose econòmic', () => {
         <Routes><Route path="/sessions/:id" element={<SessionForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('efectiu: 50€')).toBeInTheDocument();
-    expect(screen.getByText('datafon: 20€')).toBeInTheDocument();
+    expect(await screen.findByText('Efectiu: 50.00€')).toBeInTheDocument();
+    expect(screen.getByText('Datàfon: 20.00€')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: "Afegir moviment d'aquesta sessió" })).toHaveAttribute(
       'href', '/comptabilitat/nou?sessionId=1'
     );

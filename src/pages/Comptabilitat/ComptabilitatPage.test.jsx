@@ -7,6 +7,7 @@ vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   onSnapshot: (q, callback) => {
     callback({
       docs: [
@@ -14,7 +15,7 @@ vi.mock('firebase/firestore', () => ({
           id: '1',
           data: () => ({
             data: '2026-03-01', concepte: 'Quotes de març', tipus: 'ingres',
-            categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100,
+            categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100, sessionId: 's1',
           }),
         },
         {
@@ -30,6 +31,7 @@ vi.mock('firebase/firestore', () => ({
   },
 }));
 
+import { getDocs } from 'firebase/firestore';
 import ComptabilitatPage from './ComptabilitatPage';
 
 describe('ComptabilitatPage', () => {
@@ -71,5 +73,15 @@ describe('ComptabilitatPage', () => {
   it('mostra un enllaç per afegir un moviment nou', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Afegir moviment' })).toBeInTheDocument();
+  });
+
+  it('filtra per sessió', async () => {
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    const user = userEvent.setup();
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    await screen.findByRole('option', { name: 'The Artist' });
+    await user.selectOptions(screen.getAllByRole('combobox')[2], 's1');
+    expect(screen.getByText('Quotes de març')).toBeInTheDocument();
+    expect(screen.queryByText('Lloguer de sala')).not.toBeInTheDocument();
   });
 });

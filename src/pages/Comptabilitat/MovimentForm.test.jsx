@@ -115,6 +115,10 @@ describe('MovimentForm — mode lectura/edició', () => {
 });
 
 describe('MovimentForm — canviar tipus en editar', () => {
+  beforeEach(() => {
+    setDoc.mockClear();
+  });
+
   it('en canviar el tipus d\'un moviment existent, no deixa camps obsolets del tipus anterior', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     const user = userEvent.setup();
@@ -252,5 +256,20 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
     );
     await screen.findByRole('option', { name: 'The Artist' });
     expect(screen.getByLabelText('Sessió (opcional)')).toHaveValue('s1');
+  });
+});
+
+describe('MovimentForm — moviment inexistent', () => {
+  it('navega al llistat si el moviment no existeix', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => undefined });
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/inexistent']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
   });
 });

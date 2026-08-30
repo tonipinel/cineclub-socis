@@ -6,6 +6,7 @@ import {
 import { db } from '../../firebase/firebase';
 import {
   calcularTotal, CATEGORIES, DIRECCIONS_TRASPAS, METODES_DESPESA, METODES_INGRES, TIPUS_MOVIMENT,
+  ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import { resumAccessLog } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
@@ -31,6 +32,10 @@ export default function MovimentForm() {
     if (!editant) return;
     getDoc(doc(db, 'moviments', id)).then((snap) => {
       const dadesDoc = snap.data();
+      if (!dadesDoc) {
+        navigate(ROUTES.COMPTABILITAT, { replace: true });
+        return;
+      }
       setDades((d) => ({
         ...d,
         ...dadesDoc,
@@ -41,7 +46,7 @@ export default function MovimentForm() {
       }));
       setCarregant(false);
     });
-  }, [id, editant]);
+  }, [id, editant, navigate]);
 
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
@@ -123,6 +128,9 @@ export default function MovimentForm() {
       const moviment = dades.tipus === TIPUS_MOVIMENT.TRASPAS
         ? { ...base, direccio: dades.direccio }
         : { ...base, categoria: dades.categoria, metodePagament: dades.metodePagament };
+      // `moviment` és sempre el document sencer per al tipus actual: se sobreescriu
+      // amb setDoc (no merge) perquè un canvi de tipus no deixi camps obsolets
+      // (categoria/metodePagament/direccio) del tipus anterior.
       if (editant) {
         await setDoc(doc(db, 'moviments', id), moviment);
       } else {
@@ -164,12 +172,12 @@ export default function MovimentForm() {
 
       <div className="form__field">
         <label className="form__label" htmlFor="data">Data</label>
-        <input id="data" type="date" className="form__input" value={dades.data} onChange={handleChange('data')} readOnly={!desbloquejat} />
+        <input id="data" type="date" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.data} onChange={handleChange('data')} readOnly={!desbloquejat} />
       </div>
 
       <div className="form__field">
         <label className="form__label" htmlFor="concepte">Concepte</label>
-        <input id="concepte" className="form__input" value={dades.concepte} onChange={handleChange('concepte')} readOnly={!desbloquejat} />
+        <input id="concepte" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.concepte} onChange={handleChange('concepte')} readOnly={!desbloquejat} />
       </div>
 
       <div className="form__field">
@@ -185,8 +193,9 @@ export default function MovimentForm() {
         <div className="form__field">
           <label className="form__label" htmlFor="direccio">Direcció</label>
           <select id="direccio" className="form__input" value={dades.direccio} onChange={handleChange('direccio')} disabled={!desbloquejat}>
-            <option value="caixa-a-banc">Caixa → Banc</option>
-            <option value="banc-a-caixa">Banc → Caixa</option>
+            {DIRECCIONS_TRASPAS.map((d) => (
+              <option key={d} value={d}>{ETIQUETES_DIRECCIO[d]}</option>
+            ))}
           </select>
         </div>
       ) : (
@@ -203,7 +212,7 @@ export default function MovimentForm() {
             <label className="form__label" htmlFor="metodePagament">Mètode de pagament</label>
             <select id="metodePagament" className="form__input" value={dades.metodePagament} onChange={handleChange('metodePagament')} disabled={!desbloquejat}>
               {metodes.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>{ETIQUETES_METODE[m]}</option>
               ))}
             </select>
           </div>
@@ -234,12 +243,12 @@ export default function MovimentForm() {
 
       <div className="form__field">
         <label className="form__label" htmlFor="preuUnitari">Preu unitari</label>
-        <input id="preuUnitari" type="number" step="0.01" className="form__input" value={dades.preuUnitari} onChange={handleCanviPreuUnitari} readOnly={!desbloquejat} />
+        <input id="preuUnitari" type="number" step="0.01" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.preuUnitari} onChange={handleCanviPreuUnitari} readOnly={!desbloquejat} />
       </div>
 
       <div className="form__field">
         <label className="form__label" htmlFor="quantitat">Quantitat</label>
-        <input id="quantitat" type="number" className="form__input" value={dades.quantitat} onChange={handleChange('quantitat')} readOnly={!desbloquejat} />
+        <input id="quantitat" type="number" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.quantitat} onChange={handleChange('quantitat')} readOnly={!desbloquejat} />
       </div>
 
       <div className="form__field">
@@ -248,7 +257,7 @@ export default function MovimentForm() {
           id="total"
           type="number"
           step="0.01"
-          className="form__input"
+          className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
           value={quantitatEsUnitaria ? dades.total : calcularTotal(dades.preuUnitari, dades.quantitat)}
           onChange={handleCanviTotal}
           readOnly={!desbloquejat || !quantitatEsUnitaria}

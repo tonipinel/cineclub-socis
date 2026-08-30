@@ -12,6 +12,28 @@ export const METODES_INGRES = ['efectiu', 'datafon', 'transferencia'];
 export const METODES_DESPESA = ['efectiu', 'banc'];
 export const DIRECCIONS_TRASPAS = ['caixa-a-banc', 'banc-a-caixa'];
 
+export const ETIQUETES_TIPUS = {
+  [TIPUS_MOVIMENT.INGRES]: 'Ingrés',
+  [TIPUS_MOVIMENT.DESPESA]: 'Despesa',
+  [TIPUS_MOVIMENT.TRASPAS]: 'Traspàs',
+};
+
+export const ETIQUETES_METODE = {
+  efectiu: 'Efectiu',
+  datafon: 'Datàfon',
+  transferencia: 'Transferència',
+  banc: 'Banc',
+};
+
+export const ETIQUETES_DIRECCIO = {
+  'caixa-a-banc': 'Caixa → Banc',
+  'banc-a-caixa': 'Banc → Caixa',
+};
+
+export function formatEuros(valor) {
+  return `${(Number(valor) || 0).toFixed(2)}€`;
+}
+
 export function calcularTotal(preuUnitari, quantitat) {
   return (Number(preuUnitari) || 0) * (Number(quantitat) || 0);
 }

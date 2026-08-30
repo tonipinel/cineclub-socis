@@ -5,11 +5,15 @@ import {
   filtrarMoviments,
   ordenarMoviments,
   subtotalsPerMetode,
+  formatEuros,
   TIPUS_MOVIMENT,
   CATEGORIES,
   METODES_INGRES,
   METODES_DESPESA,
   DIRECCIONS_TRASPAS,
+  ETIQUETES_TIPUS,
+  ETIQUETES_METODE,
+  ETIQUETES_DIRECCIO,
 } from './moviments';
 
 describe('calcularTotal', () => {
@@ -148,6 +152,46 @@ describe('subtotalsPerMetode', () => {
 
   it('retorna un objecte buit si no hi ha moviments', () => {
     expect(subtotalsPerMetode([])).toEqual({});
+  });
+});
+
+describe('etiquetes', () => {
+  it('exposa les etiquetes catalanes per tipus', () => {
+    expect(ETIQUETES_TIPUS).toEqual({
+      ingres: 'Ingrés',
+      despesa: 'Despesa',
+      traspas: 'Traspàs',
+    });
+  });
+
+  it('exposa les etiquetes catalanes per mètode de pagament', () => {
+    expect(ETIQUETES_METODE).toEqual({
+      efectiu: 'Efectiu',
+      datafon: 'Datàfon',
+      transferencia: 'Transferència',
+      banc: 'Banc',
+    });
+  });
+
+  it('exposa les etiquetes catalanes per direcció de traspàs', () => {
+    expect(ETIQUETES_DIRECCIO).toEqual({
+      'caixa-a-banc': 'Caixa → Banc',
+      'banc-a-caixa': 'Banc → Caixa',
+    });
+  });
+});
+
+describe('formatEuros', () => {
+  it('formata un import positiu amb dos decimals i el símbol euro', () => {
+    expect(formatEuros(100)).toBe('100.00€');
+  });
+
+  it('formata un import negatiu', () => {
+    expect(formatEuros(-40)).toBe('-40.00€');
+  });
+
+  it('evita els artefactes de coma flotant', () => {
+    expect(formatEuros(0.1 + 0.2)).toBe('0.30€');
   });
 });
 

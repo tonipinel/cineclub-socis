@@ -20,9 +20,6 @@
 .comptabilitat__taula td {
   @apply border-b border-black/10 px-2 py-2;
 }
-.comptabilitat__taula tbody tr {
-  @apply cursor-pointer;
-}
 .comptabilitat__taula tbody tr:nth-child(even) {
   @apply bg-black/5;
 }

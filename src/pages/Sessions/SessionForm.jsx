@@ -5,7 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumAccessLog } from '../../lib/escaneig';
-import { subtotalsPerMetode } from '../../lib/moviments';
+import { subtotalsPerMetode, formatEuros, ETIQUETES_METODE } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 
 const CAMPS_INICIALS = {
@@ -144,11 +144,11 @@ export default function SessionForm() {
       )}
 
       {editant && (
-        <div className="session-form__desglose">
-          <h2 className="session-form__desglose-titol">Desglossament econòmic</h2>
+        <div className="session-form__resum">
+          <h2 className="session-form__desglossament-titol">Desglossament econòmic</h2>
           {Object.keys(subtotals).length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
           {Object.entries(subtotals).map(([metode, total]) => (
-            <p key={metode}>{metode}: {total}€</p>
+            <p key={metode}>{ETIQUETES_METODE[metode] ?? metode}: {formatEuros(total)}</p>
           ))}
           <Link className="btn btn--outline" to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`}>
             Afegir moviment d'aquesta sessió

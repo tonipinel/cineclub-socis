@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
+import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
-import { calcularSaldos, filtrarMoviments, ordenarMoviments, TIPUS_MOVIMENT, CATEGORIES } from '../../lib/moviments';
+import {
+  calcularSaldos, filtrarMoviments, ordenarMoviments, formatEuros,
+  TIPUS_MOVIMENT, CATEGORIES, ETIQUETES_TIPUS, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
+} from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 
 const COLUMNES = [
@@ -16,16 +19,12 @@ const COLUMNES = [
 
 const COLUMNES_ORDENABLES = new Set(['data', 'concepte', 'tipus', 'total']);
 
-function formatEuros(valor) {
-  return `${valor.toFixed(2)}€`;
-}
-
 const RENDERITZAR_CELDA = {
   data: (m) => m.data,
   concepte: (m) => m.concepte,
-  tipus: (m) => m.tipus,
-  categoriaODireccio: (m) => m.categoria ?? m.direccio ?? '',
-  metodePagament: (m) => m.metodePagament ?? '',
+  tipus: (m) => ETIQUETES_TIPUS[m.tipus] ?? m.tipus,
+  categoriaODireccio: (m) => m.categoria ?? ETIQUETES_DIRECCIO[m.direccio] ?? '',
+  metodePagament: (m) => ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament ?? '',
   total: (m) => formatEuros(Number(m.total) || 0),
 };
 
@@ -33,13 +32,20 @@ export default function ComptabilitatPage() {
   const [moviments, setMoviments] = useState([]);
   const [tipus, setTipus] = useState('tots');
   const [categoria, setCategoria] = useState('totes');
+  const [sessionId, setSessionId] = useState('totes');
+  const [sessions, setSessions] = useState([]);
   const [ordenacio, setOrdenacio] = useState({ columna: 'data', direccio: 'desc' });
-  const navigate = useNavigate();
 
   useEffect(() => {
     const q = query(collection(db, 'moviments'));
     return onSnapshot(q, (snap) => {
       setMoviments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+  }, []);
+
+  useEffect(() => {
+    getDocs(collection(db, 'sessions')).then((snap) => {
+      setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
   }, []);
 
@@ -51,7 +57,7 @@ export default function ComptabilitatPage() {
   };
 
   const saldos = calcularSaldos(moviments);
-  const movimentsFiltrats = ordenarMoviments(filtrarMoviments(moviments, { tipus, categoria }), ordenacio);
+  const movimentsFiltrats = ordenarMoviments(filtrarMoviments(moviments, { tipus, categoria, sessionId }), ordenacio);
 
   return (
     <div className="comptabilitat">
@@ -79,6 +85,12 @@ export default function ComptabilitatPage() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <select className="form__input" value={sessionId} onChange={(e) => setSessionId(e.target.value)}>
+          <option value="totes">Totes les sessions</option>
+          {sessions.map((s) => (
+            <option key={s.id} value={s.id}>{s.titol}</option>
+          ))}
+        </select>
       </div>
 
       <table className="comptabilitat__taula">
@@ -98,9 +110,13 @@ export default function ComptabilitatPage() {
         </thead>
         <tbody>
           {movimentsFiltrats.map((moviment) => (
-            <tr key={moviment.id} onClick={() => navigate(ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id))}>
+            <tr key={moviment.id}>
               {COLUMNES.map(([columna]) => (
-                <td key={columna}>{RENDERITZAR_CELDA[columna](moviment)}</td>
+                <td key={columna}>
+                  {columna === 'concepte' ? (
+                    <Link to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>{RENDERITZAR_CELDA[columna](moviment)}</Link>
+                  ) : RENDERITZAR_CELDA[columna](moviment)}
+                </td>
               ))}
             </tr>
           ))}
