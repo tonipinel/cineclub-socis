@@ -145,7 +145,7 @@ export default function SessionForm() {
 
       {editant && (
         <div className="session-form__desglose">
-          <h2 className="session-form__desglose-titol">Desglose econòmic</h2>
+          <h2 className="session-form__desglose-titol">Desglossament econòmic</h2>
           {Object.keys(subtotals).length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
           {Object.entries(subtotals).map(([metode, total]) => (
             <p key={metode}>{metode}: {total}€</p>
