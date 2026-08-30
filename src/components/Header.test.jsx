@@ -45,6 +45,7 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Sessions' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Tiquets' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Escaneig' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Comptabilitat' })).toBeInTheDocument();
   });
 
   it('quan l\'usuari és taquilla, només mostra l\'enllaç d\'Escaneig i el botó de sortir', async () => {
@@ -55,6 +56,7 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Escaneig' })).toBeInTheDocument();
     expect(screen.queryByText('Socis')).not.toBeInTheDocument();
     expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Comptabilitat')).not.toBeInTheDocument();
     const botoSortir = screen.getByRole('button', { name: 'Sortir' });
     await user.click(botoSortir);
     expect(signOut).toHaveBeenCalledTimes(1);

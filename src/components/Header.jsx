@@ -16,6 +16,7 @@ export default function Header() {
           <Link className="site-header__link" to={ROUTES.SESSIONS}>Sessions</Link>
           <Link className="site-header__link" to={ROUTES.TICKETS}>Tiquets</Link>
           <Link className="site-header__link" to={ROUTES.ESCANEIG}>Escaneig</Link>
+          <Link className="site-header__link" to={ROUTES.COMPTABILITAT}>Comptabilitat</Link>
           <button className="site-header__link" type="button" onClick={signOut}>Sortir</button>
         </nav>
       )}
