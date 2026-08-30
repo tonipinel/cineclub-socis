@@ -37,6 +37,12 @@ node scripts/bootstrap-admin.js <email> <ruta-a-la-clau-de-service-account.json>
 
 Després, cal que aquesta persona tanqui sessió i torni a entrar perquè el navegador obtingui un ID token nou amb el claim `role: admin`.
 
+Per donar d'alta un usuari de **taquilla** (control d'accés a la porta, sense accés a Socis ni Sessions), s'utilitza el mateix script amb un tercer argument (la persona ha d'existir prèviament com a usuari d'Auth, igual que per a l'admin):
+
+```bash
+node scripts/bootstrap-admin.js <email> <ruta-a-la-clau-de-service-account.json> taquilla
+```
+
 ## Importació del cens actual (Excel)
 
 ```bash
@@ -61,3 +67,13 @@ npm run test:rules  # regles de Firestore contra l'emulador local
 ```
 
 `test:rules` necessita `firebase-tools` instal·lat globalment (`npm i -g firebase-tools`) i Java disponible al sistema (requerit per l'emulador de Firestore).
+
+## Escaneig a la porta
+
+La pantalla d'Escaneig necessita accedir a la càmera, cosa que el navegador només permet en un context segur (HTTPS). En producció (`associacio.cineclubrodadebera.cat`) ja funciona; però provant-ho amb `npm run dev` des d'un mòbil connectat a la xarxa local **no funcionarà** (l'accés a la càmera fallarà en silenci i caldrà el camp de text manual), perquè només `localhost` compta com a context segur — cal fer-ho des del mateix ordinador on corre el `dev server`, o provar directament contra la versió desplegada.
+
+`BarcodeDetector` (l'API que llegeix el QR amb la càmera) no està disponible a Safari/iOS en el moment d'escriure això: un iPhone a la porta no mostrarà cap vídeo i caurà directament al camp de text manual. Això és el comportament esperat, no una avaria — cal teclejar el codi que es mostra al carnet del soci (o llegir-lo del tiquet genèric).
+
+### Tiquets genèrics i alternança de lots
+
+Hi ha dos lots (~150 tiquets pre-impresos cadascun). El club alterna quin lot es reparteix d'una sessió a la següent, perquè el lot que acaba de fer-se servir "descansi" abans de tornar-s'hi a repartir, reduint el risc de reutilitzar per error un tiquet físic sobrant d'una sessió anterior.
