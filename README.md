@@ -72,7 +72,7 @@ npm run test:rules  # regles de Firestore contra l'emulador local
 
 La pantalla d'Escaneig necessita accedir a la càmera, cosa que el navegador només permet en un context segur (HTTPS). En producció (`associacio.cineclubrodadebera.cat`) ja funciona; però provant-ho amb `npm run dev` des d'un mòbil connectat a la xarxa local **no funcionarà** (l'accés a la càmera fallarà en silenci i caldrà el camp de text manual), perquè només `localhost` compta com a context segur — cal fer-ho des del mateix ordinador on corre el `dev server`, o provar directament contra la versió desplegada.
 
-`BarcodeDetector` (l'API que llegeix el QR amb la càmera) no està disponible a Safari/iOS en el moment d'escriure això: un iPhone a la porta no mostrarà cap vídeo i caurà directament al camp de text manual. Això és el comportament esperat, no una avaria — cal teclejar el codi que es mostra al carnet del soci (o llegir-lo del tiquet genèric).
+`BarcodeDetector` (l'API que llegeix el QR amb la càmera) no està implementada nativament a Safari/iOS. Per això s'utilitza el paquet [`barcode-detector`](https://www.npmjs.com/package/barcode-detector) (`import 'barcode-detector/polyfill'` a `EscaneigPage.jsx`), que la substitueix per una implementació pròpia en WebAssembly quan el navegador no la té — així la càmera funciona igual a Safari/iOS que a la resta. Si mai falla (xarxa sense accés al CDN que serveix el `.wasm`, navegador molt antic), l'aplicació cau automàticament al camp de text manual, que sempre funciona.
 
 ### Tiquets genèrics i alternança de lots
 

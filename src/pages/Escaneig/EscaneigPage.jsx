@@ -1,3 +1,4 @@
+import 'barcode-detector/polyfill';
 import { useEffect, useRef, useState } from 'react';
 import { addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
