@@ -54,7 +54,14 @@ export default function SessionForm() {
     e.preventDefault();
     setError(null);
     try {
-      const dadesADesar = { ...dades, preuEntrada: Number(dades.preuEntrada) || 0 };
+      // El camp `activa` és exclusiu de "Marcar com a activa" (handleMarcarActiva):
+      // un "Desar" normal mai l'ha de sobreescriure amb l'estat local, que pot
+      // haver quedat desactualitzat si s'ha activat una altra sessió mentre
+      // aquest formulari estava obert.
+      const { activa: _activaActual, ...dadesADesar } = {
+        ...dades,
+        preuEntrada: Number(dades.preuEntrada) || 0,
+      };
       if (editant) {
         await updateDoc(doc(db, 'sessions', id), dadesADesar);
       } else {

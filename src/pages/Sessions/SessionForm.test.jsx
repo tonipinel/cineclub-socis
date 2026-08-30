@@ -82,3 +82,27 @@ describe('SessionForm — marcar activa', () => {
     expect(await screen.findByText("Aquesta sessió és l'activa.")).toBeInTheDocument();
   });
 });
+
+describe('SessionForm — desar una sessió ja activa', () => {
+  beforeEach(() => {
+    getDoc.mockClear();
+    updateDoc.mockClear();
+  });
+
+  it('en editar i desar una sessió ja activa, no sobreescriu el camp activa', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, lotActiu: 'lot1', activa: true }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/sessions/1']}>
+        <Routes><Route path="/sessions/:id" element={<SessionForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByDisplayValue('The Artist');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const [, dadesDesades] = updateDoc.mock.calls[0];
+    expect(dadesDesades.activa).toBeUndefined();
+  });
+});
