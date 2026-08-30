@@ -101,9 +101,16 @@ export default function EscaneigPage() {
         )
       );
       if (!repetits.empty) {
+        const timestampRepetit = repetits.docs[0].data().timestamp;
+        const dataRepetit = typeof timestampRepetit?.toDate === 'function'
+          ? timestampRepetit.toDate().toLocaleString('ca-ES')
+          : null;
+        const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió`;
         setMissatge({
           tipus: 'avis',
-          text: `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió. Confirma si vols comptar-lo igualment.`,
+          text: dataRepetit
+            ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
+            : `${textBase}. Confirma si vols comptar-lo igualment.`,
           onConfirmar: () => registrarGeneric(identificat.codiTiquet),
         });
         return;

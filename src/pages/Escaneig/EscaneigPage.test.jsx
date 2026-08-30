@@ -74,12 +74,17 @@ describe('EscaneigPage', () => {
   });
 
   it('avisa si el tiquet genèric ja s\'ha escanejat i només el registra en confirmar', async () => {
-    getDocs.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({}) }] });
+    const dataEscaneigPrevi = new Date('2026-03-05T20:00:00');
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ timestamp: { toDate: () => dataEscaneigPrevi } }) }],
+    });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     await user.type(await screen.findByLabelText('Codi manual'), 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    expect(await screen.findByText(/ja s'ha escanejat aquesta sessió/)).toBeInTheDocument();
+    const dataFormatada = dataEscaneigPrevi.toLocaleString('ca-ES');
+    expect(await screen.findByText(new RegExp(`ja s'ha escanejat aquesta sessió \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
     expect(addDoc.mock.calls[0][1].codiTiquet).toBe('L1-014');
