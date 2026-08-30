@@ -14,13 +14,13 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   writeBatch: vi.fn(),
-  onSnapshot: (q, callback) => {
+  onSnapshot: vi.fn((q, callback) => {
     callback({ docs: [] });
     return () => {};
-  },
+  }),
 }));
 
-import { addDoc, getDoc, getDocs, updateDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, getDoc, getDocs, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import SessionForm from './SessionForm';
 
 describe('SessionForm — alta', () => {
@@ -104,5 +104,49 @@ describe('SessionForm — desar una sessió ja activa', () => {
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const [, dadesDesades] = updateDoc.mock.calls[0];
     expect(dadesDesades.activa).toBeUndefined();
+  });
+});
+
+describe('SessionForm — desglose econòmic', () => {
+  it('mostra els subtotals per mètode de pagament i un enllaç per afegir un moviment', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, lotActiu: 'lot1', activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { data: () => ({ tipus: 'ingres', metodePagament: 'efectiu', total: 50 }) },
+            { data: () => ({ tipus: 'ingres', metodePagament: 'datafon', total: 20 }) },
+          ],
+        });
+        return () => {};
+      });
+    render(
+      <MemoryRouter initialEntries={['/sessions/1']}>
+        <Routes><Route path="/sessions/:id" element={<SessionForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('efectiu: 50€')).toBeInTheDocument();
+    expect(screen.getByText('datafon: 20€')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: "Afegir moviment d'aquesta sessió" })).toHaveAttribute(
+      'href', '/comptabilitat/nou?sessionId=1'
+    );
+  });
+
+  it('mostra un missatge quan encara no hi ha cap moviment', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, lotActiu: 'lot1', activa: false }),
+    });
+    render(
+      <MemoryRouter initialEntries={['/sessions/1']}>
+        <Routes><Route path="/sessions/:id" element={<SessionForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText("Encara no hi ha cap moviment d'aquesta sessió.")).toBeInTheDocument();
   });
 });

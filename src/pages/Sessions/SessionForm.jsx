@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumAccessLog } from '../../lib/escaneig';
+import { subtotalsPerMetode } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 
 const CAMPS_INICIALS = {
@@ -28,6 +29,7 @@ export default function SessionForm() {
   const [carregant, setCarregant] = useState(editant);
   const [error, setError] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
+  const [subtotals, setSubtotals] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +45,14 @@ export default function SessionForm() {
     const q = query(collection(db, 'accessLog'), where('sessionId', '==', id));
     return onSnapshot(q, (snap) => {
       setResum(resumAccessLog(snap.docs.map((d) => d.data())));
+    });
+  }, [id, editant]);
+
+  useEffect(() => {
+    if (!editant) return;
+    const q = query(collection(db, 'moviments'), where('sessionId', '==', id));
+    return onSnapshot(q, (snap) => {
+      setSubtotals(subtotalsPerMetode(snap.docs.map((d) => d.data())));
     });
   }, [id, editant]);
 
@@ -130,6 +140,19 @@ export default function SessionForm() {
           <p>Socis diferents: {resum.socisDistints}</p>
           <p>Entrades genèriques: {resum.entradesGeneriques}</p>
           <p>Import genèric acumulat: {resum.importGeneric}€</p>
+        </div>
+      )}
+
+      {editant && (
+        <div className="session-form__desglose">
+          <h2 className="session-form__desglose-titol">Desglose econòmic</h2>
+          {Object.keys(subtotals).length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
+          {Object.entries(subtotals).map(([metode, total]) => (
+            <p key={metode}>{metode}: {total}€</p>
+          ))}
+          <Link className="btn btn--outline" to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`}>
+            Afegir moviment d'aquesta sessió
+          </Link>
         </div>
       )}
     </form>
