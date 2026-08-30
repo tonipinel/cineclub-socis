@@ -12,11 +12,11 @@ const CAMPS_INICIALS = {
 };
 
 const CAMPS_FORMULARI = [
-  ['titol', 'Títol'],
-  ['data', 'Data'],
-  ['urlProgramacio', 'URL de programació'],
-  ['imatgeUrl', 'URL de la imatge'],
-  ['preuEntrada', "Preu d'entrada (no-socis)"],
+  ['titol', 'Títol', 'text'],
+  ['data', 'Data', 'date'],
+  ['urlProgramacio', 'URL de programació', 'text'],
+  ['imatgeUrl', 'URL de la imatge', 'text'],
+  ['preuEntrada', "Preu d'entrada (no-socis)", 'text'],
 ];
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -93,10 +93,10 @@ export default function SessionForm() {
     <form className="session-form" onSubmit={handleSubmit}>
       <h1 className="session-form__titol">{editant ? 'Editar sessió' : 'Nova sessió'}</h1>
 
-      {CAMPS_FORMULARI.map(([camp, etiqueta]) => (
+      {CAMPS_FORMULARI.map(([camp, etiqueta, tipus]) => (
         <div className="form__field" key={camp}>
           <label className="form__label" htmlFor={camp}>{etiqueta}</label>
-          <input id={camp} className="form__input" value={dades[camp] ?? ''} onChange={handleChange(camp)} />
+          <input id={camp} type={tipus} className="form__input" value={dades[camp] ?? ''} onChange={handleChange(camp)} />
         </div>
       ))}
 
