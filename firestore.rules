@@ -36,5 +36,10 @@ service cloud.firestore {
     match /accessLog/{id} {
       allow create, read: if isStaff();
     }
+
+    // Només l'admin gestiona la comptabilitat; taquilla no hi té cap accés.
+    match /moviments/{id} {
+      allow read, write: if isAdmin();
+    }
   }
 }

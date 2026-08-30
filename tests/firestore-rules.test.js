@@ -123,3 +123,27 @@ describe('firestore.rules — socis (Fase 2)', () => {
     await assertFails(updateDoc(doc(taquillaDb, 'socis/1'), { nom: 'Hackejat' }));
   });
 });
+
+describe('firestore.rules — moviments', () => {
+  it('impedeix a un visitant no autenticat llegir o escriure moviments', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'moviments/1')));
+    await assertFails(setDoc(doc(anonDb, 'moviments/1'), { tipus: 'ingres', total: 10 }));
+  });
+
+  it('impedeix a taquilla llegir o escriure moviments', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'moviments/1'), { tipus: 'ingres', total: 10 });
+    await assertFails(getDoc(doc(taquillaDb, 'moviments/1')));
+    await assertFails(setDoc(doc(taquillaDb, 'moviments/2'), { tipus: 'ingres', total: 5 }));
+  });
+
+  it('permet a un admin crear, llegir, actualitzar i esborrar moviments', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'moviments/1'), { tipus: 'ingres', total: 10 }));
+    await assertSucceeds(getDoc(doc(adminDb, 'moviments/1')));
+    await assertSucceeds(updateDoc(doc(adminDb, 'moviments/1'), { total: 20 }));
+    await assertSucceeds(deleteDoc(doc(adminDb, 'moviments/1')));
+  });
+});
