@@ -1,0 +1,31 @@
+.comptabilitat {
+  @apply p-6;
+}
+.comptabilitat__capcalera {
+  @apply mb-4 flex items-center justify-between;
+}
+.comptabilitat__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.comptabilitat__saldos {
+  @apply mb-4 flex gap-6 font-body text-lg font-semibold text-black;
+}
+.comptabilitat__filtres {
+  @apply mb-4 flex gap-2;
+}
+.comptabilitat__taula {
+  @apply w-full border-collapse text-left;
+}
+.comptabilitat__taula th,
+.comptabilitat__taula td {
+  @apply border-b border-black/10 px-2 py-2;
+}
+.comptabilitat__taula tbody tr {
+  @apply cursor-pointer;
+}
+.comptabilitat__taula tbody tr:nth-child(even) {
+  @apply bg-black/5;
+}
+.comptabilitat__ordenar {
+  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black;
+}
