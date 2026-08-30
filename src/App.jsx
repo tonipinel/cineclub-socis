@@ -15,6 +15,7 @@ import TicketsPage from './pages/Tickets/TicketsPage';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 import EscaneigPage from './pages/Escaneig/EscaneigPage';
 import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
+import MovimentForm from './pages/Comptabilitat/MovimentForm';
 
 export default function App() {
   return (
@@ -129,6 +130,26 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <ComptabilitatPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.COMPTABILITAT_NOU}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <MovimentForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.COMPTABILITAT_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <MovimentForm />
               </RequireRole>
             </RequireAuth>
           }

@@ -29,3 +29,16 @@
 .comptabilitat__ordenar {
   @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black;
 }
+
+.moviment-form {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.moviment-form__capcalera {
+  @apply flex items-center justify-between gap-2;
+}
+.moviment-form__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.moviment-form__suggeriment {
+  @apply -mt-2 mb-2 flex items-center gap-2 font-body text-sm text-black/70;
+}
