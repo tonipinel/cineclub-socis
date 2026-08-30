@@ -3,9 +3,17 @@ import { addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where 
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
 import { identificarCodi, resumAccessLog } from '../../lib/escaneig';
+import { calcularEstatSoci, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
 
 const DEBOUNCE_MS = 3000;
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
+
+const ETIQUETES_ESTAT = {
+  [ESTAT_AL_DIA]: 'Al dia',
+  [ESTAT_PENDENT]: 'Pendent',
+  [ESTAT_VENCUT]: 'Vençut',
+  [ESTAT_NOU_REGISTRE]: 'Nou registre',
+};
 
 export default function EscaneigPage() {
   const { user } = useAuth();
@@ -80,7 +88,8 @@ export default function EscaneigPage() {
           tipus: 'soci',
           numeroSoci: identificat.numeroSoci,
         });
-        setMissatge({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}` });
+        const etiquetaEstat = ETIQUETES_ESTAT[calcularEstatSoci(soci)];
+        setMissatge({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms} — ${etiquetaEstat}` });
         return;
       }
 

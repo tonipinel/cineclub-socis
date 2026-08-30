@@ -32,15 +32,19 @@ describe('EscaneigPage', () => {
   });
 
   it('registra un soci vàlid escrivint el codi manualment', async () => {
+    // ultimPagament = avui fa que calcularEstatSoci doni sempre "Al dia"
+    // (el venciment cau un any sencer després d'avui), independentment de quan
+    // s'executi aquest test.
+    const ultimPagament = new Date().toISOString().slice(0, 10);
     getDocs.mockResolvedValueOnce({
       empty: false,
-      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal' }) }],
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
     });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     await user.type(await screen.findByLabelText('Codi manual'), 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
     });
