@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix } from './socis';
+import { filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix, resumDashboardSocis } from './socis';
 
 const socis = [
   { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-01-01' },
@@ -98,5 +98,87 @@ describe('ordenarSocis', () => {
     ];
     const resultat = ordenarSocis(ambAssistencies, { columna: 'assistencies', direccio: 'desc' });
     expect(resultat.map((s) => s.numeroSoci)).toEqual([2, 1, 3]);
+  });
+});
+
+describe('resumDashboardSocis', () => {
+  // Constructor de 3 arguments (any, mes, dia) perquè és sempre hora local, a diferència
+  // de new Date('2026-08-31'), que es parseja com a UTC i pot desplaçar el dia en fusos
+  // horaris per darrere d'UTC.
+  const avui = new Date(2026, 7, 31);
+
+  it('compta el total de socis', () => {
+    const socis = [
+      { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-01-01', ultimPagament: '2026-01-01' },
+      { numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', dataAlta: '2026-02-01', ultimPagament: '2026-02-01' },
+    ];
+    expect(resumDashboardSocis(socis, [], [], avui).total).toBe(2);
+  });
+
+  it('altesPerMes té 12 entrades, incloent els mesos sense altes, en ordre ascendent', () => {
+    const resultat = resumDashboardSocis([], [], [], avui).altesPerMes;
+    expect(resultat).toHaveLength(12);
+    expect(resultat[0].mes).toBe('2025-09');
+    expect(resultat[11].mes).toBe('2026-08');
+    expect(resultat.every((m) => m.total === 0)).toBe(true);
+  });
+
+  it('altesPerMes compta un soci en el mes de la seva dataAlta', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-03-15', ultimPagament: '2026-03-15' }];
+    const resultat = resumDashboardSocis(socis, [], [], avui).altesPerMes;
+    expect(resultat.find((m) => m.mes === '2026-03').total).toBe(1);
+  });
+
+  it('altesPerMes ignora altes fora de la finestra de 12 mesos', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2024-01-01', ultimPagament: '2024-01-01' }];
+    const resultat = resumDashboardSocis(socis, [], [], avui).altesPerMes;
+    expect(resultat.every((m) => m.total === 0)).toBe(true);
+  });
+
+  it('assistenciaMitjana és 0 si no hi ha sessions passades', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' }];
+    expect(resumDashboardSocis(socis, [], [], avui).assistenciaMitjana).toBe(0);
+  });
+
+  it('assistenciaMitjana és 100 si tots els socis han anat a totes les sessions passades', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' }];
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 's2', data: '2026-08-15' },
+    ];
+    const entrades = [
+      { tipus: 'soci', numeroSoci: 1, sessionId: 's1' },
+      { tipus: 'soci', numeroSoci: 1, sessionId: 's2' },
+    ];
+    expect(resumDashboardSocis(socis, sessions, entrades, avui).assistenciaMitjana).toBe(100);
+  });
+
+  it('assistenciaMitjana fa la mitjana entre socis i ignora sessions futures', () => {
+    const socis = [
+      { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' },
+      { numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', ultimPagament: '2026-08-01' },
+    ];
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 's2', data: '2026-08-15' },
+      { id: 's3', data: '2099-01-01' },
+    ];
+    const entrades = [
+      { tipus: 'soci', numeroSoci: 1, sessionId: 's1' },
+      { tipus: 'soci', numeroSoci: 1, sessionId: 's2' },
+    ];
+    // Anna: 2/2 = 100%, Marc: 0/2 = 0% → mitjana 50%. La sessió futura (s3) no compta.
+    expect(resumDashboardSocis(socis, sessions, entrades, avui).assistenciaMitjana).toBe(50);
+  });
+
+  it('renovacionsProperes inclou només socis al dia que venceran en els propers 30 dies, ordenats per dies', () => {
+    const socis = [
+      { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2025-09-10' },   // venç 2026-09-10, dins 30 dies
+      { numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', ultimPagament: '2025-09-01' },   // venç 2026-09-01, dins 30 dies, abans que l'Anna
+      { numeroSoci: 3, nom: 'Laia', cognoms: 'Puig', ultimPagament: '2026-01-01' },    // venç 2027-01-01, fora de finestra
+      { numeroSoci: 4, nom: 'Pau', cognoms: 'Font', ultimPagament: '2024-01-01' },     // ja vençut, exclòs
+    ];
+    const resultat = resumDashboardSocis(socis, [], [], avui).renovacionsProperes;
+    expect(resultat.map((s) => s.numeroSoci)).toEqual([2, 1]);
   });
 });
