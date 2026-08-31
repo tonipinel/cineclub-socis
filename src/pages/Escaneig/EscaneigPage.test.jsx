@@ -129,4 +129,30 @@ describe('EscaneigPage', () => {
     expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
     expect(addDoc).toHaveBeenCalledTimes(1);
   });
+
+  it('després d\'un escaneig, oculta el botó d\'escanejar inicial i mostra "Tornar a escanejar"', async () => {
+    const ultimPagament = new Date().toISOString().slice(0, 10);
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Codi manual'), 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tornar a escanejar' })).toBeInTheDocument();
+  });
+
+  it('en clicar "Tornar a escanejar", neteja el missatge anterior', async () => {
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    await user.type(await screen.findByLabelText('Codi manual'), 'XYZ');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tornar a escanejar' }));
+    expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
+  });
 });

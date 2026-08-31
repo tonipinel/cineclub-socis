@@ -24,6 +24,7 @@ export default function EscaneigPage() {
   const [codiManual, setCodiManual] = useState('');
   const [missatge, setMissatge] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
+  const [mode, setMode] = useState('idle');
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
@@ -41,6 +42,16 @@ export default function EscaneigPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessioActiva?.id]);
 
+  const mostrarResultat = (nouMissatge) => {
+    setMissatge(nouMissatge);
+    setMode('resultat');
+  };
+
+  const handleTornarAEscanejar = () => {
+    setMissatge(null);
+    setMode('escanejant');
+  };
+
   const registrarGeneric = async (codiTiquet) => {
     try {
       await addDoc(collection(db, 'accessLog'), {
@@ -51,9 +62,9 @@ export default function EscaneigPage() {
         codiTiquet,
         preuAplicat: sessioActiva.preuEntrada,
       });
-      setMissatge({ tipus: 'ok', text: `Entrada genèrica registrada (${sessioActiva.preuEntrada}€)` });
+      mostrarResultat({ tipus: 'ok', text: `Entrada genèrica registrada (${sessioActiva.preuEntrada}€)` });
     } catch {
-      setMissatge({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
+      mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
   };
 
@@ -69,7 +80,7 @@ export default function EscaneigPage() {
       const identificat = identificarCodi(codi);
 
       if (identificat.tipus === 'desconegut') {
-        setMissatge({ tipus: 'error', text: `Codi no reconegut: ${codi}` });
+        mostrarResultat({ tipus: 'error', text: `Codi no reconegut: ${codi}` });
         return;
       }
 
@@ -78,7 +89,7 @@ export default function EscaneigPage() {
           query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
         );
         if (socisTrobats.empty) {
-          setMissatge({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
+          mostrarResultat({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
           return;
         }
         const soci = socisTrobats.docs[0].data();
@@ -90,7 +101,7 @@ export default function EscaneigPage() {
           numeroSoci: identificat.numeroSoci,
         });
         const etiquetaEstat = ETIQUETES_ESTAT[calcularEstatSoci(soci)];
-        setMissatge({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms} — ${etiquetaEstat}` });
+        mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms} — ${etiquetaEstat}` });
         return;
       }
 
@@ -107,7 +118,7 @@ export default function EscaneigPage() {
           ? timestampRepetit.toDate().toLocaleString('ca-ES')
           : null;
         const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió`;
-        setMissatge({
+        mostrarResultat({
           tipus: 'avis',
           text: dataRepetit
             ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
@@ -118,12 +129,12 @@ export default function EscaneigPage() {
       }
       await registrarGeneric(identificat.codiTiquet);
     } catch {
-      setMissatge({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
+      mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
   };
 
   useEffect(() => {
-    if (!sessioActiva || !('BarcodeDetector' in window)) return undefined;
+    if (!sessioActiva || mode !== 'escanejant' || !('BarcodeDetector' in window)) return undefined;
     let actiu = true;
     let stream;
     const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
@@ -137,7 +148,7 @@ export default function EscaneigPage() {
       videoRef.current.srcObject = stream;
       return videoRef.current.play();
     }).catch(() => {
-      setMissatge({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
+      mostrarResultat({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
     });
 
     const interval = setInterval(async () => {
@@ -156,7 +167,7 @@ export default function EscaneigPage() {
       stream?.getTracks().forEach((track) => track.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessioActiva?.id]);
+  }, [sessioActiva?.id, mode]);
 
   const handleCodiManual = (e) => {
     e.preventDefault();
@@ -177,49 +188,63 @@ export default function EscaneigPage() {
 
   return (
     <div className="escaneig">
-      <h1 className="escaneig__titol">Escaneig — {sessioActiva.titol}</h1>
+      <div className="escaneig__contingut">
+        {mode === 'idle' && (
+          <button type="button" className="btn escaneig__boto-escanejar" onClick={() => setMode('escanejant')}>
+            Escanejar
+          </button>
+        )}
 
-      {'BarcodeDetector' in window ? (
-        <video ref={videoRef} className="escaneig__video" muted playsInline />
-      ) : (
-        <p className="escaneig__avis">
-          Aquest navegador no permet escanejar amb la càmera. Utilitza el camp de text.
-        </p>
-      )}
+        {mode === 'escanejant' && ('BarcodeDetector' in window ? (
+          <video ref={videoRef} className="escaneig__video" muted playsInline />
+        ) : (
+          <p className="escaneig__avis">
+            Aquest navegador no permet escanejar amb la càmera. Utilitza el camp de text.
+          </p>
+        ))}
 
-      <form className="escaneig__manual" onSubmit={handleCodiManual}>
-        <div className="form__field">
-          <label className="form__label" htmlFor="codi-manual">Codi manual</label>
-          <input
-            id="codi-manual"
-            className="form__input"
-            value={codiManual}
-            onChange={(e) => setCodiManual(e.target.value)}
-          />
-        </div>
-        <button className="btn" type="submit">Registrar</button>
-      </form>
+        <form className="escaneig__manual" onSubmit={handleCodiManual}>
+          <div className="form__field">
+            <label className="form__label" htmlFor="codi-manual">Codi manual</label>
+            <input
+              id="codi-manual"
+              className="form__input"
+              value={codiManual}
+              onChange={(e) => setCodiManual(e.target.value)}
+            />
+          </div>
+          <button className="btn" type="submit">Registrar</button>
+        </form>
 
-      {missatge && (
-        <div className={`escaneig__missatge escaneig__missatge--${missatge.tipus}`}>
-          <p>{missatge.text}</p>
-          {missatge.onConfirmar && (
-            <button
-              className="btn"
-              type="button"
-              onClick={() => { missatge.onConfirmar(); setMissatge(null); }}
-            >
-              Comptar igualment
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="escaneig__resum">
-        <p>Socis diferents: {resum.socisDistints}</p>
-        <p>Aportacions: {resum.entradesGeneriques}</p>
-        <p>Import d'aportacions acumulat: {resum.importGeneric}€</p>
+        {missatge && (
+          <div className={`escaneig__missatge escaneig__missatge--${missatge.tipus}`}>
+            <p>{missatge.text}</p>
+            {missatge.onConfirmar && (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => { missatge.onConfirmar(); setMissatge(null); }}
+              >
+                Comptar igualment
+              </button>
+            )}
+            {mode === 'resultat' && (
+              <button className="btn btn--outline" type="button" onClick={handleTornarAEscanejar}>
+                Tornar a escanejar
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      <footer className="escaneig__footer">
+        <p className="escaneig__footer-titol">Escaneig — {sessioActiva.titol}</p>
+        <div className="escaneig__footer-resum">
+          <span>Socis diferents: {resum.socisDistints}</span>
+          <span>Aportacions: {resum.entradesGeneriques}</span>
+          <span>Import d'aportacions acumulat: {resum.importGeneric}€</span>
+        </div>
+      </footer>
     </div>
   );
 }
