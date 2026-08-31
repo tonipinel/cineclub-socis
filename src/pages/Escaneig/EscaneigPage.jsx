@@ -226,7 +226,7 @@ export default function EscaneigPage() {
   }
 
   const fonsContingut = sessioActiva.imatgeUrl
-    ? `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url(${sessioActiva.imatgeUrl})`
+    ? `linear-gradient(rgb(0 0 0 / 44%), rgb(255 255 255 / 84%)), url(${sessioActiva.imatgeUrl})`
     : undefined;
 
   return (
@@ -310,7 +310,7 @@ export default function EscaneigPage() {
           <div className="escaneig__footer-resum">
             <span>Socis: {resum.socisDistints}</span>
             <span>Aportacions: {resum.entradesGeneriques}</span>
-            <span>Import d'aportacions acumulat: {resum.importGeneric}€</span>
+            <span>Import: {resum.importGeneric}€</span>
           </div>
         </div>
         {(modeEntrada !== 'idle' || missatge) && (
