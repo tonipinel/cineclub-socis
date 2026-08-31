@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  identificarCodi, codisDeLot, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
+  identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
 } from './escaneig';
 import { carnetPayload } from './carnet';
@@ -30,25 +30,6 @@ describe('identificarCodi', () => {
 
   it('identifica correctament un codi generat per carnetPayload', () => {
     expect(identificarCodi(carnetPayload({ numeroSoci: 42 }))).toEqual({ tipus: 'soci', numeroSoci: 42 });
-  });
-});
-
-describe('codisDeLot', () => {
-  it('genera 150 codis del lot 1, del 001 al 150', () => {
-    const codis = codisDeLot('lot1');
-    expect(codis).toHaveLength(150);
-    expect(codis[0]).toBe('L1-001');
-    expect(codis[149]).toBe('L1-150');
-  });
-
-  it('genera 150 codis del lot 2', () => {
-    const codis = codisDeLot('lot2');
-    expect(codis[0]).toBe('L2-001');
-    expect(codis[149]).toBe('L2-150');
-  });
-
-  it('identifica tots els codis d\'un lot com a tiquets genèrics', () => {
-    expect(codisDeLot('lot2').every((c) => identificarCodi(c).tipus === 'generic')).toBe(true);
   });
 });
 
@@ -98,13 +79,21 @@ describe('trobarLotDelCodi', () => {
   ];
 
   it('troba el lot al qual pertany un codi', () => {
-    expect(trobarLotDelCodi('T-000047', lots)).toBe(lots[0]);
-    expect(trobarLotDelCodi('T-000200', lots)).toBe(lots[1]);
+    expect(trobarLotDelCodi('T-000047', lots)).toEqual([lots[0]]);
+    expect(trobarLotDelCodi('T-000200', lots)).toEqual([lots[1]]);
   });
 
-  it('retorna null per a un codi que no pertany a cap lot conegut', () => {
-    expect(trobarLotDelCodi('T-999999', lots)).toBeNull();
-    expect(trobarLotDelCodi('L1-014', lots)).toBeNull();
+  it('retorna una llista buida per a un codi que no pertany a cap lot conegut', () => {
+    expect(trobarLotDelCodi('T-999999', lots)).toEqual([]);
+    expect(trobarLotDelCodi('L1-014', lots)).toEqual([]);
+  });
+
+  it('retorna tots els lots que coincideixen si els rangs se superposen', () => {
+    const lotsSuperposats = [
+      { numeroInicial: 1, quantitat: 150 },
+      { numeroInicial: 1, quantitat: 150 },
+    ];
+    expect(trobarLotDelCodi('T-000047', lotsSuperposats)).toEqual(lotsSuperposats);
   });
 });
 
@@ -122,6 +111,14 @@ describe('tiquetEstaAnulat', () => {
 
   it('és fals si el codi no pertany a cap lot conegut (p. ex. format antic de lots)', () => {
     expect(tiquetEstaAnulat('L1-014', [{ numeroInicial: 1, quantitat: 150, anulat: true }])).toBe(false);
+  });
+
+  it('és cert si algun dels lots que se superposen amb el codi està anul·lat', () => {
+    const lotsSuperposats = [
+      { numeroInicial: 1, quantitat: 150, anulat: true },
+      { numeroInicial: 1, quantitat: 150, anulat: false },
+    ];
+    expect(tiquetEstaAnulat('T-000047', lotsSuperposats)).toBe(true);
   });
 });
 
@@ -168,12 +165,20 @@ describe('comptarAssistenciesRecents', () => {
 
   it('compta les entrades de soci dels últims 12 mesos, agrupades per numeroSoci', () => {
     const entrades = [
-      { tipus: 'soci', numeroSoci: 7, data: new Date('2026-08-06T19:00:00') },
-      { tipus: 'soci', numeroSoci: 7, data: new Date('2026-06-25T19:00:00') },
-      { tipus: 'soci', numeroSoci: 12, data: new Date('2026-03-05T19:00:00') },
+      { tipus: 'soci', numeroSoci: 7, sessionId: 's1', data: new Date('2026-08-06T19:00:00') },
+      { tipus: 'soci', numeroSoci: 7, sessionId: 's2', data: new Date('2026-06-25T19:00:00') },
+      { tipus: 'soci', numeroSoci: 12, sessionId: 's3', data: new Date('2026-03-05T19:00:00') },
       { tipus: 'generic', codiTiquet: 'L1-001', data: new Date('2026-08-06T19:00:00') },
     ];
     expect(comptarAssistenciesRecents(entrades, avui)).toEqual({ 7: 2, 12: 1 });
+  });
+
+  it('compta una mateixa sessió una sola vegada encara que el soci hi tingui diverses entrades', () => {
+    const entrades = [
+      { tipus: 'soci', numeroSoci: 7, sessionId: 's1', data: new Date('2026-08-06T19:00:00') },
+      { tipus: 'soci', numeroSoci: 7, sessionId: 's1', data: new Date('2026-08-06T19:05:00') },
+    ];
+    expect(comptarAssistenciesRecents(entrades, avui)).toEqual({ 7: 1 });
   });
 
   it('ignora les entrades de fa més de 12 mesos', () => {

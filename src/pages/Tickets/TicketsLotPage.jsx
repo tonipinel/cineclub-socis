@@ -9,7 +9,7 @@ import { codisDesDe, tiquetsDelLot } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
 
 function avui() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('sv-SE');
 }
 
 export default function TicketsLotPage() {
@@ -48,7 +48,8 @@ export default function TicketsLotPage() {
       if (activa) setUrlsPerCodi(Object.fromEntries(parells));
     });
     return () => { activa = false; };
-  }, [lot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lot?.numeroInicial, lot?.quantitat]);
 
   const handleMarcarImpres = async () => {
     const confirmat = window.confirm('Confirmes que has imprès aquest lot de tiquets?');
@@ -145,7 +146,7 @@ export default function TicketsLotPage() {
                   Reactivar
                 </button>
               )}
-              {!usat && !anulat && (
+              {!anulat && (
                 <button
                   type="button"
                   className="tickets-graella__anular-flotant"

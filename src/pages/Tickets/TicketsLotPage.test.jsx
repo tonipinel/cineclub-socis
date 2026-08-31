@@ -100,12 +100,22 @@ describe('TicketsLotPage', () => {
     expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayRemove', v: 'T-000001' });
   });
 
-  it('un tiquet ja usat no mostra cap botó d\'anul·lar ni reactivar', async () => {
+  it('un tiquet ja usat mostra el botó "Anul·lar" però no "Reactivar"', async () => {
     mockLotIAccessLog(LOT, [{ tipus: 'generic', codiTiquet: 'T-000001' }]);
     renderLot();
     await screen.findByText('2 de 3 disponibles');
     expect(screen.getByText('Usat')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Anul·lar' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Anul·lar' })).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Reactivar' })).not.toBeInTheDocument();
+  });
+
+  it('permet anul·lar un tiquet ja usat', async () => {
+    mockLotIAccessLog(LOT, [{ tipus: 'generic', codiTiquet: 'T-000001' }]);
+    const user = userEvent.setup();
+    renderLot();
+    const botons = await screen.findAllByRole('button', { name: 'Anul·lar' });
+    await user.click(botons[0]);
+    expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayUnion', v: 'T-000001' });
   });
 
   it('mostra "0 disponibles" i cap botó d\'anul·lar quan tot el lot ja està anul·lat', async () => {

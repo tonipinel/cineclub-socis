@@ -34,7 +34,7 @@
 .badge--impres {
   @apply border-green-600 text-green-700;
 }
-.badge--pendent {
+.badge--pendent-impressio {
   @apply border-black/30 text-black/60;
 }
 .tickets-graella {

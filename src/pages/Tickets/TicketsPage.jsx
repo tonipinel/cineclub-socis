@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { addDoc, collection, doc, onSnapshot, orderBy, query, runTransaction } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 
+const QUANTITAT_MAXIMA = 500;
+
 function avui() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('sv-SE');
 }
 
 export default function TicketsPage() {
@@ -24,8 +26,11 @@ export default function TicketsPage() {
   }, []);
 
   const handleGenerar = async () => {
-    const n = Number(quantitat) || 0;
-    if (n <= 0) return;
+    const n = Number(quantitat);
+    if (!Number.isInteger(n) || n <= 0 || n > QUANTITAT_MAXIMA) {
+      setError(`La quantitat ha de ser un número enter entre 1 i ${QUANTITAT_MAXIMA}.`);
+      return;
+    }
     const confirmat = window.confirm(
       `Es reservaran ${n} números de tiquet nous. Un cop generats no es tornaran a repetir. Vols continuar?`
     );
@@ -34,22 +39,22 @@ export default function TicketsPage() {
     setGenerant(true);
     try {
       const comptadorRef = doc(db, 'configuracio', 'tiquets');
-      const seguent = await runTransaction(db, async (transaction) => {
+      const lotRef = doc(collection(db, 'lotsTiquets'));
+      await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(comptadorRef);
-        const actual = snap.exists() ? snap.data().seguentNumero : 1;
+        const actual = snap.exists() ? snap.data().seguentNumero ?? 1 : 1;
         transaction.set(comptadorRef, { seguentNumero: actual + n }, { merge: true });
-        return actual;
-      });
-      const lotRef = await addDoc(collection(db, 'lotsTiquets'), {
-        numeroInicial: seguent,
-        quantitat: n,
-        preu: Number(preu) || 0,
-        dataGeneracio: avui(),
-        impres: false,
-        dataImpressio: null,
-        anulat: false,
-        dataAnulacio: null,
-        codisAnulats: [],
+        transaction.set(lotRef, {
+          numeroInicial: actual,
+          quantitat: n,
+          preu: Number(preu) || 0,
+          dataGeneracio: avui(),
+          impres: false,
+          dataImpressio: null,
+          anulat: false,
+          dataAnulacio: null,
+          codisAnulats: [],
+        });
       });
       navigate(ROUTES.TICKETS_LOT.replace(':id', lotRef.id));
     } catch {
@@ -104,7 +109,7 @@ export default function TicketsPage() {
             <span className="tickets-llista__data">Generat el {lot.dataGeneracio}</span>
             {lot.anulat && <span className="badge badge--anulat">Anul·lat</span>}
             {!lot.anulat && lot.impres && <span className="badge badge--impres">Imprès el {lot.dataImpressio}</span>}
-            {!lot.anulat && !lot.impres && <span className="badge badge--pendent">Pendent d'imprimir</span>}
+            {!lot.anulat && !lot.impres && <span className="badge badge--pendent-impressio">Pendent d'imprimir</span>}
           </li>
         ))}
       </ul>

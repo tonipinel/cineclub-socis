@@ -10,27 +10,20 @@ export function identificarCodi(codi) {
   return { tipus: 'desconegut' };
 }
 
-export function codisDeLot(lot) {
-  const prefix = lot === 'lot2' ? 'L2' : 'L1';
-  return Array.from({ length: 150 }, (_, i) => `${prefix}-${String(i + 1).padStart(3, '0')}`);
-}
-
 export function codisDesDe(seguentNumero, quantitat) {
   return Array.from({ length: quantitat }, (_, i) => `T-${String(seguentNumero + i).padStart(6, '0')}`);
 }
 
 export function trobarLotDelCodi(codi, lots) {
   const match = (codi ?? '').match(/^T-(\d+)$/);
-  if (!match) return null;
+  if (!match) return [];
   const numero = Number(match[1]);
-  return lots.find((l) => numero >= l.numeroInicial && numero < l.numeroInicial + l.quantitat) ?? null;
+  return lots.filter((l) => numero >= l.numeroInicial && numero < l.numeroInicial + l.quantitat);
 }
 
 export function tiquetEstaAnulat(codi, lots) {
-  const lot = trobarLotDelCodi(codi, lots);
-  if (!lot) return false;
-  if (lot.anulat) return true;
-  return (lot.codisAnulats ?? []).includes(codi);
+  const lotsCoincidents = trobarLotDelCodi(codi, lots);
+  return lotsCoincidents.some((lot) => lot.anulat || (lot.codisAnulats ?? []).includes(codi));
 }
 
 export function tiquetsDelLot(lot, entradesGeneriques) {
@@ -50,11 +43,16 @@ export function assistenciaPerSessio(sessions, entradesSoci) {
 export function comptarAssistenciesRecents(entrades, avui = new Date()) {
   const faDotzeMesos = new Date(avui);
   faDotzeMesos.setMonth(faDotzeMesos.getMonth() - 12);
-  const comptador = {};
+  const sessionsPerSoci = new Map();
   for (const e of entrades) {
     if (e.tipus !== 'soci') continue;
     if (!(e.data instanceof Date) || e.data < faDotzeMesos) continue;
-    comptador[e.numeroSoci] = (comptador[e.numeroSoci] ?? 0) + 1;
+    if (!sessionsPerSoci.has(e.numeroSoci)) sessionsPerSoci.set(e.numeroSoci, new Set());
+    sessionsPerSoci.get(e.numeroSoci).add(e.sessionId);
+  }
+  const comptador = {};
+  for (const [numeroSoci, sessions] of sessionsPerSoci) {
+    comptador[numeroSoci] = sessions.size;
   }
   return comptador;
 }
