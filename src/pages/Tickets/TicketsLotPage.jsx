@@ -130,11 +130,30 @@ export default function TicketsLotPage() {
         {tiquets.map(({ codi, usat }) => {
           const anuladIndividual = codisAnulats.includes(codi);
           const anulat = lot.anulat || anuladIndividual;
+
           return (
             <div
-              className={`tickets-graella__tiquet ${anulat ? 'tickets-graella__tiquet--anulat' : ''} ${usat ? 'tickets-graella__tiquet--usat' : ''}`}
               key={codi}
+              className={`tickets-graella__tiquet ${anulat ? 'tickets-graella__tiquet--anulat' : ''} ${usat ? 'tickets-graella__tiquet--usat' : ''}`}
             >
+              {!usat && anuladIndividual && !lot.anulat && (
+                <button
+                  type="button"
+                  className="tickets-graella__anular-flotant"
+                  onClick={() => handleReactivarTiquet(codi)}
+                >
+                  Reactivar
+                </button>
+              )}
+              {!usat && !anulat && (
+                <button
+                  type="button"
+                  className="tickets-graella__anular-flotant"
+                  onClick={() => handleAnularTiquet(codi)}
+                >
+                  Anul·lar
+                </button>
+              )}
               <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
               <p className="tickets-graella__titol">APORTACIÓ ({lot.preu}€)</p>
               {urlsPerCodi[codi] && (
@@ -148,14 +167,7 @@ export default function TicketsLotPage() {
               </p>
               {usat && <p className="tickets-graella__estat">Usat</p>}
               {!usat && anuladIndividual && !lot.anulat && (
-                <button type="button" className="tickets-graella__accio" onClick={() => handleReactivarTiquet(codi)}>
-                  Reactivar
-                </button>
-              )}
-              {!usat && !anulat && (
-                <button type="button" className="tickets-graella__accio" onClick={() => handleAnularTiquet(codi)}>
-                  Anul·lar
-                </button>
+                <p className="tickets-graella__estat">Anul·lat</p>
               )}
             </div>
           );

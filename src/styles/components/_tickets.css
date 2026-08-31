@@ -41,9 +41,13 @@
   @apply grid grid-cols-3 gap-0;
 }
 .tickets-graella__tiquet {
-  @apply flex flex-col items-center gap-1 bg-white p-2 text-center;
+  @apply relative flex flex-col items-center gap-1 bg-white p-2 text-center;
   border: 0.2mm dashed #bf9000;
   break-inside: avoid;
+}
+.tickets-graella__anular-flotant {
+  @apply absolute right-0.5 top-0.5 cursor-pointer rounded-sm border-0 bg-red-600 px-1.5 py-1 font-body font-bold uppercase leading-none text-white print:hidden;
+  font-size: 7.5pt;
 }
 .tickets-graella__logo {
   @apply h-auto;
@@ -74,10 +78,6 @@
 }
 .tickets-graella__estat {
   @apply font-display font-bold uppercase tracking-wide text-red-700 print:hidden;
-  font-size: 6pt;
-}
-.tickets-graella__accio {
-  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-black/50 underline print:hidden;
   font-size: 6pt;
 }
 

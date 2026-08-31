@@ -81,17 +81,26 @@ describe('TicketsLotPage', () => {
     expect(updateDoc.mock.calls[0][1]).toMatchObject({ anulat: true });
   });
 
-  it('permet anul·lar un tiquet individual no usat', async () => {
+  it('anul·la un tiquet individual no usat en clicar el seu botó "Anul·lar"', async () => {
     mockLotIAccessLog(LOT);
     const user = userEvent.setup();
     renderLot();
     const botons = await screen.findAllByRole('button', { name: 'Anul·lar' });
+    expect(botons).toHaveLength(3);
     await user.click(botons[0]);
     expect(window.confirm).toHaveBeenCalledTimes(1);
     expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayUnion', v: 'T-000001' });
   });
 
-  it('no mostra el botó d\'anul·lar per a un tiquet ja usat', async () => {
+  it('reactiva un tiquet anul·lat individualment amb el botó "Reactivar"', async () => {
+    mockLotIAccessLog({ ...LOT, codisAnulats: ['T-000001'] });
+    const user = userEvent.setup();
+    renderLot();
+    await user.click(await screen.findByRole('button', { name: 'Reactivar' }));
+    expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayRemove', v: 'T-000001' });
+  });
+
+  it('un tiquet ja usat no mostra cap botó d\'anul·lar ni reactivar', async () => {
     mockLotIAccessLog(LOT, [{ tipus: 'generic', codiTiquet: 'T-000001' }]);
     renderLot();
     await screen.findByText('2 de 3 disponibles');
