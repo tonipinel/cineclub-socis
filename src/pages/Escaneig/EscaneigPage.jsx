@@ -19,14 +19,25 @@ const ETIQUETES_ESTAT = {
 export default function EscaneigPage() {
   const { user } = useAuth();
   const videoRef = useRef(null);
+  const footerRef = useRef(null);
   const ultimCodiRef = useRef({ codi: null, moment: 0 });
   const [sessioActiva, setSessioActiva] = useState(undefined);
   const [codiManual, setCodiManual] = useState('');
   const [missatge, setMissatge] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
   const [modeEntrada, setModeEntrada] = useState('idle');
+  const [alcadaFooter, setAlcadaFooter] = useState(0);
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
+
+  useEffect(() => {
+    if (!footerRef.current) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      setAlcadaFooter(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+    });
+    observer.observe(footerRef.current);
+    return () => observer.disconnect();
+  }, [sessioActiva]);
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
@@ -57,6 +68,11 @@ export default function EscaneigPage() {
   };
 
   const handleTornarAEscanejar = () => {
+    setMissatge(null);
+  };
+
+  const handleTancar = () => {
+    setModeEntrada('idle');
     setMissatge(null);
   };
 
@@ -209,9 +225,16 @@ export default function EscaneigPage() {
     );
   }
 
+  const fonsContingut = sessioActiva.imatgeUrl
+    ? `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url(${sessioActiva.imatgeUrl})`
+    : undefined;
+
   return (
     <div className="escaneig">
-      <div className="escaneig__contingut">
+      <div
+        className="escaneig__contingut"
+        style={{ paddingBottom: alcadaFooter, backgroundImage: fonsContingut }}
+      >
         {!missatge && modeEntrada === 'idle' && (
           <>
             <button type="button" className="btn escaneig__boto-escanejar" onClick={handleEscanejar}>
@@ -281,13 +304,35 @@ export default function EscaneigPage() {
         )}
       </div>
 
-      <footer className="escaneig__footer">
-        <p className="escaneig__footer-titol">Escaneig — {sessioActiva.titol}</p>
-        <div className="escaneig__footer-resum">
-          <span>Socis diferents: {resum.socisDistints}</span>
-          <span>Aportacions: {resum.entradesGeneriques}</span>
-          <span>Import d'aportacions acumulat: {resum.importGeneric}€</span>
+      <footer className="escaneig__footer" ref={footerRef}>
+        <div className="escaneig__footer-info">
+          <p className="escaneig__footer-titol">{sessioActiva.titol}</p>
+          <div className="escaneig__footer-resum">
+            <span>Socis: {resum.socisDistints}</span>
+            <span>Aportacions: {resum.entradesGeneriques}</span>
+            <span>Import d'aportacions acumulat: {resum.importGeneric}€</span>
+          </div>
         </div>
+        {(modeEntrada !== 'idle' || missatge) && (
+          <button
+            type="button"
+            className="escaneig__footer-tancar"
+            onClick={handleTancar}
+            aria-label="Tancar i tornar a l'inici"
+          >
+            <svg
+              className="escaneig__footer-tancar-icona"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        )}
       </footer>
     </div>
   );

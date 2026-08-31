@@ -217,4 +217,31 @@ describe('EscaneigPage', () => {
     expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
   });
+
+  it('el botó de tancar del footer no es mostra a l\'estat inicial', async () => {
+    render(<EscaneigPage />);
+    await screen.findByRole('button', { name: 'Escanejar' });
+    expect(screen.queryByRole('button', { name: "Tancar i tornar a l'inici" })).not.toBeInTheDocument();
+  });
+
+  it('el botó de tancar del footer torna a l\'estat inicial des del mode manual', async () => {
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    await obrirCodiManual(user);
+    await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
+    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+
+  it('el botó de tancar del footer torna a l\'estat inicial des d\'un missatge', async () => {
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'XYZ');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText('Codi no reconegut: XYZ');
+    await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
+    expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
 });
