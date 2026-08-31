@@ -19,13 +19,25 @@ const COLUMNES = [
 
 const COLUMNES_ORDENABLES = new Set(['data', 'concepte', 'tipus', 'total']);
 
+function classeSigne(valor) {
+  return valor < 0 ? 'comptabilitat__valor--negatiu' : 'comptabilitat__valor--positiu';
+}
+
 const RENDERITZAR_CELDA = {
   data: (m) => m.data,
   concepte: (m) => m.concepte,
-  tipus: (m) => ETIQUETES_TIPUS[m.tipus] ?? m.tipus,
+  tipus: (m) => (
+    <span className={`badge badge--${m.tipus}`}>{ETIQUETES_TIPUS[m.tipus] ?? m.tipus}</span>
+  ),
   categoriaODireccio: (m) => m.categoria ?? ETIQUETES_DIRECCIO[m.direccio] ?? '',
-  metodePagament: (m) => ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament ?? '',
-  total: (m) => formatEuros(Number(m.total) || 0),
+  metodePagament: (m) => (
+    <span className="badge badge--metode">{ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament ?? ''}</span>
+  ),
+  total: (m) => (
+    <span className={`comptabilitat__import ${m.tipus === 'traspas' ? '' : classeSigne(m.tipus === 'despesa' ? -1 : 1)}`}>
+      {m.tipus === 'despesa' ? '−' : '+'}{formatEuros(Number(m.total) || 0)}
+    </span>
+  ),
 };
 
 export default function ComptabilitatPage() {
@@ -67,9 +79,9 @@ export default function ComptabilitatPage() {
       </div>
 
       <div className="comptabilitat__saldos">
-        <p>Caixa: {formatEuros(saldos.caixa)}</p>
-        <p>Banc: {formatEuros(saldos.banc)}</p>
-        <p>Excedent: {formatEuros(saldos.excedent)}</p>
+        <p className={`comptabilitat__saldo ${classeSigne(saldos.caixa)}`}>Caixa: {formatEuros(saldos.caixa)}</p>
+        <p className={`comptabilitat__saldo ${classeSigne(saldos.banc)}`}>Banc: {formatEuros(saldos.banc)}</p>
+        <p className={`comptabilitat__saldo ${classeSigne(saldos.excedent)}`}>Excedent: {formatEuros(saldos.excedent)}</p>
       </div>
 
       <div className="comptabilitat__filtres">
