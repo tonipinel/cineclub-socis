@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { ROLE_ADMIN } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
 
 export default function Accedir() {
-  const { user, signIn } = useAuth();
+  const { user, role, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -14,9 +15,9 @@ export default function Accedir() {
 
   useEffect(() => {
     if (!user) return;
-    const desti = location.state?.from?.pathname || ROUTES.SOCIS;
+    const desti = location.state?.from?.pathname || (role === ROLE_ADMIN ? ROUTES.DASHBOARD : ROUTES.ESCANEIG);
     navigate(desti, { replace: true });
-  }, [user, location.state, navigate]);
+  }, [user, role, location.state, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
