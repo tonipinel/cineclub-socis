@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
+  resumDashboardTiquets,
 } from './escaneig';
 import { carnetPayload } from './carnet';
 
@@ -212,5 +213,53 @@ describe('resumPerSessio', () => {
 
   it('retorna un objecte buit amb una llista buida', () => {
     expect(resumPerSessio([])).toEqual({});
+  });
+});
+
+describe('resumDashboardTiquets', () => {
+  it('retorna 0 disponibles si no hi ha lots', () => {
+    expect(resumDashboardTiquets([], [], [])).toEqual({ disponibles: 0, gastatsUltimaSessio: 0 });
+  });
+
+  it('compta els tiquets no usats de tots els lots no anul·lats', () => {
+    const lots = [
+      { numeroInicial: 1, quantitat: 3, anulat: false, codisAnulats: [] },
+      { numeroInicial: 100, quantitat: 2, anulat: false, codisAnulats: [] },
+    ];
+    expect(resumDashboardTiquets(lots, [], []).disponibles).toBe(5);
+  });
+
+  it('descompta els tiquets ja usats', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 3, anulat: false, codisAnulats: [] }];
+    const entradesAccessLog = [{ tipus: 'generic', codiTiquet: 'T-000001' }];
+    expect(resumDashboardTiquets(lots, entradesAccessLog, []).disponibles).toBe(2);
+  });
+
+  it('exclou tot un lot anul·lat', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 3, anulat: true, codisAnulats: [] }];
+    expect(resumDashboardTiquets(lots, [], []).disponibles).toBe(0);
+  });
+
+  it('exclou un tiquet anul·lat individualment encara que el lot no estigui anul·lat', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 3, anulat: false, codisAnulats: ['T-000002'] }];
+    expect(resumDashboardTiquets(lots, [], []).disponibles).toBe(2);
+  });
+
+  it('gastatsUltimaSessio és 0 si no hi ha sessions', () => {
+    expect(resumDashboardTiquets([], [], []).gastatsUltimaSessio).toBe(0);
+  });
+
+  it('gastatsUltimaSessio compta les entrades genèriques de la sessió més recent per data', () => {
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 's2', data: '2026-08-15' },
+    ];
+    const entradesAccessLog = [
+      { tipus: 'generic', codiTiquet: 'T-000001', sessionId: 's1' },
+      { tipus: 'generic', codiTiquet: 'T-000002', sessionId: 's2' },
+      { tipus: 'generic', codiTiquet: 'T-000003', sessionId: 's2' },
+      { tipus: 'soci', numeroSoci: 7, sessionId: 's2' },
+    ];
+    expect(resumDashboardTiquets([], entradesAccessLog, sessions).gastatsUltimaSessio).toBe(2);
   });
 });

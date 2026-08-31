@@ -82,3 +82,21 @@ export function resumAccessLog(entrades) {
     importGeneric,
   };
 }
+
+export function resumDashboardTiquets(lots, entradesAccessLog, sessions) {
+  let disponibles = 0;
+  for (const lot of lots) {
+    if (lot.anulat) continue;
+    const codisAnulats = new Set(lot.codisAnulats ?? []);
+    for (const { codi, usat } of tiquetsDelLot(lot, entradesAccessLog)) {
+      if (!usat && !codisAnulats.has(codi)) disponibles += 1;
+    }
+  }
+
+  const ultimaSessio = [...sessions].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
+  const gastatsUltimaSessio = ultimaSessio
+    ? entradesAccessLog.filter((e) => e.tipus === 'generic' && e.sessionId === ultimaSessio.id).length
+    : 0;
+
+  return { disponibles, gastatsUltimaSessio };
+}
