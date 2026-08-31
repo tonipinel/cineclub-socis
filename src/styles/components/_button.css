@@ -4,3 +4,9 @@
 .btn--outline {
   @apply border-2 border-gold bg-transparent text-gold hover:bg-gold hover:text-black;
 }
+.btn--negre {
+  @apply bg-black text-white hover:bg-black/80 hover:text-white;
+}
+.btn--blanc {
+  @apply bg-white text-black hover:bg-white/80 hover:text-black;
+}

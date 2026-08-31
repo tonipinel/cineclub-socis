@@ -35,6 +35,9 @@ describe('EscaneigPage', () => {
   beforeEach(() => {
     addDoc.mockClear();
     getDocs.mockReset();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    window.confirm.mockClear();
+    window.location.hash = '';
   });
 
   it('per defecte mostra el botó Escanejar i l\'enllaç per introduir un codi manualment, sense el camp encara', async () => {
@@ -53,15 +56,6 @@ describe('EscaneigPage', () => {
     expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
   });
 
-  it('en clicar "Cancel·lar" des del codi manual, torna a la pantalla inicial', async () => {
-    const user = userEvent.setup();
-    render(<EscaneigPage />);
-    await obrirCodiManual(user);
-    await user.click(screen.getByRole('button', { name: 'Cancel·lar' }));
-    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
-  });
-
   it('registra un soci vàlid escrivint el codi manualment', async () => {
     // ultimPagament = avui fa que calcularEstatSoci doni sempre "Al dia"
     // (el venciment cau un any sencer després d'avui), independentment de quan
@@ -76,10 +70,31 @@ describe('EscaneigPage', () => {
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
+    expect(screen.getByText(/Venç el/)).not.toHaveClass('escaneig__missatge-venciment--avis');
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
     });
+  });
+
+  it('mostra el venciment en groc amb avís quan venç en menys de 30 dies', async () => {
+    // ultimPagament = avui - 1 any + 10 dies, de manera que el venciment
+    // (ultimPagament + 1 any, regla de calcularVenciment) cau 10 dies
+    // després d'avui, independentment de quan s'executi el test.
+    const ara = new Date();
+    const ultimPagament = new Date(ara.getFullYear() - 1, ara.getMonth(), ara.getDate() + 10)
+      .toLocaleDateString('sv-SE');
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText(/Venç el/)).toHaveClass('escaneig__missatge-venciment--avis');
   });
 
   it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
@@ -102,6 +117,7 @@ describe('EscaneigPage', () => {
     await user.type(input, 'T-000047');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('El codi T-000047 ha estat anul·lat.')).toBeInTheDocument();
+    expect(screen.getByText('Aquest tiquet ja no és vàlid per accedir-hi')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
     expect(addDoc).not.toHaveBeenCalled();
   });
@@ -114,6 +130,7 @@ describe('EscaneigPage', () => {
     await user.type(input, 'SOCI-999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('No hi ha cap soci amb el número 999')).toBeInTheDocument();
+    expect(screen.getByText('Comprova el número al carnet o al llistat de socis')).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
   });
 
@@ -122,12 +139,12 @@ describe('EscaneigPage', () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
-    await user.type(input, 'L1-014');
+    await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
-      tipus: 'generic', codiTiquet: 'L1-014', preuAplicat: 5,
+      tipus: 'generic', codiTiquet: 'T-000014', preuAplicat: 5,
     });
   });
 
@@ -140,13 +157,30 @@ describe('EscaneigPage', () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
-    await user.type(input, 'L1-014');
+    await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     const dataFormatada = dataEscaneigPrevi.toLocaleString('ca-ES');
+    expect(await screen.findByText('Codi ja utilitzat')).toBeInTheDocument();
     expect(await screen.findByText(new RegExp(`ja s'ha escanejat \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
-    expect(addDoc.mock.calls[0][1].codiTiquet).toBe('L1-014');
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+    expect(addDoc.mock.calls[0][1].codiTiquet).toBe('T-000014');
+  });
+
+  it('no registra el codi repetit si es cancel·la la confirmació', async () => {
+    window.confirm.mockReturnValueOnce(false);
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ timestamp: null }) }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'T-000014');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await user.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
+    expect(addDoc).not.toHaveBeenCalled();
   });
 
   it('mostra un error per a un codi no reconegut', async () => {
@@ -156,6 +190,7 @@ describe('EscaneigPage', () => {
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
+    expect(screen.getByText('Els codis vàlids comencen per SOCI- o T-')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
     expect(addDoc).not.toHaveBeenCalled();
   });
@@ -176,13 +211,13 @@ describe('EscaneigPage', () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
-    await user.type(input, 'L1-014');
+    await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Tornar a escanejar' }));
+    await user.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
     const inputNou = screen.getByLabelText('Codi manual');
-    await user.type(inputNou, 'L1-014');
+    await user.type(inputNou, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     // El debounce ignora el segon enviament dins la finestra: no es torna a
     // consultar Firestore ni es duplica el registre, però s'informa l'operador.
@@ -190,7 +225,7 @@ describe('EscaneigPage', () => {
     expect(await screen.findByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
   });
 
-  it('després d\'un escaneig, amaga el formulari i mostra el missatge amb "Tornar a escanejar"', async () => {
+  it('després d\'un escaneig, amaga el formulari i mostra el missatge amb "Escanejar un altre"', async () => {
     const ultimPagament = new Date().toISOString().slice(0, 10);
     getDocs.mockResolvedValueOnce({
       empty: false,
@@ -201,21 +236,29 @@ describe('EscaneigPage', () => {
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tornar a escanejar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanejar un altre' })).toBeInTheDocument();
   });
 
-  it('en clicar "Tornar a escanejar", neteja el missatge anterior i torna a mostrar el camp manual', async () => {
+  it('en clicar "Escanejar un altre", neteja el missatge anterior i torna a mostrar el camp manual', async () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tornar a escanejar' }));
+    await user.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
     expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
+  });
+
+  it('afegeix la classe escaneig-body al body i la treu en desmuntar', async () => {
+    const { unmount } = render(<EscaneigPage />);
+    await screen.findByRole('button', { name: 'Escanejar' });
+    expect(document.body).toHaveClass('escaneig-body');
+    unmount();
+    expect(document.body).not.toHaveClass('escaneig-body');
   });
 
   it('el botó de tancar del footer no es mostra a l\'estat inicial', async () => {
@@ -231,6 +274,55 @@ describe('EscaneigPage', () => {
     await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+
+  it('amb #ok a la URL mostra directament el missatge de prova (mode mockup)', async () => {
+    window.location.hash = '#ok';
+    render(<EscaneigPage />);
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
+    expect(screen.getByText('Mode mockup: #ok')).toBeInTheDocument();
+  });
+
+  it('amb #codi a la URL mostra directament el formulari manual (mode mockup)', async () => {
+    window.location.hash = '#codi';
+    render(<EscaneigPage />);
+    expect(await screen.findByLabelText('Codi manual')).toBeInTheDocument();
+  });
+
+  it('sense DEV, el fragment de mockup s\'ignora i cal una sessió real activa', async () => {
+    vi.stubEnv('DEV', false);
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({ docs: [] });
+      return () => {};
+    });
+    window.location.hash = '#ok';
+    render(<EscaneigPage />);
+    expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
+    expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
+
+  it('canviar el fragment de la URL sense recarregar actualitza el mockup mostrat', async () => {
+    window.location.hash = '#ok';
+    render(<EscaneigPage />);
+    await screen.findByText('Anna Vidal');
+
+    window.location.hash = '#error';
+    window.dispatchEvent(new Event('hashchange'));
+    expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
+    expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
+  });
+
+  it('treure el fragment de mockup de la URL torna a l\'estat inicial real', async () => {
+    window.location.hash = '#ok';
+    render(<EscaneigPage />);
+    await screen.findByText('Anna Vidal');
+
+    window.location.hash = '';
+    window.dispatchEvent(new Event('hashchange'));
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
   });
 
   it('el botó de tancar del footer torna a l\'estat inicial des d\'un missatge', async () => {

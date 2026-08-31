@@ -4,7 +4,12 @@ import { addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where 
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
 import { identificarCodi, resumAccessLog, tiquetEstaAnulat } from '../../lib/escaneig';
-import { calcularEstatSoci, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
+import {
+  calcularEstatSoci, calcularVenciment, diesFinsVenciment,
+  ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
+} from '../../lib/estatSoci';
+import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
+import Carregant from '../../components/Carregant';
 
 const DEBOUNCE_MS = 3000;
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -16,28 +21,164 @@ const ETIQUETES_ESTAT = {
   [ESTAT_NOU_REGISTRE]: 'Nou registre',
 };
 
+// Mode mockup: afegeix #idle, #escanejant, #codi, #ok (soci), #tiquet (ok
+// genèric), #error o #avis a la URL per veure directament aquella pantalla
+// sense haver d'escanejar ni tenir sessió activa (útil per iterar sobre el
+// disseny). No afecta producció real: només substitueix l'estat inicial
+// mentre l'URL tingui aquest fragment.
+const MOCKUP_SESSIO = { id: 'mockup', titol: 'Sessió de prova', preuEntrada: 5 };
+
+const MOCKUP_VENCIMENT_AVIAT = new Date();
+MOCKUP_VENCIMENT_AVIAT.setDate(MOCKUP_VENCIMENT_AVIAT.getDate() + 10);
+
+const MOCKUPS = {
+  idle: { modeEntrada: 'idle', missatge: null },
+  escanejant: { modeEntrada: 'escanejant', missatge: null },
+  codi: { modeEntrada: 'manual', missatge: null },
+  ok: {
+    modeEntrada: 'escanejant',
+    missatge: {
+      tipus: 'ok',
+      text: 'Anna Vidal',
+      estat: ESTAT_AL_DIA,
+      venciment: { data: MOCKUP_VENCIMENT_AVIAT.toLocaleDateString('ca-ES'), dies: 10 },
+    },
+  },
+  tiquet: { modeEntrada: 'escanejant', missatge: { tipus: 'ok', text: 'Entrada genèrica registrada (5€)' } },
+  error: {
+    modeEntrada: 'escanejant',
+    missatge: {
+      tipus: 'error',
+      text: 'Codi no reconegut: XYZ',
+      detall: 'Els codis vàlids comencen per SOCI- o T-',
+    },
+  },
+  avis: {
+    modeEntrada: 'escanejant',
+    missatge: {
+      tipus: 'avis',
+      text: 'Codi ja utilitzat',
+      detall: "El codi T-000123 ja s'ha escanejat (20/8/2026 20:00:00). Confirma si vols comptar-lo igualment.",
+      codiTiquet: 'T-000123',
+      onConfirmar: () => {},
+    },
+  },
+};
+
+function IconaCamera() {
+  return (
+    <svg
+      className="escaneig__icona"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M8 7l1.3-2.5A1 1 0 0 1 10.2 4h3.6a1 1 0 0 1 .9.5L16 7" />
+      <circle cx="12" cy="13.5" r="3.3" />
+    </svg>
+  );
+}
+
+function IconaTeclat() {
+  return (
+    <svg
+      className="escaneig__icona"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M6 14h8" />
+    </svg>
+  );
+}
+
+function IconaCheck() {
+  return (
+    <svg
+      className="escaneig__missatge-check"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 12.5l2.5 2.5L16 9.5" />
+    </svg>
+  );
+}
+
+function IconaAlerta() {
+  return (
+    <svg
+      className="escaneig__icona-alerta"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3.5 21.5 20H2.5L12 3.5Z" />
+      <path d="M12 10v4" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export default function EscaneigPage() {
   const { user } = useAuth();
   const videoRef = useRef(null);
-  const footerRef = useRef(null);
   const ultimCodiRef = useRef({ codi: null, moment: 0 });
   const [sessioActiva, setSessioActiva] = useState(undefined);
   const [codiManual, setCodiManual] = useState('');
-  const [missatge, setMissatge] = useState(null);
+  const [hash, setHash] = useState(() => window.location.hash.slice(1));
+  const mockup = import.meta.env.DEV ? MOCKUPS[hash] : undefined;
+  const [missatge, setMissatge] = useState(() => mockup?.missatge ?? null);
   const [resum, setResum] = useState(RESUM_INICIAL);
-  const [modeEntrada, setModeEntrada] = useState('idle');
-  const [alcadaFooter, setAlcadaFooter] = useState(0);
+  const [modeEntrada, setModeEntrada] = useState(() => mockup?.modeEntrada ?? 'idle');
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
 
   useEffect(() => {
-    if (!footerRef.current) return undefined;
-    const observer = new ResizeObserver(([entry]) => {
-      setAlcadaFooter(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
-    });
-    observer.observe(footerRef.current);
-    return () => observer.disconnect();
-  }, [sessioActiva]);
+    const handler = () => setHash(window.location.hash.slice(1));
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.add('escaneig-body');
+    return () => document.body.classList.remove('escaneig-body');
+  }, []);
+
+  // Quan l'usuari canvia el fragment de la URL (p. ex. #ok -> #error) sense
+  // recarregar la pàgina, apliquem el mockup corresponent durant el render
+  // (patró recomanat per React per "reaccionar" a un canvi, enlloc de fer-ho
+  // dins un efecte, que aquí disparava react-hooks/set-state-in-effect).
+  const [hashAplicat, setHashAplicat] = useState(hash);
+  if (hash !== hashAplicat) {
+    setHashAplicat(hash);
+    if (mockup) {
+      setModeEntrada(mockup.modeEntrada);
+      setMissatge(mockup.missatge ?? null);
+    } else {
+      setMissatge(null);
+      setModeEntrada('idle');
+    }
+  }
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
@@ -109,7 +250,11 @@ export default function EscaneigPage() {
       const identificat = identificarCodi(codi);
 
       if (identificat.tipus === 'desconegut') {
-        mostrarResultat({ tipus: 'error', text: `Codi no reconegut: ${codi}` });
+        mostrarResultat({
+          tipus: 'error',
+          text: `Codi no reconegut: ${codi}`,
+          detall: 'Els codis vàlids comencen per SOCI- o T-',
+        });
         return;
       }
 
@@ -118,7 +263,11 @@ export default function EscaneigPage() {
           query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
         );
         if (socisTrobats.empty) {
-          mostrarResultat({ tipus: 'error', text: `No hi ha cap soci amb el número ${identificat.numeroSoci}` });
+          mostrarResultat({
+            tipus: 'error',
+            text: `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
+            detall: 'Comprova el número al carnet o al llistat de socis',
+          });
           return;
         }
         const soci = socisTrobats.docs[0].data();
@@ -129,8 +278,11 @@ export default function EscaneigPage() {
           tipus: 'soci',
           numeroSoci: identificat.numeroSoci,
         });
-        const etiquetaEstat = ETIQUETES_ESTAT[calcularEstatSoci(soci)];
-        mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms} — ${etiquetaEstat}` });
+        const estat = calcularEstatSoci(soci);
+        const venciment = estat === ESTAT_AL_DIA
+          ? { data: calcularVenciment(soci).toLocaleDateString('ca-ES'), dies: diesFinsVenciment(soci) }
+          : null;
+        mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
         return;
       }
 
@@ -140,7 +292,11 @@ export default function EscaneigPage() {
       }
 
       if (tiquetEstaAnulat(identificat.codiTiquet, lotsRef.current)) {
-        mostrarResultat({ tipus: 'error', text: `El codi ${identificat.codiTiquet} ha estat anul·lat.` });
+        mostrarResultat({
+          tipus: 'error',
+          text: `El codi ${identificat.codiTiquet} ha estat anul·lat.`,
+          detall: 'Aquest tiquet ja no és vàlid per accedir-hi',
+        });
         return;
       }
 
@@ -158,9 +314,11 @@ export default function EscaneigPage() {
         const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat`;
         mostrarResultat({
           tipus: 'avis',
-          text: dataRepetit
+          text: 'Codi ja utilitzat',
+          detall: dataRepetit
             ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
             : `${textBase}. Confirma si vols comptar-lo igualment.`,
+          codiTiquet: identificat.codiTiquet,
           onConfirmar: () => registrarGeneric(identificat.codiTiquet),
         });
         return;
@@ -215,9 +373,9 @@ export default function EscaneigPage() {
     setCodiManual('');
   };
 
-  if (sessioActiva === undefined) return <p className="escaneig__carregant">Carregant…</p>;
+  if (!mockup && sessioActiva === undefined) return <Carregant />;
 
-  if (!sessioActiva) {
+  if (!mockup && !sessioActiva) {
     return (
       <p className="escaneig__sense-sessio">
         No hi ha cap sessió activa. Marca una sessió com a activa abans d'escanejar.
@@ -225,26 +383,31 @@ export default function EscaneigPage() {
     );
   }
 
-  const fonsContingut = sessioActiva.imatgeUrl
-    ? `linear-gradient(rgb(0 0 0 / 44%), rgb(255 255 255 / 84%)), url(${sessioActiva.imatgeUrl})`
+  const sessioPerMostrar = mockup ? (sessioActiva ?? MOCKUP_SESSIO) : sessioActiva;
+
+  const fonsContingut = sessioPerMostrar.imatgeUrl
+    ? `linear-gradient(rgb(0 0 0 / 44%), rgb(255 255 255 / 84%)), url(${sessioPerMostrar.imatgeUrl})`
     : undefined;
 
   return (
     <div className="escaneig">
+      {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
       <div
         className="escaneig__contingut"
-        style={{ paddingBottom: alcadaFooter, backgroundImage: fonsContingut }}
+        style={{ backgroundImage: fonsContingut }}
       >
         {!missatge && modeEntrada === 'idle' && (
           <>
-            <button type="button" className="btn escaneig__boto-escanejar" onClick={handleEscanejar}>
+            <button type="button" className="btn escaneig__boto-gran" onClick={handleEscanejar}>
+              <IconaCamera />
               Escanejar
             </button>
             <button
               type="button"
-              className="escaneig__enllac-manual"
+              className="btn btn--negre escaneig__boto-gran"
               onClick={() => setModeEntrada('manual')}
             >
+              <IconaTeclat />
               Introduir codi manualment
             </button>
           </>
@@ -255,58 +418,71 @@ export default function EscaneigPage() {
             <video ref={videoRef} className="escaneig__video" muted playsInline />
             <button
               type="button"
-              className="escaneig__enllac-manual"
+              className="btn btn--negre escaneig__boto-gran"
               onClick={() => setModeEntrada('manual')}
             >
+              <IconaTeclat />
               Introduir codi manualment
             </button>
           </>
         )}
 
         {!missatge && modeEntrada === 'manual' && (
-          <form className="escaneig__manual" onSubmit={handleCodiManual}>
-            <div className="form__field">
-              <label className="form__label" htmlFor="codi-manual">Codi manual</label>
-              <input
-                id="codi-manual"
-                className="form__input"
-                value={codiManual}
-                onChange={(e) => setCodiManual(e.target.value)}
-              />
-            </div>
-            <button className="btn" type="submit">Registrar</button>
-            <button
-              type="button"
-              className="escaneig__enllac-manual"
-              onClick={() => setModeEntrada('idle')}
-            >
-              Cancel·lar
-            </button>
-          </form>
+          <div className="escaneig__manual-caixa">
+            <form className="escaneig__manual" onSubmit={handleCodiManual}>
+              <div className="form__field">
+                <label className="form__label escaneig__manual-label" htmlFor="codi-manual">Codi manual</label>
+                <input
+                  id="codi-manual"
+                  className="form__input escaneig__manual-input"
+                  value={codiManual}
+                  onChange={(e) => setCodiManual(e.target.value)}
+                />
+              </div>
+              <button className="btn" type="submit">Registrar</button>
+            </form>
+          </div>
         )}
 
         {missatge && (
-          <div className={`escaneig__missatge escaneig__missatge--${missatge.tipus}`}>
-            <p>{missatge.text}</p>
+          <div className={`escaneig__missatge escaneig__missatge--${missatge.tipus}`} role="status">
+            {missatge.tipus === 'ok' && <IconaCheck />}
+            {missatge.tipus === 'avis' && <IconaAlerta />}
+            <p className="escaneig__missatge-text">{missatge.text}</p>
+            {missatge.detall && <p className="escaneig__missatge-detall">{missatge.detall}</p>}
+            {missatge.estat && (
+              <span className={`badge badge--${missatge.estat} escaneig__missatge-badge`}>{ETIQUETES_ESTAT[missatge.estat]}</span>
+            )}
+            {missatge.venciment && (
+              <p className={`escaneig__missatge-venciment ${missatge.venciment.dies <= DIES_AVIS_RENOVACIO ? 'escaneig__missatge-venciment--avis' : ''}`}>
+                {missatge.venciment.dies <= DIES_AVIS_RENOVACIO && <IconaAlerta />}
+                Venç el {missatge.venciment.data}
+              </p>
+            )}
             {missatge.onConfirmar && (
               <button
-                className="btn"
+                className="btn btn--blanc escaneig__boto-confirmar"
                 type="button"
-                onClick={missatge.onConfirmar}
+                onClick={() => {
+                  if (window.confirm(`Segur que vols comptar el codi ${missatge.codiTiquet} igualment?`)) {
+                    missatge.onConfirmar();
+                  }
+                }}
               >
                 Comptar igualment
               </button>
             )}
-            <button className="btn btn--outline" type="button" onClick={handleTornarAEscanejar}>
-              Tornar a escanejar
+            <button className="btn escaneig__boto-tornar" type="button" onClick={handleTornarAEscanejar}>
+              <IconaCamera />
+              Escanejar un altre
             </button>
           </div>
         )}
       </div>
 
-      <footer className="escaneig__footer" ref={footerRef}>
+      <footer className="escaneig__footer">
         <div className="escaneig__footer-info">
-          <p className="escaneig__footer-titol">{sessioActiva.titol}</p>
+          <p className="escaneig__footer-titol">{sessioPerMostrar.titol}</p>
           <div className="escaneig__footer-resum">
             <span>Socis: {resum.socisDistints}</span>
             <span>Aportacions: {resum.entradesGeneriques}</span>
