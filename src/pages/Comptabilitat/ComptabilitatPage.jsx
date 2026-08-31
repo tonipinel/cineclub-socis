@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
-  calcularSaldos, filtrarMoviments, ordenarMoviments, formatEuros,
+  calcularSaldos, filtrarMoviments, ordenarMoviments, formatEuros, classeSigne,
   TIPUS_MOVIMENT, CATEGORIES, ETIQUETES_TIPUS, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
@@ -18,10 +18,6 @@ const COLUMNES = [
 ];
 
 const COLUMNES_ORDENABLES = new Set(['data', 'concepte', 'tipus', 'total']);
-
-function classeSigne(valor) {
-  return valor < 0 ? 'comptabilitat__valor--negatiu' : 'comptabilitat__valor--positiu';
-}
 
 const RENDERITZAR_CELDA = {
   data: (m) => m.data,

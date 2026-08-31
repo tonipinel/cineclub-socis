@@ -262,4 +262,18 @@ describe('resumDashboardTiquets', () => {
     ];
     expect(resumDashboardTiquets([], entradesAccessLog, sessions).gastatsUltimaSessio).toBe(2);
   });
+
+  it('gastatsUltimaSessio ignora sessions futures i pren la darrera sessió ja passada', () => {
+    const avui = new Date(2026, 7, 31);
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 's2', data: '2099-01-01' },
+    ];
+    const entradesAccessLog = [
+      { tipus: 'generic', codiTiquet: 'T-000001', sessionId: 's1' },
+      { tipus: 'generic', codiTiquet: 'T-000002', sessionId: 's1' },
+      { tipus: 'generic', codiTiquet: 'T-000003', sessionId: 's2' },
+    ];
+    expect(resumDashboardTiquets([], entradesAccessLog, sessions, avui).gastatsUltimaSessio).toBe(2);
+  });
 });

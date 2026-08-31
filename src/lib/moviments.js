@@ -34,6 +34,10 @@ export function formatEuros(valor) {
   return `${(Number(valor) || 0).toFixed(2)}€`;
 }
 
+export function classeSigne(valor) {
+  return valor < 0 ? 'comptabilitat__valor--negatiu' : 'comptabilitat__valor--positiu';
+}
+
 export function calcularTotal(preuUnitari, quantitat) {
   return (Number(preuUnitari) || 0) * (Number(quantitat) || 0);
 }

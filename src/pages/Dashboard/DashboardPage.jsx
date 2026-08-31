@@ -5,12 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { db } from '../../firebase/firebase';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets } from '../../lib/escaneig';
-import { resumComptable, balancPerSessio, formatEuros } from '../../lib/moviments';
+import { resumComptable, balancPerSessio, formatEuros, classeSigne } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
-
-function classeSigne(valor) {
-  return valor < 0 ? 'comptabilitat__valor--negatiu' : 'comptabilitat__valor--positiu';
-}
 
 export default function DashboardPage() {
   const [dades, setDades] = useState(undefined);
@@ -31,7 +27,7 @@ export default function DashboardPage() {
         accessLog: accessLogSnap.docs.map((d) => d.data()),
         moviments: movimentsSnap.docs.map((d) => d.data()),
         lots: lotsSnap.docs.map((d) => d.data()),
-        solicituds: solicitudsSnap.docs.map((d, i) => ({ id: d.id ?? String(i), ...d.data() })),
+        solicituds: solicitudsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       });
     }).catch(() => setError(true));
   }, []);
@@ -93,6 +89,7 @@ export default function DashboardPage() {
 
         <div className="dashboard__modul">
           <h2 className="dashboard__modul-titol">Sessions</h2>
+          {ultimesSessions.length === 0 && <p>Encara no hi ha cap sessió.</p>}
           <ul className="dashboard__llista">
             {ultimesSessions.map((s) => {
               const balanc = balancSessions[s.id] ?? 0;

@@ -40,8 +40,12 @@ function mockCarrega(overrides = {}) {
     .mockResolvedValueOnce({ docs: dades.solicituds.map((d, i) => ({ id: `sol${i}`, data: () => d })) });
 }
 
+function elementModul(nom) {
+  return screen.getByRole('heading', { name: nom }).closest('.dashboard__modul');
+}
+
 function modul(nom) {
-  return within(screen.getByRole('heading', { name: nom }).closest('.dashboard__modul'));
+  return within(elementModul(nom));
 }
 
 describe('DashboardPage', () => {
@@ -65,8 +69,25 @@ describe('DashboardPage', () => {
     mockCarrega();
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
     await screen.findByRole('heading', { name: 'Socis' });
-    expect(modul('Socis').getByText('2')).toBeInTheDocument();
+    expect(elementModul('Socis').querySelector('.dashboard__xifra')).toHaveTextContent('2');
     expect(modul('Socis').queryByText('Renoven aviat')).not.toBeInTheDocument();
+  });
+
+  it('mòdul Socis: mostra la llista de renovacions properes quan n\'hi ha', async () => {
+    // ultimPagament = avui - 1 any + 10 dies, de manera que el venciment (ultimPagament + 1
+    // any, regla de calcularVenciment) cau sempre 10 dies després d'avui, real, sense
+    // dependre de la data en què s'executi el test.
+    const ara = new Date();
+    const ultimPagament = new Date(ara.getFullYear() - 1, ara.getMonth(), ara.getDate() + 10)
+      .toLocaleDateString('sv-SE');
+    mockCarrega({
+      socis: [{ numeroSoci: 3, nom: 'Laia', cognoms: 'Puig', dataAlta: '2026-01-01', ultimPagament }],
+    });
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Socis' });
+    const m = modul('Socis');
+    expect(m.getByText('Renoven aviat')).toBeInTheDocument();
+    expect(m.getByText(/Laia Puig/)).toBeInTheDocument();
   });
 
   it('mòdul Sol·licituds: mostra el comptador, les últimes 3 i l\'enllaç', async () => {

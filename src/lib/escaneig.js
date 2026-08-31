@@ -83,7 +83,7 @@ export function resumAccessLog(entrades) {
   };
 }
 
-export function resumDashboardTiquets(lots, entradesAccessLog, sessions) {
+export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = new Date()) {
   let disponibles = 0;
   for (const lot of lots) {
     if (lot.anulat) continue;
@@ -93,7 +93,10 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions) {
     }
   }
 
-  const ultimaSessio = [...sessions].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
+  const dataAvui = avui.toLocaleDateString('sv-SE');
+  const ultimaSessio = [...sessions]
+    .filter((s) => (s.data ?? '') <= dataAvui)
+    .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   const gastatsUltimaSessio = ultimaSessio
     ? entradesAccessLog.filter((e) => e.tipus === 'generic' && e.sessionId === ultimaSessio.id).length
     : 0;
