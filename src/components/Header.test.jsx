@@ -99,4 +99,23 @@ describe('Header', () => {
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
   });
+
+  it('el logo enllaça al dashboard quan l\'usuari és admin', () => {
+    mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut: vi.fn() });
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Cineclub Roda de Berà' })).toHaveAttribute('href', '/dashboard');
+  });
+
+  it('el logo no enllaça enlloc quan l\'usuari és taquilla', () => {
+    mockUseAuth.mockReturnValue({ user: { uid: '2' }, role: 'taquilla', signOut: vi.fn() });
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: 'Cineclub Roda de Berà' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Cineclub Roda de Berà' })).toBeInTheDocument();
+  });
+
+  it('el logo no enllaça enlloc quan no hi ha usuari', () => {
+    mockUseAuth.mockReturnValue({ user: null, role: null, signOut: vi.fn() });
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: 'Cineclub Roda de Berà' })).not.toBeInTheDocument();
+  });
 });

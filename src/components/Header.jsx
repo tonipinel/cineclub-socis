@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
@@ -90,7 +90,13 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="site-header__marca">
-        <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+        {role === ROLE_ADMIN ? (
+          <Link to={ROUTES.DASHBOARD}>
+            <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+          </Link>
+        ) : (
+          <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+        )}
       </div>
       {user && enllacos.length > 0 && (
         <>
