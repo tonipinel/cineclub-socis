@@ -16,8 +16,8 @@
 .escaneig__video {
   @apply w-full rounded bg-black;
 }
-.escaneig__avis {
-  @apply rounded border border-dashed border-black/30 p-3 font-body text-sm text-black;
+.escaneig__enllac-manual {
+  @apply mx-auto cursor-pointer border-0 bg-transparent p-0 font-body text-sm text-black/70 underline;
 }
 .escaneig__manual {
   @apply flex items-end gap-2;

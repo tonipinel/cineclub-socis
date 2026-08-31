@@ -26,10 +26,31 @@ vi.mock('firebase/firestore', () => ({
 import { addDoc, getDocs } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 
+async function obrirCodiManual(user) {
+  await user.click(await screen.findByRole('button', { name: 'Introduir codi manualment' }));
+  return screen.getByLabelText('Codi manual');
+}
+
 describe('EscaneigPage', () => {
   beforeEach(() => {
     addDoc.mockClear();
     getDocs.mockReset();
+  });
+
+  it('per defecte mostra el botó Escanejar i l\'enllaç per introduir un codi manualment, sense el camp encara', async () => {
+    render(<EscaneigPage />);
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Introduir codi manualment' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
+  });
+
+  it('en clicar l\'enllaç, mostra el camp de codi manual i amaga el botó Escanejar', async () => {
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    await obrirCodiManual(user);
+    expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Registrar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
   });
 
   it('registra un soci vàlid escrivint el codi manualment', async () => {
@@ -43,7 +64,8 @@ describe('EscaneigPage', () => {
     });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'SOCI-7');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
@@ -55,7 +77,8 @@ describe('EscaneigPage', () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'SOCI-999');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('No hi ha cap soci amb el número 999')).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
@@ -65,7 +88,8 @@ describe('EscaneigPage', () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'L1-014');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
@@ -82,7 +106,8 @@ describe('EscaneigPage', () => {
     });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'L1-014');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     const dataFormatada = dataEscaneigPrevi.toLocaleString('ca-ES');
     expect(await screen.findByText(new RegExp(`ja s'ha escanejat aquesta sessió \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
@@ -94,7 +119,8 @@ describe('EscaneigPage', () => {
   it('mostra un error per a un codi no reconegut', async () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'XYZ');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
@@ -105,7 +131,8 @@ describe('EscaneigPage', () => {
     getDocs.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'SOCI-7');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
@@ -115,22 +142,21 @@ describe('EscaneigPage', () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    const input = await screen.findByLabelText('Codi manual');
+    const input = await obrirCodiManual(user);
     await user.type(input, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
 
-    await user.type(input, 'L1-014');
+    await user.click(screen.getByRole('button', { name: 'Tornar a escanejar' }));
+    const inputNou = screen.getByLabelText('Codi manual');
+    await user.type(inputNou, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    // El debounce ignora el segon enviament: no es torna a consultar Firestore
-    // ni es duplica el registre, però el missatge de l'escaneig anterior es
-    // manté visible (necessari perquè amb la càmera el mateix codi es torna a
-    // detectar cada ~400ms mentre el QR és davant l'objectiu).
-    expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+    // El debounce ignora el segon enviament dins la finestra: no es torna a
+    // consultar Firestore ni es duplica el registre.
     expect(addDoc).toHaveBeenCalledTimes(1);
   });
 
-  it('després d\'un escaneig, oculta el botó d\'escanejar inicial i mostra "Tornar a escanejar"', async () => {
+  it('després d\'un escaneig, amaga el formulari i mostra el missatge amb "Tornar a escanejar"', async () => {
     const ultimPagament = new Date().toISOString().slice(0, 10);
     getDocs.mockResolvedValueOnce({
       empty: false,
@@ -138,21 +164,23 @@ describe('EscaneigPage', () => {
     });
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Codi manual'), 'SOCI-7');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Anna Vidal — Al dia')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tornar a escanejar' })).toBeInTheDocument();
   });
 
-  it('en clicar "Tornar a escanejar", neteja el missatge anterior', async () => {
+  it('en clicar "Tornar a escanejar", neteja el missatge anterior i torna a mostrar el camp manual', async () => {
     const user = userEvent.setup();
     render(<EscaneigPage />);
-    await user.type(await screen.findByLabelText('Codi manual'), 'XYZ');
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Tornar a escanejar' }));
     expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
   });
 });

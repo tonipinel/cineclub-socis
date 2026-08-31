@@ -24,7 +24,7 @@ export default function EscaneigPage() {
   const [codiManual, setCodiManual] = useState('');
   const [missatge, setMissatge] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
-  const [mode, setMode] = useState('idle');
+  const [modeEntrada, setModeEntrada] = useState('idle');
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
@@ -44,12 +44,14 @@ export default function EscaneigPage() {
 
   const mostrarResultat = (nouMissatge) => {
     setMissatge(nouMissatge);
-    setMode('resultat');
   };
 
   const handleTornarAEscanejar = () => {
     setMissatge(null);
-    setMode('escanejant');
+  };
+
+  const handleEscanejar = () => {
+    setModeEntrada('BarcodeDetector' in window ? 'escanejant' : 'manual');
   };
 
   const registrarGeneric = async (codiTiquet) => {
@@ -134,7 +136,7 @@ export default function EscaneigPage() {
   };
 
   useEffect(() => {
-    if (!sessioActiva || mode !== 'escanejant' || !('BarcodeDetector' in window)) return undefined;
+    if (!sessioActiva || modeEntrada !== 'escanejant' || missatge || !('BarcodeDetector' in window)) return undefined;
     let actiu = true;
     let stream;
     const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
@@ -167,7 +169,7 @@ export default function EscaneigPage() {
       stream?.getTracks().forEach((track) => track.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessioActiva?.id, mode]);
+  }, [sessioActiva?.id, modeEntrada, missatge]);
 
   const handleCodiManual = (e) => {
     e.preventDefault();
@@ -189,32 +191,39 @@ export default function EscaneigPage() {
   return (
     <div className="escaneig">
       <div className="escaneig__contingut">
-        {mode === 'idle' && (
-          <button type="button" className="btn escaneig__boto-escanejar" onClick={() => setMode('escanejant')}>
-            Escanejar
-          </button>
+        {!missatge && modeEntrada === 'idle' && (
+          <>
+            <button type="button" className="btn escaneig__boto-escanejar" onClick={handleEscanejar}>
+              Escanejar
+            </button>
+            <button
+              type="button"
+              className="escaneig__enllac-manual"
+              onClick={() => setModeEntrada('manual')}
+            >
+              Introduir codi manualment
+            </button>
+          </>
         )}
 
-        {mode === 'escanejant' && ('BarcodeDetector' in window ? (
+        {!missatge && modeEntrada === 'escanejant' && (
           <video ref={videoRef} className="escaneig__video" muted playsInline />
-        ) : (
-          <p className="escaneig__avis">
-            Aquest navegador no permet escanejar amb la càmera. Utilitza el camp de text.
-          </p>
-        ))}
+        )}
 
-        <form className="escaneig__manual" onSubmit={handleCodiManual}>
-          <div className="form__field">
-            <label className="form__label" htmlFor="codi-manual">Codi manual</label>
-            <input
-              id="codi-manual"
-              className="form__input"
-              value={codiManual}
-              onChange={(e) => setCodiManual(e.target.value)}
-            />
-          </div>
-          <button className="btn" type="submit">Registrar</button>
-        </form>
+        {!missatge && modeEntrada === 'manual' && (
+          <form className="escaneig__manual" onSubmit={handleCodiManual}>
+            <div className="form__field">
+              <label className="form__label" htmlFor="codi-manual">Codi manual</label>
+              <input
+                id="codi-manual"
+                className="form__input"
+                value={codiManual}
+                onChange={(e) => setCodiManual(e.target.value)}
+              />
+            </div>
+            <button className="btn" type="submit">Registrar</button>
+          </form>
+        )}
 
         {missatge && (
           <div className={`escaneig__missatge escaneig__missatge--${missatge.tipus}`}>
@@ -228,11 +237,9 @@ export default function EscaneigPage() {
                 Comptar igualment
               </button>
             )}
-            {mode === 'resultat' && (
-              <button className="btn btn--outline" type="button" onClick={handleTornarAEscanejar}>
-                Tornar a escanejar
-              </button>
-            )}
+            <button className="btn btn--outline" type="button" onClick={handleTornarAEscanejar}>
+              Tornar a escanejar
+            </button>
           </div>
         )}
       </div>
