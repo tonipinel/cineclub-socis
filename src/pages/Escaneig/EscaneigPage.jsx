@@ -25,7 +25,8 @@ export default function EscaneigPage() {
   const [missatge, setMissatge] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
   const [modeEntrada, setModeEntrada] = useState('idle');
-  const [lots, setLots] = useState([]);
+  const lotsRef = useRef([]);
+  const [lotsCarregats, setLotsCarregats] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
@@ -37,7 +38,8 @@ export default function EscaneigPage() {
   useEffect(() => {
     const q = query(collection(db, 'lotsTiquets'));
     return onSnapshot(q, (snap) => {
-      setLots(snap.docs.map((d) => d.data()));
+      lotsRef.current = snap.docs.map((d) => d.data());
+      setLotsCarregats(true);
     });
   }, []);
 
@@ -82,6 +84,7 @@ export default function EscaneigPage() {
     const codi = codiOriginal.trim();
     const ara = Date.now();
     if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) {
+      mostrarResultat({ tipus: 'avis', text: "Aquest codi ja s'ha registrat fa un moment." });
       return;
     }
     ultimCodiRef.current = { codi, moment: ara };
@@ -115,7 +118,12 @@ export default function EscaneigPage() {
         return;
       }
 
-      if (tiquetEstaAnulat(identificat.codiTiquet, lots)) {
+      if (!lotsCarregats) {
+        mostrarResultat({ tipus: 'error', text: 'Encara carregant els lots de tiquets. Torna-ho a provar.' });
+        return;
+      }
+
+      if (tiquetEstaAnulat(identificat.codiTiquet, lotsRef.current)) {
         mostrarResultat({ tipus: 'error', text: `El codi ${identificat.codiTiquet} ha estat anul·lat.` });
         return;
       }
@@ -123,7 +131,6 @@ export default function EscaneigPage() {
       const repetits = await getDocs(
         query(
           collection(db, 'accessLog'),
-          where('sessionId', '==', sessioActiva.id),
           where('codiTiquet', '==', identificat.codiTiquet)
         )
       );
@@ -132,7 +139,7 @@ export default function EscaneigPage() {
         const dataRepetit = typeof timestampRepetit?.toDate === 'function'
           ? timestampRepetit.toDate().toLocaleString('ca-ES')
           : null;
-        const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat aquesta sessió`;
+        const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat`;
         mostrarResultat({
           tipus: 'avis',
           text: dataRepetit
@@ -163,6 +170,7 @@ export default function EscaneigPage() {
       videoRef.current.srcObject = stream;
       return videoRef.current.play();
     }).catch(() => {
+      if (!actiu) return;
       mostrarResultat({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
     });
 
@@ -261,7 +269,7 @@ export default function EscaneigPage() {
               <button
                 className="btn"
                 type="button"
-                onClick={() => { missatge.onConfirmar(); setMissatge(null); }}
+                onClick={missatge.onConfirmar}
               >
                 Comptar igualment
               </button>

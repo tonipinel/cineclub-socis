@@ -143,7 +143,7 @@ describe('EscaneigPage', () => {
     await user.type(input, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     const dataFormatada = dataEscaneigPrevi.toLocaleString('ca-ES');
-    expect(await screen.findByText(new RegExp(`ja s'ha escanejat aquesta sessió \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(`ja s'ha escanejat \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
     expect(addDoc.mock.calls[0][1].codiTiquet).toBe('L1-014');
@@ -185,8 +185,9 @@ describe('EscaneigPage', () => {
     await user.type(inputNou, 'L1-014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     // El debounce ignora el segon enviament dins la finestra: no es torna a
-    // consultar Firestore ni es duplica el registre.
+    // consultar Firestore ni es duplica el registre, però s'informa l'operador.
     expect(addDoc).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
   });
 
   it('després d\'un escaneig, amaga el formulari i mostra el missatge amb "Tornar a escanejar"', async () => {
