@@ -4,7 +4,7 @@ export function identificarCodi(codi) {
   const matchSoci = text.match(/^SOCI-(\d+)$/);
   if (matchSoci) return { tipus: 'soci', numeroSoci: Number(matchSoci[1]) };
 
-  const matchTiquet = text.match(/^(L[12]-\d{3}|T-\d{6,})$/);
+  const matchTiquet = text.match(/^(T-\d{6,})$/);
   if (matchTiquet) return { tipus: 'generic', codiTiquet: matchTiquet[1] };
 
   return { tipus: 'desconegut' };
@@ -102,4 +102,18 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
     : 0;
 
   return { disponibles, gastatsUltimaSessio };
+}
+
+export function entradesPerFranjaHoraria(entrades) {
+  const comptador = new Map();
+  for (const entrada of entrades) {
+    const data = entrada.timestamp?.toDate?.();
+    if (!data) continue;
+    const minutsArrodonits = Math.floor(data.getMinutes() / 30) * 30;
+    const franja = `${String(data.getHours()).padStart(2, '0')}:${String(minutsArrodonits).padStart(2, '0')}`;
+    comptador.set(franja, (comptador.get(franja) ?? 0) + 1);
+  }
+  return [...comptador.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([franja, total]) => ({ franja, total }));
 }

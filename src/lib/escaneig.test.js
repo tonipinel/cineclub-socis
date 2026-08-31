@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
-  resumDashboardTiquets,
+  resumDashboardTiquets, entradesPerFranjaHoraria,
 } from './escaneig';
 import { carnetPayload } from './carnet';
 
@@ -11,9 +11,9 @@ describe('identificarCodi', () => {
     expect(identificarCodi('SOCI-42')).toEqual({ tipus: 'soci', numeroSoci: 42 });
   });
 
-  it('reconeix un codi de tiquet genèric (format antic de lots)', () => {
-    expect(identificarCodi('L1-014')).toEqual({ tipus: 'generic', codiTiquet: 'L1-014' });
-    expect(identificarCodi('L2-150')).toEqual({ tipus: 'generic', codiTiquet: 'L2-150' });
+  it('ja no reconeix el format antic de lots (L1-/L2-, tiquets que ja no existeixen)', () => {
+    expect(identificarCodi('L1-014')).toEqual({ tipus: 'desconegut' });
+    expect(identificarCodi('L2-150')).toEqual({ tipus: 'desconegut' });
   });
 
   it('reconeix un codi de tiquet genèric incremental (format nou)', () => {
@@ -275,5 +275,34 @@ describe('resumDashboardTiquets', () => {
       { tipus: 'generic', codiTiquet: 'T-000003', sessionId: 's2' },
     ];
     expect(resumDashboardTiquets([], entradesAccessLog, sessions, avui).gastatsUltimaSessio).toBe(2);
+  });
+});
+
+describe('entradesPerFranjaHoraria', () => {
+  it('retorna un array buit si no hi ha entrades', () => {
+    expect(entradesPerFranjaHoraria([])).toEqual([]);
+  });
+
+  it('agrupa les entrades en franges de 30 minuts, ordenades cronològicament', () => {
+    const entrades = [
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 20, 45) } },
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 20, 10) } },
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 20, 20) } },
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 21, 5) } },
+    ];
+    expect(entradesPerFranjaHoraria(entrades)).toEqual([
+      { franja: '20:00', total: 2 },
+      { franja: '20:30', total: 1 },
+      { franja: '21:00', total: 1 },
+    ]);
+  });
+
+  it('ignora les entrades sense timestamp', () => {
+    const entrades = [
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 20, 10) } },
+      { timestamp: null },
+      {},
+    ];
+    expect(entradesPerFranjaHoraria(entrades)).toEqual([{ franja: '20:00', total: 1 }]);
   });
 });
