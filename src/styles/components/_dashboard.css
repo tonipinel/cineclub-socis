@@ -31,7 +31,6 @@
 .dashboard__sessio-fila {
   @apply flex items-center justify-between gap-2;
 }
-.dashboard__carregant,
 .dashboard__error {
   @apply p-6 font-body text-black;
 }

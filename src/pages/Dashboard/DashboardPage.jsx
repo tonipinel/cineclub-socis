@@ -7,6 +7,7 @@ import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets } from '../../lib/escaneig';
 import { resumComptable, balancPerSessio, formatEuros, classeSigne } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
+import Carregant from '../../components/Carregant';
 
 export default function DashboardPage() {
   const [dades, setDades] = useState(undefined);
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   }, []);
 
   if (error) return <p className="dashboard__error">No s'han pogut carregar les dades del dashboard.</p>;
-  if (!dades) return <p className="dashboard__carregant">Carregant…</p>;
+  if (!dades) return <Carregant />;
 
   const socis = resumDashboardSocis(dades.socis, dades.sessions, dades.accessLog);
   const tiquets = resumDashboardTiquets(dades.lots, dades.accessLog, dades.sessions);

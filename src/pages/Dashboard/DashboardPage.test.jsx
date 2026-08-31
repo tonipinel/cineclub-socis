@@ -53,10 +53,10 @@ describe('DashboardPage', () => {
     getDocs.mockReset();
   });
 
-  it('mostra "Carregant…" mentre es resolen les dades', () => {
+  it('mostra el gif de càrrega mentre es resolen les dades', () => {
     getDocs.mockReturnValue(new Promise(() => {}));
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
-    expect(screen.getByText('Carregant…')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Carregant…' })).toBeInTheDocument();
   });
 
   it('mostra un error si falla la càrrega', async () => {

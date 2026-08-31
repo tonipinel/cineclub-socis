@@ -123,7 +123,7 @@ export default function ComptabilitatPage() {
               {COLUMNES.map(([columna]) => (
                 <td key={columna}>
                   {columna === 'concepte' ? (
-                    <Link to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>{RENDERITZAR_CELDA[columna](moviment)}</Link>
+                    <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>{RENDERITZAR_CELDA[columna](moviment)}</Link>
                   ) : RENDERITZAR_CELDA[columna](moviment)}
                 </td>
               ))}

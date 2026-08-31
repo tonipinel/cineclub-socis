@@ -16,3 +16,6 @@
 .form__error {
   @apply font-body text-sm text-red-600;
 }
+.enllac {
+  @apply text-gold-dark transition hover:underline;
+}

@@ -6,6 +6,7 @@ import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import { teNumeroSoci } from '../../lib/socis';
 import { assistenciaPerSessio } from '../../lib/escaneig';
+import Carregant from '../../components/Carregant';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -102,7 +103,7 @@ export default function SociForm() {
     }
   };
 
-  if (carregant) return <p>Carregant…</p>;
+  if (carregant) return <Carregant />;
 
   return (
     <form className="soci-form" onSubmit={handleSubmit}>

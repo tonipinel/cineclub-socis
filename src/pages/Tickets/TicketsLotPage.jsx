@@ -7,6 +7,7 @@ import {
 import { db } from '../../firebase/firebase';
 import { codisDesDe, tiquetsDelLot } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
+import Carregant from '../../components/Carregant';
 
 function avui() {
   return new Date().toLocaleDateString('sv-SE');
@@ -95,7 +96,7 @@ export default function TicketsLotPage() {
     }
   };
 
-  if (lot === undefined) return <p>Carregant…</p>;
+  if (lot === undefined) return <Carregant />;
 
   const tiquets = tiquetsDelLot(lot, entradesGeneriques);
   const codisAnulats = lot.codisAnulats ?? [];

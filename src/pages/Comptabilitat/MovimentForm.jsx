@@ -8,6 +8,7 @@ import {
   calcularTotal, CATEGORIES, DIRECCIONS_TRASPAS, METODES_DESPESA, METODES_INGRES, TIPUS_MOVIMENT,
   ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
+import Carregant from '../../components/Carregant';
 import { resumAccessLog } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
 
@@ -154,7 +155,7 @@ export default function MovimentForm() {
     }
   };
 
-  if (carregant) return <p>Carregant…</p>;
+  if (carregant) return <Carregant />;
 
   const metodes = dades.tipus === TIPUS_MOVIMENT.DESPESA ? METODES_DESPESA : METODES_INGRES;
   const quantitatEsUnitaria = Number(dades.quantitat) === 1;

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import CarnetQR from '../../components/CarnetQR';
+import Carregant from '../../components/Carregant';
 import * as ROUTES from '../../constants/routes';
 
 // Injectem la mida de pàgina d'impressió (85,6×54mm, mida DNI) només mentre
@@ -30,7 +31,7 @@ export default function CarnetSoci() {
 
   useMidaImpressioDNI();
 
-  if (!soci) return <p>Carregant…</p>;
+  if (!soci) return <Carregant />;
 
   return (
     <div className="carnet-pagina">

@@ -28,11 +28,11 @@ function formatData(data) {
 }
 
 function NomSoci({ soci }) {
-  return <Link to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.nom}</Link>;
+  return <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.nom}</Link>;
 }
 
 function CognomsSoci({ soci }) {
-  return <Link to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.cognoms}</Link>;
+  return <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.cognoms}</Link>;
 }
 
 const RENDERITZAR_CELDA = {

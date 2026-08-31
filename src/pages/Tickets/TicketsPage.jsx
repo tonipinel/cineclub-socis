@@ -102,7 +102,7 @@ export default function TicketsPage() {
       <ul className="tickets-llista">
         {lots.map((lot) => (
           <li key={lot.id} className="tickets-llista__item">
-            <Link to={ROUTES.TICKETS_LOT.replace(':id', lot.id)}>
+            <Link className="enllac" to={ROUTES.TICKETS_LOT.replace(':id', lot.id)}>
               Tiquets T-{String(lot.numeroInicial).padStart(6, '0')} – T-{String(lot.numeroInicial + lot.quantitat - 1).padStart(6, '0')}
               {' '}({lot.quantitat})
             </Link>
