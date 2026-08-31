@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 const mockUseAuth = vi.fn();
 vi.mock('../auth/useAuth', () => ({ useAuth: () => mockUseAuth() }));
@@ -60,5 +60,29 @@ describe('Header', () => {
     const botoSortir = screen.getByRole('button', { name: 'Sortir' });
     await user.click(botoSortir);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('marca com a actiu l\'enllaç de la pàgina en què ets', () => {
+    mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut: vi.fn() });
+    render(
+      <MemoryRouter initialEntries={['/sessions']}>
+        <Header />
+        <Routes><Route path="/sessions" element={<p>Sessions</p>} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('link', { name: 'Sessions' })).toHaveClass('site-header__link--actiu');
+    expect(screen.getByRole('link', { name: 'Socis' })).not.toHaveClass('site-header__link--actiu');
+  });
+
+  it('el botó d\'hamburguesa obre i tanca el menú mòbil', async () => {
+    mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut: vi.fn() });
+    const user = userEvent.setup();
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    const botoMenu = screen.getByRole('button', { name: 'Obrir el menú' });
+    expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
+    await user.click(botoMenu);
+    expect(botoMenu).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('link', { name: 'Socis' }));
+    expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
   });
 });

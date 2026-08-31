@@ -1,12 +1,30 @@
 .site-header {
-  @apply flex items-center justify-between gap-4 bg-black px-4 py-3 text-white sm:px-6 print:hidden;
+  @apply relative flex items-center justify-between gap-4 bg-black px-4 py-3 text-white sm:px-6 print:hidden;
+}
+.site-header__marca {
+  @apply flex items-center gap-2;
+}
+.site-header__logo {
+  @apply h-8 w-8 object-contain;
 }
 .site-header__brand {
   @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
 }
+.site-header__hamburguesa {
+  @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white md:hidden;
+}
 .site-header__nav {
-  @apply flex items-center gap-4;
+  @apply hidden w-full flex-col items-stretch gap-1 md:flex md:w-auto md:flex-row md:items-center md:gap-4;
+}
+.site-header__nav--obert {
+  @apply absolute inset-x-0 top-full z-20 flex flex-col gap-1 bg-black px-4 py-3 md:static md:flex-row md:gap-4 md:bg-transparent md:p-0;
 }
 .site-header__link {
-  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-white hover:text-gold;
+  @apply flex cursor-pointer items-center gap-2 border-0 bg-transparent p-2 font-body text-sm font-semibold text-white hover:text-gold md:p-0;
+}
+.site-header__link--actiu {
+  @apply text-gold;
+}
+.site-header__icona {
+  @apply h-4 w-4 shrink-0;
 }
