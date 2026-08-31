@@ -34,8 +34,8 @@ const RENDERITZAR_CELDA = {
     <span className="badge badge--metode">{ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament ?? ''}</span>
   ),
   total: (m) => (
-    <span className={`comptabilitat__import ${m.tipus === 'traspas' ? '' : classeSigne(m.tipus === 'despesa' ? -1 : 1)}`}>
-      {m.tipus === 'despesa' ? '−' : '+'}{formatEuros(Number(m.total) || 0)}
+    <span className={`comptabilitat__import ${m.tipus === 'traspas' ? 'comptabilitat__valor--traspas' : classeSigne(m.tipus === 'despesa' ? -1 : 1)}`}>
+      {m.tipus === 'traspas' ? '' : m.tipus === 'despesa' ? '−' : '+'}{formatEuros(Number(m.total) || 0)}
     </span>
   ),
 };

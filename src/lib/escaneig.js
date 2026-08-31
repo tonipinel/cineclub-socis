@@ -4,7 +4,7 @@ export function identificarCodi(codi) {
   const matchSoci = text.match(/^SOCI-(\d+)$/);
   if (matchSoci) return { tipus: 'soci', numeroSoci: Number(matchSoci[1]) };
 
-  const matchTiquet = text.match(/^(L[12]-\d{3})$/);
+  const matchTiquet = text.match(/^(L[12]-\d{3}|T-\d{6,})$/);
   if (matchTiquet) return { tipus: 'generic', codiTiquet: matchTiquet[1] };
 
   return { tipus: 'desconegut' };
@@ -13,6 +13,10 @@ export function identificarCodi(codi) {
 export function codisDeLot(lot) {
   const prefix = lot === 'lot2' ? 'L2' : 'L1';
   return Array.from({ length: 150 }, (_, i) => `${prefix}-${String(i + 1).padStart(3, '0')}`);
+}
+
+export function codisDesDe(seguentNumero, quantitat) {
+  return Array.from({ length: quantitat }, (_, i) => `T-${String(seguentNumero + i).padStart(6, '0')}`);
 }
 
 export function assistenciaPerSessio(sessions, entradesSoci) {

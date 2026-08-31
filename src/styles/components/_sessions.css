@@ -8,7 +8,7 @@
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
 .sessions-list__graella {
-  @apply grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3;
+  @apply grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 md:grid-cols-3;
 }
 .sessions-list__targeta {
   @apply overflow-hidden rounded border border-black/10;
@@ -17,7 +17,7 @@
   @apply flex h-full flex-col text-black;
 }
 .sessions-list__imatge {
-  @apply h-40 w-full object-cover;
+  @apply aspect-[2/3] w-full object-cover;
 }
 .sessions-list__info {
   @apply flex flex-1 flex-col gap-1 p-3;

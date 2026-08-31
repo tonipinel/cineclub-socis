@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  identificarCodi, codisDeLot, resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents,
+  identificarCodi, codisDeLot, codisDesDe, resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents,
   resumPerSessio,
 } from './escaneig';
 import { carnetPayload } from './carnet';
@@ -10,9 +10,13 @@ describe('identificarCodi', () => {
     expect(identificarCodi('SOCI-42')).toEqual({ tipus: 'soci', numeroSoci: 42 });
   });
 
-  it('reconeix un codi de tiquet genèric', () => {
+  it('reconeix un codi de tiquet genèric (format antic de lots)', () => {
     expect(identificarCodi('L1-014')).toEqual({ tipus: 'generic', codiTiquet: 'L1-014' });
     expect(identificarCodi('L2-150')).toEqual({ tipus: 'generic', codiTiquet: 'L2-150' });
+  });
+
+  it('reconeix un codi de tiquet genèric incremental (format nou)', () => {
+    expect(identificarCodi('T-000123')).toEqual({ tipus: 'generic', codiTiquet: 'T-000123' });
   });
 
   it('retorna desconegut per a un codi que no coincideix amb cap patró', () => {
@@ -45,6 +49,22 @@ describe('codisDeLot', () => {
 
   it('identifica tots els codis d\'un lot com a tiquets genèrics', () => {
     expect(codisDeLot('lot2').every((c) => identificarCodi(c).tipus === 'generic')).toBe(true);
+  });
+});
+
+describe('codisDesDe', () => {
+  it('genera codis incrementals a partir del número indicat', () => {
+    const codis = codisDesDe(1, 5);
+    expect(codis).toEqual(['T-000001', 'T-000002', 'T-000003', 'T-000004', 'T-000005']);
+  });
+
+  it('continua des d\'un número diferent de 1', () => {
+    const codis = codisDesDe(151, 3);
+    expect(codis).toEqual(['T-000151', 'T-000152', 'T-000153']);
+  });
+
+  it('cada codi generat s\'identifica com a tiquet genèric', () => {
+    expect(codisDesDe(1, 3).every((c) => identificarCodi(c).tipus === 'generic')).toBe(true);
   });
 });
 

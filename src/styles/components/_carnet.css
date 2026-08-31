@@ -11,12 +11,12 @@
   @apply print:hidden;
 }
 .carnet {
-  @apply flex overflow-hidden bg-black;
+  @apply flex overflow-hidden bg-white;
   box-sizing: border-box;
   width: 85.6mm;
   height: 54mm;
   border: 0.6mm solid #bf9000;
-  box-shadow: 0 2mm 4mm rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2mm 4mm rgba(0, 0, 0, 0.15);
 }
 .carnet__info {
   @apply flex flex-1 flex-col justify-center gap-1;
@@ -28,19 +28,19 @@
   margin-bottom: 1mm;
 }
 .carnet__etiqueta {
-  @apply font-display font-bold uppercase tracking-wide text-gold;
+  @apply font-display font-bold uppercase tracking-wide text-gold-dark;
   font-size: 7pt;
 }
 .carnet__nom {
-  @apply font-display font-bold uppercase leading-tight text-white;
+  @apply font-display font-bold uppercase leading-tight text-black;
   font-size: 11pt;
 }
 .carnet__detall {
-  @apply font-body text-white/70;
+  @apply font-body text-black/60;
   font-size: 7pt;
 }
 .carnet__codi {
-  @apply font-body font-semibold tracking-widest text-white;
+  @apply font-body font-semibold tracking-widest text-black;
   font-size: 7pt;
 }
 .carnet__qr {

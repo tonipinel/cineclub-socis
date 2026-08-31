@@ -147,3 +147,26 @@ describe('firestore.rules — moviments', () => {
     await assertSucceeds(deleteDoc(doc(adminDb, 'moviments/1')));
   });
 });
+
+describe('firestore.rules — configuracio', () => {
+  it('impedeix a un visitant no autenticat llegir o escriure la configuració', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'configuracio/tiquets')));
+    await assertFails(setDoc(doc(anonDb, 'configuracio/tiquets'), { seguentNumero: 1 }));
+  });
+
+  it('impedeix a taquilla llegir o escriure la configuració', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'configuracio/tiquets'), { seguentNumero: 1 });
+    await assertFails(getDoc(doc(taquillaDb, 'configuracio/tiquets')));
+    await assertFails(setDoc(doc(taquillaDb, 'configuracio/tiquets'), { seguentNumero: 999 }));
+  });
+
+  it('permet a un admin llegir i actualitzar el comptador de tiquets', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'configuracio/tiquets'), { seguentNumero: 1 }));
+    await assertSucceeds(getDoc(doc(adminDb, 'configuracio/tiquets')));
+    await assertSucceeds(updateDoc(doc(adminDb, 'configuracio/tiquets'), { seguentNumero: 151 }));
+  });
+});

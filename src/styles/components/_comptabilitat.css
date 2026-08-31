@@ -50,6 +50,9 @@
 .comptabilitat__valor--negatiu {
   @apply text-red-700;
 }
+.comptabilitat__valor--traspas {
+  @apply text-gold-dark;
+}
 
 .moviment-form {
   @apply mx-auto flex max-w-lg flex-col gap-2 p-6;

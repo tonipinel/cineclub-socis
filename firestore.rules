@@ -41,5 +41,11 @@ service cloud.firestore {
     match /moviments/{id} {
       allow read, write: if isAdmin();
     }
+
+    // Comptador incremental de tiquets genèrics (evita repetir números ja
+    // impresos); només l'admin el pot llegir o avançar.
+    match /configuracio/{id} {
+      allow read, write: if isAdmin();
+    }
   }
 }
