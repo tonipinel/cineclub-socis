@@ -9,6 +9,7 @@ import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
 import CarnetSoci from './pages/Socis/CarnetSoci';
+import CarnetsLot from './pages/Socis/CarnetsLot';
 import SessionsList from './pages/Sessions/SessionsList';
 import SessionForm from './pages/Sessions/SessionForm';
 import TicketsPage from './pages/Tickets/TicketsPage';
@@ -62,6 +63,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <CarnetSoci />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SOCIS_CARNETS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <CarnetsLot />
               </RequireRole>
             </RequireAuth>
           }

@@ -6,14 +6,14 @@ import CarnetQR from '../../components/CarnetQR';
 import Carregant from '../../components/Carregant';
 import * as ROUTES from '../../constants/routes';
 
-// Injectem la mida de pàgina d'impressió (85,6×54mm, mida DNI) només mentre
-// aquesta pàgina està muntada, perquè no afecti la impressió de la resta de
-// l'aplicació (`@page` és una regla global, no es pot restringir amb un
-// selector CSS normal).
-function useMidaImpressioDNI() {
+// Injectem la mida de pàgina d'impressió (8,89×6,096cm, mida de les fundes)
+// només mentre aquesta pàgina està muntada, perquè no afecti la impressió de
+// la resta de l'aplicació (`@page` és una regla global, no es pot restringir
+// amb un selector CSS normal).
+function useMidaImpressioCarnet() {
   useEffect(() => {
     const estil = document.createElement('style');
-    estil.textContent = '@page { size: 85.6mm 54mm; margin: 0; }';
+    estil.textContent = '@page { size: 88.9mm 60.96mm; margin: 0; }';
     document.head.appendChild(estil);
     return () => estil.remove();
   }, []);
@@ -29,7 +29,7 @@ export default function CarnetSoci() {
     });
   }, [id]);
 
-  useMidaImpressioDNI();
+  useMidaImpressioCarnet();
 
   if (!soci) return <Carregant />;
 

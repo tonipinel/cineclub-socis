@@ -4,6 +4,9 @@
 .socis-list__capcalera {
   @apply mb-4 flex items-center justify-between;
 }
+.socis-list__accions {
+  @apply flex items-center gap-2;
+}
 .socis-list__titol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }

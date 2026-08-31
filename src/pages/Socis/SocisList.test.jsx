@@ -88,4 +88,29 @@ describe('SocisList', () => {
     expect(await within(filaAnna).findByText('2')).toBe(cellesAnna[cellesAnna.length - 1]);
     expect(cellesMarc[cellesMarc.length - 1]).toHaveTextContent('0');
   });
+
+  it('permet seleccionar socis i mostra un enllaç per imprimir-ne els carnets', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: /Imprimir carnets/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Anna Vidal' }));
+    const enllac = screen.getByRole('link', { name: 'Imprimir carnets (1)' });
+    expect(enllac).toHaveAttribute('href', '/socis/carnets?ids=1');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Marc Serra' }));
+    expect(screen.getByRole('link', { name: 'Imprimir carnets (2)' })).toHaveAttribute(
+      'href', '/socis/carnets?ids=1,2'
+    );
+  });
+
+  it('la casella "seleccionar tots" selecciona i deselecciona tots els socis visibles', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar tots els socis' }));
+    expect(screen.getByRole('link', { name: 'Imprimir carnets (2)' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar tots els socis' }));
+    expect(screen.queryByRole('link', { name: /Imprimir carnets/ })).not.toBeInTheDocument();
+  });
 });

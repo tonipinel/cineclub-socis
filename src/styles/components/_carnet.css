@@ -11,43 +11,59 @@
   @apply print:hidden;
 }
 .carnet {
-  @apply flex overflow-hidden bg-white;
+  @apply flex flex-col overflow-hidden;
   box-sizing: border-box;
-  width: 85.6mm;
-  height: 54mm;
-  border: 0.6mm solid #bf9000;
+  width: 88.9mm;
+  height: 60.96mm;
+  border: 0.3mm solid #9ca3af;
   box-shadow: 0 2mm 4mm rgba(0, 0, 0, 0.15);
+  background-image: linear-gradient(rgb(0 0 0 / 55%), rgb(255 255 255 / 0%)),
+    url('https://cineclubrodadebera.cat/images/cinema-pattern.jpg');
+  background-size: cover;
+  background-position: center;
 }
-.carnet__info {
-  @apply flex flex-1 flex-col justify-center gap-1;
-  padding: 3mm 2mm 3mm 4mm;
-}
-.carnet__logo {
-  @apply h-auto;
-  width: 30mm;
-  margin-bottom: 1mm;
-}
-.carnet__etiqueta {
-  @apply font-display font-bold uppercase tracking-wide text-gold-dark;
-  font-size: 7pt;
+.carnet__capcalera {
+  @apply bg-white;
+  padding: 3mm 4mm 2mm 4mm;
 }
 .carnet__nom {
-  @apply font-display font-bold uppercase leading-tight text-black;
-  font-size: 11pt;
+  @apply overflow-hidden whitespace-nowrap font-display font-bold uppercase leading-tight text-black;
+  font-size: 14pt;
+  text-overflow: ellipsis;
 }
-.carnet__detall {
-  @apply font-body text-black/60;
-  font-size: 7pt;
+.carnet__numero {
+  @apply font-display font-bold tracking-wide text-gold-dark;
+  font-size: 12pt;
+}
+.carnet__cos {
+  @apply flex flex-1 items-center justify-around;
+  padding: 0 4mm 4mm 4mm;
+}
+.carnet__logo {
+  @apply h-auto flex-shrink-0;
+  width: 45mm;
+}
+.carnet__qr-bloc {
+  @apply relative flex-shrink-0;
+}
+.carnet__qr-marc {
+  @apply flex-shrink-0 border border-black/15 bg-white;
+  padding: 1.5mm;
+}
+.carnet__qr {
+  @apply block bg-white;
+  width: 27mm;
+  height: 27mm;
 }
 .carnet__codi {
   @apply font-body font-semibold tracking-widest text-black;
-  font-size: 7pt;
-}
-.carnet__qr {
-  @apply flex-shrink-0 self-center bg-white;
-  width: 40mm;
-  height: 40mm;
-  margin-right: 3mm;
+  font-size: 6pt;
+  position: absolute;
+  right: -7mm;
+  top: -52px;
+  transform: rotate(-90deg);
+  margin-top: 0;
+  white-space: nowrap;
 }
 
 @media print {
@@ -64,5 +80,37 @@
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+}
+
+.carnets-lot-pagina {
+  @apply flex flex-col items-center gap-3 p-6;
+}
+.carnets-lot-pagina__capcalera {
+  @apply flex items-center gap-4 print:hidden;
+}
+.carnets-lot-pagina__tornar {
+  @apply font-body text-sm text-black/70;
+}
+.carnets-lot {
+  @apply justify-center;
+  display: grid;
+  grid-template-columns: repeat(3, 88.9mm);
+  gap: 0;
+  border-top: 0.3mm solid #9ca3af;
+  border-left: 0.3mm solid #9ca3af;
+}
+.carnets-lot .carnet {
+  border: none;
+  border-right: 0.3mm solid #9ca3af;
+  border-bottom: 0.3mm solid #9ca3af;
+  box-shadow: none;
+  break-inside: avoid;
+}
+
+@media print {
+  .carnets-lot-pagina {
+    padding: 0;
+    gap: 0;
   }
 }

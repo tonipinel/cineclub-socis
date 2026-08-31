@@ -335,7 +335,7 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
       (await screen.findByText("Resum d'assistència")).closest('.session-form__bloc')
     );
     const filaSocis = resumAssistencia.getByText('Socis').closest('.session-form__estadistica-fila');
-    expect(within(filaSocis).getByText('▲ 1')).toBeInTheDocument();
+    expect(await within(filaSocis).findByText('▲ 1')).toBeInTheDocument();
 
     const filaAportacions = resumAssistencia.getByText('Aportacions').closest('.session-form__estadistica-fila');
     expect(within(filaAportacions).getByText('▼ 2')).toBeInTheDocument();

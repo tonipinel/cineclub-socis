@@ -54,6 +54,7 @@ export default function SocisList() {
   const [cerca, setCerca] = useState('');
   const [estat, setEstat] = useState('tots');
   const [ordenacio, setOrdenacio] = useState({ columna: 'numeroSoci', direccio: 'desc' });
+  const [seleccionats, setSeleccionats] = useState(new Set());
 
   useEffect(() => {
     const q = query(collection(db, 'socis'));
@@ -87,11 +88,37 @@ export default function SocisList() {
 
   const socisFiltrats = ordenarSocis(filtrarSocis(socisAmbAssistencies, { cerca, estat }), ordenacio);
 
+  const alternarSeleccio = (id) => {
+    setSeleccionats((actual) => {
+      const nou = new Set(actual);
+      if (nou.has(id)) nou.delete(id); else nou.add(id);
+      return nou;
+    });
+  };
+
+  const totsSeleccionats = socisFiltrats.length > 0 && socisFiltrats.every((soci) => seleccionats.has(soci.id));
+
+  const alternarSeleccioTots = () => {
+    setSeleccionats((actual) => {
+      const nou = new Set(actual);
+      const accio = totsSeleccionats ? 'delete' : 'add';
+      socisFiltrats.forEach((soci) => nou[accio](soci.id));
+      return nou;
+    });
+  };
+
   return (
     <div className="socis-list">
       <div className="socis-list__capcalera">
         <h1 className="socis-list__titol">Socis</h1>
-        <Link className="btn" to={ROUTES.SOCIS_NOU}>Donar d'alta</Link>
+        <div className="socis-list__accions">
+          {seleccionats.size > 0 && (
+            <Link className="btn btn--outline" to={`${ROUTES.SOCIS_CARNETS}?ids=${[...seleccionats].join(',')}`}>
+              Imprimir carnets ({seleccionats.size})
+            </Link>
+          )}
+          <Link className="btn" to={ROUTES.SOCIS_NOU}>Donar d'alta</Link>
+        </div>
       </div>
       <div className="socis-list__filtres">
         <input
@@ -111,6 +138,14 @@ export default function SocisList() {
       <table className="socis-list__taula">
         <thead>
           <tr>
+            <th>
+              <input
+                type="checkbox"
+                aria-label="Seleccionar tots els socis"
+                checked={totsSeleccionats}
+                onChange={alternarSeleccioTots}
+              />
+            </th>
             {COLUMNES.map(([columna, etiqueta]) => (
               <th key={columna}>
                 <button
@@ -128,6 +163,14 @@ export default function SocisList() {
         <tbody>
           {socisFiltrats.map((soci) => (
             <tr key={soci.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  aria-label={`Seleccionar ${soci.nom} ${soci.cognoms}`}
+                  checked={seleccionats.has(soci.id)}
+                  onChange={() => alternarSeleccio(soci.id)}
+                />
+              </td>
               {COLUMNES.map(([columna]) => (
                 <td key={columna}>{RENDERITZAR_CELDA[columna](soci)}</td>
               ))}
