@@ -51,7 +51,7 @@ export default function SociForm() {
       getDocs(collection(db, 'sessions')),
       getDocs(query(collection(db, 'accessLog'), where('numeroSoci', '==', Number(dades.numeroSoci)))),
     ]).then(([sessionsSnap, accessLogSnap]) => {
-      const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.data <= avui());
       const entradesSoci = accessLogSnap.docs.map((d) => d.data());
       setAssistencies(assistenciaPerSessio(sessions, entradesSoci));
     });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   orderBy: vi.fn(),
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   onSnapshot: vi.fn((q, callback) => {
     callback({
       docs: [
@@ -19,7 +20,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { onSnapshot } from 'firebase/firestore';
+import { getDocs, onSnapshot } from 'firebase/firestore';
 import SocisList from './SocisList';
 
 describe('SocisList', () => {
@@ -61,30 +62,30 @@ describe('SocisList', () => {
     expect(screen.getByRole('link', { name: 'Vidal' })).toHaveAttribute('href', '/socis/1');
   });
 
-  it('mostra el nombre d\'assistències dels últims 12 mesos per soci', () => {
+  it('mostra el nombre d\'assistències dels últims 12 mesos per soci', async () => {
     const ara = new Date();
-    onSnapshot
-      .mockImplementationOnce((q, callback) => {
-        callback({
-          docs: [
-            { id: '1', data: () => ({ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2020-01-01' }) },
-            { id: '2', data: () => ({ numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', ultimPagament: '2099-01-01' }) },
-          ],
-        });
-        return () => {};
-      })
-      .mockImplementationOnce((q, callback) => {
-        callback({
-          docs: [
-            { data: () => ({ tipus: 'soci', numeroSoci: 1, timestamp: { toDate: () => ara } }) },
-            { data: () => ({ tipus: 'soci', numeroSoci: 1, timestamp: { toDate: () => ara } }) },
-          ],
-        });
-        return () => {};
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: '1', data: () => ({ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2020-01-01' }) },
+          { id: '2', data: () => ({ numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', ultimPagament: '2099-01-01' }) },
+        ],
       });
+      return () => {};
+    });
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { data: () => ({ tipus: 'soci', numeroSoci: 1, sessionId: 's1', timestamp: { toDate: () => ara } }) },
+        { data: () => ({ tipus: 'soci', numeroSoci: 1, sessionId: 's2', timestamp: { toDate: () => ara } }) },
+      ],
+    });
     render(<MemoryRouter><SocisList /></MemoryRouter>);
     const files = screen.getAllByRole('row').slice(1);
-    expect(files.find((f) => f.textContent.includes('Anna'))).toHaveTextContent('2');
-    expect(files.find((f) => f.textContent.includes('Marc'))).toHaveTextContent('0');
+    const filaAnna = files.find((f) => f.textContent.includes('Anna'));
+    const filaMarc = files.find((f) => f.textContent.includes('Marc'));
+    const cellesAnna = within(filaAnna).getAllByRole('cell');
+    const cellesMarc = within(filaMarc).getAllByRole('cell');
+    expect(await within(filaAnna).findByText('2')).toBe(cellesAnna[cellesAnna.length - 1]);
+    expect(cellesMarc[cellesMarc.length - 1]).toHaveTextContent('0');
   });
 });

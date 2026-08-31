@@ -218,4 +218,24 @@ describe('SociForm — assistència a sessions', () => {
     await screen.findByLabelText('Nom');
     expect(screen.queryByText('Assistència a sessions')).not.toBeInTheDocument();
   });
+
+  it('no mostra les sessions futures a la llista d\'assistència', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) },
+          { id: 's2', data: () => ({ titol: 'Pel·lícula del futur', data: '2099-01-01' }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Assistència a sessions')).toBeInTheDocument();
+    expect(screen.getByText(/The Artist/)).toBeInTheDocument();
+    expect(screen.queryByText(/Pel·lícula del futur/)).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { calcularEstatSoci, calcularVenciment, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
 import { filtrarSocis, ordenarSocis, FILTRE_PROXIMA_RENOVACIO } from '../../lib/socis';
@@ -64,7 +64,7 @@ export default function SocisList() {
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'));
-    return onSnapshot(q, (snap) => {
+    getDocs(q).then((snap) => {
       const entrades = snap.docs.map((d) => {
         const dades = d.data();
         return { ...dades, data: dades.timestamp?.toDate?.() };

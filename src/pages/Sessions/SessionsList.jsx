@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
 import { balancPerSessio, formatEuros } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 
-const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0 };
+const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
 export default function SessionsList() {
   const [sessions, setSessions] = useState([]);
@@ -22,14 +22,14 @@ export default function SessionsList() {
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'));
-    return onSnapshot(q, (snap) => {
+    getDocs(q).then((snap) => {
       setResumPerSessioState(resumPerSessio(snap.docs.map((d) => d.data())));
     });
   }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'moviments'));
-    return onSnapshot(q, (snap) => {
+    getDocs(q).then((snap) => {
       setBalancPerSessioState(balancPerSessio(snap.docs.map((d) => d.data())));
     });
   }, []);

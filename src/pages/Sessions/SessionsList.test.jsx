@@ -7,6 +7,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   orderBy: vi.fn(),
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   onSnapshot: vi.fn((q, callback) => {
     callback({
       docs: [
@@ -18,7 +19,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { onSnapshot } from 'firebase/firestore';
+import { getDocs, onSnapshot } from 'firebase/firestore';
 import SessionsList from './SessionsList';
 
 describe('SessionsList', () => {
@@ -35,28 +36,22 @@ describe('SessionsList', () => {
   });
 
   it('mostra el resum de socis, aportacions i balanç de cada sessió', async () => {
-    onSnapshot
-      .mockImplementationOnce((q, callback) => {
-        callback({ docs: [{ id: '1', data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }) }] });
-        return () => {};
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({ docs: [{ id: '1', data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }) }] });
+      return () => {};
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { data: () => ({ sessionId: '1', tipus: 'soci', numeroSoci: 7 }) },
+          { data: () => ({ sessionId: '1', tipus: 'generic', codiTiquet: 'L1-001', preuAplicat: 5 }) },
+        ],
       })
-      .mockImplementationOnce((q, callback) => {
-        callback({
-          docs: [
-            { data: () => ({ sessionId: '1', tipus: 'soci', numeroSoci: 7 }) },
-            { data: () => ({ sessionId: '1', tipus: 'generic', codiTiquet: 'L1-001', preuAplicat: 5 }) },
-          ],
-        });
-        return () => {};
-      })
-      .mockImplementationOnce((q, callback) => {
-        callback({
-          docs: [
-            { data: () => ({ sessionId: '1', tipus: 'ingres', total: 100 }) },
-            { data: () => ({ sessionId: '1', tipus: 'despesa', total: 40 }) },
-          ],
-        });
-        return () => {};
+      .mockResolvedValueOnce({
+        docs: [
+          { data: () => ({ sessionId: '1', tipus: 'ingres', total: 100 }) },
+          { data: () => ({ sessionId: '1', tipus: 'despesa', total: 40 }) },
+        ],
       });
     render(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Socis: 1')).toBeInTheDocument();
