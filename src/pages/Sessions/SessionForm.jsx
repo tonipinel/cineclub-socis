@@ -138,8 +138,8 @@ export default function SessionForm() {
       {editant && (
         <div className="session-form__resum">
           <p>Socis diferents: {resum.socisDistints}</p>
-          <p>Entrades genèriques: {resum.entradesGeneriques}</p>
-          <p>Import genèric acumulat: {resum.importGeneric}€</p>
+          <p>Aportacions: {resum.entradesGeneriques}</p>
+          <p>Import d'aportacions acumulat: {resum.importGeneric}€</p>
         </div>
       )}
 

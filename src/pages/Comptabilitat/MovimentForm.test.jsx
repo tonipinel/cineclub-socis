@@ -226,7 +226,7 @@ describe('MovimentForm — suggeriment d\'aportacions', () => {
     await screen.findByRole('option', { name: 'The Artist' });
     await user.selectOptions(screen.getByLabelText('Categoria'), 'Aportacions');
     await user.selectOptions(screen.getByLabelText('Sessió (opcional)'), 's1');
-    expect(await screen.findByText(/Aquesta sessió ha tingut 2 entrades genèriques \(10€\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/Aquesta sessió ha tingut 2 aportacions \(10€\)/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Omplir amb 10€' }));
     expect(screen.getByLabelText('Total')).toHaveValue(10);
     expect(screen.getByLabelText('Preu unitari')).toHaveValue(10);
@@ -242,7 +242,7 @@ describe('MovimentForm — suggeriment d\'aportacions', () => {
     );
     await screen.findByRole('option', { name: 'The Artist' });
     await user.selectOptions(screen.getByLabelText('Sessió (opcional)'), 's1');
-    expect(screen.queryByText(/entrades genèriques/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/aportacions/)).not.toBeInTheDocument();
   });
 });
 

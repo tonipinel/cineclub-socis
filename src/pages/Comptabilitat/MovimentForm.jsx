@@ -231,7 +231,7 @@ export default function MovimentForm() {
 
       {suggerimentActiu && (
         <p className="moviment-form__suggeriment">
-          Aquesta sessió ha tingut {suggerimentActiu.entradesGeneriques} entrades genèriques ({suggerimentActiu.importGeneric}€).
+          Aquesta sessió ha tingut {suggerimentActiu.entradesGeneriques} aportacions ({suggerimentActiu.importGeneric}€).
           {' '}
           {desbloquejat && (
             <button type="button" className="btn btn--outline" onClick={omplirAmbSuggeriment}>
