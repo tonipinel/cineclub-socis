@@ -154,11 +154,13 @@ export default function TicketsLotPage() {
                   Anul·lar
                 </button>
               )}
-              <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
               <p className="tickets-graella__titol">APORTACIÓ ({lot.preu}€)</p>
-              {urlsPerCodi[codi] && (
-                <img className="tickets-graella__qr" src={urlsPerCodi[codi]} alt={`Codi QR ${codi}`} />
-              )}
+              <div className="tickets-graella__fila">
+                <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
+                {urlsPerCodi[codi] && (
+                  <img className="tickets-graella__qr" src={urlsPerCodi[codi]} alt={`Codi QR ${codi}`} />
+                )}
+              </div>
               <p className="tickets-graella__codi">{codi}</p>
               <p className="tickets-graella__text">
                 Aquesta aportació et dona accés a la sessió d'avui. Recorda que si et

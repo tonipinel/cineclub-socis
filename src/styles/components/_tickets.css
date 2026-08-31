@@ -41,7 +41,7 @@
   @apply grid grid-cols-3 gap-0;
 }
 .tickets-graella__tiquet {
-  @apply relative flex flex-col items-center gap-1 bg-white p-2 text-center;
+  @apply relative flex flex-col items-center gap-1.5 bg-white p-3 text-center;
   border: 0.2mm dashed #bf9000;
   break-inside: avoid;
 }
@@ -49,26 +49,29 @@
   @apply absolute right-0.5 top-0.5 cursor-pointer rounded-sm border-0 bg-red-600 px-1.5 py-1 font-body font-bold uppercase leading-none text-white print:hidden;
   font-size: 7.5pt;
 }
-.tickets-graella__logo {
-  @apply h-auto;
-  width: 12mm;
-}
 .tickets-graella__titol {
   @apply font-display font-bold uppercase tracking-wide text-gold-dark;
-  font-size: 7pt;
+  font-size: 12pt;
+}
+.tickets-graella__fila {
+  @apply flex w-full items-center justify-center gap-3;
+}
+.tickets-graella__logo {
+  @apply h-auto flex-shrink-0;
+  width: 16mm;
 }
 .tickets-graella__qr {
-  @apply h-auto w-full;
-  max-width: 28mm;
+  @apply h-auto flex-shrink-0;
+  width: 22mm;
 }
 .tickets-graella__codi {
   @apply font-body font-semibold tracking-widest text-black;
-  font-size: 6pt;
+  font-size: 8pt;
 }
 .tickets-graella__text {
-  @apply font-body text-black/60;
-  font-size: 5.5pt;
-  line-height: 1.3;
+  @apply font-body text-black/70;
+  font-size: 8pt;
+  line-height: 1.35;
 }
 .tickets-graella__tiquet--usat {
   @apply opacity-40;
@@ -78,7 +81,7 @@
 }
 .tickets-graella__estat {
   @apply font-display font-bold uppercase tracking-wide text-red-700 print:hidden;
-  font-size: 6pt;
+  font-size: 7.5pt;
 }
 
 @media print {
