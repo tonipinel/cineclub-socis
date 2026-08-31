@@ -207,7 +207,16 @@ export default function EscaneigPage() {
         )}
 
         {!missatge && modeEntrada === 'escanejant' && (
-          <video ref={videoRef} className="escaneig__video" muted playsInline />
+          <>
+            <video ref={videoRef} className="escaneig__video" muted playsInline />
+            <button
+              type="button"
+              className="escaneig__enllac-manual"
+              onClick={() => setModeEntrada('manual')}
+            >
+              Introduir codi manualment
+            </button>
+          </>
         )}
 
         {!missatge && modeEntrada === 'manual' && (
@@ -222,6 +231,13 @@ export default function EscaneigPage() {
               />
             </div>
             <button className="btn" type="submit">Registrar</button>
+            <button
+              type="button"
+              className="escaneig__enllac-manual"
+              onClick={() => setModeEntrada('idle')}
+            >
+              Cancel·lar
+            </button>
           </form>
         )}
 

@@ -53,6 +53,15 @@ describe('EscaneigPage', () => {
     expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
   });
 
+  it('en clicar "Cancel·lar" des del codi manual, torna a la pantalla inicial', async () => {
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    await obrirCodiManual(user);
+    await user.click(screen.getByRole('button', { name: 'Cancel·lar' }));
+    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+
   it('registra un soci vàlid escrivint el codi manualment', async () => {
     // ultimPagament = avui fa que calcularEstatSoci doni sempre "Al dia"
     // (el venciment cau un any sencer després d'avui), independentment de quan
