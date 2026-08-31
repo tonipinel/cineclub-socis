@@ -96,6 +96,16 @@ export function ordenarMoviments(moviments, { columna = 'data', direccio = 'desc
   });
 }
 
+export function balancPerSessio(moviments) {
+  const balanc = {};
+  for (const moviment of moviments) {
+    if (!moviment.sessionId || moviment.tipus === TIPUS_MOVIMENT.TRASPAS) continue;
+    const signe = moviment.tipus === TIPUS_MOVIMENT.DESPESA ? -1 : 1;
+    balanc[moviment.sessionId] = (balanc[moviment.sessionId] ?? 0) + signe * (Number(moviment.total) || 0);
+  }
+  return balanc;
+}
+
 export function subtotalsPerMetode(moviments) {
   const subtotals = {};
   for (const moviment of moviments) {

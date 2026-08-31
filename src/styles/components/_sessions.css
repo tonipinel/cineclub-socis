@@ -7,11 +7,38 @@
 .sessions-list__titol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
-.sessions-list__llista {
-  @apply flex list-none flex-col gap-2 p-0;
+.sessions-list__graella {
+  @apply grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3;
 }
-.sessions-list__item {
-  @apply flex items-center gap-2 border-b border-black/10 py-2;
+.sessions-list__targeta {
+  @apply overflow-hidden rounded border border-black/10;
+}
+.sessions-list__enllac {
+  @apply flex h-full flex-col text-black;
+}
+.sessions-list__imatge {
+  @apply h-40 w-full object-cover;
+}
+.sessions-list__info {
+  @apply flex flex-1 flex-col gap-1 p-3;
+}
+.sessions-list__capcalera-targeta {
+  @apply flex items-center justify-between gap-2;
+}
+.sessions-list__titol-sessio {
+  @apply font-display text-base font-bold uppercase tracking-wide text-black;
+}
+.sessions-list__data {
+  @apply font-body text-sm text-black/60;
+}
+.sessions-list__resum {
+  @apply mt-auto flex flex-wrap gap-x-3 gap-y-1 border-t border-black/10 pt-2 font-body text-xs text-black/70;
+}
+.sessions-list__balanc--positiu {
+  @apply font-semibold text-green-700;
+}
+.sessions-list__balanc--negatiu {
+  @apply font-semibold text-red-700;
 }
 .badge--activa {
   @apply border-gold-dark text-gold-dark;

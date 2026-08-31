@@ -5,6 +5,7 @@ import {
   filtrarMoviments,
   ordenarMoviments,
   subtotalsPerMetode,
+  balancPerSessio,
   formatEuros,
   TIPUS_MOVIMENT,
   CATEGORIES,
@@ -152,6 +153,29 @@ describe('subtotalsPerMetode', () => {
 
   it('retorna un objecte buit si no hi ha moviments', () => {
     expect(subtotalsPerMetode([])).toEqual({});
+  });
+});
+
+describe('balancPerSessio', () => {
+  it('calcula ingressos menys despeses per cada sessió', () => {
+    const moviments = [
+      { sessionId: 's1', tipus: 'ingres', total: 100 },
+      { sessionId: 's1', tipus: 'despesa', total: 40 },
+      { sessionId: 's2', tipus: 'ingres', total: 30 },
+    ];
+    expect(balancPerSessio(moviments)).toEqual({ s1: 60, s2: 30 });
+  });
+
+  it('ignora els moviments sense sessió i els traspassos', () => {
+    const moviments = [
+      { sessionId: '', tipus: 'ingres', total: 100 },
+      { sessionId: 's1', tipus: 'traspas', direccio: 'caixa-a-banc', total: 50 },
+    ];
+    expect(balancPerSessio(moviments)).toEqual({});
+  });
+
+  it('retorna un objecte buit sense moviments', () => {
+    expect(balancPerSessio([])).toEqual({});
   });
 });
 

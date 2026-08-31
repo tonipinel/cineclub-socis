@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   identificarCodi, codisDeLot, resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents,
+  resumPerSessio,
 } from './escaneig';
 import { carnetPayload } from './carnet';
 
@@ -107,5 +108,27 @@ describe('comptarAssistenciesRecents', () => {
 
   it('retorna un objecte buit amb una llista buida', () => {
     expect(comptarAssistenciesRecents([], avui)).toEqual({});
+  });
+});
+
+describe('resumPerSessio', () => {
+  it('agrupa les entrades per sessió i en calcula el resum', () => {
+    const entrades = [
+      { sessionId: 's1', tipus: 'soci', numeroSoci: 1 },
+      { sessionId: 's1', tipus: 'generic', preuAplicat: 5 },
+      { sessionId: 's2', tipus: 'soci', numeroSoci: 2 },
+    ];
+    expect(resumPerSessio(entrades)).toEqual({
+      s1: { socisDistints: 1, entradesGeneriques: 1, importGeneric: 5 },
+      s2: { socisDistints: 1, entradesGeneriques: 0, importGeneric: 0 },
+    });
+  });
+
+  it('ignora les entrades sense sessionId', () => {
+    expect(resumPerSessio([{ tipus: 'soci', numeroSoci: 1 }])).toEqual({});
+  });
+
+  it('retorna un objecte buit amb una llista buida', () => {
+    expect(resumPerSessio([])).toEqual({});
   });
 });

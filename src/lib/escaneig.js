@@ -34,6 +34,19 @@ export function comptarAssistenciesRecents(entrades, avui = new Date()) {
   return comptador;
 }
 
+export function resumPerSessio(entrades) {
+  const grups = {};
+  for (const entrada of entrades) {
+    if (!entrada.sessionId) continue;
+    (grups[entrada.sessionId] ??= []).push(entrada);
+  }
+  const resultat = {};
+  for (const [sessionId, entradesSessio] of Object.entries(grups)) {
+    resultat[sessionId] = resumAccessLog(entradesSessio);
+  }
+  return resultat;
+}
+
 export function resumAccessLog(entrades) {
   const numerosSociDistints = new Set(
     entrades.filter((e) => e.tipus === 'soci').map((e) => e.numeroSoci)
