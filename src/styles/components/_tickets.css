@@ -58,7 +58,7 @@
 }
 .tickets-graella__logo {
   @apply h-auto flex-shrink-0;
-  width: 16mm;
+  width: 35mm;
 }
 .tickets-graella__qr {
   @apply h-auto flex-shrink-0;
