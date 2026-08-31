@@ -82,7 +82,21 @@ describe('Header', () => {
     expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
     await user.click(botoMenu);
     expect(botoMenu).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Tancar el menú' })).toBe(botoMenu);
     await user.click(screen.getByRole('link', { name: 'Socis' }));
+    expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('el botó "Sortir" tanca el menú mòbil i fa signOut', async () => {
+    const signOut = vi.fn();
+    mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut });
+    const user = userEvent.setup();
+    render(<MemoryRouter><Header /></MemoryRouter>);
+    const botoMenu = screen.getByRole('button', { name: 'Obrir el menú' });
+    await user.click(botoMenu);
+    expect(botoMenu).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('button', { name: 'Sortir' }));
+    expect(signOut).toHaveBeenCalledTimes(1);
     expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
   });
 });

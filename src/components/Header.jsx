@@ -97,7 +97,7 @@ export default function Header() {
           <button
             type="button"
             className="site-header__hamburguesa"
-            aria-label="Obrir el menú"
+            aria-label={menuObert ? 'Tancar el menú' : 'Obrir el menú'}
             aria-expanded={menuObert}
             onClick={() => setMenuObert((v) => !v)}
           >
@@ -115,7 +115,11 @@ export default function Header() {
                 {etiqueta}
               </NavLink>
             ))}
-            <button className="site-header__link" type="button" onClick={signOut}>
+            <button
+              className="site-header__link"
+              type="button"
+              onClick={() => { setMenuObert(false); signOut(); }}
+            >
               <Icona nom="sortir" />
               Sortir
             </button>
