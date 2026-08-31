@@ -44,6 +44,18 @@
   @apply border-gold-dark text-gold-dark;
 }
 .session-form {
+  @apply flex flex-col;
+}
+.session-form__seccio {
+  @apply w-full;
+}
+.session-form__seccio--blanc {
+  @apply bg-white;
+}
+.session-form__seccio--gris {
+  @apply bg-black/5;
+}
+.session-form__contingut {
   @apply mx-auto flex max-w-4xl flex-col gap-4 p-6;
 }
 .session-form__capcalera {
@@ -55,20 +67,53 @@
 .session-form__graella {
   @apply grid grid-cols-1 gap-6 md:grid-cols-2;
 }
+.session-form__graella--3 {
+  @apply grid grid-cols-1 gap-6 pb-0 md:grid-cols-3;
+}
 .session-form__columna {
   @apply flex flex-col gap-2;
 }
 .session-form__activa {
   @apply font-body text-sm font-semibold text-gold-dark;
 }
-.session-form__enllac {
-  @apply font-body text-sm text-black underline;
+.session-form__imatge-enllac {
+  @apply self-start;
 }
-.session-form__resum {
-  @apply mt-2 flex flex-col gap-1 border-t border-black/10 pt-2 font-body text-sm text-black/70;
+.session-form__imatge {
+  @apply aspect-[2/3] w-full max-w-xs rounded object-cover;
 }
 .session-form__desglossament-titol {
   @apply font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.session-form__desglossament-fila {
+  @apply flex items-center justify-between gap-2 border-b border-black/10 py-1 font-body text-sm text-black;
+}
+.session-form__desglossament-fila--categoria {
+  @apply font-semibold;
+}
+.session-form__desglossament-fila--submetode {
+  @apply pl-4 text-xs text-black/60;
+}
+.session-form__desglossament-total {
+  @apply flex items-center justify-between gap-2 pt-2 font-display text-base font-bold;
+}
+.session-form__estadistiques {
+  @apply flex flex-col;
+}
+.session-form__estadistica-fila {
+  @apply flex items-center justify-between gap-3 border-b border-black/10 py-2;
+}
+.session-form__estadistica-valors {
+  @apply flex items-baseline gap-2;
+}
+.session-form__xifra {
+  @apply font-display text-2xl font-bold text-black;
+}
+.session-form__xifra-etiqueta {
+  @apply font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.session-form__xifra-comparativa {
+  @apply font-body text-xs font-semibold;
 }
 .session-form__bloc {
   @apply flex flex-col gap-2 rounded border border-black/10 p-4;
@@ -78,6 +123,12 @@
 }
 .session-form__fila {
   @apply flex items-center justify-between gap-2 border-b border-black/10 py-1;
+}
+.session-form__moviment-fila {
+  @apply grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 border-b border-black/10 py-2;
+}
+.session-form__moviment-total {
+  @apply text-right font-semibold;
 }
 .session-form__hora {
   @apply font-body text-xs text-black/50;

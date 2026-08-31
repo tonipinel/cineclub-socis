@@ -104,16 +104,32 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
   return { disponibles, gastatsUltimaSessio };
 }
 
-export function entradesPerFranjaHoraria(entrades) {
+export function entradesPerFranjaHoraria(entrades, intervalMinuts = 30) {
   const comptador = new Map();
   for (const entrada of entrades) {
     const data = entrada.timestamp?.toDate?.();
     if (!data) continue;
-    const minutsArrodonits = Math.floor(data.getMinutes() / 30) * 30;
+    const minutsArrodonits = Math.floor(data.getMinutes() / intervalMinuts) * intervalMinuts;
     const franja = `${String(data.getHours()).padStart(2, '0')}:${String(minutsArrodonits).padStart(2, '0')}`;
     comptador.set(franja, (comptador.get(franja) ?? 0) + 1);
   }
   return [...comptador.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([franja, total]) => ({ franja, total }));
+}
+
+export function entradesPerFranjaHorariaFixa(entrades, horaInici, opcions = {}) {
+  const { minutsAbans = 60, minutsDespres = 30, intervalMinuts = 15 } = opcions;
+  const comptesPerFranja = new Map(entradesPerFranjaHoraria(entrades, intervalMinuts).map((f) => [f.franja, f.total]));
+  const [h, m] = (horaInici ?? '00:00').split(':').map(Number);
+  const iniciSessio = (h || 0) * 60 + (m || 0);
+  const primeraFranja = Math.floor((iniciSessio - minutsAbans) / intervalMinuts) * intervalMinuts;
+  const ultimaFranja = Math.ceil((iniciSessio + minutsDespres) / intervalMinuts) * intervalMinuts;
+  const franges = [];
+  for (let minuts = primeraFranja; minuts <= ultimaFranja; minuts += intervalMinuts) {
+    const minutsDia = ((minuts % 1440) + 1440) % 1440;
+    const franja = `${String(Math.floor(minutsDia / 60)).padStart(2, '0')}:${String(minutsDia % 60).padStart(2, '0')}`;
+    franges.push({ franja, total: comptesPerFranja.get(franja) ?? 0 });
+  }
+  return franges;
 }

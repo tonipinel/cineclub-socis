@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where, writeBatch,
+  addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
-import { resumAccessLog, entradesPerFranjaHoraria } from '../../lib/escaneig';
-import { subtotalsPerMetode, formatEuros, ETIQUETES_METODE } from '../../lib/moviments';
+import { resumAccessLog, entradesPerFranjaHorariaFixa } from '../../lib/escaneig';
+import {
+  resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
+} from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 
 const CAMPS_INICIALS = {
-  titol: '', data: '', urlProgramacio: '', imatgeUrl: '', preuEntrada: '5',
+  titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '', preuEntrada: '5',
 };
 
 const CAMPS_FORMULARI = [
   ['titol', 'Títol', 'text'],
   ['data', 'Data', 'date'],
+  ['hora', "Hora d'inici", 'time'],
   ['urlProgramacio', 'URL de programació', 'text'],
   ['imatgeUrl', 'URL de la imatge', 'text'],
   ['preuEntrada', "Preu d'entrada (no-socis)", 'text'],
@@ -37,6 +40,16 @@ function socisUnics(entradesSocis) {
   return [...vistos.values()];
 }
 
+function comparativa(actual, anterior) {
+  if (anterior == null) return null;
+  const diferencia = actual - anterior;
+  if (diferencia === 0) return { text: '0', classe: '' };
+  return {
+    text: `${diferencia > 0 ? '▲' : '▼'} ${Math.abs(diferencia)}`,
+    classe: diferencia > 0 ? 'comptabilitat__valor--positiu' : 'comptabilitat__valor--negatiu',
+  };
+}
+
 export default function SessionForm() {
   const { id } = useParams();
   const editant = Boolean(id);
@@ -45,7 +58,9 @@ export default function SessionForm() {
   const [error, setError] = useState(null);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
   const [resum, setResum] = useState(RESUM_INICIAL);
-  const [subtotals, setSubtotals] = useState({});
+  const [resumAnterior, setResumAnterior] = useState(null);
+  const [resumEconomic, setResumEconomic] = useState(resumEconomicSessio([]));
+  const [moviments, setMoviments] = useState([]);
   const [entradesAccessLog, setEntradesAccessLog] = useState([]);
   const [socisPerNumero, setSocisPerNumero] = useState({});
   const navigate = useNavigate();
@@ -72,9 +87,26 @@ export default function SessionForm() {
     if (!editant) return;
     const q = query(collection(db, 'moviments'), where('sessionId', '==', id));
     return onSnapshot(q, (snap) => {
-      setSubtotals(subtotalsPerMetode(snap.docs.map((d) => d.data())));
+      const dades = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setResumEconomic(resumEconomicSessio(dades));
+      setMoviments(dades);
     });
   }, [id, editant]);
+
+  useEffect(() => {
+    if (!editant || !dades.data) return;
+    let cancelat = false;
+    const q = query(collection(db, 'sessions'), where('data', '<', dades.data), orderBy('data', 'desc'), limit(1));
+    getDocs(q).then(async (snap) => {
+      if (snap.docs.length === 0) {
+        if (!cancelat) setResumAnterior(null);
+        return;
+      }
+      const logSnap = await getDocs(query(collection(db, 'accessLog'), where('sessionId', '==', snap.docs[0].id)));
+      if (!cancelat) setResumAnterior(resumAccessLog(logSnap.docs.map((d) => d.data())));
+    });
+    return () => { cancelat = true; };
+  }, [editant, dades.data]);
 
   useEffect(() => {
     if (!editant) return;
@@ -136,91 +168,189 @@ export default function SessionForm() {
   );
   const entradesSocis = socisUnics(entradesOrdenades.filter((e) => e.tipus === 'soci'));
   const entradesAportacions = entradesOrdenades.filter((e) => e.tipus === 'generic');
-  const franges = entradesPerFranjaHoraria(entradesAccessLog);
+  const franges = entradesPerFranjaHorariaFixa(entradesAccessLog, dades.hora);
+  const movimentsOrdenats = ordenarMoviments(moviments, { columna: 'data', direccio: 'desc' });
+  const totalPersones = resum.socisDistints + resum.entradesGeneriques;
+  const totalPersonesAnterior = resumAnterior ? resumAnterior.socisDistints + resumAnterior.entradesGeneriques : null;
+  const comparacioSocis = comparativa(resum.socisDistints, resumAnterior?.socisDistints);
+  const comparacioAportacions = comparativa(resum.entradesGeneriques, resumAnterior?.entradesGeneriques);
+  const comparacioTotal = comparativa(totalPersones, totalPersonesAnterior);
 
   return (
     <form className="session-form" onSubmit={handleSubmit}>
-      <div className="session-form__capcalera">
-        <h1 className="session-form__titol">{editant ? 'Editar sessió' : 'Nova sessió'}</h1>
-        {editant && !dades.activa && (
-          <button type="button" className="btn btn--outline" onClick={handleMarcarActiva}>
-            Marcar com a activa
-          </button>
-        )}
-        {editant && dades.activa && <p className="session-form__activa">Aquesta sessió és l'activa.</p>}
-      </div>
+      <div className="session-form__seccio session-form__seccio--blanc">
+        <div className="session-form__contingut">
+          <div className="session-form__capcalera">
+            <h1 className="session-form__titol">{editant ? dades.titol : 'Nova sessió'}</h1>
+            {editant && !dades.activa && (
+              <button type="button" className="btn btn--outline" onClick={handleMarcarActiva}>
+                Marcar com a activa
+              </button>
+            )}
+            {editant && dades.activa && <p className="session-form__activa">Aquesta sessió és l'activa.</p>}
+          </div>
 
-      <div className="session-form__graella">
-        <div className="session-form__columna">
-          {CAMPS_FORMULARI.map(([camp, etiqueta, tipus]) => (
-            <div className="form__field" key={camp}>
-              <label className="form__label" htmlFor={camp}>{etiqueta}</label>
-              <input
-                id={camp}
-                type={tipus}
-                className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
-                value={dades[camp] ?? ''}
-                onChange={handleChange(camp)}
-                readOnly={!desbloquejat}
-              />
-            </div>
-          ))}
-
-          {error && <p className="form__error">{error}</p>}
-
-          {desbloquejat && <button className="btn" type="submit">Desar</button>}
-
-          {editant && !desbloquejat && (
-            <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
-              Editar dades
-            </button>
-          )}
-
-          {editant && dades.urlProgramacio && (
-            <a className="session-form__enllac" href={dades.urlProgramacio} target="_blank" rel="noopener noreferrer">
-              Veure la programació →
-            </a>
-          )}
-
-          {editant && (
-            <div className="session-form__resum">
-              <p>Socis diferents: {resum.socisDistints}</p>
-              <p>Aportacions: {resum.entradesGeneriques}</p>
-              <p>Import d'aportacions acumulat: {resum.importGeneric}€</p>
-            </div>
-          )}
-
-          {editant && (
-            <div className="session-form__resum">
-              <h2 className="session-form__desglossament-titol">Desglossament econòmic</h2>
-              {Object.keys(subtotals).length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
-              {Object.entries(subtotals).map(([metode, total]) => (
-                <p key={metode}>{ETIQUETES_METODE[metode] ?? metode}: {formatEuros(total)}</p>
-              ))}
-              <Link className="btn btn--outline" to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`}>
-                Afegir moviment d'aquesta sessió
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {editant && (
-          <div className="session-form__columna">
-            {franges.length > 0 && (
-              <div className="session-form__bloc">
-                <h2 className="session-form__desglossament-titol">Entrades per franja horària</h2>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={franges}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="franja" tick={{ fontSize: 11 }} />
-                    <YAxis allowDecimals={false} width={24} />
-                    <Tooltip />
-                    <Bar dataKey="total" fill="#BF9000" />
-                  </BarChart>
-                </ResponsiveContainer>
+          <div className="session-form__graella">
+            {editant && !desbloquejat && dades.imatgeUrl && (
+              <div className="session-form__columna">
+                {dades.urlProgramacio ? (
+                  <a className="session-form__imatge-enllac" href={dades.urlProgramacio} target="_blank" rel="noopener noreferrer">
+                    <img className="session-form__imatge" src={dades.imatgeUrl} alt={dades.titol} />
+                  </a>
+                ) : (
+                  <img className="session-form__imatge" src={dades.imatgeUrl} alt={dades.titol} />
+                )}
               </div>
             )}
 
+            <div className="session-form__columna">
+              {CAMPS_FORMULARI
+                .filter(([camp]) => desbloquejat || (camp !== 'urlProgramacio' && camp !== 'imatgeUrl'))
+                .map(([camp, etiqueta, tipus]) => (
+                  <div className="form__field" key={camp}>
+                    <label className="form__label" htmlFor={camp}>{etiqueta}</label>
+                    <input
+                      id={camp}
+                      type={tipus}
+                      className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
+                      value={dades[camp] ?? ''}
+                      onChange={handleChange(camp)}
+                      readOnly={!desbloquejat}
+                    />
+                  </div>
+                ))}
+
+              {error && <p className="form__error">{error}</p>}
+
+              {desbloquejat && <button className="btn" type="submit">Desar</button>}
+
+              {editant && !desbloquejat && (
+                <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
+                  Editar dades
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {editant && (
+        <div className="session-form__seccio session-form__seccio--gris">
+          <div className="session-form__contingut session-form__graella--3">
+            <div className="session-form__bloc">
+              <h2 className="session-form__desglossament-titol">Resum d'assistència</h2>
+              <div className="session-form__estadistiques">
+                <div className="session-form__estadistica-fila">
+                  <span className="session-form__xifra-etiqueta">Socis</span>
+                  <span className="session-form__estadistica-valors">
+                    <span className="session-form__xifra">{resum.socisDistints}</span>
+                    {comparacioSocis && (
+                      <span className={`session-form__xifra-comparativa ${comparacioSocis.classe}`}>{comparacioSocis.text}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="session-form__estadistica-fila">
+                  <span className="session-form__xifra-etiqueta">Aportacions</span>
+                  <span className="session-form__estadistica-valors">
+                    <span className="session-form__xifra">{resum.entradesGeneriques}</span>
+                    {comparacioAportacions && (
+                      <span className={`session-form__xifra-comparativa ${comparacioAportacions.classe}`}>{comparacioAportacions.text}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="session-form__estadistica-fila">
+                  <span className="session-form__xifra-etiqueta">Total persones</span>
+                  <span className="session-form__estadistica-valors">
+                    <span className="session-form__xifra">{totalPersones}</span>
+                    {comparacioTotal && (
+                      <span className={`session-form__xifra-comparativa ${comparacioTotal.classe}`}>{comparacioTotal.text}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="session-form__bloc">
+              <h2 className="session-form__desglossament-titol">Entrades per franja horària</h2>
+              <ResponsiveContainer width="100%" height={Math.max(280, franges.length * 42)}>
+                <BarChart data={franges} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis dataKey="franja" type="category" tick={{ fontSize: 11 }} width={50} />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="#BF9000" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="session-form__bloc">
+              <h2 className="session-form__desglossament-titol">Desglossament econòmic</h2>
+              {Object.keys(resumEconomic.ingressosPerCategoria).length === 0 && resumEconomic.despesesTotal === 0 && (
+                <p>Sense moviments encara.</p>
+              )}
+              {Object.entries(resumEconomic.ingressosPerCategoria).map(([categoria, grup]) => (
+                <div key={categoria}>
+                  <div className="session-form__desglossament-fila session-form__desglossament-fila--categoria">
+                    <span>{categoria}</span>
+                    <span className="comptabilitat__valor--positiu">+{formatEuros(grup.total)}</span>
+                  </div>
+                  {grup.detalls.map((detall) => (
+                    <div key={`${detall.preuUnitari}-${detall.metode}`} className="session-form__desglossament-fila session-form__desglossament-fila--submetode">
+                      <span>
+                        {formatEuros(detall.preuUnitari)} × {detall.quantitat} · {ETIQUETES_METODE[detall.metode] ?? detall.metode}
+                      </span>
+                      <span>+{formatEuros(detall.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {resumEconomic.despesesTotal > 0 && (
+                <div className="session-form__desglossament-fila">
+                  <span>Despeses</span>
+                  <span className="comptabilitat__valor--negatiu">−{formatEuros(resumEconomic.despesesTotal)}</span>
+                </div>
+              )}
+              <div className="session-form__desglossament-total">
+                <span>Balanç</span>
+                <span className={classeSigne(resumEconomic.balanc)}>{formatEuros(resumEconomic.balanc)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="session-form__contingut">
+            <div className="session-form__bloc">
+              <div className="session-form__capcalera">
+                <h2 className="session-form__desglossament-titol">Moviments</h2>
+                <Link className="btn btn--outline" to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`}>
+                  Afegir moviment d'aquesta sessió
+                </Link>
+              </div>
+              {movimentsOrdenats.length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
+              <ul className="session-form__llista">
+                {movimentsOrdenats.map((moviment) => (
+                  <li key={moviment.id} className="session-form__moviment-fila">
+                    <span className="session-form__hora">{moviment.data}</span>
+                    <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
+                      {moviment.concepte}
+                    </Link>
+                    <span className={`badge badge--${moviment.tipus}`}>
+                      {ETIQUETES_TIPUS[moviment.tipus] ?? moviment.tipus}
+                    </span>
+                    <span className={`session-form__moviment-total ${moviment.tipus === 'traspas' ? '' : classeSigne(moviment.tipus === 'despesa' ? -1 : 1)}`}>
+                      {moviment.tipus === 'traspas' ? '' : moviment.tipus === 'despesa' ? '−' : '+'}
+                      {formatEuros(Number(moviment.total) || 0)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editant && (
+        <div className="session-form__seccio session-form__seccio--blanc">
+          <div className="session-form__contingut session-form__graella">
             <div className="session-form__bloc">
               <h2 className="session-form__desglossament-titol">Socis que han vingut</h2>
               {entradesSocis.length === 0 && <p>Encara no ha vingut cap soci.</p>}
@@ -255,8 +385,8 @@ export default function SessionForm() {
               </ul>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </form>
   );
 }

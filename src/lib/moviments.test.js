@@ -6,6 +6,7 @@ import {
   ordenarMoviments,
   subtotalsPerMetode,
   balancPerSessio,
+  resumEconomicSessio,
   formatEuros,
   resumComptable,
   TIPUS_MOVIMENT,
@@ -154,6 +155,68 @@ describe('subtotalsPerMetode', () => {
 
   it('retorna un objecte buit si no hi ha moviments', () => {
     expect(subtotalsPerMetode([])).toEqual({});
+  });
+});
+
+describe('resumEconomicSessio', () => {
+  it('agrupa els ingressos per categoria i, dins de cada categoria, per preu unitari i mètode de pagament', () => {
+    const moviments = [
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', preuUnitari: 30, quantitat: 4, total: 120 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'datafon', preuUnitari: 5, quantitat: 6, total: 30 },
+      { tipus: 'ingres', categoria: 'Aportacions', metodePagament: 'efectiu', preuUnitari: 5, quantitat: 4, total: 20 },
+      { tipus: 'despesa', metodePagament: 'banc', total: 201.5 },
+    ];
+    expect(resumEconomicSessio(moviments)).toEqual({
+      ingressosPerCategoria: {
+        'Quotes socis': {
+          total: 150,
+          detalls: [
+            { preuUnitari: 30, metode: 'efectiu', quantitat: 4, total: 120 },
+            { preuUnitari: 5, metode: 'datafon', quantitat: 6, total: 30 },
+          ],
+        },
+        Aportacions: {
+          total: 20,
+          detalls: [{ preuUnitari: 5, metode: 'efectiu', quantitat: 4, total: 20 }],
+        },
+      },
+      ingressosTotal: 170,
+      despesesTotal: 201.5,
+      balanc: -31.5,
+    });
+  });
+
+  it('suma la quantitat i el total quan es repeteix el mateix preu unitari i mètode dins una categoria', () => {
+    const moviments = [
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', preuUnitari: 30, quantitat: 2, total: 60 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', preuUnitari: 30, quantitat: 1, total: 30 },
+    ];
+    expect(resumEconomicSessio(moviments).ingressosPerCategoria['Quotes socis'].detalls).toEqual([
+      { preuUnitari: 30, metode: 'efectiu', quantitat: 3, total: 90 },
+    ]);
+  });
+
+  it('agrupa els ingressos sense categoria sota "Altres ingressos" i sense mètode sota "altres"', () => {
+    const moviments = [{ tipus: 'ingres', total: 15 }];
+    expect(resumEconomicSessio(moviments).ingressosPerCategoria).toEqual({
+      'Altres ingressos': {
+        total: 15,
+        detalls: [{ preuUnitari: 0, metode: 'altres', quantitat: 1, total: 15 }],
+      },
+    });
+  });
+
+  it('ignora els traspassos', () => {
+    const moviments = [{ tipus: 'traspas', direccio: 'caixa-a-banc', total: 100 }];
+    expect(resumEconomicSessio(moviments)).toEqual({
+      ingressosPerCategoria: {}, ingressosTotal: 0, despesesTotal: 0, balanc: 0,
+    });
+  });
+
+  it('retorna zeros sense moviments', () => {
+    expect(resumEconomicSessio([])).toEqual({
+      ingressosPerCategoria: {}, ingressosTotal: 0, despesesTotal: 0, balanc: 0,
+    });
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  entradesPerFranjaHorariaFixa,
   identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
   resumDashboardTiquets, entradesPerFranjaHoraria,
@@ -304,5 +305,44 @@ describe('entradesPerFranjaHoraria', () => {
       {},
     ];
     expect(entradesPerFranjaHoraria(entrades)).toEqual([{ franja: '20:00', total: 1 }]);
+  });
+});
+
+describe('entradesPerFranjaHorariaFixa', () => {
+  it("genera franges fixes de 15 min des d'una hora abans de l'inici fins a 30 min després", () => {
+    expect(entradesPerFranjaHorariaFixa([], '19:00')).toEqual([
+      { franja: '18:00', total: 0 },
+      { franja: '18:15', total: 0 },
+      { franja: '18:30', total: 0 },
+      { franja: '18:45', total: 0 },
+      { franja: '19:00', total: 0 },
+      { franja: '19:15', total: 0 },
+      { franja: '19:30', total: 0 },
+    ]);
+  });
+
+  it('omple les franges amb el recompte real d\'entrades', () => {
+    const entrades = [
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 18, 20) } },
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 19, 5) } },
+      { timestamp: { toDate: () => new Date(2026, 7, 31, 19, 5) } },
+    ];
+    expect(entradesPerFranjaHorariaFixa(entrades, '19:00')).toEqual([
+      { franja: '18:00', total: 0 },
+      { franja: '18:15', total: 1 },
+      { franja: '18:30', total: 0 },
+      { franja: '18:45', total: 0 },
+      { franja: '19:00', total: 2 },
+      { franja: '19:15', total: 0 },
+      { franja: '19:30', total: 0 },
+    ]);
+  });
+
+  it('sempre retorna el mateix nombre de franges, independentment de les entrades, perquè la proporció sigui consistent entre sessions', () => {
+    const ambEntrades = entradesPerFranjaHorariaFixa(
+      [{ timestamp: { toDate: () => new Date(2026, 7, 31, 19, 0) } }], '19:00'
+    );
+    const senseEntrades = entradesPerFranjaHorariaFixa([], '19:00');
+    expect(ambEntrades).toHaveLength(senseEntrades.length);
   });
 });

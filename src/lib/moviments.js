@@ -122,6 +122,46 @@ export function subtotalsPerMetode(moviments) {
   return subtotals;
 }
 
+export function resumEconomicSessio(moviments) {
+  const grupsPerCategoria = {};
+  let ingressosTotal = 0;
+  let despesesTotal = 0;
+
+  for (const moviment of moviments) {
+    const total = Number(moviment.total) || 0;
+    if (moviment.tipus === TIPUS_MOVIMENT.INGRES) {
+      ingressosTotal += total;
+      const categoria = moviment.categoria || 'Altres ingressos';
+      const metode = moviment.metodePagament || 'altres';
+      const preuUnitari = Number(moviment.preuUnitari) || 0;
+      const quantitat = Number(moviment.quantitat) || 1;
+
+      const grupCategoria = grupsPerCategoria[categoria] ?? { total: 0, detallsPerClau: {} };
+      grupCategoria.total += total;
+
+      const clau = `${preuUnitari}|${metode}`;
+      const detall = grupCategoria.detallsPerClau[clau] ?? { preuUnitari, metode, quantitat: 0, total: 0 };
+      detall.quantitat += quantitat;
+      detall.total += total;
+      grupCategoria.detallsPerClau[clau] = detall;
+
+      grupsPerCategoria[categoria] = grupCategoria;
+    } else if (moviment.tipus === TIPUS_MOVIMENT.DESPESA) {
+      despesesTotal += total;
+    }
+  }
+
+  const ingressosPerCategoria = {};
+  for (const [categoria, grup] of Object.entries(grupsPerCategoria)) {
+    const detalls = Object.values(grup.detallsPerClau).sort(
+      (a, b) => b.preuUnitari - a.preuUnitari || a.metode.localeCompare(b.metode)
+    );
+    ingressosPerCategoria[categoria] = { total: grup.total, detalls };
+  }
+
+  return { ingressosPerCategoria, ingressosTotal, despesesTotal, balanc: ingressosTotal - despesesTotal };
+}
+
 export function resumComptable(moviments) {
   const { caixa, banc, excedent } = calcularSaldos(moviments);
   let ingressosTotal = 0;

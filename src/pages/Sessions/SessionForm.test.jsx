@@ -10,9 +10,11 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   doc: vi.fn(),
-  collection: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
+  collection: vi.fn((_db, nom) => nom),
+  query: vi.fn((collectionName, ...constraints) => ({ collectionName, constraints })),
+  where: vi.fn((field, op, value) => ({ field, op, value })),
+  orderBy: vi.fn(() => ({})),
+  limit: vi.fn(() => ({})),
   writeBatch: vi.fn(),
   onSnapshot: vi.fn((q, callback) => {
     callback({ docs: [] });
@@ -90,9 +92,12 @@ describe('SessionForm — marcar activa', () => {
       data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
     });
     const refAltraActiva = { id: 'altra' };
-    getDocs
-      .mockResolvedValueOnce({ docs: [] }) // consulta de socis (efecte independent, en muntar)
-      .mockResolvedValueOnce({ docs: [{ ref: refAltraActiva }] }); // activesAbans, dins handleMarcarActiva
+    getDocs.mockImplementation((q) => {
+      if (q?.collectionName === 'sessions' && q.constraints?.some((c) => c?.field === 'activa')) {
+        return Promise.resolve({ docs: [{ ref: refAltraActiva }] });
+      }
+      return Promise.resolve({ docs: [] });
+    });
     const batchUpdate = vi.fn();
     const batchCommit = vi.fn().mockResolvedValue(undefined);
     writeBatch.mockReturnValue({ update: batchUpdate, commit: batchCommit });
@@ -137,7 +142,7 @@ describe('SessionForm — desglossament econòmic', () => {
     getDocs.mockResolvedValue({ docs: [] });
   });
 
-  it('mostra els subtotals per mètode de pagament i un enllaç per afegir un moviment', async () => {
+  it('mostra els ingressos per categoria i detall (preu i mètode), les despeses i el balanç', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
     });
@@ -149,15 +154,44 @@ describe('SessionForm — desglossament econòmic', () => {
       .mockImplementationOnce((q, callback) => {
         callback({
           docs: [
-            { data: () => ({ tipus: 'ingres', metodePagament: 'efectiu', total: 50 }) },
-            { data: () => ({ tipus: 'ingres', metodePagament: 'datafon', total: 20 }) },
+            {
+              data: () => ({
+                tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', preuUnitari: 30, quantitat: 1, total: 30,
+              }),
+            },
+            {
+              data: () => ({
+                tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'datafon', preuUnitari: 5, quantitat: 4, total: 20,
+              }),
+            },
+            {
+              data: () => ({
+                tipus: 'ingres', categoria: 'Aportacions', metodePagament: 'efectiu', preuUnitari: 8, quantitat: 2, total: 16,
+              }),
+            },
+            { data: () => ({ tipus: 'despesa', metodePagament: 'banc', total: 30 }) },
           ],
         });
         return () => {};
       });
     renderEnEdicio();
-    expect(await screen.findByText('Efectiu: 50.00€')).toBeInTheDocument();
-    expect(screen.getByText('Datàfon: 20.00€')).toBeInTheDocument();
+    const desglossament = within(
+      (await screen.findByText('Desglossament econòmic')).closest('.session-form__bloc')
+    );
+    const blocQuotes = desglossament.getByText('Quotes socis').closest('div').parentElement;
+    expect(within(blocQuotes).getByText('+50.00€')).toBeInTheDocument();
+    expect(within(blocQuotes).getByText('30.00€ × 1 · Efectiu')).toBeInTheDocument();
+    expect(within(blocQuotes).getByText('+30.00€')).toBeInTheDocument();
+    expect(within(blocQuotes).getByText('5.00€ × 4 · Datàfon')).toBeInTheDocument();
+    expect(within(blocQuotes).getByText('+20.00€')).toBeInTheDocument();
+
+    const blocAportacions = desglossament.getByText('Aportacions').closest('div').parentElement;
+    expect(within(blocAportacions).getByText('8.00€ × 2 · Efectiu')).toBeInTheDocument();
+
+    expect(desglossament.getByText('Despeses')).toBeInTheDocument();
+    expect(desglossament.getByText('−30.00€')).toBeInTheDocument();
+    expect(desglossament.getByText('Balanç')).toBeInTheDocument();
+    expect(desglossament.getByText('36.00€')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: "Afegir moviment d'aquesta sessió" })).toHaveAttribute(
       'href', '/comptabilitat/nou?sessionId=1'
     );
@@ -168,7 +202,34 @@ describe('SessionForm — desglossament econòmic', () => {
       data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
     });
     renderEnEdicio();
+    expect(await screen.findByText('Sense moviments encara.')).toBeInTheDocument();
     expect(await screen.findByText("Encara no hi ha cap moviment d'aquesta sessió.")).toBeInTheDocument();
+  });
+
+  it('llista els moviments associats a la sessió amb enllaç al detall', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            {
+              id: 'moviment-1',
+              data: () => ({ data: '2026-03-05', concepte: 'Entrades', tipus: 'ingres', total: 50 }),
+            },
+          ],
+        });
+        return () => {};
+      });
+    renderEnEdicio();
+    const enllac = await screen.findByRole('link', { name: 'Entrades' });
+    expect(enllac).toHaveAttribute('href', '/comptabilitat/moviment-1');
+    expect(within(enllac.closest('li')).getByText('+50.00€')).toBeInTheDocument();
   });
 });
 
@@ -176,6 +237,7 @@ describe('SessionForm — detall de socis i aportacions', () => {
   beforeEach(() => {
     getDoc.mockClear();
     getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
   });
 
   it('llista els socis que han vingut amb enllaç a la seva fitxa i l\'hora, sense duplicar-ne un que ha escanejat dos cops', async () => {
@@ -223,5 +285,72 @@ describe('SessionForm — detall de socis i aportacions', () => {
     expect(await screen.findByText('T-000012')).toBeInTheDocument();
     expect(screen.getByText('5.00€')).toBeInTheDocument();
     expect(screen.getByText('20:30')).toBeInTheDocument();
+  });
+});
+
+describe('SessionForm — comparativa amb la sessió anterior', () => {
+  beforeEach(() => {
+    getDoc.mockClear();
+    getDocs.mockReset();
+  });
+
+  it('mostra la diferència de socis, aportacions i total de persones respecte a la sessió immediatament anterior', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { data: () => ({ tipus: 'soci', numeroSoci: 1 }) },
+            { data: () => ({ tipus: 'soci', numeroSoci: 2 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-000001', preuAplicat: 5 }) },
+          ],
+        });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    getDocs.mockImplementation((q) => {
+      if (q?.collectionName === 'sessions' && q.constraints?.some((c) => c?.field === 'data')) {
+        return Promise.resolve({ docs: [{ id: 'sessio-anterior' }] });
+      }
+      if (q?.collectionName === 'accessLog') {
+        return Promise.resolve({
+          docs: [
+            { data: () => ({ tipus: 'soci', numeroSoci: 9 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-000002', preuAplicat: 5 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-000003', preuAplicat: 5 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-000004', preuAplicat: 5 }) },
+          ],
+        });
+      }
+      return Promise.resolve({ docs: [] });
+    });
+
+    renderEnEdicio();
+    const resumAssistencia = within(
+      (await screen.findByText("Resum d'assistència")).closest('.session-form__bloc')
+    );
+    const filaSocis = resumAssistencia.getByText('Socis').closest('.session-form__estadistica-fila');
+    expect(within(filaSocis).getByText('▲ 1')).toBeInTheDocument();
+
+    const filaAportacions = resumAssistencia.getByText('Aportacions').closest('.session-form__estadistica-fila');
+    expect(within(filaAportacions).getByText('▼ 2')).toBeInTheDocument();
+
+    const filaTotal = resumAssistencia.getByText('Total persones').closest('.session-form__estadistica-fila');
+    expect(within(filaTotal).getByText('▼ 1')).toBeInTheDocument();
+  });
+
+  it('no mostra cap comparativa quan no hi ha cap sessió anterior', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    getDocs.mockResolvedValue({ docs: [] });
+    renderEnEdicio();
+    await screen.findByText('Socis');
+    expect(screen.queryByText(/▲|▼/)).not.toBeInTheDocument();
   });
 });
