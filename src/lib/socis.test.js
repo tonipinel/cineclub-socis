@@ -89,4 +89,14 @@ describe('ordenarSocis', () => {
     ordenarSocis(tresSocis, { columna: 'nom', direccio: 'asc' });
     expect(tresSocis).toEqual(original);
   });
+
+  it('ordena per assistències recents descendent', () => {
+    const ambAssistencies = [
+      { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', assistencies: 2 },
+      { numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', assistencies: 5 },
+      { numeroSoci: 3, nom: 'Berta', cognoms: 'Puig' },
+    ];
+    const resultat = ordenarSocis(ambAssistencies, { columna: 'assistencies', direccio: 'desc' });
+    expect(resultat.map((s) => s.numeroSoci)).toEqual([2, 1, 3]);
+  });
 });

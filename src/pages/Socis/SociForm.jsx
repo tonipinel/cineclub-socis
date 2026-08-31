@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import { teNumeroSoci } from '../../lib/socis';
+import { assistenciaPerSessio } from '../../lib/escaneig';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -33,6 +34,7 @@ export default function SociForm() {
   const [carregant, setCarregant] = useState(editant);
   const [error, setError] = useState(null);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
+  const [assistencies, setAssistencies] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +44,18 @@ export default function SociForm() {
       setCarregant(false);
     });
   }, [id, editant]);
+
+  useEffect(() => {
+    if (!editant || !dades.numeroSoci) return;
+    Promise.all([
+      getDocs(collection(db, 'sessions')),
+      getDocs(query(collection(db, 'accessLog'), where('numeroSoci', '==', Number(dades.numeroSoci)))),
+    ]).then(([sessionsSnap, accessLogSnap]) => {
+      const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const entradesSoci = accessLogSnap.docs.map((d) => d.data());
+      setAssistencies(assistenciaPerSessio(sessions, entradesSoci));
+    });
+  }, [editant, dades.numeroSoci]);
 
   const handleChange = (camp) => (e) => {
     setDades((d) => ({ ...d, [camp]: e.target.value }));
@@ -132,6 +146,22 @@ export default function SociForm() {
         <Link className="btn btn--outline" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
           Veure i imprimir el carnet
         </Link>
+      )}
+
+      {editant && teNumeroSoci(dades) && assistencies.length > 0 && (
+        <div className="soci-form__assistencia">
+          <h2 className="soci-form__assistencia-titol">Assistència a sessions</h2>
+          <ul className="soci-form__assistencia-llista">
+            {assistencies.map((s) => (
+              <li key={s.id}>
+                <span className={`badge ${s.assisteix ? 'badge--assisteix' : 'badge--no-assisteix'}`}>
+                  {s.assisteix ? 'Hi va assistir' : 'No hi va assistir'}
+                </span>
+                {' '}{s.titol} ({s.data})
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </form>
   );

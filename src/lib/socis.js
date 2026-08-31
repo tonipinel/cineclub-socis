@@ -33,6 +33,7 @@ const VALORS_ORDENACIO = {
   cognoms: (soci) => (soci.cognoms ?? '').toLowerCase(),
   estat: (soci, avui) => calcularEstatSoci(soci, avui),
   venciment: (soci) => calcularVenciment(soci).getTime(),
+  assistencies: (soci) => Number(soci.assistencies) || 0,
 };
 
 export function ordenarSocis(socis, { columna = 'numeroSoci', direccio = 'desc' } = {}, avui = new Date()) {

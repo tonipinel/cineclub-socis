@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { identificarCodi, codisDeLot, resumAccessLog } from './escaneig';
+import {
+  identificarCodi, codisDeLot, resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents,
+} from './escaneig';
 import { carnetPayload } from './carnet';
 
 describe('identificarCodi', () => {
@@ -59,5 +61,51 @@ describe('resumAccessLog', () => {
 
   it('retorna zeros amb una llista buida', () => {
     expect(resumAccessLog([])).toEqual({ socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 });
+  });
+});
+
+describe('assistenciaPerSessio', () => {
+  const sessions = [
+    { id: 's1', titol: 'The Artist', data: '2026-03-05' },
+    { id: 's2', titol: 'Pig', data: '2026-06-25' },
+    { id: 's3', titol: 'Jane Eyre', data: '2026-08-06' },
+  ];
+
+  it('marca com a assistides només les sessions amb una entrada d\'aquest soci', () => {
+    const entradesSoci = [{ sessionId: 's1' }, { sessionId: 's3' }];
+    expect(assistenciaPerSessio(sessions, entradesSoci)).toEqual([
+      { id: 's3', titol: 'Jane Eyre', data: '2026-08-06', assisteix: true },
+      { id: 's2', titol: 'Pig', data: '2026-06-25', assisteix: false },
+      { id: 's1', titol: 'The Artist', data: '2026-03-05', assisteix: true },
+    ]);
+  });
+
+  it('marca totes les sessions com a no assistides si el soci no té cap entrada', () => {
+    expect(assistenciaPerSessio(sessions, []).every((s) => !s.assisteix)).toBe(true);
+  });
+});
+
+describe('comptarAssistenciesRecents', () => {
+  const avui = new Date('2026-08-31T12:00:00');
+
+  it('compta les entrades de soci dels últims 12 mesos, agrupades per numeroSoci', () => {
+    const entrades = [
+      { tipus: 'soci', numeroSoci: 7, data: new Date('2026-08-06T19:00:00') },
+      { tipus: 'soci', numeroSoci: 7, data: new Date('2026-06-25T19:00:00') },
+      { tipus: 'soci', numeroSoci: 12, data: new Date('2026-03-05T19:00:00') },
+      { tipus: 'generic', codiTiquet: 'L1-001', data: new Date('2026-08-06T19:00:00') },
+    ];
+    expect(comptarAssistenciesRecents(entrades, avui)).toEqual({ 7: 2, 12: 1 });
+  });
+
+  it('ignora les entrades de fa més de 12 mesos', () => {
+    const entrades = [
+      { tipus: 'soci', numeroSoci: 7, data: new Date('2024-01-01T19:00:00') },
+    ];
+    expect(comptarAssistenciesRecents(entrades, avui)).toEqual({});
+  });
+
+  it('retorna un objecte buit amb una llista buida', () => {
+    expect(comptarAssistenciesRecents([], avui)).toEqual({});
   });
 });

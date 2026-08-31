@@ -8,7 +8,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   orderBy: vi.fn(),
-  onSnapshot: (q, callback) => {
+  onSnapshot: vi.fn((q, callback) => {
     callback({
       docs: [
         { id: '1', data: () => ({ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2020-01-01' }) },
@@ -16,9 +16,10 @@ vi.mock('firebase/firestore', () => ({
       ],
     });
     return () => {};
-  },
+  }),
 }));
 
+import { onSnapshot } from 'firebase/firestore';
 import SocisList from './SocisList';
 
 describe('SocisList', () => {
@@ -58,5 +59,32 @@ describe('SocisList', () => {
     render(<MemoryRouter><SocisList /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Anna' })).toHaveAttribute('href', '/socis/1');
     expect(screen.getByRole('link', { name: 'Vidal' })).toHaveAttribute('href', '/socis/1');
+  });
+
+  it('mostra el nombre d\'assistències dels últims 12 mesos per soci', () => {
+    const ara = new Date();
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { id: '1', data: () => ({ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2020-01-01' }) },
+            { id: '2', data: () => ({ numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', ultimPagament: '2099-01-01' }) },
+          ],
+        });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { data: () => ({ tipus: 'soci', numeroSoci: 1, timestamp: { toDate: () => ara } }) },
+            { data: () => ({ tipus: 'soci', numeroSoci: 1, timestamp: { toDate: () => ara } }) },
+          ],
+        });
+        return () => {};
+      });
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    const files = screen.getAllByRole('row').slice(1);
+    expect(files.find((f) => f.textContent.includes('Anna'))).toHaveTextContent('2');
+    expect(files.find((f) => f.textContent.includes('Marc'))).toHaveTextContent('0');
   });
 });

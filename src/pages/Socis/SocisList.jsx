@@ -4,6 +4,7 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { calcularEstatSoci, calcularVenciment, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
 import { filtrarSocis, ordenarSocis, FILTRE_PROXIMA_RENOVACIO } from '../../lib/socis';
+import { comptarAssistenciesRecents } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
 
 const ETIQUETES_ESTAT = {
@@ -19,6 +20,7 @@ const COLUMNES = [
   ['cognoms', 'Cognoms'],
   ['estat', 'Estat'],
   ['venciment', 'Venciment'],
+  ['assistencies', 'Assistències (12 mesos)'],
 ];
 
 function formatData(data) {
@@ -43,10 +45,12 @@ const RENDERITZAR_CELDA = {
     </span>
   ),
   venciment: (soci) => formatData(calcularVenciment(soci)),
+  assistencies: (soci) => soci.assistencies ?? 0,
 };
 
 export default function SocisList() {
   const [socis, setSocis] = useState([]);
+  const [assistenciesPerSoci, setAssistenciesPerSoci] = useState({});
   const [cerca, setCerca] = useState('');
   const [estat, setEstat] = useState('tots');
   const [ordenacio, setOrdenacio] = useState({ columna: 'numeroSoci', direccio: 'desc' });
@@ -58,6 +62,17 @@ export default function SocisList() {
     });
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, 'accessLog'));
+    return onSnapshot(q, (snap) => {
+      const entrades = snap.docs.map((d) => {
+        const dades = d.data();
+        return { ...dades, data: dades.timestamp?.toDate?.() };
+      });
+      setAssistenciesPerSoci(comptarAssistenciesRecents(entrades));
+    });
+  }, []);
+
   const canviarOrdenacio = (columna) => {
     setOrdenacio((actual) => {
       if (actual.columna !== columna) return { columna, direccio: 'asc' };
@@ -65,7 +80,12 @@ export default function SocisList() {
     });
   };
 
-  const socisFiltrats = ordenarSocis(filtrarSocis(socis, { cerca, estat }), ordenacio);
+  const socisAmbAssistencies = socis.map((soci) => ({
+    ...soci,
+    assistencies: assistenciesPerSoci[soci.numeroSoci] ?? 0,
+  }));
+
+  const socisFiltrats = ordenarSocis(filtrarSocis(socisAmbAssistencies, { cerca, estat }), ordenacio);
 
   return (
     <div className="socis-list">
