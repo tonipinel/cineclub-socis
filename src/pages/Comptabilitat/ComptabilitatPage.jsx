@@ -30,9 +30,10 @@ const RENDERITZAR_CELDA = {
     <span className={`badge badge--${m.tipus}`}>{ETIQUETES_TIPUS[m.tipus] ?? m.tipus}</span>
   ),
   categoriaODireccio: (m) => m.categoria ?? ETIQUETES_DIRECCIO[m.direccio] ?? '',
-  metodePagament: (m) => (
-    <span className="badge badge--metode">{ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament ?? ''}</span>
-  ),
+  metodePagament: (m) => {
+    const etiqueta = ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament;
+    return etiqueta ? <span className="badge badge--metode">{etiqueta}</span> : null;
+  },
   total: (m) => (
     <span className={`comptabilitat__import ${m.tipus === 'traspas' ? 'comptabilitat__valor--traspas' : classeSigne(m.tipus === 'despesa' ? -1 : 1)}`}>
       {m.tipus === 'traspas' ? '' : m.tipus === 'despesa' ? '−' : '+'}{formatEuros(Number(m.total) || 0)}

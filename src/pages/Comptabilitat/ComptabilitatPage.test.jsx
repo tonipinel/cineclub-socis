@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -23,6 +23,12 @@ vi.mock('firebase/firestore', () => ({
           data: () => ({
             data: '2026-04-01', concepte: 'Lloguer de sala', tipus: 'despesa',
             categoria: 'Gestió associació', metodePagament: 'banc', total: 40,
+          }),
+        },
+        {
+          id: '3',
+          data: () => ({
+            data: '2026-05-01', concepte: 'Traspàs a banc', tipus: 'traspas', total: 30,
           }),
         },
       ],
@@ -73,6 +79,12 @@ describe('ComptabilitatPage', () => {
   it('mostra un enllaç per afegir un moviment nou', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Afegir moviment' })).toBeInTheDocument();
+  });
+
+  it('no mostra cap badge de mètode buit a les files de traspàs', () => {
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    const fila = screen.getByText('Traspàs a banc').closest('tr');
+    expect(within(fila).queryAllByRole('cell')[4].querySelector('.badge--metode')).not.toBeInTheDocument();
   });
 
   it('filtra per sessió', async () => {
