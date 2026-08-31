@@ -98,7 +98,9 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   const gastatsUltimaSessio = ultimaSessio
-    ? entradesAccessLog.filter((e) => e.tipus === 'generic' && e.sessionId === ultimaSessio.id).length
+    ? entradesAccessLog.filter((e) => (
+      e.tipus === 'generic' && e.sessionId === ultimaSessio.id && e.escanejatPer !== 'importacio-historica'
+    )).length
     : 0;
 
   return { disponibles, gastatsUltimaSessio };

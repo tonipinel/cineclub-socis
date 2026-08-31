@@ -277,6 +277,16 @@ describe('resumDashboardTiquets', () => {
     ];
     expect(resumDashboardTiquets([], entradesAccessLog, sessions, avui).gastatsUltimaSessio).toBe(2);
   });
+
+  it('gastatsUltimaSessio ignora les entrades creades per la importació històrica', () => {
+    const sessions = [{ id: 's1', data: '2026-08-01' }];
+    const entradesAccessLog = [
+      { tipus: 'generic', codiTiquet: 'T-000001', sessionId: 's1' },
+      { tipus: 'generic', codiTiquet: 'HIST-001', sessionId: 's1', escanejatPer: 'importacio-historica' },
+      { tipus: 'generic', codiTiquet: 'HIST-002', sessionId: 's1', escanejatPer: 'importacio-historica' },
+    ];
+    expect(resumDashboardTiquets([], entradesAccessLog, sessions).gastatsUltimaSessio).toBe(1);
+  });
 });
 
 describe('entradesPerFranjaHoraria', () => {
