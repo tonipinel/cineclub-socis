@@ -117,3 +117,30 @@ export function subtotalsPerMetode(moviments) {
   }
   return subtotals;
 }
+
+export function resumComptable(moviments) {
+  const { caixa, banc, excedent } = calcularSaldos(moviments);
+  let ingressosTotal = 0;
+  let despesesTotal = 0;
+  const ingressosPerCategoriaIMetode = {};
+  const despesesPerCategoria = {};
+
+  for (const moviment of moviments) {
+    const total = Number(moviment.total) || 0;
+    if (moviment.tipus === TIPUS_MOVIMENT.INGRES) {
+      ingressosTotal += total;
+      const categoria = moviment.categoria ?? '';
+      const grup = ingressosPerCategoriaIMetode[categoria] ?? { efectiu: 0, aCompte: 0, total: 0 };
+      if (moviment.metodePagament === 'efectiu') grup.efectiu += total;
+      else grup.aCompte += total;
+      grup.total += total;
+      ingressosPerCategoriaIMetode[categoria] = grup;
+    } else if (moviment.tipus === TIPUS_MOVIMENT.DESPESA) {
+      despesesTotal += total;
+      const categoria = moviment.categoria ?? '';
+      despesesPerCategoria[categoria] = (despesesPerCategoria[categoria] ?? 0) + total;
+    }
+  }
+
+  return { excedent, ingressosTotal, despesesTotal, banc, caixa, ingressosPerCategoriaIMetode, despesesPerCategoria };
+}

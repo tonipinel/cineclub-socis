@@ -7,6 +7,7 @@ import {
   subtotalsPerMetode,
   balancPerSessio,
   formatEuros,
+  resumComptable,
   TIPUS_MOVIMENT,
   CATEGORIES,
   METODES_INGRES,
@@ -228,5 +229,57 @@ describe('constants', () => {
     expect(METODES_INGRES).toEqual(['efectiu', 'datafon', 'transferencia']);
     expect(METODES_DESPESA).toEqual(['efectiu', 'banc']);
     expect(DIRECCIONS_TRASPAS).toEqual(['caixa-a-banc', 'banc-a-caixa']);
+  });
+});
+
+describe('resumComptable', () => {
+  it('calcula excedent, banc i caixa igual que calcularSaldos', () => {
+    const moviments = [
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 },
+      { tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'banc', total: 30 },
+    ];
+    const resultat = resumComptable(moviments);
+    const saldos = calcularSaldos(moviments);
+    expect(resultat.excedent).toBe(saldos.excedent);
+    expect(resultat.banc).toBe(saldos.banc);
+    expect(resultat.caixa).toBe(saldos.caixa);
+    expect(resultat.ingressosTotal).toBe(100);
+    expect(resultat.despesesTotal).toBe(30);
+  });
+
+  it('agrupa els ingressos per categoria i mètode (efectiu vs a compte)', () => {
+    const moviments = [
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'transferencia', total: 50 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'datafon', total: 20 },
+    ];
+    const resultat = resumComptable(moviments).ingressosPerCategoriaIMetode;
+    expect(resultat['Quotes socis']).toEqual({ efectiu: 100, aCompte: 70, total: 170 });
+  });
+
+  it('no inclou una categoria d\'ingrés sense moviments', () => {
+    const moviments = [{ tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 }];
+    const resultat = resumComptable(moviments).ingressosPerCategoriaIMetode;
+    expect(resultat['Quotes postsessió']).toBeUndefined();
+  });
+
+  it('agrupa les despeses per categoria dinàmicament', () => {
+    const moviments = [
+      { tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'efectiu', total: 40 },
+      { tipus: 'despesa', categoria: 'Gestió associació', metodePagament: 'banc', total: 25 },
+      { tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'banc', total: 10 },
+    ];
+    const resultat = resumComptable(moviments).despesesPerCategoria;
+    expect(resultat).toEqual({ 'Gestió pel·lícules': 50, 'Gestió associació': 25 });
+  });
+
+  it('ignora els traspassos en el desglossament per categoria', () => {
+    const moviments = [
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 },
+      { tipus: 'traspas', direccio: 'caixa-a-banc', total: 50 },
+    ];
+    const resultat = resumComptable(moviments);
+    expect(Object.keys(resultat.ingressosPerCategoriaIMetode)).toEqual(['Quotes socis']);
+    expect(resultat.despesesPerCategoria).toEqual({});
   });
 });
