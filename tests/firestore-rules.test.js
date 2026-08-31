@@ -170,3 +170,26 @@ describe('firestore.rules — configuracio', () => {
     await assertSucceeds(updateDoc(doc(adminDb, 'configuracio/tiquets'), { seguentNumero: 151 }));
   });
 });
+
+describe('firestore.rules — lotsTiquets', () => {
+  it('impedeix a un visitant no autenticat llegir o escriure lots de tiquets', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'lotsTiquets/1')));
+    await assertFails(setDoc(doc(anonDb, 'lotsTiquets/1'), { numeroInicial: 1, quantitat: 150 }));
+  });
+
+  it('permet a taquilla llegir lots de tiquets però no escriure-hi', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'lotsTiquets/1'), { numeroInicial: 1, quantitat: 150 });
+    await assertSucceeds(getDoc(doc(taquillaDb, 'lotsTiquets/1')));
+    await assertFails(updateDoc(doc(taquillaDb, 'lotsTiquets/1'), { impres: true }));
+  });
+
+  it('permet a un admin crear, llegir i actualitzar lots de tiquets', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'lotsTiquets/1'), { numeroInicial: 1, quantitat: 150, impres: false }));
+    await assertSucceeds(getDoc(doc(adminDb, 'lotsTiquets/1')));
+    await assertSucceeds(updateDoc(doc(adminDb, 'lotsTiquets/1'), { impres: true, dataImpressio: '2026-08-31' }));
+  });
+});

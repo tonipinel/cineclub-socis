@@ -19,6 +19,27 @@ export function codisDesDe(seguentNumero, quantitat) {
   return Array.from({ length: quantitat }, (_, i) => `T-${String(seguentNumero + i).padStart(6, '0')}`);
 }
 
+export function trobarLotDelCodi(codi, lots) {
+  const match = (codi ?? '').match(/^T-(\d+)$/);
+  if (!match) return null;
+  const numero = Number(match[1]);
+  return lots.find((l) => numero >= l.numeroInicial && numero < l.numeroInicial + l.quantitat) ?? null;
+}
+
+export function tiquetEstaAnulat(codi, lots) {
+  const lot = trobarLotDelCodi(codi, lots);
+  if (!lot) return false;
+  if (lot.anulat) return true;
+  return (lot.codisAnulats ?? []).includes(codi);
+}
+
+export function tiquetsDelLot(lot, entradesGeneriques) {
+  const usats = new Set(
+    entradesGeneriques.filter((e) => e.tipus === 'generic').map((e) => e.codiTiquet)
+  );
+  return codisDesDe(lot.numeroInicial, lot.quantitat).map((codi) => ({ codi, usat: usats.has(codi) }));
+}
+
 export function assistenciaPerSessio(sessions, entradesSoci) {
   const sessionsAssistides = new Set(entradesSoci.map((e) => e.sessionId));
   return [...sessions]

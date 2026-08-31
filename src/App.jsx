@@ -12,6 +12,7 @@ import CarnetSoci from './pages/Socis/CarnetSoci';
 import SessionsList from './pages/Sessions/SessionsList';
 import SessionForm from './pages/Sessions/SessionForm';
 import TicketsPage from './pages/Tickets/TicketsPage';
+import TicketsLotPage from './pages/Tickets/TicketsLotPage';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 import EscaneigPage from './pages/Escaneig/EscaneigPage';
 import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
@@ -100,6 +101,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <TicketsPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TICKETS_LOT}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TicketsLotPage />
               </RequireRole>
             </RequireAuth>
           }

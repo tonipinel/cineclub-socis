@@ -2,7 +2,7 @@
   @apply mx-auto flex min-h-screen w-full max-w-lg flex-col;
 }
 .escaneig__contingut {
-  @apply flex flex-1 flex-col gap-3 p-4 pb-28;
+  @apply flex flex-1 flex-col items-stretch justify-center gap-3 p-4 pb-28;
 }
 .escaneig__sense-sessio {
   @apply mx-auto max-w-lg p-6 font-body text-black;

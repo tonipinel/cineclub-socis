@@ -47,5 +47,13 @@ service cloud.firestore {
     match /configuracio/{id} {
       allow read, write: if isAdmin();
     }
+
+    // Lots de tiquets genèrics generats (rang de números, si ja s'han
+    // imprès i quan, i si s'han anul·lat). Taquilla necessita llegir-los
+    // per bloquejar a la porta un tiquet anul·lat; només l'admin els gestiona.
+    match /lotsTiquets/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
   }
 }

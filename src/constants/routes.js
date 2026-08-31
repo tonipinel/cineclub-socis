@@ -9,6 +9,7 @@ export const SESSIONS = '/sessions';
 export const SESSIONS_NOVA = '/sessions/nova';
 export const SESSIONS_EDITAR = '/sessions/:id';
 export const TICKETS = '/tickets';
+export const TICKETS_LOT = '/tickets/:id';
 export const ESCANEIG = '/escaneig';
 export const COMPTABILITAT = '/comptabilitat';
 export const COMPTABILITAT_NOU = '/comptabilitat/nou';

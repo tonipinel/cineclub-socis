@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  identificarCodi, codisDeLot, codisDesDe, resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents,
-  resumPerSessio,
+  identificarCodi, codisDeLot, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
+  resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
 } from './escaneig';
 import { carnetPayload } from './carnet';
 
@@ -65,6 +65,63 @@ describe('codisDesDe', () => {
 
   it('cada codi generat s\'identifica com a tiquet genèric', () => {
     expect(codisDesDe(1, 3).every((c) => identificarCodi(c).tipus === 'generic')).toBe(true);
+  });
+});
+
+describe('tiquetsDelLot', () => {
+  it('marca com a usats els codis del lot que apareixen a l\'accessLog', () => {
+    const lot = { numeroInicial: 1, quantitat: 3 };
+    const entrades = [
+      { tipus: 'generic', codiTiquet: 'T-000002' },
+      { tipus: 'soci', numeroSoci: 7 },
+    ];
+    expect(tiquetsDelLot(lot, entrades)).toEqual([
+      { codi: 'T-000001', usat: false },
+      { codi: 'T-000002', usat: true },
+      { codi: 'T-000003', usat: false },
+    ]);
+  });
+
+  it('cap tiquet usat si l\'accessLog és buit', () => {
+    const lot = { numeroInicial: 10, quantitat: 2 };
+    expect(tiquetsDelLot(lot, [])).toEqual([
+      { codi: 'T-000010', usat: false },
+      { codi: 'T-000011', usat: false },
+    ]);
+  });
+});
+
+describe('trobarLotDelCodi', () => {
+  const lots = [
+    { numeroInicial: 1, quantitat: 150 },
+    { numeroInicial: 151, quantitat: 150 },
+  ];
+
+  it('troba el lot al qual pertany un codi', () => {
+    expect(trobarLotDelCodi('T-000047', lots)).toBe(lots[0]);
+    expect(trobarLotDelCodi('T-000200', lots)).toBe(lots[1]);
+  });
+
+  it('retorna null per a un codi que no pertany a cap lot conegut', () => {
+    expect(trobarLotDelCodi('T-999999', lots)).toBeNull();
+    expect(trobarLotDelCodi('L1-014', lots)).toBeNull();
+  });
+});
+
+describe('tiquetEstaAnulat', () => {
+  it('és cert si tot el lot està anul·lat', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 150, anulat: true }];
+    expect(tiquetEstaAnulat('T-000047', lots)).toBe(true);
+  });
+
+  it('és cert si el codi concret està a la llista de codis anul·lats del lot', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 150, anulat: false, codisAnulats: ['T-000047'] }];
+    expect(tiquetEstaAnulat('T-000047', lots)).toBe(true);
+    expect(tiquetEstaAnulat('T-000048', lots)).toBe(false);
+  });
+
+  it('és fals si el codi no pertany a cap lot conegut (p. ex. format antic de lots)', () => {
+    expect(tiquetEstaAnulat('L1-014', [{ numeroInicial: 1, quantitat: 150, anulat: true }])).toBe(false);
   });
 });
 

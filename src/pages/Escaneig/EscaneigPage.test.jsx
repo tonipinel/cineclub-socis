@@ -23,7 +23,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { addDoc, getDocs } from 'firebase/firestore';
+import { addDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 
 async function obrirCodiManual(user) {
@@ -80,6 +80,30 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
     });
+  });
+
+  it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => ({ numeroInicial: 1, quantitat: 150, anulat: true }) }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'T-000047');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('El codi T-000047 ha estat anul·lat.')).toBeInTheDocument();
+    expect(getDocs).not.toHaveBeenCalled();
+    expect(addDoc).not.toHaveBeenCalled();
   });
 
   it('mostra un error si el número de soci no existeix', async () => {

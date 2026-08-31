@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
-import { identificarCodi, resumAccessLog } from '../../lib/escaneig';
+import { identificarCodi, resumAccessLog, tiquetEstaAnulat } from '../../lib/escaneig';
 import { calcularEstatSoci, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
 
 const DEBOUNCE_MS = 3000;
@@ -25,11 +25,19 @@ export default function EscaneigPage() {
   const [missatge, setMissatge] = useState(null);
   const [resum, setResum] = useState(RESUM_INICIAL);
   const [modeEntrada, setModeEntrada] = useState('idle');
+  const [lots, setLots] = useState([]);
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
     return onSnapshot(q, (snap) => {
       setSessioActiva(snap.docs[0] ? { id: snap.docs[0].id, ...snap.docs[0].data() } : null);
+    });
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'lotsTiquets'));
+    return onSnapshot(q, (snap) => {
+      setLots(snap.docs.map((d) => d.data()));
     });
   }, []);
 
@@ -104,6 +112,11 @@ export default function EscaneigPage() {
         });
         const etiquetaEstat = ETIQUETES_ESTAT[calcularEstatSoci(soci)];
         mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms} — ${etiquetaEstat}` });
+        return;
+      }
+
+      if (tiquetEstaAnulat(identificat.codiTiquet, lots)) {
+        mostrarResultat({ tipus: 'error', text: `El codi ${identificat.codiTiquet} ha estat anul·lat.` });
         return;
       }
 
