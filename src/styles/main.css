@@ -11,6 +11,7 @@
 @import "./components/_tickets.css";
 @import "./components/_escaneig.css";
 @import "./components/_comptabilitat.css";
+@import "./components/_dashboard.css";
 
 @theme {
   --color-gold: #BF9000;
