@@ -163,9 +163,8 @@ export default function TicketsLotPage() {
               </div>
               <p className="tickets-graella__codi">{codi}</p>
               <p className="tickets-graella__text">
-                Aquesta aportació et dona accés a la sessió d'avui. Recorda que si et
-                fas soci/a abans de la propera sessió et descomptarem l'import
-                d'aquesta aportació de la quota de soci/a.
+                Si et fas soci/a abans de la propera sessió et descomptarem
+                l'import d'aquesta aportació de la quota
               </p>
               {usat && <p className="tickets-graella__estat">Usat</p>}
               {!usat && anuladIndividual && !lot.anulat && (

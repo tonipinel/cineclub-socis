@@ -50,27 +50,34 @@
   font-size: 7.5pt;
 }
 .tickets-graella__titol {
-  @apply font-display font-bold uppercase tracking-wide text-gold-dark;
-  font-size: 12pt;
+  @apply font-display font-bold uppercase tracking-wide;
+  color: #040404;
+  font-size: 19pt;
 }
 .tickets-graella__fila {
   @apply flex w-full items-center justify-center gap-3;
 }
 .tickets-graella__logo {
   @apply h-auto flex-shrink-0;
-  width: 35mm;
+  width: 28mm;
 }
 .tickets-graella__qr {
   @apply h-auto flex-shrink-0;
-  width: 22mm;
+  width: 18mm;
 }
 .tickets-graella__codi {
   @apply font-body font-semibold tracking-widest text-black;
   font-size: 8pt;
+  position: absolute;
+  transform: rotate(-90deg);
+  right: -14px;
+  top: 50%;
+  margin-top: -14px;
 }
 .tickets-graella__text {
-  @apply font-body text-black/70;
-  font-size: 8pt;
+  @apply font-body;
+  color: #000;
+  font-size: 9pt;
   line-height: 1.35;
 }
 .tickets-graella__tiquet--usat {
