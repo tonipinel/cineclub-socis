@@ -5,10 +5,7 @@
   @apply flex items-center gap-2;
 }
 .site-header__logo {
-  @apply h-8 w-8 object-contain;
-}
-.site-header__brand {
-  @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
+  @apply h-8 w-8 object-contain md:h-12 md:w-16;
 }
 .site-header__hamburguesa {
   @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white md:hidden;

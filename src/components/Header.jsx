@@ -90,8 +90,7 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="site-header__marca">
-        <img className="site-header__logo" src="/logo-cineclub.png" alt="" />
-        <span className="site-header__brand">Cineclub Roda de Berà</span>
+        <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
       </div>
       {user && enllacos.length > 0 && (
         <>

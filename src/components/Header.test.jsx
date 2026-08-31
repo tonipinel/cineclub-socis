@@ -13,10 +13,10 @@ describe('Header', () => {
     mockUseAuth.mockReset();
   });
 
-  it('mostra el nom de la marca', () => {
+  it('mostra el logo del cineclub', () => {
     mockUseAuth.mockReturnValue({ user: null, role: null, signOut: vi.fn() });
     render(<MemoryRouter><Header /></MemoryRouter>);
-    expect(screen.getByText('Cineclub Roda de Berà')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Cineclub Roda de Berà' })).toBeInTheDocument();
   });
 
   it('no mostra cap enllaç de navegació quan no hi ha usuari', () => {
