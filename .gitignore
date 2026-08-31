@@ -45,3 +45,4 @@ functions/lib/
 functions/.env
 functions/.env.*
 !functions/.env.example
+.claude/
