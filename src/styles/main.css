@@ -12,6 +12,7 @@
 @import "./components/_comptabilitat.css";
 @import "./components/_dashboard.css";
 @import "./components/_carregant.css";
+@import "./components/_configuracio.css";
 
 @theme {
   --color-gold: #BF9000;

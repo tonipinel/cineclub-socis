@@ -15,3 +15,4 @@ export const ESCANEIG = '/escaneig';
 export const COMPTABILITAT = '/comptabilitat';
 export const COMPTABILITAT_NOU = '/comptabilitat/nou';
 export const COMPTABILITAT_EDITAR = '/comptabilitat/:id';
+export const CONFIGURACIO = '/configuracio';

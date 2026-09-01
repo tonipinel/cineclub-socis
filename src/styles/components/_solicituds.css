@@ -13,3 +13,9 @@
 .solicituds-pendents__accions {
   @apply flex items-end gap-2;
 }
+.solicituds-pendents__info {
+  @apply flex flex-col gap-1;
+}
+.solicituds-pendents__data {
+  @apply font-body text-xs text-black/50;
+}

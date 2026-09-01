@@ -10,6 +10,12 @@ function avui() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatDataHora(timestamp) {
+  const data = timestamp?.toDate?.();
+  if (!data) return '—';
+  return `${data.toLocaleDateString('ca-ES')} ${data.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 export default function SolicitudsPendents() {
   const [solicituds, setSolicituds] = useState([]);
   const [processant, setProcessant] = useState(() => new Set());
@@ -59,16 +65,23 @@ export default function SolicitudsPendents() {
     }
   };
 
+  const solicitudsOrdenades = [...solicituds].sort(
+    (a, b) => (b.timestamp?.toDate?.()?.getTime() ?? 0) - (a.timestamp?.toDate?.()?.getTime() ?? 0)
+  );
+
   return (
     <div className="solicituds-pendents">
       <h1 className="solicituds-pendents__titol">Sol·licituds pendents</h1>
       {solicituds.length === 0 && <p>No hi ha sol·licituds pendents.</p>}
       <ul className="solicituds-pendents__llista">
-        {solicituds.map((s) => {
+        {solicitudsOrdenades.map((s) => {
           const enProces = processant.has(s.id);
           return (
             <li key={s.id} className="solicituds-pendents__item">
-              <span>{s.nom} {s.cognoms} — {s.telefon}</span>
+              <div className="solicituds-pendents__info">
+                <span>{s.nom} {s.cognoms} — {s.telefon}</span>
+                <span className="solicituds-pendents__data">{formatDataHora(s.timestamp)}</span>
+              </div>
               <div className="solicituds-pendents__accions">
                 <button className="btn" disabled={enProces} onClick={() => aprovar(s)}>Aprovar</button>
                 <button className="btn btn--outline" disabled={enProces} onClick={() => descartar(s)}>Descartar</button>

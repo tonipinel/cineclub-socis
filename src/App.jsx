@@ -18,6 +18,7 @@ import EscaneigPage from './pages/Escaneig/EscaneigPage';
 import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
 import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
+import ConfiguracioPage from './pages/Configuracio/ConfiguracioPage';
 
 export default function App() {
   return (
@@ -182,6 +183,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <DashboardPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.CONFIGURACIO}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <ConfiguracioPage />
               </RequireRole>
             </RequireAuth>
           }

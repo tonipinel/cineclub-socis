@@ -18,19 +18,21 @@ vi.mock('firebase/firestore', () => {
       docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }],
     }),
     writeBatch,
-    onSnapshot: (q, callback) => {
+    onSnapshot: vi.fn((q, callback) => {
       callback({
         docs: [{ id: 'sol-1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', telefon: '600000000', estat: 'pendent' }) }],
       });
       return () => {};
-    },
+    }),
     __batchSet: batchSet,
     __batchUpdate: batchUpdate,
     __batchCommit: batchCommit,
   };
 });
 
-import { getDocs, updateDoc, writeBatch, __batchSet, __batchUpdate, __batchCommit } from 'firebase/firestore';
+import {
+  getDocs, updateDoc, writeBatch, onSnapshot, __batchSet, __batchUpdate, __batchCommit,
+} from 'firebase/firestore';
 import SolicitudsPendents from './SolicitudsPendents';
 
 describe('SolicitudsPendents', () => {
@@ -83,5 +85,34 @@ describe('SolicitudsPendents', () => {
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeEnabled();
+  });
+
+  it('ordena les sol·licituds de més noves a més antigues i en mostra la data', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          {
+            id: 'antiga',
+            data: () => ({
+              nom: 'Marc', cognoms: 'Serra', telefon: '611111111', estat: 'pendent',
+              timestamp: { toDate: () => new Date(2026, 2, 1, 10, 0) },
+            }),
+          },
+          {
+            id: 'nova',
+            data: () => ({
+              nom: 'Anna', cognoms: 'Vidal', telefon: '600000000', estat: 'pendent',
+              timestamp: { toDate: () => new Date(2026, 7, 28, 15, 53) },
+            }),
+          },
+        ],
+      });
+      return () => {};
+    });
+    render(<SolicitudsPendents />);
+    const files = screen.getAllByRole('listitem');
+    expect(files[0]).toHaveTextContent('Anna');
+    expect(files[0]).toHaveTextContent('28/8/2026');
+    expect(files[1]).toHaveTextContent('Marc');
   });
 });
