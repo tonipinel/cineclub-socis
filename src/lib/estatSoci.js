@@ -3,6 +3,13 @@ export const ESTAT_PENDENT = 'pendent';
 export const ESTAT_VENCUT = 'vencut';
 export const ESTAT_NOU_REGISTRE = 'nou-registre';
 
+// L'activació és independent de l'estat de pagament: un soci pot estar
+// "Vençut" i actiu, o "Al dia" i desactivat. Per això no es barreja dins de
+// calcularEstatSoci, sinó que es consulta a part amb aquest predicat.
+export function estaActiu(soci) {
+  return soci.actiu !== false;
+}
+
 // Comparem sempre dates de calendari, no instants: `ultimPagament` és una data
 // 'YYYY-MM-DD' sense hora, i `avui` pot tenir qualsevol hora del dia. Construïm
 // totes dues bandes com a mitjanit LOCAL per evitar que la interpretació UTC de

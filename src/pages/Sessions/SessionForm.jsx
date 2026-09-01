@@ -11,6 +11,7 @@ import {
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import BotoEditar from '../../components/BotoEditar';
 
 const CAMPS_INICIALS = {
   titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '', preuEntrada: '5',
@@ -180,7 +181,7 @@ export default function SessionForm() {
     <form className="session-form" onSubmit={handleSubmit}>
       <div className="session-form__seccio session-form__seccio--blanc">
         <div className="session-form__contingut">
-          <div className="session-form__capcalera">
+          <div className="session-form__capcalera session-form__capcalera--principal">
             <h1 className="session-form__titol">{editant ? dades.titol : 'Nova sessió'}</h1>
             {editant && !dades.activa && (
               <button type="button" className="btn btn--outline" onClick={handleMarcarActiva}>
@@ -204,6 +205,11 @@ export default function SessionForm() {
             )}
 
             <div className="session-form__columna">
+              <div className="session-form__capcalera">
+                <h2 className="session-form__subtitol">Dades de la sessió</h2>
+                {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+              </div>
+
               {CAMPS_FORMULARI
                 .filter(([camp]) => desbloquejat || (camp !== 'urlProgramacio' && camp !== 'imatgeUrl'))
                 .map(([camp, etiqueta, tipus]) => (
@@ -223,12 +229,6 @@ export default function SessionForm() {
               {error && <p className="form__error">{error}</p>}
 
               {desbloquejat && <button className="btn" type="submit">Desar</button>}
-
-              {editant && !desbloquejat && (
-                <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
-                  Editar dades
-                </button>
-              )}
             </div>
           </div>
         </div>

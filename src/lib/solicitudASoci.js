@@ -1,4 +1,13 @@
-export function solicitudASoci(solicitud, data, numeroSoci) {
+function dataISO(timestamp, fallback) {
+  const data = timestamp?.toDate?.();
+  if (!data) return fallback;
+  const any = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${any}-${mes}-${dia}`;
+}
+
+export function solicitudASoci(solicitud, dataPagament, numeroSoci) {
   return {
     numeroSoci,
     nom: solicitud.nom,
@@ -10,8 +19,8 @@ export function solicitudASoci(solicitud, data, numeroSoci) {
     comentaris: solicitud.comentaris ?? '',
     dni: '',
     grupWhatsapp: '',
-    dataAlta: data,
-    ultimPagament: data,
+    dataAlta: dataISO(solicitud.timestamp, dataPagament),
+    ultimPagament: dataPagament,
     actiu: true,
   };
 }

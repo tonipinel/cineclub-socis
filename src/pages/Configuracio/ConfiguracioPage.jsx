@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import Carregant from '../../components/Carregant';
+import BotoEditar from '../../components/BotoEditar';
 
 const CAMPS_INICIALS = { quotaAnual: '30', numeroCompte: '' };
 
@@ -50,11 +51,7 @@ export default function ConfiguracioPage() {
     <form className="configuracio-form" onSubmit={handleSubmit}>
       <div className="configuracio-form__capcalera">
         <h1 className="configuracio-form__titol">Configuració de l'associació</h1>
-        {!desbloquejat && (
-          <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
-            Editar dades
-          </button>
-        )}
+        {!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
       </div>
 
       <p className="configuracio-form__ajuda">

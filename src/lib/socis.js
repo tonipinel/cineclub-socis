@@ -1,4 +1,4 @@
-import { calcularEstatSoci, calcularVenciment, diesFinsVenciment, ESTAT_AL_DIA } from './estatSoci';
+import { calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu, ESTAT_AL_DIA } from './estatSoci';
 import { assistenciaPerSessio } from './escaneig';
 
 export const DIES_AVIS_RENOVACIO = 30;
@@ -67,7 +67,8 @@ function calcularAltesPerMes(socis, avui) {
   return mesos.map((mes) => ({ mes, total: comptador[mes] }));
 }
 
-export function resumDashboardSocis(socis, sessions, entradesAccessLog, avui = new Date()) {
+export function resumDashboardSocis(socisTots, sessions, entradesAccessLog, avui = new Date()) {
+  const socis = socisTots.filter(estaActiu);
   const total = socis.length;
   const altesPerMes = calcularAltesPerMes(socis, avui);
 

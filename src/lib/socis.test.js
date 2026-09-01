@@ -115,6 +115,14 @@ describe('resumDashboardSocis', () => {
     expect(resumDashboardSocis(socis, [], [], avui).total).toBe(2);
   });
 
+  it('exclou els socis desactivats del total', () => {
+    const socis = [
+      { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-01-01', ultimPagament: '2026-01-01' },
+      { numeroSoci: 2, nom: 'Marc', cognoms: 'Serra', dataAlta: '2026-02-01', ultimPagament: '2026-02-01', actiu: false },
+    ];
+    expect(resumDashboardSocis(socis, [], [], avui).total).toBe(1);
+  });
+
   it('altesPerMes té 12 entrades, incloent els mesos sense altes, en ordre ascendent', () => {
     const resultat = resumDashboardSocis([], [], [], avui).altesPerMes;
     expect(resultat).toHaveLength(12);

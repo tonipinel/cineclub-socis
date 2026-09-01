@@ -4,6 +4,9 @@
 .form__field--checkbox {
   @apply flex-row items-start gap-2;
 }
+.form__field--curt {
+  @apply mb-0 w-24;
+}
 .form__label {
   @apply font-body text-sm font-semibold text-black;
 }

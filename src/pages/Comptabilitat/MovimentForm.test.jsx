@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -8,6 +8,7 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
   setDoc: vi.fn().mockResolvedValue(undefined),
   deleteDoc: vi.fn().mockResolvedValue(undefined),
+  updateDoc: vi.fn().mockResolvedValue(undefined),
   getDoc: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   doc: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
 }));
 
-import { addDoc, deleteDoc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { addDoc, deleteDoc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import MovimentForm from './MovimentForm';
 
 const MOVIMENT_EXISTENT = {
@@ -142,10 +143,154 @@ describe('MovimentForm — canviar tipus en editar', () => {
   });
 });
 
+describe('MovimentForm — numeroSoci', () => {
+  beforeEach(() => {
+    setDoc.mockClear();
+  });
+
+  it('conserva el numeroSoci d\'un moviment de quota en desar, encara que no sigui un camp editable', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, numeroSoci: 7 }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    const [, dadesDesades] = setDoc.mock.calls[0];
+    expect(dadesDesades.numeroSoci).toBe(7);
+  });
+
+  it('no afegeix numeroSoci a un moviment que no en tenia', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    const [, dadesDesades] = setDoc.mock.calls[0];
+    expect(Object.keys(dadesDesades)).not.toContain('numeroSoci');
+  });
+});
+
+describe('MovimentForm — sincronització d\'ultimPagament', () => {
+  beforeEach(() => {
+    setDoc.mockClear();
+    deleteDoc.mockClear();
+    updateDoc.mockClear();
+    getDocs.mockReset();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    window.confirm.mockClear();
+  });
+
+  afterEach(() => {
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('en editar un moviment de quota, recalcula ultimPagament del soci amb la data més recent', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, numeroSoci: 7 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [] }) // sessions (carregades al muntar el formulari)
+      .mockResolvedValueOnce({
+        docs: [
+          { data: () => ({ data: '2026-03-05' }) },
+          { data: () => ({ data: '2026-08-06' }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-08-06' });
+  });
+
+  it('no toca res si el moviment desat no té numeroSoci', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    getDocs.mockResolvedValueOnce({ docs: [] }); // sessions (carregades al muntar el formulari)
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('en eliminar un moviment de quota, recalcula ultimPagament exclosent-lo', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, numeroSoci: 7 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [] }) // sessions (carregades al muntar el formulari)
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ data: '2026-03-05' }) }] })
+      .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-03-05' });
+  });
+
+  it('no actualitza ultimPagament si no queda cap moviment de quota per aquell soci', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, numeroSoci: 7 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [] }) // sessions (carregades al muntar el formulari)
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+});
+
 describe('MovimentForm — eliminar', () => {
   beforeEach(() => {
     deleteDoc.mockClear();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    window.confirm.mockClear();
   });
 
   function renderEnEdicio() {

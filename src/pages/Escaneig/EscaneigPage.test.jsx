@@ -97,6 +97,21 @@ describe('EscaneigPage', () => {
     expect(await screen.findByText(/Venç el/)).toHaveClass('escaneig__missatge-venciment--avis');
   });
 
+  it('rebutja un soci desactivat i no el registra a l\'accessLog', async () => {
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: false, motiuDesactivacio: 'Mal comportament' }) }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.getByText('Soci desactivat: Mal comportament')).toBeInTheDocument();
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
   it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
     onSnapshot
       .mockImplementationOnce((q, callback) => {

@@ -2,16 +2,16 @@
   @apply p-6;
 }
 .tickets-pagina__capcalera {
-  @apply mb-4 flex flex-wrap items-end gap-3 print:hidden;
+  @apply mb-4 flex flex-wrap items-end gap-3 border-b border-black/10 pb-4 print:hidden;
 }
 .tickets-pagina__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
 .tickets-pagina__tornar {
   @apply mb-2 inline-block font-body text-sm text-black/70 underline print:hidden;
 }
 .tickets-pagina__formulari {
-  @apply mb-4 flex flex-wrap items-end gap-3 print:hidden;
+  @apply flex flex-wrap items-end gap-3 print:hidden md:ml-auto;
 }
 .tickets-pagina__disponibles {
   @apply font-body text-sm text-black/70;

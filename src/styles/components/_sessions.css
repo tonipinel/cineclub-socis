@@ -2,10 +2,10 @@
   @apply p-6;
 }
 .sessions-list__capcalera {
-  @apply mb-4 flex items-center justify-between;
+  @apply mb-4 flex items-center justify-between border-b border-black/10 pb-4;
 }
 .sessions-list__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
 .sessions-list__graella {
   @apply grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 md:grid-cols-3;
@@ -61,7 +61,13 @@
 .session-form__capcalera {
   @apply flex items-center justify-between gap-3;
 }
+.session-form__capcalera--principal {
+  @apply mb-4 border-b border-black/10 pb-4;
+}
 .session-form__titol {
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
+}
+.session-form__subtitol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
 .session-form__graella {

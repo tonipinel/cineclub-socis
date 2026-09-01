@@ -5,7 +5,7 @@ import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
 import { identificarCodi, resumAccessLog, tiquetEstaAnulat } from '../../lib/escaneig';
 import {
-  calcularEstatSoci, calcularVenciment, diesFinsVenciment,
+  calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu,
   ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
@@ -271,6 +271,14 @@ export default function EscaneigPage() {
           return;
         }
         const soci = socisTrobats.docs[0].data();
+        if (!estaActiu(soci)) {
+          mostrarResultat({
+            tipus: 'error',
+            text: `${soci.nom} ${soci.cognoms}`,
+            detall: soci.motiuDesactivacio ? `Soci desactivat: ${soci.motiuDesactivacio}` : 'Aquest soci està desactivat',
+          });
+          return;
+        }
         await addDoc(collection(db, 'accessLog'), {
           sessionId: sessioActiva.id,
           timestamp: serverTimestamp(),

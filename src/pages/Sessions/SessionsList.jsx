@@ -5,6 +5,7 @@ import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
 import { balancPerSessio, formatEuros } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
+import BotoAfegir from '../../components/BotoAfegir';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
@@ -38,7 +39,7 @@ export default function SessionsList() {
     <div className="sessions-list">
       <div className="sessions-list__capcalera">
         <h1 className="sessions-list__titol">Sessions</h1>
-        <Link className="btn" to={ROUTES.SESSIONS_NOVA}>Nova sessió</Link>
+        <BotoAfegir to={ROUTES.SESSIONS_NOVA} etiqueta="Nova sessió" />
       </div>
       <ul className="sessions-list__graella">
         {sessions.map((s) => {

@@ -27,4 +27,17 @@ describe('solicitudASoci', () => {
     );
     expect(soci.comentaris).toBe('Ve recomanat per un altre soci');
   });
+
+  it('fixa dataAlta a partir de la data original de la sol·licitud, no de la data de pagament', () => {
+    const soci = solicitudASoci(
+      {
+        nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883',
+        telefon: '600000000', timestamp: { toDate: () => new Date(2026, 1, 15) },
+      },
+      '2026-08-29',
+      '42'
+    );
+    expect(soci.dataAlta).toBe('2026-02-15');
+    expect(soci.ultimPagament).toBe('2026-08-29');
+  });
 });

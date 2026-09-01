@@ -113,4 +113,18 @@ describe('SocisList', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Seleccionar tots els socis' }));
     expect(screen.queryByRole('link', { name: /Imprimir carnets/ })).not.toBeInTheDocument();
   });
+
+  it('mostra el badge "Desactivat" a més del d\'estat, per a un soci desactivat', () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: '1', data: () => ({ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2099-01-01', actiu: false }) },
+        ],
+      });
+      return () => {};
+    });
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(screen.getByText('Al dia')).toBeInTheDocument();
+    expect(screen.getByText('Desactivat')).toBeInTheDocument();
+  });
 });

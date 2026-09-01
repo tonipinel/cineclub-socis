@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
@@ -9,8 +9,30 @@ import {
   ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import Carregant from '../../components/Carregant';
+import BotoEditar from '../../components/BotoEditar';
 import { resumAccessLog } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
+
+// Un soci pot tenir diversos moviments de "Quotes socis" (renovacions
+// successives). El seu `ultimPagament` ha de reflectir sempre el més recent,
+// però aquest formulari és genèric per a qualsevol moviment i no en sap res
+// del soci: per això, cada cop que es desa o s'elimina un moviment de quota,
+// recalculem `ultimPagament` a partir de tots els moviments de quota
+// restants d'aquell soci, en comptes de confiar que quedi sincronitzat sol.
+async function sincronitzarUltimPagament(numeroSoci) {
+  const [movimentsSnap, socisSnap] = await Promise.all([
+    getDocs(query(
+      collection(db, 'moviments'),
+      where('categoria', '==', 'Quotes socis'),
+      where('numeroSoci', '==', numeroSoci)
+    )),
+    getDocs(query(collection(db, 'socis'), where('numeroSoci', '==', numeroSoci))),
+  ]);
+  if (socisSnap.empty) return;
+  const dates = movimentsSnap.docs.map((d) => d.data().data).filter(Boolean).sort();
+  if (dates.length === 0) return;
+  await updateDoc(socisSnap.docs[0].ref, { ultimPagament: dates[dates.length - 1] });
+}
 
 export default function MovimentForm() {
   const { id } = useParams();
@@ -125,6 +147,12 @@ export default function MovimentForm() {
         quantitat: quantitatNum,
         total: totalNum,
         sessionId: dades.sessionId || '',
+        // numeroSoci no és un camp editable en aquest formulari, però si el
+        // moviment ja en tenia un (creat des de "Registrar pagament" d'un
+        // soci) l'hem de conservar explícitament: `moviment` es desa sencer
+        // amb setDoc (no merge), així que qualsevol camp no llistat aquí es
+        // perdria en desar.
+        ...(dades.numeroSoci != null ? { numeroSoci: dades.numeroSoci } : {}),
       };
       const moviment = dades.tipus === TIPUS_MOVIMENT.TRASPAS
         ? { ...base, direccio: dades.direccio }
@@ -136,6 +164,9 @@ export default function MovimentForm() {
         await setDoc(doc(db, 'moviments', id), moviment);
       } else {
         await addDoc(collection(db, 'moviments'), moviment);
+      }
+      if (moviment.numeroSoci != null) {
+        await sincronitzarUltimPagament(Number(moviment.numeroSoci));
       }
       navigate(ROUTES.COMPTABILITAT);
     } catch {
@@ -149,6 +180,9 @@ export default function MovimentForm() {
     setError(null);
     try {
       await deleteDoc(doc(db, 'moviments', id));
+      if (dades.numeroSoci != null) {
+        await sincronitzarUltimPagament(Number(dades.numeroSoci));
+      }
       navigate(ROUTES.COMPTABILITAT);
     } catch {
       setError("No s'ha pogut desar. Torna-ho a provar.");
@@ -164,11 +198,7 @@ export default function MovimentForm() {
     <form className="moviment-form" onSubmit={handleSubmit}>
       <div className="moviment-form__capcalera">
         <h1 className="moviment-form__titol">{editant ? 'Editar moviment' : 'Afegir moviment'}</h1>
-        {editant && !desbloquejat && (
-          <button type="button" className="btn btn--outline" onClick={() => setDesbloquejat(true)}>
-            Editar dades
-          </button>
-        )}
+        {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
       </div>
 
       <div className="form__field">

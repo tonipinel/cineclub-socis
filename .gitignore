@@ -21,6 +21,7 @@ firestore-debug.log
 database-debug.log
 ui-debug.log
 *serviceAccountKey*.json
+*firebase-adminsdk*.json
 
 # Editor / OS
 .DS_Store

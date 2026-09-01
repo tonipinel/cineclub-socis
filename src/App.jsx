@@ -7,6 +7,7 @@ import Header from './components/Header';
 import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
+import RegistrarPagamentPage from './pages/Socis/RegistrarPagamentPage';
 import CarnetSoci from './pages/Socis/CarnetSoci';
 import CarnetsLot from './pages/Socis/CarnetsLot';
 import SessionsList from './pages/Sessions/SessionsList';
@@ -53,6 +54,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <SociForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.SOCIS_PAGAMENT}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <RegistrarPagamentPage />
               </RequireRole>
             </RequireAuth>
           }

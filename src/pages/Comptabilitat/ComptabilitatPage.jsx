@@ -7,6 +7,7 @@ import {
   TIPUS_MOVIMENT, CATEGORIES, ETIQUETES_TIPUS, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
+import BotoAfegir from '../../components/BotoAfegir';
 
 const COLUMNES = [
   ['data', 'Data'],
@@ -72,7 +73,7 @@ export default function ComptabilitatPage() {
     <div className="comptabilitat">
       <div className="comptabilitat__capcalera">
         <h1 className="comptabilitat__titol">Comptabilitat</h1>
-        <Link className="btn" to={ROUTES.COMPTABILITAT_NOU}>Afegir moviment</Link>
+        <BotoAfegir to={ROUTES.COMPTABILITAT_NOU} etiqueta="Afegir moviment" />
       </div>
 
       <div className="comptabilitat__saldos">

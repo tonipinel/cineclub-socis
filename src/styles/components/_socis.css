@@ -2,13 +2,13 @@
   @apply p-6;
 }
 .socis-list__capcalera {
-  @apply mb-4 flex items-center justify-between;
+  @apply mb-4 flex items-center justify-between border-b border-black/10 pb-4;
 }
 .socis-list__accions {
   @apply flex items-center gap-2;
 }
 .socis-list__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
 .socis-list__filtres {
   @apply mb-4 flex gap-2;
@@ -41,8 +41,35 @@
 .badge--nou-registre {
   @apply border-blue-600 text-blue-700;
 }
+.badge--desactivat {
+  @apply border-red-600 bg-red-600 text-white;
+}
+.soci-form-pagina {
+  @apply mx-auto flex max-w-4xl flex-col gap-6 p-6 md:flex-row md:items-start;
+}
+.soci-form-pagina__accions {
+  @apply flex w-full flex-col gap-2 md:w-auto md:flex-shrink-0;
+}
+.soci-form-pagina__accions-titol {
+  @apply font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.soci-form-pagina__carnet {
+  @apply self-start transition hover:opacity-90;
+}
+.soci-form-pagina__bloc-accio {
+  @apply flex flex-col gap-2;
+}
+.soci-form__llegenda-estat {
+  @apply flex flex-wrap items-center gap-2;
+}
+.soci-form__accio-petita {
+  @apply cursor-pointer self-start border-0 bg-transparent p-0 font-body text-sm text-gold-dark transition hover:underline;
+}
+.soci-form__seccio-capcalera {
+  @apply flex items-center justify-between gap-3;
+}
 .soci-form {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+  @apply flex max-w-xl flex-1 flex-col gap-2;
 }
 .soci-form__capcalera {
   @apply flex items-center justify-between gap-2;
@@ -50,24 +77,85 @@
 .soci-form__titol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
-.soci-form__numero {
-  @apply -mt-2 mb-2 font-body text-sm text-black/70;
+.soci-form__dades-clau {
+  @apply -mt-2 mb-2 flex flex-col gap-0.5;
+}
+.soci-form__numero,
+.soci-form__data-clau {
+  @apply font-body text-sm text-black/70;
 }
 .form__input--nomes-lectura {
   @apply cursor-default bg-black/5 text-black/70;
 }
-.soci-form__assistencia {
-  @apply mt-2 flex flex-col gap-1 border-t border-black/10 pt-2 font-body text-sm text-black/70;
+.soci-form__seccio {
+  @apply w-full;
 }
-.soci-form__assistencia-titol {
+.soci-form__seccio--blanc {
+  @apply bg-white;
+}
+.soci-form__seccio--gris {
+  @apply bg-black/5;
+}
+.soci-form__contingut {
+  @apply mx-auto flex max-w-4xl flex-col gap-4 p-6;
+}
+.soci-form__subtitol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.soci-form__bloc {
+  @apply flex flex-col gap-2 rounded border border-black/10 p-4;
+}
+.soci-form__bloc-titol {
   @apply font-display text-sm font-bold uppercase tracking-wide text-black;
 }
-.soci-form__assistencia-llista {
-  @apply flex list-none flex-col gap-1 p-0;
+.soci-form__llista {
+  @apply flex list-none flex-col gap-1 p-0 font-body text-sm text-black;
+}
+.soci-form__fila {
+  @apply flex items-center justify-between gap-2 border-b border-black/10 py-1;
+}
+.soci-form__llegenda {
+  @apply flex flex-wrap justify-center gap-4 font-body text-xs text-black/70;
+}
+.soci-form__pastilla {
+  @apply mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-middle;
+}
+.soci-form__xifra-gran {
+  @apply font-display text-4xl font-bold text-black;
+}
+.soci-form__xifra-detall {
+  @apply font-body text-sm text-black/60;
+}
+.soci-form__cartells {
+  @apply grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4;
+}
+.soci-form__cartell {
+  @apply flex flex-col gap-1 text-center;
+}
+.soci-form__cartell-imatge {
+  @apply aspect-[2/3] w-full rounded object-cover transition hover:opacity-80;
+}
+.soci-form__cartell-placeholder {
+  @apply flex aspect-[2/3] w-full items-center justify-center rounded border border-dashed border-black/20 bg-white p-2 text-center font-display text-xs font-bold uppercase tracking-wide text-black/50;
+}
+.soci-form__cartell-titol {
+  @apply font-body text-xs text-black/70;
 }
 .badge--assisteix {
   @apply border-green-600 text-green-700;
 }
 .badge--no-assisteix {
   @apply border-black/30 text-black/50;
+}
+.pagament-form {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.pagament-form__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.pagament-form__soci {
+  @apply -mt-2 mb-2 font-body text-sm text-black/70;
+}
+.pagament-form__avis {
+  @apply -mt-1 mb-2 rounded border border-red-600 bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700;
 }

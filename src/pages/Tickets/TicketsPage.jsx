@@ -3,12 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
+import { avui } from '../../lib/data';
 
 const QUANTITAT_MAXIMA = 500;
-
-function avui() {
-  return new Date().toLocaleDateString('sv-SE');
-}
 
 export default function TicketsPage() {
   const [lots, setLots] = useState([]);
@@ -68,33 +65,50 @@ export default function TicketsPage() {
     <div className="tickets-pagina">
       <div className="tickets-pagina__capcalera">
         <h1 className="tickets-pagina__titol">Tiquets genèrics</h1>
-      </div>
 
-      <div className="tickets-pagina__formulari">
-        <div className="form__field">
-          <label className="form__label" htmlFor="quantitat-tiquets">Quantitat</label>
-          <input
-            id="quantitat-tiquets"
-            type="number"
-            className="form__input"
-            value={quantitat}
-            onChange={(e) => setQuantitat(e.target.value)}
-          />
+        <div className="tickets-pagina__formulari">
+          <div className="form__field form__field--curt">
+            <label className="form__label" htmlFor="quantitat-tiquets">Quantitat</label>
+            <input
+              id="quantitat-tiquets"
+              type="number"
+              className="form__input"
+              value={quantitat}
+              onChange={(e) => setQuantitat(e.target.value)}
+            />
+          </div>
+          <div className="form__field form__field--curt">
+            <label className="form__label" htmlFor="preu-tiquet">Preu</label>
+            <input
+              id="preu-tiquet"
+              type="number"
+              step="0.01"
+              className="form__input"
+              value={preu}
+              onChange={(e) => setPreu(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn-icona"
+            aria-label="Generar tiquets nous"
+            onClick={handleGenerar}
+            disabled={generant}
+          >
+            <svg
+              className="btn-icona__icona"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
         </div>
-        <div className="form__field">
-          <label className="form__label" htmlFor="preu-tiquet">Preu</label>
-          <input
-            id="preu-tiquet"
-            type="number"
-            step="0.01"
-            className="form__input"
-            value={preu}
-            onChange={(e) => setPreu(e.target.value)}
-          />
-        </div>
-        <button type="button" className="btn" onClick={handleGenerar} disabled={generant}>
-          Generar tiquets nous
-        </button>
       </div>
 
       {error && <p className="form__error">{error}</p>}

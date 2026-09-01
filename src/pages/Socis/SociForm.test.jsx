@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
+vi.mock('qrcode', () => ({
+  default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,ABC') },
+}));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
@@ -89,6 +92,21 @@ describe('SociForm — mode lectura/edició', () => {
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
   });
 
+  it('mostra la data de sol·licitud i la de l\'últim pagament, sense poder-les editar directament', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', dataAlta: '2026-02-15', ultimPagament: '2026-08-29',
+      }),
+    });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Data de sol·licitud: 15/2/2026')).toBeInTheDocument();
+    expect(screen.getByText('Últim pagament: 29/8/2026')).toBeInTheDocument();
+  });
+
   it('en crear un soci nou, els camps ja són editables sense cal clicar res', () => {
     render(
       <MemoryRouter initialEntries={['/socis/nou']}>
@@ -101,67 +119,51 @@ describe('SociForm — mode lectura/edició', () => {
   });
 });
 
-describe('SociForm — registrar pagament', () => {
-  beforeEach(() => {
-    updateDoc.mockClear();
-    getDocs.mockClear();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-  });
-
-  function renderEnEdicio() {
-    return render(
+describe('SociForm — accions', () => {
+  it('mostra a la columna d\'accions un enllaç per registrar un pagament', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    render(
       <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes>
-          <Route path="/socis/:id" element={<SociForm />} />
-        </Routes>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-  }
-
-  it('demana confirmació abans de registrar el pagament', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    const user = userEvent.setup();
-    renderEnEdicio();
-    await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('no fa res si es cancel·la la confirmació', async () => {
-    window.confirm.mockReturnValue(false);
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    const user = userEvent.setup();
-    renderEnEdicio();
-    await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('assigna el següent número de soci disponible si encara no en té', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
-    getDocs.mockResolvedValueOnce({
-      docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }],
-    });
-    const user = userEvent.setup();
-    renderEnEdicio();
-    await user.click(await screen.findByRole('button', { name: "Registrar pagament d'avui" }));
-    expect(getDocs.mock.calls[0][0]).toBe('socis');
-    expect(updateDoc.mock.calls[0][1].numeroSoci).toBe(42);
-    expect(await screen.findByText('Número de soci/a: 42')).toBeInTheDocument();
-  });
-
-  it('no toca el número de soci si ja en té un', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    const user = userEvent.setup();
-    renderEnEdicio();
-    await screen.findByRole('button', { name: "Registrar pagament d'avui" });
-    getDocs.mockClear();
-    await user.click(screen.getByRole('button', { name: "Registrar pagament d'avui" }));
-    expect(getDocs).not.toHaveBeenCalled();
-    expect(updateDoc.mock.calls[0][1].numeroSoci).toBeUndefined();
+    const enllac = await screen.findByRole('link', { name: 'Registrar pagament' });
+    expect(enllac).toHaveAttribute('href', '/socis/1/pagament');
   });
 });
 
-describe('SociForm — enllaç del carnet', () => {
-  it('no mostra l\'enllaç del carnet si el soci encara no té número de soci', async () => {
+describe('SociForm — pagaments de la quota', () => {
+  beforeEach(() => {
+    getDocs.mockReset();
+  });
+
+  afterEach(() => {
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('mostra el llistat de pagaments de la quota registrats per aquest soci', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({
+        docs: [{ id: 'moviment-1', data: () => ({ data: '2026-03-05', total: 30, metodePagament: 'efectiu' }) }],
+      });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Pagaments de la quota')).toBeInTheDocument();
+    const enllac = await screen.findByText(/30\.00€/);
+    expect(enllac).toBeInTheDocument();
+    expect(screen.getByText(/Efectiu/)).toBeInTheDocument();
+    expect(enllac.closest('a')).toHaveAttribute('href', '/comptabilitat/moviment-1');
+  });
+});
+
+describe('SociForm — previsualització del carnet', () => {
+  it('no mostra el carnet si el soci encara no té número de soci', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
@@ -169,17 +171,19 @@ describe('SociForm — enllaç del carnet', () => {
       </MemoryRouter>
     );
     await screen.findByLabelText('Nom');
-    expect(screen.queryByText('Veure i imprimir el carnet')).not.toBeInTheDocument();
+    expect(screen.queryByText('Carnet')).not.toBeInTheDocument();
   });
 
-  it('mostra l\'enllaç del carnet si el soci ja té número de soci', async () => {
+  it('mostra el carnet clicable si el soci ja té número de soci, i porta a la pàgina del carnet', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Veure i imprimir el carnet')).toBeInTheDocument();
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    const enllac = screen.getByText('Anna Vidal').closest('a');
+    expect(enllac).toHaveAttribute('href', '/socis/1/carnet');
   });
 });
 
@@ -188,27 +192,53 @@ describe('SociForm — assistència a sessions', () => {
     getDocs.mockReset();
   });
 
-  it('mostra quines sessions ha assistit i quines no, ordenades per data descendent', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+  afterEach(() => {
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('separa les sessions assistides (amb cartell) de les no assistides (en llista), dins del període actual', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
     getDocs
       .mockResolvedValueOnce({
         docs: [
           { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) },
-          { id: 's2', data: () => ({ titol: 'Pig', data: '2026-06-25' }) },
+          { id: 's2', data: () => ({ titol: 'Pig', data: '2026-06-25', imatgeUrl: 'https://exemple.cat/pig.jpg' }) },
         ],
       })
-      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's2' }) }] });
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's2' }) }] })
+      .mockResolvedValueOnce({ docs: [] });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Assistència a sessions')).toBeInTheDocument();
-    expect(screen.getByText('Hi va assistir')).toBeInTheDocument();
-    expect(screen.getByText('No hi va assistir')).toBeInTheDocument();
+    expect(await screen.findByText('Pel·lícules a les que ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Pig' })).toHaveAttribute('src', 'https://exemple.cat/pig.jpg');
+    expect(screen.getByText('Sessions a les que no ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.getByText('The Artist')).toBeInTheDocument();
   });
 
-  it('no mostra la secció d\'assistència si el soci no té número de soci', async () => {
+  it('mostra un marcador de posició quan la sessió assistida no té imatge', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Pig', data: '2026-06-25' }) }] })
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }] })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Pel·lícules a les que ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Pig' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Pig')).toHaveLength(2);
+  });
+
+  it('no mostra les seccions d\'assistència si el soci no té número de soci', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
@@ -216,11 +246,15 @@ describe('SociForm — assistència a sessions', () => {
       </MemoryRouter>
     );
     await screen.findByLabelText('Nom');
-    expect(screen.queryByText('Assistència a sessions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sessions assistides (període actual)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pel·lícules a les que ha assistit (període actual)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sessions a les que no ha assistit (període actual)')).not.toBeInTheDocument();
   });
 
-  it('no mostra les sessions futures a la llista d\'assistència', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+  it('no mostra les sessions futures', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
     getDocs
       .mockResolvedValueOnce({
         docs: [
@@ -228,14 +262,127 @@ describe('SociForm — assistència a sessions', () => {
           { id: 's2', data: () => ({ titol: 'Pel·lícula del futur', data: '2099-01-01' }) },
         ],
       })
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Assistència a sessions')).toBeInTheDocument();
-    expect(screen.getByText(/The Artist/)).toBeInTheDocument();
-    expect(screen.queryByText(/Pel·lícula del futur/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Sessions a les que no ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.getByText('The Artist')).toBeInTheDocument();
+    expect(screen.queryByText('Pel·lícula del futur')).not.toBeInTheDocument();
+  });
+
+  it('calcula el cost per sessió del període actual (des de l\'últim pagament)', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-03-05' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's0', data: () => ({ titol: 'Pel·lícula antiga', data: '2026-01-10' }) },
+          { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's0' }) }, { data: () => ({ sessionId: 's1' }) }] })
+      .mockResolvedValueOnce({ docs: [{ id: 'm1', data: () => ({ data: '2026-03-05', total: 30, metodePagament: 'efectiu' }) }] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Cost per sessió (període actual)')).toBeInTheDocument();
+    expect(screen.getByText('30.00€')).toBeInTheDocument();
+  });
+
+  it('si ha assistit a sessions però no hi ha cap pagament registrat, ho diu explícitament (no que no ha assistit)', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-03-05' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) }] })
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }] })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Cost per sessió (període actual)')).toBeInTheDocument();
+    expect(screen.getByText('No hi ha cap pagament de quota registrat.')).toBeInTheDocument();
+    expect(screen.queryByText(/Encara no ha assistit/)).not.toBeInTheDocument();
+  });
+});
+
+describe('SociForm — desactivació', () => {
+  beforeEach(() => {
+    updateDoc.mockClear();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  it('per defecte mostra l\'estat Actiu i el formulari de desactivació amagat', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Actiu')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Motiu de la desactivació')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desactivar soci' })).toBeInTheDocument();
+  });
+
+  it('en clicar "Desactivar soci" mostra el formulari, i exigeix un motiu abans de desar', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    expect(await screen.findByText('Cal indicar el motiu de la desactivació.')).toBeInTheDocument();
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('desactiva el soci amb el motiu indicat, després de confirmar', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const [, actualitzacio] = updateDoc.mock.calls[0];
+    expect(actualitzacio.actiu).toBe(false);
+    expect(actualitzacio.motiuDesactivacio).toBe('Mal comportament');
+    expect(await screen.findByText('Desactivat')).toBeInTheDocument();
+  });
+
+  it('mostra el motiu i permet reactivar un soci desactivat', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: false,
+        motiuDesactivacio: 'Mal comportament', dataDesactivacio: '2026-06-01',
+      }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Desactivat')).toBeInTheDocument();
+    expect(screen.getByText(/Mal comportament/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reactivar soci' }));
+    const [, actualitzacio] = updateDoc.mock.calls[0];
+    expect(actualitzacio.actiu).toBe(true);
+    expect(actualitzacio.motiuDesactivacio).toBe(null);
   });
 });

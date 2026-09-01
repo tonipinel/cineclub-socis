@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
-import { calcularEstatSoci, calcularVenciment, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE } from '../../lib/estatSoci';
+import {
+  calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
+} from '../../lib/estatSoci';
 import { filtrarSocis, ordenarSocis, FILTRE_PROXIMA_RENOVACIO } from '../../lib/socis';
 import { comptarAssistenciesRecents } from '../../lib/escaneig';
 import * as ROUTES from '../../constants/routes';
+import BotoAfegir from '../../components/BotoAfegir';
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -40,9 +43,12 @@ const RENDERITZAR_CELDA = {
   nom: (soci) => <NomSoci soci={soci} />,
   cognoms: (soci) => <CognomsSoci soci={soci} />,
   estat: (soci) => (
-    <span className={`badge badge--${calcularEstatSoci(soci)}`}>
-      {ETIQUETES_ESTAT[calcularEstatSoci(soci)]}
-    </span>
+    <>
+      <span className={`badge badge--${calcularEstatSoci(soci)}`}>
+        {ETIQUETES_ESTAT[calcularEstatSoci(soci)]}
+      </span>
+      {!estaActiu(soci) && <span className="badge badge--desactivat">Desactivat</span>}
+    </>
   ),
   venciment: (soci) => formatData(calcularVenciment(soci)),
   assistencies: (soci) => soci.assistencies ?? 0,
@@ -117,7 +123,7 @@ export default function SocisList() {
               Imprimir carnets ({seleccionats.size})
             </Link>
           )}
-          <Link className="btn" to={ROUTES.SOCIS_NOU}>Donar d'alta</Link>
+          <BotoAfegir to={ROUTES.SOCIS_NOU} etiqueta="Donar d'alta" />
         </div>
       </div>
       <div className="socis-list__filtres">
