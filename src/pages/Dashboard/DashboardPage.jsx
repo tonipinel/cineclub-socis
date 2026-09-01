@@ -175,7 +175,7 @@ export default function DashboardPage() {
                   <th>Aportacions</th>
                   <th>Pel·lícula</th>
                   <th>Impacte net</th>
-                  <th>Excedent</th>
+                  <th>Tresoreria</th>
                 </tr>
               </thead>
               <tbody>
