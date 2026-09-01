@@ -122,7 +122,7 @@ describe('TicketsLotPage', () => {
     mockLotIAccessLog({ ...LOT, anulat: true, dataAnulacio: '2026-09-01' });
     renderLot();
     expect(await screen.findByText('0 de 3 disponibles')).toBeInTheDocument();
-    expect(screen.getByText('Anul·lat el 2026-09-01')).toBeInTheDocument();
+    expect(screen.getByText('Anul·lat el 01/09/2026')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Anul·lar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Anul·lar tot el lot' })).not.toBeInTheDocument();
   });

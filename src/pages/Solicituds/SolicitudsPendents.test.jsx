@@ -160,7 +160,7 @@ describe('SolicitudsPendents', () => {
     render(<SolicitudsPendents />);
     const files = screen.getAllByRole('listitem');
     expect(files[0]).toHaveTextContent('Anna');
-    expect(files[0]).toHaveTextContent('28/8/2026');
+    expect(files[0]).toHaveTextContent('28/08/2026');
     expect(files[1]).toHaveTextContent('Marc');
   });
 

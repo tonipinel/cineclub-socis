@@ -6,6 +6,7 @@ import {
   calcularSaldos, filtrarMoviments, ordenarMoviments, formatEuros, classeSigne,
   TIPUS_MOVIMENT, CATEGORIES, ETIQUETES_TIPUS, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
+import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 
@@ -21,7 +22,7 @@ const COLUMNES = [
 const COLUMNES_ORDENABLES = new Set(['data', 'concepte', 'tipus', 'total']);
 
 const RENDERITZAR_CELDA = {
-  data: (m) => m.data,
+  data: (m) => formatData(m.data),
   concepte: (m) => m.concepte,
   tipus: (m) => (
     <span className={`badge badge--${m.tipus}`}>{ETIQUETES_TIPUS[m.tipus] ?? m.tipus}</span>

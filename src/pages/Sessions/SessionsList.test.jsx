@@ -55,7 +55,7 @@ describe('SessionsList', () => {
       });
     render(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Socis: 1')).toBeInTheDocument();
-    expect(screen.getByText('Aportacions: 1')).toBeInTheDocument();
+    expect(screen.getByText('No socis: 1')).toBeInTheDocument();
     expect(screen.getByText('Balanç: 60.00€')).toBeInTheDocument();
   });
 });

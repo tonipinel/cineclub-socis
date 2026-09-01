@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   entradesPerFranjaHorariaFixa,
-  identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat,
+  identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat, preuDelTiquet,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
   resumDashboardTiquets, entradesPerFranjaHoraria,
 } from './escaneig';
@@ -121,6 +121,18 @@ describe('tiquetEstaAnulat', () => {
       { numeroInicial: 1, quantitat: 150, anulat: false },
     ];
     expect(tiquetEstaAnulat('T-000047', lotsSuperposats)).toBe(true);
+  });
+});
+
+describe('preuDelTiquet', () => {
+  it('retorna el preu del lot al qual pertany el codi', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 150, preu: 5 }];
+    expect(preuDelTiquet('T-000047', lots)).toBe(5);
+  });
+
+  it('retorna undefined si el codi no pertany a cap lot conegut', () => {
+    const lots = [{ numeroInicial: 1, quantitat: 150, preu: 5 }];
+    expect(preuDelTiquet('T-999999', lots)).toBeUndefined();
   });
 });
 

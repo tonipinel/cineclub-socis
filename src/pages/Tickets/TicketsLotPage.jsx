@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { codisDesDe, tiquetsDelLot } from '../../lib/escaneig';
-import { avui } from '../../lib/data';
+import { avui, formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 
@@ -108,12 +108,12 @@ export default function TicketsLotPage() {
           Tiquets T-{String(lot.numeroInicial).padStart(6, '0')} – T-{String(lot.numeroInicial + lot.quantitat - 1).padStart(6, '0')}
         </h1>
         <p className="tickets-pagina__disponibles">{disponibles} de {lot.quantitat} disponibles</p>
-        {lot.anulat && <span className="badge badge--anulat">Anul·lat el {lot.dataAnulacio}</span>}
+        {lot.anulat && <span className="badge badge--anulat">Anul·lat el {formatData(lot.dataAnulacio)}</span>}
       </div>
 
       <div className="tickets-pagina__accions">
         {lot.impres ? (
-          <span className="badge badge--impres">Imprès el {lot.dataImpressio}</span>
+          <span className="badge badge--impres">Imprès el {formatData(lot.dataImpressio)}</span>
         ) : (
           <button type="button" className="btn" onClick={handleMarcarImpres}>Marcar com imprès</button>
         )}

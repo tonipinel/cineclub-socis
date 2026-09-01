@@ -9,13 +9,14 @@ import { resumAccessLog, entradesPerFranjaHorariaFixa } from '../../lib/escaneig
 import {
   resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
 } from '../../lib/moviments';
+import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
 
 const CAMPS_INICIALS = {
-  titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '', preuEntrada: '5',
+  titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '',
 };
 
 const CAMPS_FORMULARI = [
@@ -24,7 +25,6 @@ const CAMPS_FORMULARI = [
   ['hora', "Hora d'inici", 'time'],
   ['urlProgramacio', 'URL de programació', 'text'],
   ['imatgeUrl', 'URL de la imatge', 'text'],
-  ['preuEntrada', "Preu d'entrada (no-socis)", 'text'],
 ];
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -134,10 +134,7 @@ export default function SessionForm() {
       // un "Desar" normal mai l'ha de sobreescriure amb l'estat local, que pot
       // haver quedat desactualitzat si s'ha activat una altra sessió mentre
       // aquest formulari estava obert.
-      const { activa: _activaActual, ...dadesADesar } = {
-        ...dades,
-        preuEntrada: Number(dades.preuEntrada) || 0,
-      };
+      const { activa: _activaActual, ...dadesADesar } = dades;
       if (editant) {
         await updateDoc(doc(db, 'sessions', id), dadesADesar);
       } else {
@@ -266,7 +263,7 @@ export default function SessionForm() {
                   </span>
                 </div>
                 <div className="session-form__estadistica-fila">
-                  <span className="session-form__xifra-etiqueta">Aportacions</span>
+                  <span className="session-form__xifra-etiqueta">No Socis</span>
                   <span className="session-form__estadistica-valors">
                     <span className="session-form__xifra">{resum.entradesGeneriques}</span>
                     {comparacioAportacions && (
@@ -350,7 +347,7 @@ export default function SessionForm() {
               <ul className="session-form__llista">
                 {movimentsOrdenats.map((moviment) => (
                   <li key={moviment.id} className="session-form__moviment-fila">
-                    <span className="session-form__hora">{moviment.data}</span>
+                    <span className="session-form__hora">{formatData(moviment.data)}</span>
                     <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
                       {moviment.concepte}
                     </Link>

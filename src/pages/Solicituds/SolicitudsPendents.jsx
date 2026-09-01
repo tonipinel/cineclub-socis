@@ -5,7 +5,7 @@ import {
 import { db } from '../../firebase/firebase';
 import { solicitudASoci } from '../../lib/solicitudASoci';
 import { properNumeroSoci } from '../../lib/numeroSoci';
-import { avui } from '../../lib/data';
+import { avui, formatDataHora } from '../../lib/data';
 
 const MISSATGE_ERROR = "No s'ha pogut desar. Torna-ho a provar.";
 
@@ -27,12 +27,6 @@ const CAMPS_DETALL = [
   ['codiPostal', 'Codi postal'],
   ['comentaris', 'Comentaris'],
 ];
-
-function formatDataHora(timestamp) {
-  const data = timestamp?.toDate?.();
-  if (!data) return '—';
-  return `${data.toLocaleDateString('ca-ES')} ${data.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}`;
-}
 
 export default function SolicitudsPendents() {
   const [solicituds, setSolicituds] = useState([]);

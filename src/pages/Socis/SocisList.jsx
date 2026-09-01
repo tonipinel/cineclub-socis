@@ -7,6 +7,7 @@ import {
 } from '../../lib/estatSoci';
 import { filtrarSocis, ordenarSocis, FILTRE_PROXIMA_RENOVACIO } from '../../lib/socis';
 import { comptarAssistenciesRecents } from '../../lib/escaneig';
+import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 
@@ -25,10 +26,6 @@ const COLUMNES = [
   ['venciment', 'Venciment'],
   ['assistencies', 'Assistències (12 mesos)'],
 ];
-
-function formatData(data) {
-  return data.toLocaleDateString('ca-ES');
-}
 
 function NomSoci({ soci }) {
   return <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.nom}</Link>;

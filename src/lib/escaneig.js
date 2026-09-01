@@ -26,6 +26,13 @@ export function tiquetEstaAnulat(codi, lots) {
   return lotsCoincidents.some((lot) => lot.anulat || (lot.codisAnulats ?? []).includes(codi));
 }
 
+// undefined si el codi no pertany a cap lot conegut (per exemple, un codi mal
+// escrit manualment): cal distingir-ho d'un tiquet que realment costa 0€.
+export function preuDelTiquet(codi, lots) {
+  const [lot] = trobarLotDelCodi(codi, lots);
+  return lot?.preu;
+}
+
 export function tiquetsDelLot(lot, entradesGeneriques) {
   const usats = new Set(
     entradesGeneriques.filter((e) => e.tipus === 'generic').map((e) => e.codiTiquet)

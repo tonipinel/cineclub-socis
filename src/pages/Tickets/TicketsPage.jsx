@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
-import { avui } from '../../lib/data';
+import { avui, formatData } from '../../lib/data';
 
 const QUANTITAT_MAXIMA = 500;
 
@@ -120,9 +120,9 @@ export default function TicketsPage() {
               Tiquets T-{String(lot.numeroInicial).padStart(6, '0')} – T-{String(lot.numeroInicial + lot.quantitat - 1).padStart(6, '0')}
               {' '}({lot.quantitat})
             </Link>
-            <span className="tickets-llista__data">Generat el {lot.dataGeneracio}</span>
+            <span className="tickets-llista__data">Generat el {formatData(lot.dataGeneracio)}</span>
             {lot.anulat && <span className="badge badge--anulat">Anul·lat</span>}
-            {!lot.anulat && lot.impres && <span className="badge badge--impres">Imprès el {lot.dataImpressio}</span>}
+            {!lot.anulat && lot.impres && <span className="badge badge--impres">Imprès el {formatData(lot.dataImpressio)}</span>}
             {!lot.anulat && !lot.impres && <span className="badge badge--pendent-impressio">Pendent d'imprimir</span>}
           </li>
         ))}

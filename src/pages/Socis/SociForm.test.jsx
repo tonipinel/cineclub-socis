@@ -103,8 +103,8 @@ describe('SociForm — mode lectura/edició', () => {
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Data de sol·licitud: 15/2/2026')).toBeInTheDocument();
-    expect(screen.getByText('Últim pagament: 29/8/2026')).toBeInTheDocument();
+    expect(await screen.findByText('Data de sol·licitud: 15/02/2026')).toBeInTheDocument();
+    expect(screen.getByText('Últim pagament: 29/08/2026')).toBeInTheDocument();
   });
 
   it('mostra la data d\'activació del carnet (inicPeriode) quan ja s\'ha fixat', async () => {
@@ -118,7 +118,7 @@ describe('SociForm — mode lectura/edició', () => {
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(await screen.findByText('Activació del carnet: 6/8/2026')).toBeInTheDocument();
+    expect(await screen.findByText('Activació del carnet: 06/08/2026')).toBeInTheDocument();
   });
 
   it('indica que encara no s\'ha activat el carnet quan no hi ha inicPeriode', async () => {

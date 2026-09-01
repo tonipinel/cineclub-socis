@@ -9,7 +9,7 @@ import { properNumeroSoci } from '../../lib/numeroSoci';
 import {
   METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA,
 } from '../../lib/moviments';
-import { avui } from '../../lib/data';
+import { avui, formatData } from '../../lib/data';
 import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
 import Carregant from '../../components/Carregant';
 
@@ -101,7 +101,7 @@ export default function RegistrarPagamentPage() {
       ? ' Atenció: aquest soci està desactivat i continuarà desactivat (el carnet no funcionarà) fins que el reactivis manualment des de la seva fitxa.'
       : '';
     const confirmat = window.confirm(
-      `Confirmes que has rebut un pagament de ${importPagament}€ amb data ${data}?${avisDesactivat} Aquesta acció no es pot desfer.`
+      `Confirmes que has rebut un pagament de ${importPagament}€ amb data ${formatData(data)}?${avisDesactivat} Aquesta acció no es pot desfer.`
     );
     if (!confirmat) return;
     setDesant(true);

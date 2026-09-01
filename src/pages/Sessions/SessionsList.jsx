@@ -4,6 +4,7 @@ import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firest
 import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
 import { balancPerSessio, formatEuros } from '../../lib/moviments';
+import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 
@@ -54,10 +55,10 @@ export default function SessionsList() {
                     <span className="sessions-list__titol-sessio">{s.titol}</span>
                     {s.activa && <span className="badge badge--activa">Activa</span>}
                   </div>
-                  <p className="sessions-list__data">{s.data}</p>
+                  <p className="sessions-list__data">{formatData(s.data)}</p>
                   <div className="sessions-list__resum">
                     <span>Socis: {resum.socisDistints}</span>
-                    <span>Aportacions: {resum.entradesGeneriques}</span>
+                    <span>No socis: {resum.entradesGeneriques}</span>
                     <span className={balanc < 0 ? 'sessions-list__balanc--negatiu' : 'sessions-list__balanc--positiu'}>
                       Balanç: {formatEuros(balanc)}
                     </span>

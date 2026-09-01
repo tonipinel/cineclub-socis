@@ -6,7 +6,8 @@ vi.mock('barcode-detector/polyfill', () => ({}));
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'staff-1' } }) }));
 
-const SESSIO_ACTIVA = { id: 'sessio-1', titol: 'The Artist', preuEntrada: 5 };
+const SESSIO_ACTIVA = { id: 'sessio-1', titol: 'The Artist' };
+const LOT_TIQUETS = { numeroInicial: 1, quantitat: 150, preu: 5 };
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -143,6 +144,30 @@ describe('EscaneigPage', () => {
     expect(addDoc).not.toHaveBeenCalled();
   });
 
+  it('mostra un error si el tiquet no pertany a cap lot conegut, sense registrar-lo amb preu 0', async () => {
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => LOT_TIQUETS }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'T-000999');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('El codi T-000999 no pertany a cap lot de tiquets conegut.')).toBeInTheDocument();
+    expect(getDocs).not.toHaveBeenCalled();
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
   it('mostra un error si el número de soci no existeix', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
@@ -155,8 +180,21 @@ describe('EscaneigPage', () => {
     expect(addDoc).not.toHaveBeenCalled();
   });
 
-  it('registra un tiquet genèric nou amb el preu de la sessió', async () => {
+  it('registra un tiquet genèric nou amb el preu del lot de tiquets', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => LOT_TIQUETS }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
@@ -175,12 +213,25 @@ describe('EscaneigPage', () => {
       empty: false,
       docs: [{ data: () => ({ timestamp: { toDate: () => dataEscaneigPrevi } }) }],
     });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => LOT_TIQUETS }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    const dataFormatada = dataEscaneigPrevi.toLocaleString('ca-ES');
+    const dataFormatada = `05/03/2026 ${dataEscaneigPrevi.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}`;
     expect(await screen.findByText('Codi ja utilitzat')).toBeInTheDocument();
     expect(await screen.findByText(new RegExp(`ja s'ha escanejat \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
     expect(addDoc).not.toHaveBeenCalled();
@@ -195,6 +246,19 @@ describe('EscaneigPage', () => {
       empty: false,
       docs: [{ data: () => ({ timestamp: null }) }],
     });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => LOT_TIQUETS }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);
@@ -229,6 +293,19 @@ describe('EscaneigPage', () => {
 
   it('ignora un mateix codi reenviat dins la finestra de debounce, sense duplicar el registre', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => LOT_TIQUETS }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
     const user = userEvent.setup();
     render(<EscaneigPage />);
     const input = await obrirCodiManual(user);

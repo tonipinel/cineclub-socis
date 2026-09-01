@@ -5,8 +5,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
-import { identificarCodi, resumAccessLog, tiquetEstaAnulat } from '../../lib/escaneig';
-import { avui } from '../../lib/data';
+import {
+  identificarCodi, resumAccessLog, tiquetEstaAnulat, preuDelTiquet,
+} from '../../lib/escaneig';
+import { avui, formatData, formatDataHora } from '../../lib/data';
 import {
   calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu,
   ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
@@ -29,7 +31,7 @@ const ETIQUETES_ESTAT = {
 // sense haver d'escanejar ni tenir sessió activa (útil per iterar sobre el
 // disseny). No afecta producció real: només substitueix l'estat inicial
 // mentre l'URL tingui aquest fragment.
-const MOCKUP_SESSIO = { id: 'mockup', titol: 'Sessió de prova', preuEntrada: 5 };
+const MOCKUP_SESSIO = { id: 'mockup', titol: 'Sessió de prova' };
 
 const MOCKUP_VENCIMENT_AVIAT = new Date();
 MOCKUP_VENCIMENT_AVIAT.setDate(MOCKUP_VENCIMENT_AVIAT.getDate() + 10);
@@ -44,7 +46,7 @@ const MOCKUPS = {
       tipus: 'ok',
       text: 'Anna Vidal',
       estat: ESTAT_AL_DIA,
-      venciment: { data: MOCKUP_VENCIMENT_AVIAT.toLocaleDateString('ca-ES'), dies: 10 },
+      venciment: { data: formatData(MOCKUP_VENCIMENT_AVIAT), dies: 10 },
     },
   },
   tiquet: { modeEntrada: 'escanejant', missatge: { tipus: 'ok', text: 'Entrada genèrica registrada (5€)' } },
@@ -224,7 +226,7 @@ export default function EscaneigPage() {
     setModeEntrada('BarcodeDetector' in window ? 'escanejant' : 'manual');
   };
 
-  const registrarGeneric = async (codiTiquet) => {
+  const registrarGeneric = async (codiTiquet, preuAplicat) => {
     try {
       await addDoc(collection(db, 'accessLog'), {
         sessionId: sessioActiva.id,
@@ -232,9 +234,9 @@ export default function EscaneigPage() {
         escanejatPer: user.uid,
         tipus: 'generic',
         codiTiquet,
-        preuAplicat: sessioActiva.preuEntrada,
+        preuAplicat,
       });
-      mostrarResultat({ tipus: 'ok', text: `Entrada genèrica registrada (${sessioActiva.preuEntrada}€)` });
+      mostrarResultat({ tipus: 'ok', text: `Entrada genèrica registrada (${preuAplicat}€)` });
     } catch {
       mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
@@ -299,7 +301,7 @@ export default function EscaneigPage() {
         }
         const estat = calcularEstatSoci(soci);
         const venciment = estat === ESTAT_AL_DIA
-          ? { data: calcularVenciment(soci).toLocaleDateString('ca-ES'), dies: diesFinsVenciment(soci) }
+          ? { data: formatData(calcularVenciment(soci)), dies: diesFinsVenciment(soci) }
           : null;
         mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
         return;
@@ -319,6 +321,15 @@ export default function EscaneigPage() {
         return;
       }
 
+      const preuTiquet = preuDelTiquet(identificat.codiTiquet, lotsRef.current);
+      if (preuTiquet === undefined) {
+        mostrarResultat({
+          tipus: 'error',
+          text: `El codi ${identificat.codiTiquet} no pertany a cap lot de tiquets conegut.`,
+        });
+        return;
+      }
+
       const repetits = await getDocs(
         query(
           collection(db, 'accessLog'),
@@ -328,7 +339,7 @@ export default function EscaneigPage() {
       if (!repetits.empty) {
         const timestampRepetit = repetits.docs[0].data().timestamp;
         const dataRepetit = typeof timestampRepetit?.toDate === 'function'
-          ? timestampRepetit.toDate().toLocaleString('ca-ES')
+          ? formatDataHora(timestampRepetit)
           : null;
         const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat`;
         mostrarResultat({
@@ -338,11 +349,11 @@ export default function EscaneigPage() {
             ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
             : `${textBase}. Confirma si vols comptar-lo igualment.`,
           codiTiquet: identificat.codiTiquet,
-          onConfirmar: () => registrarGeneric(identificat.codiTiquet),
+          onConfirmar: () => registrarGeneric(identificat.codiTiquet, preuTiquet),
         });
         return;
       }
-      await registrarGeneric(identificat.codiTiquet);
+      await registrarGeneric(identificat.codiTiquet, preuTiquet);
     } catch {
       mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
@@ -504,7 +515,7 @@ export default function EscaneigPage() {
           <p className="escaneig__footer-titol">{sessioPerMostrar.titol}</p>
           <div className="escaneig__footer-resum">
             <span>Socis: {resum.socisDistints}</span>
-            <span>Aportacions: {resum.entradesGeneriques}</span>
+            <span>No socis: {resum.entradesGeneriques}</span>
             <span>Import: {resum.importGeneric}€</span>
           </div>
         </div>

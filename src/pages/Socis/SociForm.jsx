@@ -10,7 +10,7 @@ import {
 } from '../../lib/estatSoci';
 import { assistenciaPerSessio } from '../../lib/escaneig';
 import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/moviments';
-import { avui } from '../../lib/data';
+import { avui, formatData } from '../../lib/data';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
@@ -41,12 +41,6 @@ const ETIQUETES_ESTAT = {
 
 const COLOR_ASSISTEIX = '#16a34a';
 const COLOR_NO_ASSISTEIX = '#d4d4d4';
-
-function formatData(dataISO) {
-  if (!dataISO) return '—';
-  const [any, mes, dia] = dataISO.split('-').map(Number);
-  return new Date(any, mes - 1, dia).toLocaleDateString('ca-ES');
-}
 
 export default function SociForm() {
   const { id } = useParams();
@@ -201,7 +195,7 @@ export default function SociForm() {
                 Activació del carnet: {dades.inicPeriode ? formatData(dades.inicPeriode) : 'Encara no ha escanejat des del pagament'}
               </p>
               {venciment && (
-                <p className="soci-form__data-clau">Venciment de la quota: {venciment.toLocaleDateString('ca-ES')}</p>
+                <p className="soci-form__data-clau">Venciment de la quota: {formatData(venciment)}</p>
               )}
             </div>
           )}

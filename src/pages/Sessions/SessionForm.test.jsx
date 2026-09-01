@@ -36,7 +36,7 @@ function renderEnEdicio() {
 describe('SessionForm — alta', () => {
   beforeEach(() => addDoc.mockClear());
 
-  it('crea una sessió nova amb el preu convertit a número', async () => {
+  it('crea una sessió nova', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/sessions/nova']}>
@@ -52,7 +52,6 @@ describe('SessionForm — alta', () => {
     expect(await screen.findByText('Llistat de sessions')).toBeInTheDocument();
     const [, dadesDesades] = addDoc.mock.calls[0];
     expect(dadesDesades.titol).toBe('The Artist');
-    expect(dadesDesades.preuEntrada).toBe(5);
     expect(dadesDesades.activa).toBe(false);
   });
 });
@@ -66,7 +65,7 @@ describe('SessionForm — edició, camps de només lectura per defecte', () => {
 
   it('mostra els camps només de lectura fins que es clica "Editar dades"', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     const user = userEvent.setup();
     renderEnEdicio();
@@ -89,7 +88,7 @@ describe('SessionForm — marcar activa', () => {
 
   it('desactiva qualsevol altra sessió activa i marca aquesta com a activa, en un sol batch', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     const refAltraActiva = { id: 'altra' };
     getDocs.mockImplementation((q) => {
@@ -122,7 +121,7 @@ describe('SessionForm — desar una sessió ja activa', () => {
 
   it('en editar i desar una sessió ja activa, no sobreescriu el camp activa', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: true }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: true }),
     });
     const user = userEvent.setup();
     renderEnEdicio();
@@ -144,7 +143,7 @@ describe('SessionForm — desglossament econòmic', () => {
 
   it('mostra els ingressos per categoria i detall (preu i mètode), les despeses i el balanç', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     onSnapshot
       .mockImplementationOnce((q, callback) => {
@@ -199,7 +198,7 @@ describe('SessionForm — desglossament econòmic', () => {
 
   it('mostra un missatge quan encara no hi ha cap moviment', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     renderEnEdicio();
     expect(await screen.findByText('Sense moviments encara.')).toBeInTheDocument();
@@ -208,7 +207,7 @@ describe('SessionForm — desglossament econòmic', () => {
 
   it('llista els moviments associats a la sessió amb enllaç al detall', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     onSnapshot
       .mockImplementationOnce((q, callback) => {
@@ -242,7 +241,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
 
   it('avisa si hi ha entrades genèriques escanejades però encara no s\'ha registrat el moviment d\'Aportacions', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     onSnapshot
       .mockImplementationOnce((q, callback) => {
@@ -269,7 +268,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
 
   it('no avisa si ja hi ha un moviment d\'Aportacions per a aquesta sessió', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     onSnapshot
       .mockImplementationOnce((q, callback) => {
@@ -294,7 +293,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
 
   it('no avisa si no hi ha cap entrada genèrica escanejada', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     renderEnEdicio();
     await screen.findByText('Desglossament econòmic');
@@ -311,7 +310,7 @@ describe('SessionForm — detall de socis i aportacions', () => {
 
   it('llista els socis que han vingut amb enllaç a la seva fitxa i l\'hora, sense duplicar-ne un que ha escanejat dos cops', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     getDocs.mockResolvedValueOnce({
       docs: [{ id: 'soci-doc-7', data: () => ({ numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal' }) }],
@@ -334,7 +333,7 @@ describe('SessionForm — detall de socis i aportacions', () => {
 
   it('llista les aportacions amb el codi, l\'import i l\'hora', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     getDocs.mockResolvedValueOnce({ docs: [] });
     onSnapshot.mockImplementationOnce((q, callback) => {
@@ -365,7 +364,7 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
 
   it('mostra la diferència de socis, aportacions i total de persones respecte a la sessió immediatament anterior', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     onSnapshot
       .mockImplementationOnce((q, callback) => {
@@ -406,7 +405,7 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
     const filaSocis = resumAssistencia.getByText('Socis').closest('.session-form__estadistica-fila');
     expect(await within(filaSocis).findByText('▲ 1')).toBeInTheDocument();
 
-    const filaAportacions = resumAssistencia.getByText('Aportacions').closest('.session-form__estadistica-fila');
+    const filaAportacions = resumAssistencia.getByText('No Socis').closest('.session-form__estadistica-fila');
     expect(within(filaAportacions).getByText('▼ 2')).toBeInTheDocument();
 
     const filaTotal = resumAssistencia.getByText('Total persones').closest('.session-form__estadistica-fila');
@@ -415,7 +414,7 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
 
   it('no mostra cap comparativa quan no hi ha cap sessió anterior', async () => {
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     getDocs.mockResolvedValue({ docs: [] });
     renderEnEdicio();
