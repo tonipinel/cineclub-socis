@@ -7,11 +7,23 @@
 .comptabilitat__titol {
   @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
-.comptabilitat__saldos {
-  @apply mb-4 flex flex-wrap gap-3;
+.comptabilitat__formula {
+  @apply mb-4 flex flex-wrap items-stretch gap-3;
 }
-.comptabilitat__saldo {
-  @apply rounded border border-black/10 bg-black/5 px-3 py-2 font-display text-base font-bold;
+.comptabilitat__formula-terme {
+  @apply flex flex-col justify-center gap-1 rounded border border-black/10 bg-black/5 px-3 py-2;
+}
+.comptabilitat__formula-terme--total {
+  @apply border-black/20 bg-black/10;
+}
+.comptabilitat__formula-etiqueta {
+  @apply font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.comptabilitat__formula-valor {
+  @apply font-display text-lg font-bold;
+}
+.comptabilitat__formula-operador {
+  @apply flex items-center font-display text-xl font-bold text-black/40;
 }
 .comptabilitat__filtres {
   @apply mb-4 flex gap-2;

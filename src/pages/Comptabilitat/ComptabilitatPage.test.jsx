@@ -41,11 +41,14 @@ import { getDocs } from 'firebase/firestore';
 import ComptabilitatPage from './ComptabilitatPage';
 
 describe('ComptabilitatPage', () => {
-  it('calcula i mostra els saldos', () => {
+  it('calcula i mostra els saldos com a fórmula efectiu + bancària = tresoreria', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
-    expect(screen.getByText('Caixa: 100.00€')).toBeInTheDocument();
-    expect(screen.getByText('Banc: -40.00€')).toBeInTheDocument();
-    expect(screen.getByText('Excedent: 60.00€')).toBeInTheDocument();
+    expect(screen.getByText('Disponibilitat en efectiu')).toBeInTheDocument();
+    expect(screen.getByText('100.00€')).toBeInTheDocument();
+    expect(screen.getByText('Disponibilitat bancària')).toBeInTheDocument();
+    expect(screen.getByText('-40.00€')).toBeInTheDocument();
+    expect(screen.getByText('Fons total de tresoreria')).toBeInTheDocument();
+    expect(screen.getByText('60.00€')).toBeInTheDocument();
   });
 
   it('llista els moviments', () => {

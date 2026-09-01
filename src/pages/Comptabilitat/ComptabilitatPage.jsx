@@ -76,10 +76,21 @@ export default function ComptabilitatPage() {
         <BotoAfegir to={ROUTES.COMPTABILITAT_NOU} etiqueta="Afegir moviment" />
       </div>
 
-      <div className="comptabilitat__saldos">
-        <p className={`comptabilitat__saldo ${classeSigne(saldos.caixa)}`}>Caixa: {formatEuros(saldos.caixa)}</p>
-        <p className={`comptabilitat__saldo ${classeSigne(saldos.banc)}`}>Banc: {formatEuros(saldos.banc)}</p>
-        <p className={`comptabilitat__saldo ${classeSigne(saldos.excedent)}`}>Excedent: {formatEuros(saldos.excedent)}</p>
+      <div className="comptabilitat__formula">
+        <div className="comptabilitat__formula-terme">
+          <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
+          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.caixa)}`}>{formatEuros(saldos.caixa)}</p>
+        </div>
+        <span className="comptabilitat__formula-operador">+</span>
+        <div className="comptabilitat__formula-terme">
+          <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
+          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.banc)}`}>{formatEuros(saldos.banc)}</p>
+        </div>
+        <span className="comptabilitat__formula-operador">=</span>
+        <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
+          <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
+          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.excedent)}`}>{formatEuros(saldos.excedent)}</p>
+        </div>
       </div>
 
       <div className="comptabilitat__filtres">

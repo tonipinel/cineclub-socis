@@ -133,7 +133,8 @@ describe('DashboardPage', () => {
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
     await screen.findByRole('heading', { name: 'Comptabilitat' });
     const m = modul('Comptabilitat');
-    expect(m.getByText(/Excedent: 60.00€/)).toBeInTheDocument();
+    expect(m.getByText('Fons total de tresoreria')).toBeInTheDocument();
+    expect(m.getByText('Fons total de tresoreria').nextSibling).toHaveTextContent('60.00€');
     expect(m.getByText('Quotes socis')).toBeInTheDocument();
     expect(m.getByText('Gestió pel·lícules')).toBeInTheDocument();
     expect(m.queryByText('Quotes postsessió')).not.toBeInTheDocument();

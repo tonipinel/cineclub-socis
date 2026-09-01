@@ -123,9 +123,22 @@ export default function DashboardPage() {
 
         <div className="dashboard__modul dashboard__modul--ample">
           <h2 className="dashboard__modul-titol">Comptabilitat</h2>
-          <p className={`dashboard__comptabilitat-excedent ${classeSigne(comptable.excedent)}`}>
-            Excedent: {formatEuros(comptable.excedent)}
-          </p>
+          <div className="comptabilitat__formula">
+            <div className="comptabilitat__formula-terme">
+              <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
+              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.caixa)}`}>{formatEuros(comptable.caixa)}</p>
+            </div>
+            <span className="comptabilitat__formula-operador">+</span>
+            <div className="comptabilitat__formula-terme">
+              <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
+              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.banc)}`}>{formatEuros(comptable.banc)}</p>
+            </div>
+            <span className="comptabilitat__formula-operador">=</span>
+            <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
+              <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
+              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.excedent)}`}>{formatEuros(comptable.excedent)}</p>
+            </div>
+          </div>
           <p className="dashboard__comptabilitat-seccio">Ingressos</p>
           <p className="dashboard__comptabilitat-fila"><span>Total ingressos</span><span>{formatEuros(comptable.ingressosTotal)}</span></p>
           {Object.entries(comptable.ingressosPerCategoriaIMetode).map(([categoria, valors]) => (
@@ -141,8 +154,6 @@ export default function DashboardPage() {
               <span>{categoria}</span><span>{formatEuros(total)}</span>
             </p>
           ))}
-          <p className="dashboard__comptabilitat-total"><span>Al banc</span><span>{formatEuros(comptable.banc)}</span></p>
-          <p className="dashboard__comptabilitat-total"><span>A caixa</span><span>{formatEuros(comptable.caixa)}</span></p>
           <Link className="dashboard__enllac" to={ROUTES.COMPTABILITAT}>Veure comptabilitat</Link>
         </div>
 
