@@ -46,3 +46,16 @@
 .dashboard__comptabilitat-total {
   @apply flex items-center justify-between gap-2 border-t border-black/20 pt-2 font-display text-base font-bold text-black;
 }
+.dashboard__previsio-taula-wrap {
+  @apply mt-2 overflow-x-auto;
+}
+.dashboard__previsio-taula {
+  @apply w-full min-w-[560px] border-collapse text-left font-body text-sm text-black;
+}
+.dashboard__previsio-taula th,
+.dashboard__previsio-taula td {
+  @apply border-b border-black/10 px-2 py-1.5;
+}
+.dashboard__previsio-taula th {
+  @apply font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}

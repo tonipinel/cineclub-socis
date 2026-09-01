@@ -9,6 +9,8 @@ import {
   resumEconomicSessio,
   formatEuros,
   resumComptable,
+  resumPrevisio,
+  LLINDAR_COST_SESSIO_RENOVACIO,
   TIPUS_MOVIMENT,
   CATEGORIES,
   METODES_INGRES,
@@ -344,5 +346,195 @@ describe('resumComptable', () => {
     const resultat = resumComptable(moviments);
     expect(Object.keys(resultat.ingressosPerCategoriaIMetode)).toEqual(['Quotes socis']);
     expect(resultat.despesesPerCategoria).toEqual({});
+  });
+});
+
+describe('resumPrevisio', () => {
+  // Constructor de 3 arguments (any, mes, dia), sempre hora local.
+  const avui = new Date(2026, 7, 31);
+  // Sense socis/sessions/accessLog no hi ha cap soci amb venciment conegut,
+  // així que totes les renovacions esperades queden a 0: aquests tests
+  // només verifiquen el ritme d'altes noves i la resta del desglossament
+  // mensual, no el càlcul de renovacions per data de venciment real (cobert
+  // més avall).
+  const previsio = (moviments, data) => resumPrevisio(moviments, [], [], [], data);
+
+  it('retorna 12 mesos, a partir del mes vinent, amb el nom i any correctes', () => {
+    const resultat = previsio([], avui);
+    expect(resultat.mesos).toHaveLength(12);
+    expect(resultat.mesos.map((m) => m.etiqueta)).toEqual([
+      'Setembre 2026', 'Octubre 2026', 'Novembre 2026', 'Desembre 2026', 'Gener 2027', 'Febrer 2027',
+      'Març 2027', 'Abril 2027', 'Maig 2027', 'Juny 2027', 'Juliol 2027', 'Agost 2027',
+    ]);
+  });
+
+  it('reparteix les quotes dels últims 3 mesos en un ritme mensual mitjà de noves altes', () => {
+    const moviments = [
+      { data: '2026-06-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+    ];
+    const resultat = previsio(moviments, avui);
+    expect(resultat.novesAltesPerMes).toBe(1);
+    expect(resultat.importMitjaQuota).toBe(30);
+    expect(resultat.mesos[0].novesAltes).toBe(1);
+    expect(resultat.mesos[11].ingressosQuotes).toBe(30);
+  });
+
+  it('ignora moviments anteriors als últims 3 mesos', () => {
+    const moviments = [
+      { data: '2026-04-01', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+    ];
+    const resultat = previsio(moviments, avui);
+    expect(resultat.novesAltesPerMes).toBe(0);
+  });
+
+  it('reparteix les aportacions dels últims 3 mesos en un ritme mensual mitjà', () => {
+    const moviments = [
+      { data: '2026-06-10', tipus: 'ingres', categoria: 'Aportacions', total: 30 },
+      { data: '2026-07-10', tipus: 'ingres', categoria: 'Aportacions', total: 30 },
+      { data: '2026-08-10', tipus: 'ingres', categoria: 'Aportacions', total: 30 },
+    ];
+    const resultat = previsio(moviments, avui);
+    expect(resultat.ingressosAportacionsPerMes).toBe(30);
+  });
+
+  it('agafa el cost de pel·lícula més car (no la mitjana) dels últims 3 mesos, i el manté fix cada mes', () => {
+    const moviments = [
+      { data: '2026-06-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 80 },
+      { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 150 },
+      { data: '2026-08-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
+    ];
+    const resultat = previsio(moviments, avui);
+    expect(resultat.costPellicula).toBe(150);
+    expect(resultat.mesos.every((m) => m.costPellicula === 150)).toBe(true);
+  });
+
+  it('sense cap soci amb venciment conegut, les renovacions esperades són 0 cada mes', () => {
+    const resultat = previsio([], avui);
+    expect(resultat.mesos.every((m) => m.sociesDeguts === 0 && m.renovacionsEsperades === 0)).toBe(true);
+  });
+
+  it('calcula l\'impacte net mensual (sense renovacions) i l\'acumulat dels 12 mesos', () => {
+    const moviments = [
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-08-10', tipus: 'ingres', categoria: 'Aportacions', total: 20 },
+      { data: '2026-08-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
+    ];
+    const resultat = previsio(moviments, avui);
+    // Noves altes: 1/3 de mitjana * 30€ = 10€, aportacions: 20/3 = 6.67€, pel·lícula: 100€.
+    const impacteNetPerMes = 10 + 20 / 3 - 100;
+    expect(resultat.mesos[0].impacteNet).toBeCloseTo(impacteNetPerMes);
+    expect(resultat.impacteNetAcumulat).toBeCloseTo(impacteNetPerMes * 12);
+  });
+
+  it('retorna zeros si no hi ha moviments en els últims 3 mesos', () => {
+    const resultat = previsio([], avui);
+    expect(resultat.novesAltesPerMes).toBe(0);
+    expect(resultat.ingressosAportacionsPerMes).toBe(0);
+    expect(resultat.costPellicula).toBe(0);
+    expect(resultat.impacteNetAcumulat).toBe(0);
+  });
+});
+
+describe('resumPrevisio — renovacions per data de venciment real', () => {
+  const avui = new Date(2026, 7, 31);
+  // Cap d'aquests moviments cau en els últims 3 mesos (estan datats a finals
+  // de 2025), així que novesAltesPerMes és 0 i no interfereixen amb les
+  // renovacions que estem provant.
+  const sessions = [
+    { id: 'sA', data: '2026-08-01' },
+    { id: 'sB', data: '2026-08-15' },
+  ];
+
+  it('només compta un soci com a "degut" en el mes exacte en què li venç la quota', () => {
+    const socis = [
+      // ultimPagament 2025-10-01 -> venciment 2026-10-01 -> Octubre 2026
+      { numeroSoci: 10, ultimPagament: '2025-10-01' },
+      // ultimPagament 2025-11-05 -> venciment 2026-11-05 -> Novembre 2026
+      { numeroSoci: 20, ultimPagament: '2025-11-05' },
+    ];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 10 },
+      { data: '2025-11-05', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 20, total: 30 },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
+      { tipus: 'soci', numeroSoci: 20, sessionId: 'sA' },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    const novembre = resultat.mesos.find((m) => m.etiqueta === 'Novembre 2026');
+    const desembre = resultat.mesos.find((m) => m.etiqueta === 'Desembre 2026');
+    expect(octubre.sociesDeguts).toBe(1);
+    expect(novembre.sociesDeguts).toBe(1);
+    expect(desembre.sociesDeguts).toBe(0);
+  });
+
+  it('descarta de les renovacions esperades un soci amb cost per sessió per sobre del llindar', () => {
+    const socis = [
+      // 10€ ÷ 2 sessions assistides = 5€/sessió -> per sota del llindar, renova.
+      { numeroSoci: 10, ultimPagament: '2025-10-01' },
+      // 30€ ÷ 1 sessió assistida = 30€/sessió -> per sobre del llindar, no renova.
+      { numeroSoci: 20, ultimPagament: '2025-10-15' },
+    ];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 10 },
+      { data: '2025-10-15', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 20, total: 30 },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
+      { tipus: 'soci', numeroSoci: 20, sessionId: 'sA' },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.sociesDeguts).toBe(2);
+    expect(octubre.renovacionsEsperades).toBe(1);
+  });
+
+  it('dona el benefici del dubte (compta com a probable) a un soci degut sense sessions assistides encara', () => {
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01' }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 30 },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, [], avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.sociesDeguts).toBe(1);
+    expect(octubre.renovacionsEsperades).toBe(1);
+  });
+
+  it('ignora els socis desactivats a l\'hora de comptar deguts', () => {
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01', actiu: false }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 30 },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, [], avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.sociesDeguts).toBe(0);
+  });
+
+  it('suma l\'ingrés esperat de renovacions al de noves altes, amb l\'import mitjà de quota', () => {
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01' }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 10 },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    // Cap quota en els últims 3 mesos -> importMitjaQuota per defecte 30€.
+    expect(resultat.importMitjaQuota).toBe(30);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.renovacionsEsperades).toBe(1);
+    expect(octubre.ingressosQuotes).toBe(30);
+  });
+});
+
+describe('LLINDAR_COST_SESSIO_RENOVACIO', () => {
+  it('és de 8€', () => {
+    expect(LLINDAR_COST_SESSIO_RENOVACIO).toBe(8);
   });
 });

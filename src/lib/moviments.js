@@ -1,3 +1,6 @@
+import { estaActiu, calcularVenciment } from './estatSoci';
+import { assistenciaPerSessio } from './escaneig';
+
 export const TIPUS_MOVIMENT = { INGRES: 'ingres', DESPESA: 'despesa', TRASPAS: 'traspas' };
 
 export const CATEGORIES = [
@@ -160,6 +163,127 @@ export function resumEconomicSessio(moviments) {
   }
 
   return { ingressosPerCategoria, ingressosTotal, despesesTotal, balanc: ingressosTotal - despesesTotal };
+}
+
+const MESOS_REFERENCIA = 3;
+const MESOS_PREVISIO = 12;
+const NOMS_MES = [
+  'Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny',
+  'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre',
+];
+
+// Llindar de cost per sessió (import de l'última quota ÷ sessions
+// assistides en el període actual) per sobre del qual considerem que un
+// soci té risc real de no renovar: si li ha sortit car venir (poc
+// aprofitament de la quota), és menys probable que torni a pagar.
+export const LLINDAR_COST_SESSIO_RENOVACIO = 8;
+
+function costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNumero) {
+  if (!soci.numeroSoci || !soci.ultimPagament) return null;
+  const numeroSoci = Number(soci.numeroSoci);
+  const pagamentActual = moviments
+    .filter((m) => (
+      m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES && Number(m.numeroSoci) === numeroSoci
+    ))
+    .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
+  if (!pagamentActual) return null;
+
+  const sessionsPeriode = sessionsPassades.filter((s) => (s.data ?? '') >= soci.ultimPagament);
+  const entrades = entradesPerNumero.get(numeroSoci) ?? [];
+  const assistides = assistenciaPerSessio(sessionsPeriode, entrades).filter((s) => s.assisteix).length;
+  if (assistides === 0) return null;
+
+  return (Number(pagamentActual.total) || 0) / assistides;
+}
+
+function agruparEntradesPerNumero(accessLog) {
+  const entradesPerNumero = new Map();
+  for (const e of accessLog) {
+    if (e.tipus !== 'soci' || e.numeroSoci == null) continue;
+    if (!entradesPerNumero.has(e.numeroSoci)) entradesPerNumero.set(e.numeroSoci, []);
+    entradesPerNumero.get(e.numeroSoci).push(e);
+  }
+  return entradesPerNumero;
+}
+
+// Un soci "probablement renovarà" si el seu cost per sessió actual (import
+// de l'última quota ÷ sessions assistides des d'aleshores) està per sota del
+// llindar. Si encara no hi ha prou dades (no ha assistit a cap sessió des
+// del pagament), no el descartem: assumim que sí renovarà (benefici del
+// dubte), en comptes de comptar-lo com a "no probable" sense evidència.
+function probablementRenovara(soci, moviments, sessionsPassades, entradesPerNumero) {
+  const cost = costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNumero);
+  return cost === null || cost <= LLINDAR_COST_SESSIO_RENOVACIO;
+}
+
+// Previsió mes a mes per als propers 6 mesos, assumint 1 sessió/mes.
+// Distingim dues fonts d'ingressos de quotes:
+// - Nous socis: no tenen una data de venciment coneguda, així que els
+//   estimem pel ritme mitjà d'altes dels últims 3 mesos, repetit cada mes.
+// - Renovacions: NO s'estimen per mitjana, sinó soci a soci, mirant a quins
+//   els venç realment la quota (ultimPagament + 1 any) dins de cada mes
+//   concret, i aplicant-hi el filtre de probabilitat de renovar.
+// El cost de pel·lícula més car dels últims 3 mesos (no la mitjana) queda
+// fix cada mes com a estimació conservadora.
+export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new Date()) {
+  const dataAvui = avui.toLocaleDateString('sv-SE');
+  const faReferencia = new Date(avui.getFullYear(), avui.getMonth() - MESOS_REFERENCIA, avui.getDate());
+  const dataLimit = faReferencia.toLocaleDateString('sv-SE');
+  const recents = moviments.filter((m) => (m.data ?? '') > dataLimit && (m.data ?? '') <= dataAvui);
+
+  const quotesRecents = recents.filter((m) => m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES);
+  const aportacions = recents.filter((m) => m.categoria === 'Aportacions' && m.tipus === TIPUS_MOVIMENT.INGRES);
+  const pellicules = recents.filter((m) => m.categoria === 'Gestió pel·lícules' && m.tipus === TIPUS_MOVIMENT.DESPESA);
+
+  const novesAltesPerMes = quotesRecents.length / MESOS_REFERENCIA;
+  const importMitjaQuota = quotesRecents.length > 0
+    ? quotesRecents.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / quotesRecents.length
+    : 30;
+  const ingressosAportacionsPerMes = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / MESOS_REFERENCIA;
+  const costPellicula = pellicules.reduce((max, m) => Math.max(max, Number(m.total) || 0), 0);
+
+  const sessionsPassades = sessions.filter((s) => (s.data ?? '') <= dataAvui);
+  const entradesPerNumero = agruparEntradesPerNumero(accessLog);
+  const sociesActius = socis.filter((s) => estaActiu(s) && s.numeroSoci && s.ultimPagament);
+
+  const mesos = [];
+  for (let i = 1; i <= MESOS_PREVISIO; i++) {
+    const inici = new Date(avui.getFullYear(), avui.getMonth() + i, 1);
+    const fi = new Date(avui.getFullYear(), avui.getMonth() + i + 1, 1);
+
+    const sociesDeguts = sociesActius.filter((soci) => {
+      const venciment = calcularVenciment(soci);
+      return venciment >= inici && venciment < fi;
+    });
+    const renovacionsEsperades = sociesDeguts.filter(
+      (soci) => probablementRenovara(soci, moviments, sessionsPassades, entradesPerNumero)
+    ).length;
+
+    const ingressosQuotes = (novesAltesPerMes + renovacionsEsperades) * importMitjaQuota;
+    const impacteNet = ingressosQuotes + ingressosAportacionsPerMes - costPellicula;
+
+    mesos.push({
+      etiqueta: `${NOMS_MES[inici.getMonth()]} ${inici.getFullYear()}`,
+      novesAltes: novesAltesPerMes,
+      sociesDeguts: sociesDeguts.length,
+      renovacionsEsperades,
+      ingressosQuotes,
+      ingressosAportacions: ingressosAportacionsPerMes,
+      costPellicula,
+      impacteNet,
+    });
+  }
+
+  const impacteNetAcumulat = mesos.reduce((acc, m) => acc + m.impacteNet, 0);
+
+  return {
+    mesos,
+    novesAltesPerMes,
+    importMitjaQuota,
+    ingressosAportacionsPerMes,
+    costPellicula,
+    impacteNetAcumulat,
+  };
 }
 
 export function resumComptable(moviments) {

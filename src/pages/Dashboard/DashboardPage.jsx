@@ -5,7 +5,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { db } from '../../firebase/firebase';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets } from '../../lib/escaneig';
-import { resumComptable, balancPerSessio, formatEuros, classeSigne } from '../../lib/moviments';
+import {
+  resumComptable, resumPrevisio, balancPerSessio, formatEuros, classeSigne, LLINDAR_COST_SESSIO_RENOVACIO,
+} from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 
@@ -39,6 +41,12 @@ export default function DashboardPage() {
   const socis = resumDashboardSocis(dades.socis, dades.sessions, dades.accessLog);
   const tiquets = resumDashboardTiquets(dades.lots, dades.accessLog, dades.sessions);
   const comptable = resumComptable(dades.moviments);
+  const previsio = resumPrevisio(dades.moviments, dades.socis, dades.sessions, dades.accessLog);
+  const mesosPrevisio = previsio.mesos.reduce((acc, mes) => {
+    const excedentProjectat = (acc.length > 0 ? acc[acc.length - 1].excedentProjectat : comptable.excedent) + mes.impacteNet;
+    acc.push({ ...mes, excedentProjectat });
+    return acc;
+  }, []);
   const balancSessions = balancPerSessio(dades.moviments);
   const ultimesSessions = [...dades.sessions].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? '')).slice(0, 5);
   const ultimesSolicituds = [...dades.solicituds]
@@ -136,6 +144,45 @@ export default function DashboardPage() {
           <p className="dashboard__comptabilitat-total"><span>Al banc</span><span>{formatEuros(comptable.banc)}</span></p>
           <p className="dashboard__comptabilitat-total"><span>A caixa</span><span>{formatEuros(comptable.caixa)}</span></p>
           <Link className="dashboard__enllac" to={ROUTES.COMPTABILITAT}>Veure comptabilitat</Link>
+        </div>
+
+        <div className="dashboard__modul dashboard__modul--ample">
+          <h2 className="dashboard__modul-titol">Previsió a 1 any</h2>
+          <p className="dashboard__subtitol">
+            Si es fa 1 sessió/mes: nous socis segons el ritme dels últims 3 mesos, i renovacions
+            {' '}només dels socis a qui els venç realment la quota aquell mes, descartant els que
+            {' '}tenen un cost per sessió superior a {formatEuros(LLINDAR_COST_SESSIO_RENOVACIO)}
+          </p>
+          <div className="dashboard__previsio-taula-wrap">
+            <table className="dashboard__previsio-taula">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th>Nous socis</th>
+                  <th>Renovacions</th>
+                  <th>Quotes</th>
+                  <th>Aportacions</th>
+                  <th>Pel·lícula</th>
+                  <th>Impacte net</th>
+                  <th>Excedent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mesosPrevisio.map((mes) => (
+                  <tr key={mes.etiqueta}>
+                    <td>{mes.etiqueta}</td>
+                    <td>{Math.round(mes.novesAltes)}</td>
+                    <td>{mes.renovacionsEsperades} de {mes.sociesDeguts}</td>
+                    <td>{formatEuros(mes.ingressosQuotes)}</td>
+                    <td>{formatEuros(mes.ingressosAportacions)}</td>
+                    <td>{formatEuros(-mes.costPellicula)}</td>
+                    <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
+                    <td className={classeSigne(mes.excedentProjectat)}>{formatEuros(mes.excedentProjectat)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
       </div>

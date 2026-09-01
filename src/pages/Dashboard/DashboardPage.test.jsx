@@ -138,4 +138,30 @@ describe('DashboardPage', () => {
     expect(m.getByText('Gestió pel·lícules')).toBeInTheDocument();
     expect(m.queryByText('Quotes postsessió')).not.toBeInTheDocument();
   });
+
+  it('mòdul Previsió a 1 any: mostra una fila per mes amb el ritme dels últims 3 mesos', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 7, 31));
+    mockCarrega({
+      // Cap d'aquests moviments té numeroSoci, així que no hi ha cap soci
+      // avaluable pel llindar de renovació i el tant per cent es queda al
+      // 100% (sense ajust) — aquest test només verifica el desglossament
+      // mensual, no l'ajust de renovació (cobert a moviments.test.js).
+      moviments: [
+        { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+        { data: '2026-08-05', tipus: 'ingres', categoria: 'Aportacions', total: 20 },
+        { data: '2026-06-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 80 },
+        { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 150 },
+      ],
+    });
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Previsió a 1 any' });
+    const m = modul('Previsió a 1 any');
+    expect(m.getByText('Setembre 2026')).toBeInTheDocument();
+    expect(m.getByText('Agost 2027')).toBeInTheDocument();
+    expect(m.getAllByText('10.00€')).toHaveLength(12); // 30€/3 mesos, cada fila
+    expect(m.getAllByText('6.67€')).toHaveLength(12); // 20€/3 mesos, cada fila
+    expect(m.getAllByText('-150.00€')).toHaveLength(12); // el cost de pel·lícula més car, cada fila
+    vi.useRealTimers();
+  });
 });
