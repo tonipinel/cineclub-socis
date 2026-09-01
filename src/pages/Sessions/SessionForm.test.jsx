@@ -233,6 +233,75 @@ describe('SessionForm — desglossament econòmic', () => {
   });
 });
 
+describe('SessionForm — avís d\'aportacions pendents', () => {
+  beforeEach(() => {
+    getDoc.mockClear();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('avisa si hi ha entrades genèriques escanejades però encara no s\'ha registrat el moviment d\'Aportacions', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-1', preuAplicat: 5 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-2', preuAplicat: 5 }) },
+          ],
+        });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    renderEnEdicio();
+    expect(await screen.findByText("Falta afegir les 2 aportacions d'aquesta sessió per un total de 10.00€.")).toBeInTheDocument();
+    const enllac = screen.getByRole('link', { name: 'Afegir-les ara' });
+    expect(enllac).toHaveAttribute(
+      'href',
+      '/comptabilitat/nou?sessionId=1&data=2026-03-05&tipus=ingres&categoria=Aportacions&concepte=Aportacions&preuUnitari=5&quantitat=2'
+    );
+  });
+
+  it('no avisa si ja hi ha un moviment d\'Aportacions per a aquesta sessió', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => ({ tipus: 'generic', codiTiquet: 'T-1', preuAplicat: 5 }) }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [{
+            id: 'moviment-1',
+            data: () => ({
+              tipus: 'ingres', categoria: 'Aportacions', metodePagament: 'efectiu', preuUnitari: 5, quantitat: 1, total: 5,
+            }),
+          }],
+        });
+        return () => {};
+      });
+    renderEnEdicio();
+    await screen.findByText('Desglossament econòmic');
+    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+  });
+
+  it('no avisa si no hi ha cap entrada genèrica escanejada', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', preuEntrada: 5, activa: false }),
+    });
+    renderEnEdicio();
+    await screen.findByText('Desglossament econòmic');
+    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+  });
+});
+
 describe('SessionForm — detall de socis i aportacions', () => {
   beforeEach(() => {
     getDoc.mockClear();

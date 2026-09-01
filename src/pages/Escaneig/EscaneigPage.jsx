@@ -1,9 +1,12 @@
 import 'barcode-detector/polyfill';
 import { useEffect, useRef, useState } from 'react';
-import { addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import {
+  addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where,
+} from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
 import { identificarCodi, resumAccessLog, tiquetEstaAnulat } from '../../lib/escaneig';
+import { avui } from '../../lib/data';
 import {
   calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu,
   ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
@@ -270,7 +273,8 @@ export default function EscaneigPage() {
           });
           return;
         }
-        const soci = socisTrobats.docs[0].data();
+        const sociDoc = socisTrobats.docs[0];
+        const soci = sociDoc.data();
         if (!estaActiu(soci)) {
           mostrarResultat({
             tipus: 'error',
@@ -286,6 +290,13 @@ export default function EscaneigPage() {
           tipus: 'soci',
           numeroSoci: identificat.numeroSoci,
         });
+        // L'any de soci no compta des del pagament, sinó des del primer cop
+        // que fa servir el carnet després de pagar: si encara no ho ha fet
+        // des de l'últim pagament, aquesta entrada el fixa ara.
+        if (soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)) {
+          soci.inicPeriode = avui();
+          await updateDoc(sociDoc.ref, { inicPeriode: soci.inicPeriode });
+        }
         const estat = calcularEstatSoci(soci);
         const venciment = estat === ESTAT_AL_DIA
           ? { data: calcularVenciment(soci).toLocaleDateString('ca-ES'), dies: diesFinsVenciment(soci) }

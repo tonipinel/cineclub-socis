@@ -80,6 +80,7 @@ describe('RegistrarPagamentPage', () => {
 
     expect(writeBatch).toHaveBeenCalledTimes(1);
     expect(__batchUpdate.mock.calls[0][1].ultimPagament).toBe('2026-03-10');
+    expect(__batchUpdate.mock.calls[0][1].inicPeriode).toBeNull();
 
     const [, moviment] = __batchSet.mock.calls[0];
     expect(moviment.categoria).toBe('Quotes socis');
@@ -91,7 +92,7 @@ describe('RegistrarPagamentPage', () => {
     expect(__batchCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('no toca el número de soci ni consulta tots els socis si ja en té un', async () => {
+  it('no toca el número de soci ni consulta el llistat de socis si ja en té un', async () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
@@ -100,7 +101,7 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByLabelText('Import (€)');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
     await screen.findByText('Fitxa del soci');
-    expect(getDocs).not.toHaveBeenCalled();
+    expect(getDocs).not.toHaveBeenCalledWith('socis');
     expect(__batchUpdate.mock.calls[0][1].numeroSoci).toBeUndefined();
   });
 
@@ -108,8 +109,11 @@ describe('RegistrarPagamentPage', () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
-    getDocs.mockResolvedValueOnce({
-      docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }],
+    getDocs.mockImplementation((collectionName) => {
+      if (collectionName === 'socis') {
+        return Promise.resolve({ docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }] });
+      }
+      return Promise.resolve({ docs: [] });
     });
     const user = userEvent.setup();
     renderPagina();
@@ -131,6 +135,43 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByLabelText('Import (€)');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
     expect(writeBatch).not.toHaveBeenCalled();
+  });
+
+  it('preomple la data amb el venciment del soci (no amb avui), perquè l\'ultimPagament avanci exactament un any', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2025-03-10' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    renderPagina();
+    expect(await screen.findByLabelText('Data del pagament')).toHaveValue('2026-03-10');
+  });
+
+  it('sense pagament previ, la data per defecte és avui', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    renderPagina();
+    await screen.findByLabelText('Import (€)');
+    expect(screen.getByLabelText('Data del pagament')).toHaveValue(new Date().toLocaleDateString('sv-SE'));
+  });
+
+  it('preselecciona la sessió amb la data més propera a avui, i permet canviar-la', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    const avuiStr = new Date().toLocaleDateString('sv-SE');
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 'llunyana', data: () => ({ titol: 'Sessió llunyana', data: '2020-01-01' }) },
+        { id: 'propera', data: () => ({ titol: 'Sessió propera', data: avuiStr }) },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPagina();
+    expect(await screen.findByLabelText('Sessió')).toHaveValue('propera');
+    await user.selectOptions(screen.getByLabelText('Sessió'), 'llunyana');
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await screen.findByText('Fitxa del soci');
+    expect(__batchSet.mock.calls[0][1].sessionId).toBe('llunyana');
   });
 
   it('avisa clarament si el soci està desactivat, sense bloquejar el pagament', async () => {

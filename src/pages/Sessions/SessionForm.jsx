@@ -12,6 +12,7 @@ import {
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
+import BotoAfegir from '../../components/BotoAfegir';
 
 const CAMPS_INICIALS = {
   titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '', preuEntrada: '5',
@@ -176,6 +177,21 @@ export default function SessionForm() {
   const comparacioSocis = comparativa(resum.socisDistints, resumAnterior?.socisDistints);
   const comparacioAportacions = comparativa(resum.entradesGeneriques, resumAnterior?.entradesGeneriques);
   const comparacioTotal = comparativa(totalPersones, totalPersonesAnterior);
+  // Avisem si a la porta s'han escanejat entrades genèriques (no-socis) però
+  // encara no s'ha registrat el moviment d'"Aportacions" corresponent — un
+  // oblit fàcil, ja que és un pas manual separat de l'escaneig.
+  const aportacionsPendents = resum.entradesGeneriques > 0 && !resumEconomic.ingressosPerCategoria['Aportacions'];
+  const enllacAfegirAportacions = editant
+    ? `${ROUTES.COMPTABILITAT_NOU}?${new URLSearchParams({
+      sessionId: id,
+      data: dades.data,
+      tipus: 'ingres',
+      categoria: 'Aportacions',
+      concepte: 'Aportacions',
+      preuUnitari: String(resum.importGeneric / resum.entradesGeneriques),
+      quantitat: String(resum.entradesGeneriques),
+    })}`
+    : '';
 
   return (
     <form className="session-form" onSubmit={handleSubmit}>
@@ -320,11 +336,16 @@ export default function SessionForm() {
           <div className="session-form__contingut">
             <div className="session-form__bloc">
               <div className="session-form__capcalera">
-                <h2 className="session-form__desglossament-titol">Moviments</h2>
-                <Link className="btn btn--outline" to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`}>
-                  Afegir moviment d'aquesta sessió
-                </Link>
+                <h2 className="session-form__subtitol">Moviments</h2>
+                <BotoAfegir to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`} etiqueta="Afegir moviment d'aquesta sessió" />
               </div>
+              {aportacionsPendents && (
+                <p className="session-form__avis">
+                  Falta afegir les {resum.entradesGeneriques} aportacions d'aquesta sessió per un total de {formatEuros(resum.importGeneric)}.
+                  {' '}
+                  <Link className="enllac" to={enllacAfegirAportacions}>Afegir-les ara</Link>
+                </p>
+              )}
               {movimentsOrdenats.length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
               <ul className="session-form__llista">
                 {movimentsOrdenats.map((moviment) => (

@@ -162,11 +162,16 @@ export default function SociForm() {
   const sessionsAssistides = assistencies.filter((s) => s.assisteix);
   const sessionsNoAssistides = assistencies.filter((s) => !s.assisteix);
   const pagamentActual = pagaments[0] ?? null;
-  const sessionsPeriodeActual = dades.ultimPagament
-    ? sessionsAssistides.filter((s) => s.data >= dades.ultimPagament)
+  // El període actual va des de l'activació del carnet (inicPeriode, o
+  // ultimPagament si encara no s'ha escanejat des de llavors) fins al
+  // venciment de la quota — no des del pagament ni sense límit superior.
+  const iniciPeriode = dades.inicPeriode || dades.ultimPagament;
+  const vencimentStr = venciment ? venciment.toLocaleDateString('sv-SE') : null;
+  const sessionsPeriodeActual = iniciPeriode
+    ? sessionsAssistides.filter((s) => s.data >= iniciPeriode && s.data <= vencimentStr)
     : [];
-  const sessionsNoAssistidesPeriodeActual = dades.ultimPagament
-    ? sessionsNoAssistides.filter((s) => s.data >= dades.ultimPagament)
+  const sessionsNoAssistidesPeriodeActual = iniciPeriode
+    ? sessionsNoAssistides.filter((s) => s.data >= iniciPeriode && s.data <= vencimentStr)
     : [];
   const costPerSessio = pagamentActual && sessionsPeriodeActual.length > 0
     ? pagamentActual.total / sessionsPeriodeActual.length
@@ -192,6 +197,9 @@ export default function SociForm() {
               </p>
               <p className="soci-form__data-clau">Data de sol·licitud: {formatData(dades.dataAlta)}</p>
               <p className="soci-form__data-clau">Últim pagament: {formatData(dades.ultimPagament)}</p>
+              <p className="soci-form__data-clau">
+                Activació del carnet: {dades.inicPeriode ? formatData(dades.inicPeriode) : 'Encara no ha escanejat des del pagament'}
+              </p>
               {venciment && (
                 <p className="soci-form__data-clau">Venciment de la quota: {venciment.toLocaleDateString('ca-ES')}</p>
               )}
@@ -288,7 +296,7 @@ export default function SociForm() {
                     <>
                       <p className="soci-form__xifra-gran">{formatEuros(costPerSessio)}</p>
                       <p className="soci-form__xifra-detall">
-                        {formatEuros(pagamentActual.total)} pagats ÷ {sessionsPeriodeActual.length} {sessionsPeriodeActual.length === 1 ? 'sessió assistida' : 'sessions assistides'} des del {formatData(dades.ultimPagament)}
+                        {formatEuros(pagamentActual.total)} pagats ÷ {sessionsPeriodeActual.length} {sessionsPeriodeActual.length === 1 ? 'sessió assistida' : 'sessions assistides'} des del {formatData(iniciPeriode)}
                       </p>
                     </>
                   ) : !pagamentActual ? (

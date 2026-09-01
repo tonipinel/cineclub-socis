@@ -51,7 +51,7 @@ describe('MovimentForm — alta', () => {
       data: '2026-03-05',
       concepte: 'Quotes de març',
       tipus: 'ingres',
-      categoria: 'Quotes socis',
+      categoria: 'Aportacions',
       metodePagament: 'efectiu',
       preuUnitari: 100,
       quantitat: 1,
@@ -84,6 +84,18 @@ describe('MovimentForm — alta', () => {
     expect(dadesDesades.categoria).toBeUndefined();
     expect(dadesDesades.metodePagament).toBeUndefined();
   });
+
+  it('no permet triar "Quotes socis" com a categoria (només es crea des de la fitxa del soci)', async () => {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes>
+          <Route path="/comptabilitat/nou" element={<MovimentForm />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const opcions = Array.from(screen.getByLabelText('Categoria').querySelectorAll('option')).map((o) => o.value);
+    expect(opcions).not.toContain('Quotes socis');
+  });
 });
 
 describe('MovimentForm — mode lectura/edició', () => {
@@ -113,6 +125,18 @@ describe('MovimentForm — mode lectura/edició', () => {
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
   });
+
+  it('en editar un moviment de "Quotes socis" existent, la categoria es manté visible i seleccionada', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('Categoria')).toHaveValue('Quotes socis');
+  });
 });
 
 describe('MovimentForm — canviar tipus en editar', () => {
@@ -121,7 +145,7 @@ describe('MovimentForm — canviar tipus en editar', () => {
   });
 
   it('en canviar el tipus d\'un moviment existent, no deixa camps obsolets del tipus anterior', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, categoria: 'Aportacions' }) });
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
@@ -140,6 +164,20 @@ describe('MovimentForm — canviar tipus en editar', () => {
     expect(dadesDesades.direccio).toBe('caixa-a-banc');
     expect(Object.keys(dadesDesades)).not.toContain('categoria');
     expect(Object.keys(dadesDesades)).not.toContain('metodePagament');
+  });
+
+  it('en editar un moviment de "Quotes socis", Tipus i Categoria queden bloquejats', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('Tipus')).toBeDisabled();
+    expect(screen.getByLabelText('Categoria')).toBeDisabled();
+    expect(screen.getByLabelText('Mètode de pagament')).not.toBeDisabled();
   });
 });
 
@@ -222,7 +260,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByText('Llibre de moviments');
-    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-08-06' });
+    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-08-06', inicPeriode: null });
   });
 
   it('no toca res si el moviment desat no té numeroSoci', async () => {
@@ -261,7 +299,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     await screen.findByText('Llibre de moviments');
-    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-03-05' });
+    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-03-05', inicPeriode: null });
   });
 
   it('no actualitza ultimPagament si no queda cap moviment de quota per aquell soci', async () => {
@@ -326,18 +364,27 @@ describe('MovimentForm — eliminar', () => {
 });
 
 describe('MovimentForm — preu, quantitat i total', () => {
-  it('quan la quantitat és 1, editar el total actualitza també el preu unitari', async () => {
+  it('el total sempre és de només lectura, encara que el formulari estigui desbloquejat', async () => {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByLabelText('Total')).toHaveAttribute('readonly');
+  });
+
+  it('quan la quantitat és 1, el total es calcula a partir del preu unitari', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
     );
-    await user.type(screen.getByLabelText('Total'), '75');
-    expect(screen.getByLabelText('Preu unitari')).toHaveValue(75);
+    await user.type(screen.getByLabelText('Preu unitari'), '75');
+    expect(screen.getByLabelText('Total')).toHaveValue(75);
   });
 
-  it('quan la quantitat no és 1, el total es calcula i no és editable', async () => {
+  it('quan la quantitat no és 1, el total es calcula com preu unitari × quantitat', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
@@ -352,42 +399,134 @@ describe('MovimentForm — preu, quantitat i total', () => {
   });
 });
 
-describe('MovimentForm — suggeriment d\'aportacions', () => {
-  it('mostra el recompte de l\'accessLog i omple el total en clicar el botó', async () => {
-    getDocs
-      .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] })
-      .mockResolvedValueOnce({
-        docs: [
-          { data: () => ({ tipus: 'generic', preuAplicat: 5 }) },
-          { data: () => ({ tipus: 'generic', preuAplicat: 5 }) },
-        ],
-      });
+describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
+  beforeEach(() => {
+    addDoc.mockClear();
+  });
+
+  it('no deixa desar un moviment de "Gestió pel·lícules" sense sessió', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
     );
-    await screen.findByRole('option', { name: 'The Artist' });
-    await user.selectOptions(screen.getByLabelText('Categoria'), 'Aportacions');
-    await user.selectOptions(screen.getByLabelText('Sessió (opcional)'), 's1');
-    expect(await screen.findByText(/Aquesta sessió ha tingut 2 aportacions \(10€\)/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Omplir amb 10€' }));
-    expect(screen.getByLabelText('Total')).toHaveValue(10);
-    expect(screen.getByLabelText('Preu unitari')).toHaveValue(10);
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'despesa');
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Gestió pel·lícules');
+    await user.type(screen.getByLabelText('Preu unitari'), '100');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText(/ha d'estar vinculat a una sessió/)).toBeInTheDocument();
+    expect(addDoc).not.toHaveBeenCalled();
   });
 
-  it('no mostra cap suggeriment si la categoria no és Aportacions', async () => {
+  it('desa correctament un moviment de "Gestió pel·lícules" amb sessió vinculada', async () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes>
+          <Route path="/comptabilitat/nou" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole('option', { name: 'The Artist' });
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'despesa');
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Gestió pel·lícules');
+    await user.selectOptions(screen.getByLabelText('Sessió (pel·lícula)'), 's1');
+    await user.type(screen.getByLabelText('Preu unitari'), '100');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
+    const [, dadesDesades] = addDoc.mock.calls[0];
+    expect(dadesDesades.sessionId).toBe('s1');
+  });
+});
+
+describe('MovimentForm — categories vàlides per tipus', () => {
+  it('un ingrés només ofereix "Aportacions" com a categoria', async () => {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    const opcions = Array.from(screen.getByLabelText('Categoria').querySelectorAll('option')).map((o) => o.value);
+    expect(opcions).toEqual(['Aportacions']);
+  });
+
+  it('una despesa només ofereix "Gestió pel·lícules" i "Gestió associació" com a categoria', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'despesa');
+    const opcions = Array.from(screen.getByLabelText('Categoria').querySelectorAll('option')).map((o) => o.value);
+    expect(opcions).toEqual(['Gestió pel·lícules', 'Gestió associació']);
+  });
+});
+
+describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => {
+  it('no mostra el selector de sessió quan el tipus és Traspàs', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'traspas');
+    expect(screen.queryByLabelText('Sessió (opcional)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Sessió (pel·lícula)')).not.toBeInTheDocument();
+  });
+
+  it('desa un traspàs sense sessionId encara que se n\'hagués triat una abans', async () => {
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    const user = userEvent.setup();
+    addDoc.mockClear();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes>
+          <Route path="/comptabilitat/nou" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
       </MemoryRouter>
     );
     await screen.findByRole('option', { name: 'The Artist' });
     await user.selectOptions(screen.getByLabelText('Sessió (opcional)'), 's1');
-    expect(screen.queryByText(/aportacions/)).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Tipus'), 'traspas');
+    await user.type(screen.getByLabelText('Preu unitari'), '50');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    const [, dadesDesades] = addDoc.mock.calls[0];
+    expect(dadesDesades.sessionId).toBe('');
+  });
+});
+
+describe('MovimentForm — preomplenat via paràmetres d\'URL', () => {
+  it('preomple data, tipus, categoria, concepte, preu unitari i quantitat des de la URL', async () => {
+    render(
+      <MemoryRouter initialEntries={[
+        '/comptabilitat/nou?sessionId=s1&data=2026-03-05&tipus=ingres&categoria=Aportacions&concepte=Aportacions&preuUnitari=5&quantitat=10',
+      ]}
+      >
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByLabelText('Data')).toHaveValue('2026-03-05');
+    expect(screen.getByLabelText('Categoria')).toHaveValue('Aportacions');
+    expect(screen.getByLabelText('Concepte')).toHaveValue('Aportacions');
+    expect(screen.getByLabelText('Preu unitari')).toHaveValue(5);
+    expect(screen.getByLabelText('Quantitat')).toHaveValue(10);
+    expect(screen.getByLabelText('Total')).toHaveValue(50);
+  });
+
+  it('ignora una categoria de la URL que no és vàlida per al tipus indicat', async () => {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou?tipus=ingres&categoria=Gestió pel·lícules']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByLabelText('Categoria')).toHaveValue('Aportacions');
   });
 });
 
@@ -401,6 +540,28 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
     );
     await screen.findByRole('option', { name: 'The Artist' });
     expect(screen.getByLabelText('Sessió (opcional)')).toHaveValue('s1');
+  });
+
+  it('bloqueja el selector de sessió quan ve preseleccionada per URL', async () => {
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou?sessionId=s1']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole('option', { name: 'The Artist' });
+    expect(screen.getByLabelText('Sessió (opcional)')).toBeDisabled();
+  });
+
+  it('no bloqueja el selector de sessió quan s\'obre el formulari sense sessió a la URL', async () => {
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole('option', { name: 'The Artist' });
+    expect(screen.getByLabelText('Sessió (opcional)')).not.toBeDisabled();
   });
 });
 

@@ -9,6 +9,7 @@ import {
   resumEconomicSessio,
   formatEuros,
   resumComptable,
+  resumReal,
   resumPrevisio,
   LLINDAR_COST_SESSIO_RENOVACIO,
   TIPUS_MOVIMENT,
@@ -289,7 +290,7 @@ describe('constants', () => {
   it('exposa els tipus, categories i mètodes esperats', () => {
     expect(TIPUS_MOVIMENT).toEqual({ INGRES: 'ingres', DESPESA: 'despesa', TRASPAS: 'traspas' });
     expect(CATEGORIES).toEqual([
-      'Quotes socis', 'Aportacions', 'Quotes postsessió', 'Gestió pel·lícules', 'Gestió associació',
+      'Quotes socis', 'Aportacions', 'Gestió pel·lícules', 'Gestió associació',
     ]);
     expect(METODES_INGRES).toEqual(['efectiu', 'datafon', 'transferencia']);
     expect(METODES_DESPESA).toEqual(['efectiu', 'banc']);
@@ -312,20 +313,25 @@ describe('resumComptable', () => {
     expect(resultat.despesesTotal).toBe(30);
   });
 
-  it('agrupa els ingressos per categoria i mètode (efectiu vs a compte)', () => {
+  it('agrupa els ingressos per categoria i, dins de cada categoria, per preu unitari i mètode', () => {
     const moviments = [
-      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 },
-      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'transferencia', total: 50 },
-      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'datafon', total: 20 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', preuUnitari: 100, quantitat: 1, total: 100 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'transferencia', preuUnitari: 50, quantitat: 1, total: 50 },
+      { tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'datafon', preuUnitari: 20, quantitat: 1, total: 20 },
     ];
-    const resultat = resumComptable(moviments).ingressosPerCategoriaIMetode;
-    expect(resultat['Quotes socis']).toEqual({ efectiu: 100, aCompte: 70, total: 170 });
+    const resultat = resumComptable(moviments).ingressosPerCategoria;
+    expect(resultat['Quotes socis'].total).toBe(170);
+    expect(resultat['Quotes socis'].detalls).toEqual([
+      { preuUnitari: 100, metode: 'efectiu', quantitat: 1, total: 100 },
+      { preuUnitari: 50, metode: 'transferencia', quantitat: 1, total: 50 },
+      { preuUnitari: 20, metode: 'datafon', quantitat: 1, total: 20 },
+    ]);
   });
 
   it('no inclou una categoria d\'ingrés sense moviments', () => {
     const moviments = [{ tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 }];
-    const resultat = resumComptable(moviments).ingressosPerCategoriaIMetode;
-    expect(resultat['Quotes postsessió']).toBeUndefined();
+    const resultat = resumComptable(moviments).ingressosPerCategoria;
+    expect(resultat['Aportacions']).toBeUndefined();
   });
 
   it('agrupa les despeses per categoria dinàmicament', () => {
@@ -344,8 +350,68 @@ describe('resumComptable', () => {
       { tipus: 'traspas', direccio: 'caixa-a-banc', total: 50 },
     ];
     const resultat = resumComptable(moviments);
-    expect(Object.keys(resultat.ingressosPerCategoriaIMetode)).toEqual(['Quotes socis']);
+    expect(Object.keys(resultat.ingressosPerCategoria)).toEqual(['Quotes socis']);
     expect(resultat.despesesPerCategoria).toEqual({});
+  });
+});
+
+describe('resumReal', () => {
+  const avui = new Date(2026, 7, 31);
+
+  it('retorna 12 mesos, acabant amb el mes actual, amb el nom i any correctes', () => {
+    const resultat = resumReal([], avui);
+    expect(resultat.mesos).toHaveLength(12);
+    expect(resultat.mesos.map((m) => m.etiqueta)).toEqual([
+      'Setembre 2025', 'Octubre 2025', 'Novembre 2025', 'Desembre 2025', 'Gener 2026', 'Febrer 2026',
+      'Març 2026', 'Abril 2026', 'Maig 2026', 'Juny 2026', 'Juliol 2026', 'Agost 2026',
+    ]);
+  });
+
+  it('suma els moviments reals de cada mes, sense estimar res', () => {
+    const moviments = [
+      { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-07-20', tipus: 'ingres', categoria: 'Quotes socis', total: 10 },
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Aportacions', total: 20 },
+      { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 150 },
+    ];
+    const resultat = resumReal(moviments, avui);
+    const juliol = resultat.mesos.find((m) => m.etiqueta === 'Juliol 2026');
+    const agost = resultat.mesos.find((m) => m.etiqueta === 'Agost 2026');
+    expect(juliol.nombreQuotes).toBe(2);
+    expect(juliol.ingressosQuotes).toBe(40);
+    expect(juliol.costPellicula).toBe(150);
+    expect(juliol.impacteNet).toBeCloseTo(40 - 150);
+    expect(agost.ingressosAportacions).toBe(20);
+    expect(agost.costPellicula).toBe(0);
+  });
+
+  it('calcula la tresoreria acumulada real fins al final de cada mes', () => {
+    const moviments = [
+      { data: '2026-06-10', tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100 },
+      { data: '2026-07-10', tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 50 },
+    ];
+    const resultat = resumReal(moviments, avui);
+    const juny = resultat.mesos.find((m) => m.etiqueta === 'Juny 2026');
+    const juliol = resultat.mesos.find((m) => m.etiqueta === 'Juliol 2026');
+    const agost = resultat.mesos.find((m) => m.etiqueta === 'Agost 2026');
+    expect(juny.tresoreria).toBe(100);
+    expect(juliol.tresoreria).toBe(150);
+    expect(agost.tresoreria).toBe(150);
+  });
+
+  it('el mes actual inclou els moviments fins avui', () => {
+    const moviments = [{ data: '2026-08-31', tipus: 'ingres', categoria: 'Aportacions', total: 5 }];
+    const resultat = resumReal(moviments, avui);
+    const agost = resultat.mesos.find((m) => m.etiqueta === 'Agost 2026');
+    expect(agost.ingressosAportacions).toBe(5);
+  });
+
+  it('retorna zeros sense moviments', () => {
+    const resultat = resumReal([], avui);
+    expect(resultat.mesos.every((m) => (
+      m.nombreQuotes === 0 && m.ingressosQuotes === 0 && m.ingressosAportacions === 0
+      && m.costPellicula === 0 && m.impacteNet === 0 && m.tresoreria === 0
+    ))).toBe(true);
   });
 });
 
@@ -492,6 +558,24 @@ describe('resumPrevisio — renovacions per data de venciment real', () => {
     const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
     expect(octubre.sociesDeguts).toBe(2);
     expect(octubre.renovacionsEsperades).toBe(1);
+  });
+
+  it('usa inicPeriode (no ultimPagament) per comptar les sessions assistides del període actual', () => {
+    // ultimPagament és molt anterior a totes dues sessions (sA i sB), així que
+    // sense inicPeriode comptarien totes dues: 10€ ÷ 2 = 5€/sessió (renova).
+    // Amb inicPeriode fixat entre sA i sB, només compta sB: 10€ ÷ 1 = 10€/sessió
+    // (per sobre del llindar de 8€, no renova).
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01', inicPeriode: '2026-08-10' }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 10 },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.renovacionsEsperades).toBe(0);
   });
 
   it('dona el benefici del dubte (compta com a probable) a un soci degut sense sessions assistides encara', () => {

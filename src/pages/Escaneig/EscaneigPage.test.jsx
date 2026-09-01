@@ -15,6 +15,7 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   serverTimestamp: vi.fn(() => 'TIMESTAMP'),
   addDoc: vi.fn().mockResolvedValue({ id: 'log-1' }),
+  updateDoc: vi.fn().mockResolvedValue(undefined),
   getDocs: vi.fn(),
   onSnapshot: vi.fn((q, callback) => {
     // La primera crida des del component és la subscripció a la sessió activa.
@@ -23,7 +24,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { addDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { addDoc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 
 async function obrirCodiManual(user) {
@@ -34,6 +35,7 @@ async function obrirCodiManual(user) {
 describe('EscaneigPage', () => {
   beforeEach(() => {
     addDoc.mockClear();
+    updateDoc.mockClear();
     getDocs.mockReset();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     window.confirm.mockClear();
@@ -85,9 +87,13 @@ describe('EscaneigPage', () => {
     const ara = new Date();
     const ultimPagament = new Date(ara.getFullYear() - 1, ara.getMonth(), ara.getDate() + 10)
       .toLocaleDateString('sv-SE');
+    // inicPeriode = ultimPagament simula un soci que ja va fer servir el
+    // carnet fa un any (ja backfillat): així el venciment que es prova aquí
+    // no queda tapat pel "primer escaneig des del pagament" (vegeu el
+    // describe d'inicPeriode més avall).
     getDocs.mockResolvedValueOnce({
       empty: false,
-      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament, inicPeriode: ultimPagament }) }],
     });
     const user = userEvent.setup();
     render(<EscaneigPage />);
@@ -350,5 +356,46 @@ describe('EscaneigPage', () => {
     await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
     expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+});
+
+describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carnet)', () => {
+  beforeEach(() => {
+    addDoc.mockClear();
+    updateDoc.mockClear();
+    getDocs.mockReset();
+    window.location.hash = '';
+  });
+
+  it('fixa inicPeriode a avui si encara no s\'ha escanejat des de l\'últim pagament', async () => {
+    const sociRef = { id: 'soci-7' };
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ ref: sociRef, data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText('Anna Vidal');
+    expect(updateDoc).toHaveBeenCalledWith(sociRef, { inicPeriode: new Date().toLocaleDateString('sv-SE') });
+  });
+
+  it('no toca inicPeriode si ja es va fixar des de l\'últim pagament', async () => {
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{
+        ref: { id: 'soci-7' },
+        data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01', inicPeriode: '2026-01-15' }),
+      }],
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText('Anna Vidal');
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 });

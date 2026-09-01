@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 import { db } from '../../firebase/firebase';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets } from '../../lib/escaneig';
 import {
-  resumComptable, resumPrevisio, balancPerSessio, formatEuros, classeSigne, LLINDAR_COST_SESSIO_RENOVACIO,
+  resumComptable, resumReal, resumPrevisio, balancPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
+  LLINDAR_COST_SESSIO_RENOVACIO,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 
+const PESTANYES_EVOLUCIO = [
+  ['real', 'Últims 12 mesos (real)'],
+  ['previsio', 'Previsió pròxims 12 mesos'],
+];
+
 export default function DashboardPage() {
   const [dades, setDades] = useState(undefined);
   const [error, setError] = useState(false);
+  const [pestanyaEvolucio, setPestanyaEvolucio] = useState('real');
 
   useEffect(() => {
     Promise.all([
@@ -41,12 +50,20 @@ export default function DashboardPage() {
   const socis = resumDashboardSocis(dades.socis, dades.sessions, dades.accessLog);
   const tiquets = resumDashboardTiquets(dades.lots, dades.accessLog, dades.sessions);
   const comptable = resumComptable(dades.moviments);
+  const real = resumReal(dades.moviments);
   const previsio = resumPrevisio(dades.moviments, dades.socis, dades.sessions, dades.accessLog);
   const mesosPrevisio = previsio.mesos.reduce((acc, mes) => {
     const excedentProjectat = (acc.length > 0 ? acc[acc.length - 1].excedentProjectat : comptable.excedent) + mes.impacteNet;
     acc.push({ ...mes, excedentProjectat });
     return acc;
   }, []);
+  const dadesGrafic = [
+    ...real.mesos.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: mes.tresoreria, tresoreriaPrevista: null })),
+    ...mesosPrevisio.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: null, tresoreriaPrevista: mes.excedentProjectat })),
+  ];
+  if (real.mesos.length > 0 && mesosPrevisio.length > 0) {
+    dadesGrafic[real.mesos.length - 1].tresoreriaPrevista = dadesGrafic[real.mesos.length - 1].tresoreriaReal;
+  }
   const balancSessions = balancPerSessio(dades.moviments);
   const ultimesSessions = [...dades.sessions].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? '')).slice(0, 5);
   const ultimesSolicituds = [...dades.solicituds]
@@ -126,74 +143,148 @@ export default function DashboardPage() {
           <div className="comptabilitat__formula">
             <div className="comptabilitat__formula-terme">
               <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
-              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.caixa)}`}>{formatEuros(comptable.caixa)}</p>
+              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--efectiu">{formatEuros(comptable.caixa)}</p>
             </div>
             <span className="comptabilitat__formula-operador">+</span>
             <div className="comptabilitat__formula-terme">
               <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
-              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.banc)}`}>{formatEuros(comptable.banc)}</p>
+              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--banc">{formatEuros(comptable.banc)}</p>
             </div>
             <span className="comptabilitat__formula-operador">=</span>
             <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
               <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
-              <p className={`comptabilitat__formula-valor ${classeSigne(comptable.excedent)}`}>{formatEuros(comptable.excedent)}</p>
+              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--total">{formatEuros(comptable.excedent)}</p>
             </div>
           </div>
-          <p className="dashboard__comptabilitat-seccio">Ingressos</p>
-          <p className="dashboard__comptabilitat-fila"><span>Total ingressos</span><span>{formatEuros(comptable.ingressosTotal)}</span></p>
-          {Object.entries(comptable.ingressosPerCategoriaIMetode).map(([categoria, valors]) => (
-            <p key={categoria} className="dashboard__comptabilitat-fila">
-              <span>{categoria}</span>
-              <span>{formatEuros(valors.total)} (efectiu {formatEuros(valors.efectiu)} / a compte {formatEuros(valors.aCompte)})</span>
-            </p>
+          <h3 className="comptabilitat__desglossament-titol">Ingressos</h3>
+          {Object.entries(comptable.ingressosPerCategoria).map(([categoria, grup]) => (
+            <div key={categoria}>
+              <div className="comptabilitat__desglossament-fila comptabilitat__desglossament-fila--categoria">
+                <span>{categoria}</span>
+                <span className="comptabilitat__valor--positiu">+{formatEuros(grup.total)}</span>
+              </div>
+              {grup.detalls.map((detall) => (
+                <div key={`${detall.preuUnitari}-${detall.metode}`} className="comptabilitat__desglossament-fila comptabilitat__desglossament-fila--submetode">
+                  <span>{formatEuros(detall.preuUnitari)} × {detall.quantitat} · {ETIQUETES_METODE[detall.metode] ?? detall.metode}</span>
+                  <span>+{formatEuros(detall.total)}</span>
+                </div>
+              ))}
+            </div>
           ))}
-          <p className="dashboard__comptabilitat-seccio">Despeses</p>
-          <p className="dashboard__comptabilitat-fila"><span>Total despeses</span><span>{formatEuros(comptable.despesesTotal)}</span></p>
+          <h3 className="comptabilitat__desglossament-titol">Despeses</h3>
           {Object.entries(comptable.despesesPerCategoria).map(([categoria, total]) => (
-            <p key={categoria} className="dashboard__comptabilitat-fila">
-              <span>{categoria}</span><span>{formatEuros(total)}</span>
-            </p>
+            <div key={categoria} className="comptabilitat__desglossament-fila comptabilitat__desglossament-fila--categoria">
+              <span>{categoria}</span>
+              <span className="comptabilitat__valor--negatiu">−{formatEuros(total)}</span>
+            </div>
           ))}
+          <div className="comptabilitat__desglossament-total">
+            <span>Balanç</span>
+            <span className={classeSigne(comptable.ingressosTotal - comptable.despesesTotal)}>
+              {formatEuros(comptable.ingressosTotal - comptable.despesesTotal)}
+            </span>
+          </div>
           <Link className="dashboard__enllac" to={ROUTES.COMPTABILITAT}>Veure comptabilitat</Link>
         </div>
 
         <div className="dashboard__modul dashboard__modul--ample">
-          <h2 className="dashboard__modul-titol">Previsió a 1 any</h2>
-          <p className="dashboard__subtitol">
-            Si es fa 1 sessió/mes: nous socis segons el ritme dels últims 3 mesos, i renovacions
-            {' '}només dels socis a qui els venç realment la quota aquell mes, descartant els que
-            {' '}tenen un cost per sessió superior a {formatEuros(LLINDAR_COST_SESSIO_RENOVACIO)}
-          </p>
-          <div className="dashboard__previsio-taula-wrap">
-            <table className="dashboard__previsio-taula">
-              <thead>
-                <tr>
-                  <th>Mes</th>
-                  <th>Nous socis</th>
-                  <th>Renovacions</th>
-                  <th>Quotes</th>
-                  <th>Aportacions</th>
-                  <th>Pel·lícula</th>
-                  <th>Impacte net</th>
-                  <th>Tresoreria</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mesosPrevisio.map((mes) => (
-                  <tr key={mes.etiqueta}>
-                    <td>{mes.etiqueta}</td>
-                    <td>{Math.round(mes.novesAltes)}</td>
-                    <td>{mes.renovacionsEsperades} de {mes.sociesDeguts}</td>
-                    <td>{formatEuros(mes.ingressosQuotes)}</td>
-                    <td>{formatEuros(mes.ingressosAportacions)}</td>
-                    <td>{formatEuros(-mes.costPellicula)}</td>
-                    <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
-                    <td className={classeSigne(mes.excedentProjectat)}>{formatEuros(mes.excedentProjectat)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 className="dashboard__modul-titol">Evolució econòmica</h2>
+
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={dadesGrafic}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="etiqueta" tick={{ fontSize: 9 }} interval={1} angle={-40} textAnchor="end" height={50} />
+              <YAxis tick={{ fontSize: 10 }} width={60} />
+              <Tooltip formatter={(valor) => formatEuros(valor)} />
+              <Legend />
+              <Line type="monotone" dataKey="tresoreriaReal" name="Tresoreria real" stroke="#000000" strokeWidth={2} dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tresoreriaPrevista" name="Tresoreria prevista" stroke="#BF9000" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+
+          <div className="comptabilitat__pestanyes">
+            {PESTANYES_EVOLUCIO.map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                type="button"
+                className={`comptabilitat__pestanya ${pestanyaEvolucio === valor ? 'comptabilitat__pestanya--activa' : ''}`}
+                onClick={() => setPestanyaEvolucio(valor)}
+              >
+                {etiqueta}
+              </button>
+            ))}
           </div>
+
+          {pestanyaEvolucio === 'real' && (
+            <div className="dashboard__previsio-taula-wrap">
+              <table className="dashboard__previsio-taula">
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <th>Pagaments de quota</th>
+                    <th>Quotes</th>
+                    <th>Aportacions</th>
+                    <th>Pel·lícula</th>
+                    <th>Impacte net</th>
+                    <th>Tresoreria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {real.mesos.map((mes) => (
+                    <tr key={mes.etiqueta}>
+                      <td>{mes.etiqueta}</td>
+                      <td>{mes.nombreQuotes}</td>
+                      <td>{formatEuros(mes.ingressosQuotes)}</td>
+                      <td>{formatEuros(mes.ingressosAportacions)}</td>
+                      <td>{formatEuros(-mes.costPellicula)}</td>
+                      <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
+                      <td className={classeSigne(mes.tresoreria)}>{formatEuros(mes.tresoreria)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {pestanyaEvolucio === 'previsio' && (
+            <>
+              <p className="dashboard__subtitol">
+                Si es fa 1 sessió/mes: nous socis segons el ritme dels últims 3 mesos, i renovacions
+                {' '}només dels socis a qui els venç realment la quota aquell mes, descartant els que
+                {' '}tenen un cost per sessió superior a {formatEuros(LLINDAR_COST_SESSIO_RENOVACIO)}
+              </p>
+              <div className="dashboard__previsio-taula-wrap">
+                <table className="dashboard__previsio-taula">
+                  <thead>
+                    <tr>
+                      <th>Mes</th>
+                      <th>Nous socis</th>
+                      <th>Renovacions</th>
+                      <th>Quotes</th>
+                      <th>Aportacions</th>
+                      <th>Pel·lícula</th>
+                      <th>Impacte net</th>
+                      <th>Tresoreria</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mesosPrevisio.map((mes) => (
+                      <tr key={mes.etiqueta}>
+                        <td>{mes.etiqueta}</td>
+                        <td>{Math.round(mes.novesAltes)}</td>
+                        <td>{mes.renovacionsEsperades} de {mes.sociesDeguts}</td>
+                        <td>{formatEuros(mes.ingressosQuotes)}</td>
+                        <td>{formatEuros(mes.ingressosAportacions)}</td>
+                        <td>{formatEuros(-mes.costPellicula)}</td>
+                        <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
+                        <td className={classeSigne(mes.excedentProjectat)}>{formatEuros(mes.excedentProjectat)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
 
       </div>

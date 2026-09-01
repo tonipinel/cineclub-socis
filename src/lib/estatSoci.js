@@ -15,8 +15,16 @@ export function estaActiu(soci) {
 // totes dues bandes com a mitjanit LOCAL per evitar que la interpretació UTC de
 // `ultimPagament` faci vèncer el soci hores abans d'hora en fusos horaris per
 // davant d'UTC.
+//
+// L'any de soci no compta des del dia que paga, sinó des del primer cop que
+// fa servir el carnet després de pagar (`inicPeriode`, fixat a EscaneigPage
+// en la primera entrada vàlida posterior al pagament). Mentre encara no hagi
+// escanejat des de l'últim pagament, `inicPeriode` és buit i el venciment
+// cau a `ultimPagament` com a referència provisional: no hi ha risc real de
+// vèncer perquè l'any encara no ha començat a córrer.
 export function calcularVenciment(soci) {
-  const [any, mes, dia] = soci.ultimPagament.split('-').map(Number);
+  const dataBase = soci.inicPeriode || soci.ultimPagament;
+  const [any, mes, dia] = dataBase.split('-').map(Number);
   return new Date(any + 1, mes - 1, dia);
 }
 

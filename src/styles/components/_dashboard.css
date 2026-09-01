@@ -34,15 +34,6 @@
 .dashboard__error {
   @apply p-6 font-body text-black;
 }
-.dashboard__comptabilitat-seccio {
-  @apply mt-2 font-body text-sm text-black/60;
-}
-.dashboard__comptabilitat-fila {
-  @apply flex items-center justify-between gap-2 border-b border-black/10 py-1 font-body text-sm text-black;
-}
-.dashboard__comptabilitat-total {
-  @apply flex items-center justify-between gap-2 border-t border-black/20 pt-2 font-display text-base font-bold text-black;
-}
 .dashboard__previsio-taula-wrap {
   @apply mt-2 overflow-x-auto;
 }

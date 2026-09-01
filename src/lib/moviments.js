@@ -6,10 +6,16 @@ export const TIPUS_MOVIMENT = { INGRES: 'ingres', DESPESA: 'despesa', TRASPAS: '
 export const CATEGORIES = [
   'Quotes socis',
   'Aportacions',
-  'Quotes postsessió',
   'Gestió pel·lícules',
   'Gestió associació',
 ];
+
+// Cada categoria només té sentit per a un tipus de moviment concret
+// (una despesa mai pot ser "Aportacions", ni un ingrés "Gestió pel·lícules").
+export const CATEGORIES_PER_TIPUS = {
+  [TIPUS_MOVIMENT.INGRES]: ['Quotes socis', 'Aportacions'],
+  [TIPUS_MOVIMENT.DESPESA]: ['Gestió pel·lícules', 'Gestió associació'],
+};
 
 export const METODES_INGRES = ['efectiu', 'datafon', 'transferencia'];
 export const METODES_DESPESA = ['efectiu', 'banc'];
@@ -125,33 +131,29 @@ export function subtotalsPerMetode(moviments) {
   return subtotals;
 }
 
-export function resumEconomicSessio(moviments) {
+function agruparIngressosPerCategoria(moviments) {
   const grupsPerCategoria = {};
   let ingressosTotal = 0;
-  let despesesTotal = 0;
 
   for (const moviment of moviments) {
+    if (moviment.tipus !== TIPUS_MOVIMENT.INGRES) continue;
     const total = Number(moviment.total) || 0;
-    if (moviment.tipus === TIPUS_MOVIMENT.INGRES) {
-      ingressosTotal += total;
-      const categoria = moviment.categoria || 'Altres ingressos';
-      const metode = moviment.metodePagament || 'altres';
-      const preuUnitari = Number(moviment.preuUnitari) || 0;
-      const quantitat = Number(moviment.quantitat) || 1;
+    ingressosTotal += total;
+    const categoria = moviment.categoria || 'Altres ingressos';
+    const metode = moviment.metodePagament || 'altres';
+    const preuUnitari = Number(moviment.preuUnitari) || 0;
+    const quantitat = Number(moviment.quantitat) || 1;
 
-      const grupCategoria = grupsPerCategoria[categoria] ?? { total: 0, detallsPerClau: {} };
-      grupCategoria.total += total;
+    const grupCategoria = grupsPerCategoria[categoria] ?? { total: 0, detallsPerClau: {} };
+    grupCategoria.total += total;
 
-      const clau = `${preuUnitari}|${metode}`;
-      const detall = grupCategoria.detallsPerClau[clau] ?? { preuUnitari, metode, quantitat: 0, total: 0 };
-      detall.quantitat += quantitat;
-      detall.total += total;
-      grupCategoria.detallsPerClau[clau] = detall;
+    const clau = `${preuUnitari}|${metode}`;
+    const detall = grupCategoria.detallsPerClau[clau] ?? { preuUnitari, metode, quantitat: 0, total: 0 };
+    detall.quantitat += quantitat;
+    detall.total += total;
+    grupCategoria.detallsPerClau[clau] = detall;
 
-      grupsPerCategoria[categoria] = grupCategoria;
-    } else if (moviment.tipus === TIPUS_MOVIMENT.DESPESA) {
-      despesesTotal += total;
-    }
+    grupsPerCategoria[categoria] = grupCategoria;
   }
 
   const ingressosPerCategoria = {};
@@ -162,6 +164,15 @@ export function resumEconomicSessio(moviments) {
     ingressosPerCategoria[categoria] = { total: grup.total, detalls };
   }
 
+  return { ingressosPerCategoria, ingressosTotal };
+}
+
+export function resumEconomicSessio(moviments) {
+  const { ingressosPerCategoria, ingressosTotal } = agruparIngressosPerCategoria(moviments);
+  let despesesTotal = 0;
+  for (const moviment of moviments) {
+    if (moviment.tipus === TIPUS_MOVIMENT.DESPESA) despesesTotal += Number(moviment.total) || 0;
+  }
   return { ingressosPerCategoria, ingressosTotal, despesesTotal, balanc: ingressosTotal - despesesTotal };
 }
 
@@ -188,7 +199,8 @@ function costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNume
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   if (!pagamentActual) return null;
 
-  const sessionsPeriode = sessionsPassades.filter((s) => (s.data ?? '') >= soci.ultimPagament);
+  const iniciPeriode = soci.inicPeriode || soci.ultimPagament;
+  const sessionsPeriode = sessionsPassades.filter((s) => (s.data ?? '') >= iniciPeriode);
   const entrades = entradesPerNumero.get(numeroSoci) ?? [];
   const assistides = assistenciaPerSessio(sessionsPeriode, entrades).filter((s) => s.assisteix).length;
   if (assistides === 0) return null;
@@ -214,6 +226,45 @@ function agruparEntradesPerNumero(accessLog) {
 function probablementRenovara(soci, moviments, sessionsPassades, entradesPerNumero) {
   const cost = costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNumero);
   return cost === null || cost <= LLINDAR_COST_SESSIO_RENOVACIO;
+}
+
+const MESOS_REAL = 12;
+
+// Resum real mes a mes dels últims 12 mesos (el mes actual inclòs, fins
+// avui), amb el mateix desglossament de conceptes que resumPrevisio
+// (quotes, aportacions, pel·lícules) per poder-los comparar i encadenar
+// en un mateix gràfic. A diferència de la previsió, aquí no s'estima res:
+// són moviments reals ja registrats.
+export function resumReal(moviments, avui = new Date()) {
+  const mesos = [];
+  for (let i = -(MESOS_REAL - 1); i <= 0; i++) {
+    const inici = new Date(avui.getFullYear(), avui.getMonth() + i, 1);
+    const fi = new Date(avui.getFullYear(), avui.getMonth() + i + 1, 1);
+    const iniciStr = inici.toLocaleDateString('sv-SE');
+    const fiStr = fi.toLocaleDateString('sv-SE');
+
+    const delMes = moviments.filter((m) => (m.data ?? '') >= iniciStr && (m.data ?? '') < fiStr);
+    const quotes = delMes.filter((m) => m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES);
+    const aportacions = delMes.filter((m) => m.categoria === 'Aportacions' && m.tipus === TIPUS_MOVIMENT.INGRES);
+    const pellicules = delMes.filter((m) => m.categoria === 'Gestió pel·lícules' && m.tipus === TIPUS_MOVIMENT.DESPESA);
+
+    const ingressosQuotes = quotes.reduce((acc, m) => acc + (Number(m.total) || 0), 0);
+    const ingressosAportacions = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0);
+    const costPellicula = pellicules.reduce((acc, m) => acc + (Number(m.total) || 0), 0);
+    const impacteNet = ingressosQuotes + ingressosAportacions - costPellicula;
+    const tresoreria = calcularSaldos(moviments.filter((m) => (m.data ?? '') < fiStr)).excedent;
+
+    mesos.push({
+      etiqueta: `${NOMS_MES[inici.getMonth()]} ${inici.getFullYear()}`,
+      nombreQuotes: quotes.length,
+      ingressosQuotes,
+      ingressosAportacions,
+      costPellicula,
+      impacteNet,
+      tresoreria,
+    });
+  }
+  return { mesos };
 }
 
 // Previsió mes a mes per als propers 6 mesos, assumint 1 sessió/mes.
@@ -288,27 +339,16 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
 
 export function resumComptable(moviments) {
   const { caixa, banc, excedent } = calcularSaldos(moviments);
-  let ingressosTotal = 0;
+  const { ingressosPerCategoria, ingressosTotal } = agruparIngressosPerCategoria(moviments);
   let despesesTotal = 0;
-  const ingressosPerCategoriaIMetode = {};
   const despesesPerCategoria = {};
-
   for (const moviment of moviments) {
+    if (moviment.tipus !== TIPUS_MOVIMENT.DESPESA) continue;
     const total = Number(moviment.total) || 0;
-    if (moviment.tipus === TIPUS_MOVIMENT.INGRES) {
-      ingressosTotal += total;
-      const categoria = moviment.categoria ?? '';
-      const grup = ingressosPerCategoriaIMetode[categoria] ?? { efectiu: 0, aCompte: 0, total: 0 };
-      if (moviment.metodePagament === 'efectiu') grup.efectiu += total;
-      else grup.aCompte += total;
-      grup.total += total;
-      ingressosPerCategoriaIMetode[categoria] = grup;
-    } else if (moviment.tipus === TIPUS_MOVIMENT.DESPESA) {
-      despesesTotal += total;
-      const categoria = moviment.categoria ?? '';
-      despesesPerCategoria[categoria] = (despesesPerCategoria[categoria] ?? 0) + total;
-    }
+    despesesTotal += total;
+    const categoria = moviment.categoria || 'Altres despeses';
+    despesesPerCategoria[categoria] = (despesesPerCategoria[categoria] ?? 0) + total;
   }
 
-  return { excedent, ingressosTotal, despesesTotal, banc, caixa, ingressosPerCategoriaIMetode, despesesPerCategoria };
+  return { excedent, ingressosTotal, despesesTotal, banc, caixa, ingressosPerCategoria, despesesPerCategoria };
 }

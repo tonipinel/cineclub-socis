@@ -87,7 +87,7 @@ describe('ComptabilitatPage', () => {
   it('no mostra cap badge de mètode buit a les files de traspàs', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     const fila = screen.getByText('Traspàs a banc').closest('tr');
-    expect(within(fila).queryAllByRole('cell')[4].querySelector('.badge--metode')).not.toBeInTheDocument();
+    expect(within(fila).queryAllByRole('cell')[4].querySelector('.badge')).not.toBeInTheDocument();
   });
 
   it('filtra per sessió', async () => {

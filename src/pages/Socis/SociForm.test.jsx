@@ -107,6 +107,32 @@ describe('SociForm — mode lectura/edició', () => {
     expect(screen.getByText('Últim pagament: 29/8/2026')).toBeInTheDocument();
   });
 
+  it('mostra la data d\'activació del carnet (inicPeriode) quan ja s\'ha fixat', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', inicPeriode: '2026-08-06',
+      }),
+    });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Activació del carnet: 6/8/2026')).toBeInTheDocument();
+  });
+
+  it('indica que encara no s\'ha activat el carnet quan no hi ha inicPeriode', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23' }),
+    });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Activació del carnet: Encara no ha escanejat des del pagament')).toBeInTheDocument();
+  });
+
   it('en crear un soci nou, els camps ja són editables sense cal clicar res', () => {
     render(
       <MemoryRouter initialEntries={['/socis/nou']}>
@@ -294,6 +320,58 @@ describe('SociForm — assistència a sessions', () => {
     );
     expect(await screen.findByText('Cost per sessió (període actual)')).toBeInTheDocument();
     expect(screen.getByText('30.00€')).toBeInTheDocument();
+  });
+
+  it('exclou del període actual les sessions posteriors al venciment de la quota', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's1', data: () => ({ titol: 'Dins del període', data: '2026-06-01' }) },
+          { id: 's2', data: () => ({ titol: 'Ja renovat un cop', data: '2027-06-01' }) },
+        ],
+      })
+      .mockResolvedValueOnce({
+        docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Pel·lícules a les que ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.getAllByText('Dins del període').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Ja renovat un cop')).not.toBeInTheDocument();
+  });
+
+  it('usa inicPeriode (no ultimPagament) com a inici del període actual', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01', inicPeriode: '2026-05-01',
+      }),
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's1', data: () => ({ titol: 'Abans de l\'activació', data: '2026-02-01' }) },
+          { id: 's2', data: () => ({ titol: 'Després de l\'activació', data: '2026-06-01' }) },
+        ],
+      })
+      .mockResolvedValueOnce({
+        docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Pel·lícules a les que ha assistit (període actual)')).toBeInTheDocument();
+    expect(screen.getAllByText('Després de l\'activació').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Abans de l\'activació')).not.toBeInTheDocument();
   });
 
   it('si ha assistit a sessions però no hi ha cap pagament registrat, ho diu explícitament (no que no ha assistit)', async () => {

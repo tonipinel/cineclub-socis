@@ -29,7 +29,9 @@ const RENDERITZAR_CELDA = {
   categoriaODireccio: (m) => m.categoria ?? ETIQUETES_DIRECCIO[m.direccio] ?? '',
   metodePagament: (m) => {
     const etiqueta = ETIQUETES_METODE[m.metodePagament] ?? m.metodePagament;
-    return etiqueta ? <span className="badge badge--metode">{etiqueta}</span> : null;
+    if (!etiqueta) return null;
+    const variant = m.metodePagament === 'efectiu' ? 'badge--metode-efectiu' : 'badge--metode-banc';
+    return <span className={`badge ${variant}`}>{etiqueta}</span>;
   },
   total: (m) => (
     <span className={`comptabilitat__import ${m.tipus === 'traspas' ? 'comptabilitat__valor--traspas' : classeSigne(m.tipus === 'despesa' ? -1 : 1)}`}>
@@ -79,17 +81,17 @@ export default function ComptabilitatPage() {
       <div className="comptabilitat__formula">
         <div className="comptabilitat__formula-terme">
           <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
-          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.caixa)}`}>{formatEuros(saldos.caixa)}</p>
+          <p className="comptabilitat__formula-valor comptabilitat__formula-valor--efectiu">{formatEuros(saldos.caixa)}</p>
         </div>
         <span className="comptabilitat__formula-operador">+</span>
         <div className="comptabilitat__formula-terme">
           <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
-          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.banc)}`}>{formatEuros(saldos.banc)}</p>
+          <p className="comptabilitat__formula-valor comptabilitat__formula-valor--banc">{formatEuros(saldos.banc)}</p>
         </div>
         <span className="comptabilitat__formula-operador">=</span>
         <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
           <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
-          <p className={`comptabilitat__formula-valor ${classeSigne(saldos.excedent)}`}>{formatEuros(saldos.excedent)}</p>
+          <p className="comptabilitat__formula-valor comptabilitat__formula-valor--total">{formatEuros(saldos.excedent)}</p>
         </div>
       </div>
 

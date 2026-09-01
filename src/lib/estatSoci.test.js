@@ -47,6 +47,20 @@ describe('calcularVenciment', () => {
     expect(venciment.getMonth()).toBe(2);
     expect(venciment.getDate()).toBe(15);
   });
+
+  it('usa inicPeriode (primer ús del carnet des del pagament) en comptes de ultimPagament quan hi és', () => {
+    const venciment = calcularVenciment({ ultimPagament: '2026-03-15', inicPeriode: '2026-04-02' });
+    expect(venciment.getFullYear()).toBe(2027);
+    expect(venciment.getMonth()).toBe(3);
+    expect(venciment.getDate()).toBe(2);
+  });
+
+  it('cau a ultimPagament si encara no s\'ha fixat inicPeriode', () => {
+    const venciment = calcularVenciment({ ultimPagament: '2026-03-15', inicPeriode: null });
+    expect(venciment.getFullYear()).toBe(2027);
+    expect(venciment.getMonth()).toBe(2);
+    expect(venciment.getDate()).toBe(15);
+  });
 });
 
 describe('diesFinsVenciment', () => {

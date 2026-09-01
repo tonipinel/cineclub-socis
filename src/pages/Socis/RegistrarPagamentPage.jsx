@@ -6,8 +6,26 @@ import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import { METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT } from '../../lib/moviments';
 import { avui } from '../../lib/data';
-import { estaActiu } from '../../lib/estatSoci';
+import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
 import Carregant from '../../components/Carregant';
+
+// Entre totes les sessions, la que té la data més propera a avui (abans o
+// després): és la millor conjectura per defecte de a quina sessió correspon
+// aquest pagament, sense obligar l'usuari a triar-la manualment cada cop.
+function sessioMesPropera(sessions, dataAvui) {
+  const avuiTime = new Date(dataAvui).getTime();
+  let millor = null;
+  let millorDiferencia = Infinity;
+  for (const s of sessions) {
+    if (!s.data) continue;
+    const diferencia = Math.abs(new Date(s.data).getTime() - avuiTime);
+    if (diferencia < millorDiferencia) {
+      millor = s.id;
+      millorDiferencia = diferencia;
+    }
+  }
+  return millor;
+}
 
 export default function RegistrarPagamentPage() {
   const { id } = useParams();
@@ -17,6 +35,8 @@ export default function RegistrarPagamentPage() {
   const [data, setData] = useState(avui());
   const [importPagament, setImportPagament] = useState('');
   const [metodePagament, setMetodePagament] = useState(METODES_INGRES[0]);
+  const [sessions, setSessions] = useState([]);
+  const [sessionId, setSessionId] = useState('');
   const [error, setError] = useState(null);
   const [desant, setDesant] = useState(false);
 
@@ -24,14 +44,24 @@ export default function RegistrarPagamentPage() {
     Promise.all([
       getDoc(doc(db, 'socis', id)),
       getDoc(doc(db, 'configuracio', 'associacio')),
-    ]).then(([sociSnap, configSnap]) => {
+      getDocs(collection(db, 'sessions')),
+    ]).then(([sociSnap, configSnap, sessionsSnap]) => {
       const dadesSoci = sociSnap.data();
       if (!dadesSoci) {
         navigate(ROUTES.SOCIS, { replace: true });
         return;
       }
+      const totesSessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setSoci({ id: sociSnap.id, ...dadesSoci });
       setImportPagament(String(configSnap.data()?.quotaAnual ?? 30));
+      setSessions(totesSessions);
+      setSessionId(sessioMesPropera(totesSessions, avui()) ?? '');
+      // Per defecte, la data del pagament és quan li toca renovar (no avui):
+      // així l'ultimPagament avança exactament un any cada cop, encara que
+      // el pagament real s'hagi rebut un altre dia.
+      if (dadesSoci.ultimPagament) {
+        setData(calcularVenciment(dadesSoci).toLocaleDateString('sv-SE'));
+      }
       setCarregant(false);
     });
   }, [id, navigate]);
@@ -48,7 +78,10 @@ export default function RegistrarPagamentPage() {
     setError(null);
     setDesant(true);
     try {
-      const actualitzacioSoci = { ultimPagament: data, estatManual: null };
+      // inicPeriode (des de quan compta el seu any de soci) es neteja en
+      // cada pagament nou: es torna a fixar al proper escaneig, respecte a
+      // aquest pagament — si no, quedaria el valor obsolet del cicle anterior.
+      const actualitzacioSoci = { ultimPagament: data, estatManual: null, inicPeriode: null };
       if (!soci.numeroSoci) {
         const socisExistents = await getDocs(collection(db, 'socis'));
         actualitzacioSoci.numeroSoci = properNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
@@ -67,7 +100,7 @@ export default function RegistrarPagamentPage() {
         preuUnitari: total,
         quantitat: 1,
         total,
-        sessionId: '',
+        sessionId,
       });
       await batch.commit();
       navigate(ROUTES.SOCIS_EDITAR.replace(':id', id));
@@ -126,6 +159,21 @@ export default function RegistrarPagamentPage() {
         >
           {METODES_INGRES.map((m) => (
             <option key={m} value={m}>{ETIQUETES_METODE[m]}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form__field">
+        <label className="form__label" htmlFor="sessio-pagament">Sessió</label>
+        <select
+          id="sessio-pagament"
+          className="form__input"
+          value={sessionId}
+          onChange={(e) => setSessionId(e.target.value)}
+        >
+          <option value="">Moviment general (sense sessió)</option>
+          {sessions.map((s) => (
+            <option key={s.id} value={s.id}>{s.titol}</option>
           ))}
         </select>
       </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -137,10 +137,10 @@ describe('DashboardPage', () => {
     expect(m.getByText('Fons total de tresoreria').nextSibling).toHaveTextContent('60.00€');
     expect(m.getByText('Quotes socis')).toBeInTheDocument();
     expect(m.getByText('Gestió pel·lícules')).toBeInTheDocument();
-    expect(m.queryByText('Quotes postsessió')).not.toBeInTheDocument();
+    expect(m.queryByText('Aportacions')).not.toBeInTheDocument();
   });
 
-  it('mòdul Previsió a 1 any: mostra una fila per mes amb el ritme dels últims 3 mesos', async () => {
+  it('mòdul Evolució econòmica: mostra el resum real, la previsió a 1 any i el gràfic combinat', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 7, 31));
     mockCarrega({
@@ -156,13 +156,28 @@ describe('DashboardPage', () => {
       ],
     });
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
-    await screen.findByRole('heading', { name: 'Previsió a 1 any' });
-    const m = modul('Previsió a 1 any');
-    expect(m.getByText('Setembre 2026')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Evolució econòmica' });
+    const m = modul('Evolució econòmica');
+
+    // Gràfic combinat (recharts no renderitza el contingut intern en jsdom
+    // sense mides reals; només comprovem que el contenidor es munta).
+    expect(elementModul('Evolució econòmica').querySelector('.recharts-responsive-container')).toBeInTheDocument();
+
+    // Pestanya "Últims 12 mesos (real)" activa per defecte.
+    expect(m.getByText('Setembre 2025')).toBeInTheDocument();
+    expect(m.getAllByText('Agost 2026')).not.toHaveLength(0);
+    expect(m.queryByText('Febrer 2027')).not.toBeInTheDocument();
+
+    // Canviem a la pestanya "Previsió pròxims 12 mesos".
+    fireEvent.click(m.getByRole('button', { name: 'Previsió pròxims 12 mesos' }));
+    expect(m.queryByText('Setembre 2025')).not.toBeInTheDocument();
+    expect(m.getByText('Febrer 2027')).toBeInTheDocument();
     expect(m.getByText('Agost 2027')).toBeInTheDocument();
-    expect(m.getAllByText('10.00€')).toHaveLength(12); // 30€/3 mesos, cada fila
-    expect(m.getAllByText('6.67€')).toHaveLength(12); // 20€/3 mesos, cada fila
-    expect(m.getAllByText('-150.00€')).toHaveLength(12); // el cost de pel·lícula més car, cada fila
+    const taulaPrevisio = within(m.getAllByRole('table')[0]);
+    expect(taulaPrevisio.getAllByText('10.00€')).toHaveLength(12); // 30€/3 mesos, cada fila
+    expect(taulaPrevisio.getAllByText('6.67€')).toHaveLength(12); // 20€/3 mesos, cada fila
+    expect(taulaPrevisio.getAllByText('-150.00€')).toHaveLength(12); // el cost de pel·lícula més car, cada fila
+
     vi.useRealTimers();
   });
 });

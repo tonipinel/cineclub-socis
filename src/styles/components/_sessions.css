@@ -103,6 +103,9 @@
 .session-form__desglossament-total {
   @apply flex items-center justify-between gap-2 pt-2 font-display text-base font-bold;
 }
+.session-form__avis {
+  @apply -mt-1 mb-2 rounded border border-red-600 bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700;
+}
 .session-form__estadistiques {
   @apply flex flex-col;
 }
