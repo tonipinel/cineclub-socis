@@ -4,7 +4,6 @@ import { ROLE_ADMIN, ROLE_TAQUILLA } from './constants/roles';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import Header from './components/Header';
-import AltaPublica from './pages/AltaPublica';
 import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
@@ -25,7 +24,7 @@ export default function App() {
     <BrowserRouter>
       <Header />
       <Routes>
-        <Route path={ROUTES.ALTA_PUBLICA} element={<AltaPublica />} />
+        <Route path="/" element={<Navigate to={ROUTES.ACCEDIR} replace />} />
         <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
         <Route
           path={ROUTES.SOCIS}
@@ -187,7 +186,7 @@ export default function App() {
             </RequireAuth>
           }
         />
-        <Route path="*" element={<Navigate to={ROUTES.ALTA_PUBLICA} replace />} />
+        <Route path="*" element={<Navigate to={ROUTES.ACCEDIR} replace />} />
       </Routes>
     </BrowserRouter>
   );

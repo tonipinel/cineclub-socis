@@ -5,6 +5,6 @@ import * as ROUTES from '../constants/routes';
 export function RequireRole({ roles, children }) {
   const { role, loading } = useAuth();
   if (loading) return null;
-  if (!roles.includes(role)) return <Navigate to={ROUTES.ALTA_PUBLICA} replace />;
+  if (!roles.includes(role)) return <Navigate to={ROUTES.ACCEDIR} replace />;
   return children;
 }

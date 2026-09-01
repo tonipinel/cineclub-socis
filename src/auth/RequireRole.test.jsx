@@ -10,7 +10,7 @@ function renderAmb() {
   return render(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
-        <Route path="/" element={<p>Portada</p>} />
+        <Route path="/accedir" element={<p>Accedir</p>} />
         <Route path="/admin" element={<RequireRole roles={['admin']}><p>Zona admin</p></RequireRole>} />
       </Routes>
     </MemoryRouter>
@@ -18,10 +18,10 @@ function renderAmb() {
 }
 
 describe('RequireRole', () => {
-  it('redirigeix a la portada quan el rol no és a la llista', () => {
+  it('redirigeix a accedir quan el rol no és a la llista', () => {
     mockUseAuth.mockReturnValue({ role: 'taquilla', loading: false });
     renderAmb();
-    expect(screen.getByText('Portada')).toBeInTheDocument();
+    expect(screen.getByText('Accedir')).toBeInTheDocument();
   });
 
   it('mostra el contingut quan el rol és a la llista', () => {

@@ -1,4 +1,3 @@
-export const ALTA_PUBLICA = '/';
 export const ACCEDIR = '/accedir';
 export const DASHBOARD = '/dashboard';
 export const SOCIS = '/socis';
