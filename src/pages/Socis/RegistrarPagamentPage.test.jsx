@@ -14,6 +14,8 @@ vi.mock('firebase/firestore', () => {
     getDocs: vi.fn().mockResolvedValue({ docs: [] }),
     collection: vi.fn((_, nom) => nom),
     doc: vi.fn((...args) => args[args.length - 1]),
+    query: vi.fn((collectionName, ...constraints) => ({ collectionName, constraints })),
+    where: vi.fn((field, op, value) => ({ field, op, value })),
     writeBatch,
     __batchSet: batchSet,
     __batchUpdate: batchUpdate,
@@ -70,6 +72,7 @@ describe('RegistrarPagamentPage', () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
     const user = userEvent.setup();
     renderPagina();
     const campData = await screen.findByLabelText('Data del pagament');
@@ -96,6 +99,7 @@ describe('RegistrarPagamentPage', () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
     const user = userEvent.setup();
     renderPagina();
     await screen.findByLabelText('Import (€)');
@@ -113,6 +117,9 @@ describe('RegistrarPagamentPage', () => {
       if (collectionName === 'socis') {
         return Promise.resolve({ docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }] });
       }
+      if (collectionName === 'sessions') {
+        return Promise.resolve({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
+      }
       return Promise.resolve({ docs: [] });
     });
     const user = userEvent.setup();
@@ -129,6 +136,7 @@ describe('RegistrarPagamentPage', () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
     window.confirm.mockReturnValueOnce(false);
     const user = userEvent.setup();
     renderPagina();
@@ -137,10 +145,13 @@ describe('RegistrarPagamentPage', () => {
     expect(writeBatch).not.toHaveBeenCalled();
   });
 
-  it('preomple la data amb el venciment del soci (no amb avui), perquè l\'ultimPagament avanci exactament un any', async () => {
+  it('en una renovació, preomple la data amb el venciment del soci (no amb avui), perquè l\'ultimPagament avanci exactament un any', async () => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2025-03-10' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [] }) // sessions
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ categoria: 'Quotes socis', data: '2025-03-10' }) }] }); // pagaments previs
     renderPagina();
     expect(await screen.findByLabelText('Data del pagament')).toHaveValue('2026-03-10');
   });
@@ -180,6 +191,7 @@ describe('RegistrarPagamentPage', () => {
         id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: false, motiuDesactivacio: 'Mal comportament' }),
       })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
     const user = userEvent.setup();
     renderPagina();
     expect(await screen.findByText(/Aquest soci està desactivat \(Mal comportament\)/)).toBeInTheDocument();
@@ -187,5 +199,81 @@ describe('RegistrarPagamentPage', () => {
     expect(window.confirm.mock.calls[0][0]).toMatch(/continuarà desactivat/);
     await screen.findByText('Fitxa del soci');
     expect(writeBatch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('RegistrarPagamentPage — alta vs renovació', () => {
+  beforeEach(() => {
+    writeBatch.mockClear();
+    __batchSet.mockClear();
+    __batchUpdate.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  it('sense cap moviment de quota previ, és una alta: cal triar sessió i es desa amb tipusQuota "alta"', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-01-01' }) }] });
+    const user = userEvent.setup();
+    renderPagina();
+    expect(await screen.findByLabelText('Sessió')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await screen.findByText('Fitxa del soci');
+    const [, moviment] = __batchSet.mock.calls[0];
+    expect(moviment.categoria).toBe('Quotes socis');
+    expect(moviment.tipusQuota).toBe('alta');
+    expect(moviment.sessionId).toBe('s1');
+  });
+
+  it('no deixa desar una alta sense triar cap sessió', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByLabelText('Sessió');
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    expect(await screen.findByText(/Una alta nova ha d'estar vinculada a una sessió/)).toBeInTheDocument();
+    expect(writeBatch).not.toHaveBeenCalled();
+  });
+
+  it('amb ultimPagament fixat però sense cap moviment real (p. ex. una sol·licitud aprovada), continua sent una alta', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-08-29' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-01-01' }) }] });
+    const user = userEvent.setup();
+    renderPagina();
+    expect(await screen.findByLabelText('Sessió')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await screen.findByText('Fitxa del soci');
+    const [, moviment] = __batchSet.mock.calls[0];
+    expect(moviment.categoria).toBe('Quotes socis');
+    expect(moviment.tipusQuota).toBe('alta');
+  });
+
+  it('amb un moviment de quota previ, és una renovació: sense selector de sessió, sessionId buit i tipusQuota "renovacio"', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2025-08-29' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-01-01' }) }] }) // sessions
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ categoria: 'Quotes socis', data: '2025-08-29' }) }] }); // pagaments previs
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByLabelText('Import (€)');
+    expect(screen.getByText(/pagament de renovació/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sessió')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await screen.findByText('Fitxa del soci');
+    const [, moviment] = __batchSet.mock.calls[0];
+    expect(moviment.categoria).toBe('Quotes socis');
+    expect(moviment.tipusQuota).toBe('renovacio');
+    expect(moviment.sessionId).toBe('');
   });
 });

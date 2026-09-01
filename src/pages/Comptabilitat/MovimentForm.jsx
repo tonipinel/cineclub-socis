@@ -5,27 +5,28 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
-  calcularTotal, CATEGORIES_PER_TIPUS, DIRECCIONS_TRASPAS, METODES_DESPESA, METODES_INGRES, TIPUS_MOVIMENT,
-  ETIQUETES_METODE, ETIQUETES_DIRECCIO,
+  calcularTotal, CATEGORIES_PER_TIPUS, CATEGORIA_QUOTA_SOCI, DIRECCIONS_TRASPAS, METODES_DESPESA, METODES_INGRES,
+  TIPUS_MOVIMENT, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import * as ROUTES from '../../constants/routes';
 
-// Un soci pot tenir diversos moviments de "Quotes socis" (renovacions
-// successives). El seu `ultimPagament` ha de reflectir sempre el més recent,
-// però aquest formulari és genèric per a qualsevol moviment i no en sap res
-// del soci: per això, cada cop que es desa o s'elimina un moviment de quota,
-// recalculem `ultimPagament` a partir de tots els moviments de quota
-// restants d'aquell soci, en comptes de confiar que quedi sincronitzat sol.
-// `inicPeriode` (des de quan compta el seu any de soci, fixat al primer
-// escaneig posterior al pagament — vegeu estatSoci.js) es neteja alhora,
-// perquè torni a fixar-se al proper escaneig respecte al pagament corregit.
+// Un soci pot tenir diversos moviments de "Quotes socis" (alta + renovacions
+// successives, distingides pel camp `tipusQuota`). El seu `ultimPagament`
+// ha de reflectir sempre el més recent, però aquest formulari és genèric per
+// a qualsevol moviment i no en sap res del soci: per això, cada cop que es
+// desa o s'elimina un moviment de quota, recalculem `ultimPagament` a partir
+// de tots els moviments de quota restants d'aquell soci, en comptes de
+// confiar que quedi sincronitzat sol. `inicPeriode` (des de quan compta el
+// seu any de soci, fixat al primer escaneig posterior al pagament — vegeu
+// estatSoci.js) es neteja alhora, perquè torni a fixar-se al proper
+// escaneig respecte al pagament corregit.
 async function sincronitzarUltimPagament(numeroSoci) {
   const [movimentsSnap, socisSnap] = await Promise.all([
     getDocs(query(
       collection(db, 'moviments'),
-      where('categoria', '==', 'Quotes socis'),
+      where('categoria', '==', CATEGORIA_QUOTA_SOCI),
       where('numeroSoci', '==', numeroSoci)
     )),
     getDocs(query(collection(db, 'socis'), where('numeroSoci', '==', numeroSoci))),
@@ -39,14 +40,15 @@ async function sincronitzarUltimPagament(numeroSoci) {
 // Cada categoria només és vàlida per a un tipus (una despesa mai pot ser
 // "Aportacions", ni un ingrés "Gestió pel·lícules" — vegeu CATEGORIES_PER_TIPUS).
 // A més, "Quotes socis" només es pot crear des de "Registrar pagament" a la
-// fitxa del soci (l'únic flux que en sap el numeroSoci i sincronitza
-// ultimPagament): aquest formulari genèric no té selector de soci, així que
-// no es pot triar per a moviments nous ni per canviar-hi un moviment
-// existent — però si ja n'estàs editant un, es manté a la llista perquè la
-// categoria es pugui seguir mostrant i desar sense forçar un canvi.
+// fitxa del soci (l'únic flux que en sap el numeroSoci, distingeix alta de
+// renovació, i sincronitza ultimPagament): aquest formulari genèric no té
+// selector de soci, així que no es pot triar per a moviments nous ni per
+// canviar-hi un moviment existent — però si ja n'estàs editant un, es manté
+// a la llista perquè la categoria es pugui seguir mostrant i desar sense
+// forçar un canvi.
 function categoriesDisponibles(tipus, categoriaActual) {
   const base = CATEGORIES_PER_TIPUS[tipus] ?? [];
-  return base.filter((c) => c !== 'Quotes socis' || c === categoriaActual);
+  return base.filter((c) => c !== CATEGORIA_QUOTA_SOCI || c === categoriaActual);
 }
 
 export default function MovimentForm() {
@@ -147,12 +149,13 @@ export default function MovimentForm() {
         quantitat: quantitatNum,
         total: totalNum,
         sessionId: dades.tipus === TIPUS_MOVIMENT.TRASPAS ? '' : (dades.sessionId || ''),
-        // numeroSoci no és un camp editable en aquest formulari, però si el
-        // moviment ja en tenia un (creat des de "Registrar pagament" d'un
-        // soci) l'hem de conservar explícitament: `moviment` es desa sencer
-        // amb setDoc (no merge), així que qualsevol camp no llistat aquí es
-        // perdria en desar.
+        // numeroSoci i tipusQuota no són camps editables en aquest formulari,
+        // però si el moviment ja els tenia (creat des de "Registrar
+        // pagament" d'un soci) els hem de conservar explícitament: `moviment`
+        // es desa sencer amb setDoc (no merge), així que qualsevol camp no
+        // llistat aquí es perdria en desar.
         ...(dades.numeroSoci != null ? { numeroSoci: dades.numeroSoci } : {}),
+        ...(dades.tipusQuota != null ? { tipusQuota: dades.tipusQuota } : {}),
       };
       const moviment = dades.tipus === TIPUS_MOVIMENT.TRASPAS
         ? { ...base, direccio: dades.direccio }
@@ -196,7 +199,7 @@ export default function MovimentForm() {
   // Un moviment de "Quotes socis" ja existent no pot canviar de tipus ni de
   // categoria: si està malament, cal esborrar-lo i crear-ne un de nou des de
   // "Registrar pagament" (l'únic flux que en sap el numeroSoci).
-  const tipusICategoriaBloquejats = editant && dades.categoria === 'Quotes socis';
+  const tipusICategoriaBloquejats = editant && dades.categoria === CATEGORIA_QUOTA_SOCI;
   // Si s'ha arribat aquí amb una sessió ja triada per l'URL (des del botó
   // "Afegir moviment" de la fitxa d'una sessió concreta), no té sentit
   // permetre canviar-la: era precisament el motiu d'obrir el formulari.
@@ -247,6 +250,17 @@ export default function MovimentForm() {
               ))}
             </select>
           </div>
+          {tipusICategoriaBloquejats && dades.tipusQuota && (
+            <div className="form__field">
+              <label className="form__label" htmlFor="tipusQuota">Tipus de quota</label>
+              <input
+                id="tipusQuota"
+                className="form__input form__input--nomes-lectura"
+                value={dades.tipusQuota === 'renovacio' ? 'Renovació' : 'Alta nova'}
+                readOnly
+              />
+            </div>
+          )}
           <div className="form__field">
             <label className="form__label" htmlFor="metodePagament">Mètode de pagament</label>
             <select id="metodePagament" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.metodePagament} onChange={handleChange('metodePagament')} disabled={!desbloquejat}>

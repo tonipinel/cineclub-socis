@@ -447,6 +447,18 @@ describe('resumPrevisio', () => {
     expect(resultat.mesos[11].ingressosQuotes).toBe(30);
   });
 
+  it('exclou les renovacions (tipusQuota "renovacio") del ritme de noves altes', () => {
+    const moviments = [
+      { data: '2026-06-05', tipus: 'ingres', categoria: 'Quotes socis', tipusQuota: 'alta', total: 30 },
+      { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', tipusQuota: 'renovacio', total: 30 },
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Quotes socis', tipusQuota: 'alta', total: 30 },
+    ];
+    const resultat = previsio(moviments, avui);
+    // Només 2 dels 3 moviments són altes; el ritme es reparteix igualment
+    // entre els 3 mesos de referència.
+    expect(resultat.novesAltesPerMes).toBeCloseTo(2 / 3);
+  });
+
   it('ignora moviments anteriors als últims 3 mesos', () => {
     const moviments = [
       { data: '2026-04-01', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
@@ -576,6 +588,21 @@ describe('resumPrevisio — renovacions per data de venciment real', () => {
     const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
     const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
     expect(octubre.renovacionsEsperades).toBe(0);
+  });
+
+  it('reconeix pagaments amb tipusQuota "renovacio" (no només "alta") per calcular el cost per sessió', () => {
+    // 10€ ÷ 2 sessions assistides = 5€/sessió -> per sota del llindar, renova.
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01' }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', tipusQuota: 'renovacio', numeroSoci: 10, total: 10 },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
+    ];
+    const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre.renovacionsEsperades).toBe(1);
   });
 
   it('dona el benefici del dubte (compta com a probable) a un soci degut sense sessions assistides encara', () => {

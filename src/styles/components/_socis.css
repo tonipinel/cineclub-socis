@@ -159,3 +159,6 @@
 .pagament-form__avis {
   @apply -mt-1 mb-2 rounded border border-red-600 bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700;
 }
+.pagament-form__avis--info {
+  @apply border-blue-600 bg-blue-50 text-blue-700;
+}

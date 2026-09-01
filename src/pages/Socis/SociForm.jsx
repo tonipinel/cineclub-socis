@@ -9,7 +9,7 @@ import {
   calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { assistenciaPerSessio } from '../../lib/escaneig';
-import { formatEuros, ETIQUETES_METODE } from '../../lib/moviments';
+import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/moviments';
 import { avui } from '../../lib/data';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
@@ -86,7 +86,7 @@ export default function SociForm() {
     if (!editant || !dades.numeroSoci) return;
     getDocs(query(
       collection(db, 'moviments'),
-      where('categoria', '==', 'Quotes socis'),
+      where('categoria', '==', CATEGORIA_QUOTA_SOCI),
       where('numeroSoci', '==', Number(dades.numeroSoci))
     )).then((snap) => {
       const llista = snap.docs

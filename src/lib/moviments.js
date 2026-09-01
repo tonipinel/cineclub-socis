@@ -10,10 +10,19 @@ export const CATEGORIES = [
   'Gestió associació',
 ];
 
+export const CATEGORIA_QUOTA_SOCI = 'Quotes socis';
+
+// Un moviment de "Quotes socis" és sempre la mateixa categoria, però pot ser
+// una alta nova (pot venir atreta per una pel·lícula, per això és l'única
+// que es pot vincular a una sessió) o una renovació d'un soci que ja n'havia
+// pagat una abans (mai es vincula a cap sessió concreta). `tipusQuota`
+// distingeix quin dels dos és, sense fer-ne categories separades.
+export const TIPUS_QUOTA = { ALTA: 'alta', RENOVACIO: 'renovacio' };
+
 // Cada categoria només té sentit per a un tipus de moviment concret
 // (una despesa mai pot ser "Aportacions", ni un ingrés "Gestió pel·lícules").
 export const CATEGORIES_PER_TIPUS = {
-  [TIPUS_MOVIMENT.INGRES]: ['Quotes socis', 'Aportacions'],
+  [TIPUS_MOVIMENT.INGRES]: [CATEGORIA_QUOTA_SOCI, 'Aportacions'],
   [TIPUS_MOVIMENT.DESPESA]: ['Gestió pel·lícules', 'Gestió associació'],
 };
 
@@ -194,7 +203,7 @@ function costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNume
   const numeroSoci = Number(soci.numeroSoci);
   const pagamentActual = moviments
     .filter((m) => (
-      m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES && Number(m.numeroSoci) === numeroSoci
+      m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES && Number(m.numeroSoci) === numeroSoci
     ))
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   if (!pagamentActual) return null;
@@ -244,7 +253,7 @@ export function resumReal(moviments, avui = new Date()) {
     const fiStr = fi.toLocaleDateString('sv-SE');
 
     const delMes = moviments.filter((m) => (m.data ?? '') >= iniciStr && (m.data ?? '') < fiStr);
-    const quotes = delMes.filter((m) => m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES);
+    const quotes = delMes.filter((m) => m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES);
     const aportacions = delMes.filter((m) => m.categoria === 'Aportacions' && m.tipus === TIPUS_MOVIMENT.INGRES);
     const pellicules = delMes.filter((m) => m.categoria === 'Gestió pel·lícules' && m.tipus === TIPUS_MOVIMENT.DESPESA);
 
@@ -282,7 +291,12 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
   const dataLimit = faReferencia.toLocaleDateString('sv-SE');
   const recents = moviments.filter((m) => (m.data ?? '') > dataLimit && (m.data ?? '') <= dataAvui);
 
-  const quotesRecents = recents.filter((m) => m.categoria === 'Quotes socis' && m.tipus === TIPUS_MOVIMENT.INGRES);
+  // Només altes noves (no renovacions) per estimar el ritme de socis nous:
+  // els moviments antics d'abans d'aquest camp no tenen `tipusQuota`, però en
+  // aquest club, fins ara, tot pagament de quota històric és una alta.
+  const quotesRecents = recents.filter((m) => (
+    m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES && m.tipusQuota !== TIPUS_QUOTA.RENOVACIO
+  ));
   const aportacions = recents.filter((m) => m.categoria === 'Aportacions' && m.tipus === TIPUS_MOVIMENT.INGRES);
   const pellicules = recents.filter((m) => m.categoria === 'Gestió pel·lícules' && m.tipus === TIPUS_MOVIMENT.DESPESA);
 

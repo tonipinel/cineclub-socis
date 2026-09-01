@@ -179,6 +179,20 @@ describe('MovimentForm — canviar tipus en editar', () => {
     expect(screen.getByLabelText('Categoria')).toBeDisabled();
     expect(screen.getByLabelText('Mètode de pagament')).not.toBeDisabled();
   });
+
+  it('en editar un moviment de "Quotes socis" de tipusQuota "renovacio", Tipus i Categoria també queden bloquejats', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio', sessionId: '' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('Tipus')).toBeDisabled();
+    expect(screen.getByLabelText('Categoria')).toBeDisabled();
+    expect(screen.getByLabelText('Categoria')).toHaveValue('Quotes socis');
+  });
 });
 
 describe('MovimentForm — numeroSoci', () => {
@@ -202,6 +216,35 @@ describe('MovimentForm — numeroSoci', () => {
     await screen.findByText('Llibre de moviments');
     const [, dadesDesades] = setDoc.mock.calls[0];
     expect(dadesDesades.numeroSoci).toBe(7);
+  });
+
+  it('conserva el tipusQuota d\'un moviment de quota en desar, encara que no sigui un camp editable', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByLabelText('Tipus de quota')).toHaveValue('Renovació');
+    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    const [, dadesDesades] = setDoc.mock.calls[0];
+    expect(dadesDesades.tipusQuota).toBe('renovacio');
+  });
+
+  it('mostra "Alta nova" com a tipus de quota per defecte', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'alta' }) });
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByLabelText('Tipus de quota')).toHaveValue('Alta nova');
   });
 
   it('no afegeix numeroSoci a un moviment que no en tenia', async () => {

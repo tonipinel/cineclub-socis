@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import {
+  collection, doc, getDoc, getDocs, query, where, writeBatch,
+} from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
-import { METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT } from '../../lib/moviments';
+import {
+  METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA,
+} from '../../lib/moviments';
 import { avui } from '../../lib/data';
 import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
 import Carregant from '../../components/Carregant';
@@ -37,6 +41,7 @@ export default function RegistrarPagamentPage() {
   const [metodePagament, setMetodePagament] = useState(METODES_INGRES[0]);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
+  const [esRenovacio, setEsRenovacio] = useState(false);
   const [error, setError] = useState(null);
   const [desant, setDesant] = useState(false);
 
@@ -45,22 +50,41 @@ export default function RegistrarPagamentPage() {
       getDoc(doc(db, 'socis', id)),
       getDoc(doc(db, 'configuracio', 'associacio')),
       getDocs(collection(db, 'sessions')),
-    ]).then(([sociSnap, configSnap, sessionsSnap]) => {
+    ]).then(async ([sociSnap, configSnap, sessionsSnap]) => {
       const dadesSoci = sociSnap.data();
       if (!dadesSoci) {
         navigate(ROUTES.SOCIS, { replace: true });
         return;
       }
       const totesSessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // És una renovació si ja té algun moviment de quota (alta o renovació)
+      // registrat — no simplement perquè `ultimPagament` estigui fixat: una
+      // sol·licitud aprovada ja el fixa sense que encara hi hagi cap
+      // moviment real, i aquell primer pagament segueix sent una alta.
+      let renovacio = false;
+      if (dadesSoci.numeroSoci) {
+        const pagamentsExistents = await getDocs(query(
+          collection(db, 'moviments'),
+          where('numeroSoci', '==', Number(dadesSoci.numeroSoci)),
+          where('categoria', '==', CATEGORIA_QUOTA_SOCI)
+        ));
+        renovacio = pagamentsExistents.docs.length > 0;
+      }
       setSoci({ id: sociSnap.id, ...dadesSoci });
       setImportPagament(String(configSnap.data()?.quotaAnual ?? 30));
       setSessions(totesSessions);
-      setSessionId(sessioMesPropera(totesSessions, avui()) ?? '');
-      // Per defecte, la data del pagament és quan li toca renovar (no avui):
-      // així l'ultimPagament avança exactament un any cada cop, encara que
-      // el pagament real s'hagi rebut un altre dia.
-      if (dadesSoci.ultimPagament) {
-        setData(calcularVenciment(dadesSoci).toLocaleDateString('sv-SE'));
+      setEsRenovacio(renovacio);
+      if (renovacio) {
+        // Una renovació no es vincula a cap sessió, i per defecte la data és
+        // quan li toca renovar (no avui): així l'ultimPagament avança
+        // exactament un any cada cop, encara que el pagament real s'hagi
+        // rebut un altre dia.
+        setSessionId('');
+        if (dadesSoci.ultimPagament) {
+          setData(calcularVenciment(dadesSoci).toLocaleDateString('sv-SE'));
+        }
+      } else {
+        setSessionId(sessioMesPropera(totesSessions, avui()) ?? '');
       }
       setCarregant(false);
     });
@@ -68,6 +92,11 @@ export default function RegistrarPagamentPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    if (!esRenovacio && !sessionId) {
+      setError("Una alta nova ha d'estar vinculada a una sessió.");
+      return;
+    }
     const avisDesactivat = !estaActiu(soci)
       ? ' Atenció: aquest soci està desactivat i continuarà desactivat (el carnet no funcionarà) fins que el reactivis manualment des de la seva fitxa.'
       : '';
@@ -75,7 +104,6 @@ export default function RegistrarPagamentPage() {
       `Confirmes que has rebut un pagament de ${importPagament}€ amb data ${data}?${avisDesactivat} Aquesta acció no es pot desfer.`
     );
     if (!confirmat) return;
-    setError(null);
     setDesant(true);
     try {
       // inicPeriode (des de quan compta el seu any de soci) es neteja en
@@ -94,13 +122,14 @@ export default function RegistrarPagamentPage() {
         data,
         concepte: `Quota ${soci.nom} ${soci.cognoms}`,
         tipus: TIPUS_MOVIMENT.INGRES,
-        categoria: 'Quotes socis',
+        categoria: CATEGORIA_QUOTA_SOCI,
+        tipusQuota: esRenovacio ? TIPUS_QUOTA.RENOVACIO : TIPUS_QUOTA.ALTA,
         metodePagament,
         numeroSoci,
         preuUnitari: total,
         quantitat: 1,
         total,
-        sessionId,
+        sessionId: esRenovacio ? '' : sessionId,
       });
       await batch.commit();
       navigate(ROUTES.SOCIS_EDITAR.replace(':id', id));
@@ -163,20 +192,26 @@ export default function RegistrarPagamentPage() {
         </select>
       </div>
 
-      <div className="form__field">
-        <label className="form__label" htmlFor="sessio-pagament">Sessió</label>
-        <select
-          id="sessio-pagament"
-          className="form__input"
-          value={sessionId}
-          onChange={(e) => setSessionId(e.target.value)}
-        >
-          <option value="">Moviment general (sense sessió)</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>{s.titol}</option>
-          ))}
-        </select>
-      </div>
+      {esRenovacio ? (
+        <p className="pagament-form__avis pagament-form__avis--info">
+          Aquest és un pagament de renovació: no es vincula a cap sessió.
+        </p>
+      ) : (
+        <div className="form__field">
+          <label className="form__label" htmlFor="sessio-pagament">Sessió</label>
+          <select
+            id="sessio-pagament"
+            className="form__input"
+            value={sessionId}
+            onChange={(e) => setSessionId(e.target.value)}
+          >
+            {!sessionId && <option value="">Selecciona una sessió…</option>}
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>{s.titol}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && <p className="form__error">{error}</p>}
 
