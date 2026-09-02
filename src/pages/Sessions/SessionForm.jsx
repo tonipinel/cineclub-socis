@@ -14,6 +14,7 @@ import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
+import EstrellaActiva from '../../components/EstrellaActiva';
 
 const CAMPS_INICIALS = {
   titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '',
@@ -28,6 +29,23 @@ const CAMPS_FORMULARI = [
 ];
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
+
+function IconaActiva() {
+  return (
+    <svg
+      className="btn-icona__icona"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7Z" />
+    </svg>
+  );
+}
 
 function hora(entrada) {
   const data = entrada.timestamp?.toDate?.();
@@ -195,13 +213,20 @@ export default function SessionForm() {
       <div className="session-form__seccio session-form__seccio--blanc">
         <div className="session-form__contingut">
           <div className="session-form__capcalera session-form__capcalera--principal">
-            <h1 className="session-form__titol">{editant ? dades.titol : 'Nova sessió'}</h1>
+            <h1 className="session-form__titol">
+              {editant && dades.activa && <EstrellaActiva className="session-form__estrella" />}
+              {editant ? dades.titol : 'Nova sessió'}
+            </h1>
             {editant && !dades.activa && (
-              <button type="button" className="btn btn--outline" onClick={handleMarcarActiva}>
-                Marcar com a activa
+              <button
+                type="button"
+                className="btn-icona"
+                aria-label="Marcar com a activa"
+                onClick={handleMarcarActiva}
+              >
+                <IconaActiva />
               </button>
             )}
-            {editant && dades.activa && <p className="session-form__activa">Aquesta sessió és l'activa.</p>}
           </div>
 
           <div className="session-form__graella">

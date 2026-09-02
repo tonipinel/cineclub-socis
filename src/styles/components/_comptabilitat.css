@@ -2,16 +2,22 @@
   @apply p-6;
 }
 .comptabilitat__capcalera {
-  @apply mb-4 flex items-center justify-between border-b border-black/10 pb-4;
+  @apply mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-black/10 pb-4;
+}
+.comptabilitat__accions {
+  @apply flex items-center gap-2;
 }
 .comptabilitat__titol {
   @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
 .comptabilitat__formula {
-  @apply mb-4 flex flex-wrap items-stretch gap-3;
+  @apply mb-4 flex flex-col gap-3 md:flex-row md:items-stretch;
+}
+.comptabilitat__formula-fila {
+  @apply flex items-stretch gap-3;
 }
 .comptabilitat__formula-terme {
-  @apply flex flex-col justify-center gap-1 rounded border border-black/10 bg-black/5 px-3 py-2;
+  @apply flex min-w-0 flex-1 flex-col justify-center gap-1 rounded border border-black/10 bg-black/5 px-3 py-2 md:flex-initial;
 }
 .comptabilitat__formula-terme--total {
   @apply border-black/20 bg-black/10;
@@ -50,7 +56,7 @@
   @apply flex items-center justify-between gap-2 pt-2 font-display text-base font-bold;
 }
 .comptabilitat__pestanyes {
-  @apply mt-4 flex gap-2;
+  @apply mt-4 flex flex-wrap gap-2;
 }
 .comptabilitat__pestanya {
   @apply cursor-pointer rounded-full border-2 border-gold bg-transparent px-4 py-1.5 font-body text-sm font-semibold text-gold transition hover:bg-gold hover:text-black;
@@ -58,18 +64,51 @@
 .comptabilitat__pestanya--activa {
   @apply bg-gold text-black;
 }
+.comptabilitat__filtres-wrap {
+  @apply mb-4 grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out md:grid-rows-[1fr] md:transition-none;
+}
+.comptabilitat__filtres-wrap--obert {
+  @apply grid-rows-[1fr];
+}
 .comptabilitat__filtres {
-  @apply mb-4 flex gap-2;
+  @apply flex flex-wrap gap-2 overflow-hidden;
+}
+.comptabilitat__filtres .form__input {
+  @apply w-full md:w-auto;
+}
+.comptabilitat__taula-wrap {
+  @apply -mx-6 overflow-x-auto md:mx-0;
 }
 .comptabilitat__taula {
-  @apply w-full border-collapse text-left;
+  @apply w-full min-w-[720px] border-collapse text-left;
 }
 .comptabilitat__taula th,
 .comptabilitat__taula td {
   @apply border-b border-black/10 px-2 py-2;
 }
+.comptabilitat__taula th:nth-child(1),
+.comptabilitat__taula td:nth-child(1) {
+  @apply text-right;
+}
+.comptabilitat__taula th:nth-child(2),
+.comptabilitat__taula td:nth-child(2),
+.comptabilitat__taula th:nth-child(4),
+.comptabilitat__taula td:nth-child(4),
+.comptabilitat__taula th:nth-child(5),
+.comptabilitat__taula td:nth-child(5) {
+  @apply text-center;
+}
 .comptabilitat__taula tbody tr:nth-child(even) {
   @apply bg-black/5;
+}
+.comptabilitat__fila {
+  @apply cursor-pointer;
+}
+.comptabilitat__taula tbody .comptabilitat__fila:hover {
+  @apply bg-gold/10;
+}
+.comptabilitat__taula tbody .comptabilitat__fila:active {
+  @apply bg-gold/20;
 }
 .comptabilitat__ordenar {
   @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black;

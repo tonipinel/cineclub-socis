@@ -22,3 +22,9 @@
 .btn-icona--vermell {
   @apply border-red-600 text-red-700 hover:bg-red-600 hover:text-white;
 }
+.btn-icona--actiu {
+  @apply border-gold bg-gold text-black hover:bg-gold-dark hover:text-white;
+}
+.btn-icona--filtres {
+  @apply md:hidden;
+}

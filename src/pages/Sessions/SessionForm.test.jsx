@@ -107,7 +107,7 @@ describe('SessionForm — marcar activa', () => {
 
     expect(batchUpdate).toHaveBeenCalledWith(refAltraActiva, { activa: false });
     expect(batchCommit).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText("Aquesta sessió és l'activa.")).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
   });
 });
 

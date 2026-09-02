@@ -181,7 +181,14 @@ export default function SociForm() {
         <form className="soci-form" onSubmit={handleSubmit}>
           <div className="soci-form__capcalera">
             <h1 className="soci-form__titol">{editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}</h1>
-            {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+            <div className="soci-form__capcalera-accions">
+              {editant && (
+                <span className="soci-form__pagament-mobil">
+                  <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" />
+                </span>
+              )}
+              {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+            </div>
           </div>
 
           {editant && (

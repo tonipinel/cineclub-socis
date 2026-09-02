@@ -90,11 +90,15 @@ export function calcularSaldos(moviments) {
   return { caixa, banc, excedent: ingressosTotal - despesesTotal };
 }
 
-export function filtrarMoviments(moviments, { tipus = 'tots', categoria = 'totes', sessionId = 'totes' } = {}) {
+export function filtrarMoviments(moviments, {
+  tipus = 'tots', categoria = 'totes', sessionId = 'totes', desde = '', fins = '',
+} = {}) {
   return moviments.filter((moviment) => {
     if (tipus !== 'tots' && moviment.tipus !== tipus) return false;
     if (categoria !== 'totes' && moviment.categoria !== categoria) return false;
     if (sessionId !== 'totes' && (moviment.sessionId || '') !== sessionId) return false;
+    if (desde && (moviment.data ?? '') < desde) return false;
+    if (fins && (moviment.data ?? '') > fins) return false;
     return true;
   });
 }

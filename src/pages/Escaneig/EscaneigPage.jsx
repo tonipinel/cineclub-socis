@@ -15,6 +15,7 @@ import {
 } from '../../lib/estatSoci';
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
 import Carregant from '../../components/Carregant';
+import EstrellaActiva from '../../components/EstrellaActiva';
 
 const DEBOUNCE_MS = 3000;
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -512,7 +513,10 @@ export default function EscaneigPage() {
 
       <footer className="escaneig__footer">
         <div className="escaneig__footer-info">
-          <p className="escaneig__footer-titol">{sessioPerMostrar.titol}</p>
+          <p className="escaneig__footer-titol">
+            {sessioPerMostrar.activa && <EstrellaActiva className="escaneig__footer-estrella" />}
+            {sessioPerMostrar.titol}
+          </p>
           <div className="escaneig__footer-resum">
             <span>Socis: {resum.socisDistints}</span>
             <span>No socis: {resum.entradesGeneriques}</span>

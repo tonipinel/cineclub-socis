@@ -7,6 +7,7 @@ import { balancPerSessio, formatEuros } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
+import EstrellaActiva from '../../components/EstrellaActiva';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
@@ -50,12 +51,14 @@ export default function SessionsList() {
             <li key={s.id} className="sessions-list__targeta">
               <Link className="sessions-list__enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
                 {s.imatgeUrl && <img className="sessions-list__imatge" src={s.imatgeUrl} alt="" />}
-                <div className="sessions-list__info">
+                <div className={`sessions-list__info ${s.activa ? 'sessions-list__info--activa' : ''}`}>
                   <div className="sessions-list__capcalera-targeta">
-                    <span className="sessions-list__titol-sessio">{s.titol}</span>
-                    {s.activa && <span className="badge badge--activa">Activa</span>}
+                    <div className="sessions-list__nom-data">
+                      <span className="sessions-list__titol-sessio">{s.titol}</span>
+                      <p className="sessions-list__data">{formatData(s.data)}</p>
+                    </div>
+                    {s.activa && <EstrellaActiva className="sessions-list__estrella" />}
                   </div>
-                  <p className="sessions-list__data">{formatData(s.data)}</p>
                   <div className="sessions-list__resum">
                     <span>Socis: {resum.socisDistints}</span>
                     <span>No socis: {resum.entradesGeneriques}</span>

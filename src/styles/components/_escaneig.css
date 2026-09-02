@@ -92,7 +92,10 @@ body.escaneig-body {
   @apply pr-10;
 }
 .escaneig__footer-titol {
-  @apply font-display text-sm font-bold uppercase tracking-wide text-black;
+  @apply flex items-center gap-1 font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.escaneig__footer-estrella {
+  @apply h-4 w-4 shrink-0 text-gold;
 }
 .escaneig__footer-resum {
   @apply mt-1 flex flex-wrap gap-x-3 gap-y-1;

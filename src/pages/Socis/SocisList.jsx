@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
@@ -10,6 +10,7 @@ import { comptarAssistenciesRecents } from '../../lib/escaneig';
 import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
+import BotoFiltres from '../../components/BotoFiltres';
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -27,18 +28,18 @@ const COLUMNES = [
   ['assistencies', 'Assistències (12 mesos)'],
 ];
 
-function NomSoci({ soci }) {
-  return <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.nom}</Link>;
-}
-
-function CognomsSoci({ soci }) {
-  return <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)}>{soci.cognoms}</Link>;
-}
-
 const RENDERITZAR_CELDA = {
   numeroSoci: (soci) => soci.numeroSoci,
-  nom: (soci) => <NomSoci soci={soci} />,
-  cognoms: (soci) => <CognomsSoci soci={soci} />,
+  nom: (soci) => (
+    <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)} onClick={(e) => e.stopPropagation()}>
+      {soci.nom}
+    </Link>
+  ),
+  cognoms: (soci) => (
+    <Link className="enllac" to={ROUTES.SOCIS_EDITAR.replace(':id', soci.id)} onClick={(e) => e.stopPropagation()}>
+      {soci.cognoms}
+    </Link>
+  ),
   estat: (soci) => (
     <>
       <span className={`badge badge--${calcularEstatSoci(soci)}`}>
@@ -52,10 +53,12 @@ const RENDERITZAR_CELDA = {
 };
 
 export default function SocisList() {
+  const navigate = useNavigate();
   const [socis, setSocis] = useState([]);
   const [assistenciesPerSoci, setAssistenciesPerSoci] = useState({});
   const [cerca, setCerca] = useState('');
   const [estat, setEstat] = useState('tots');
+  const [filtresOberts, setFiltresOberts] = useState(false);
   const [ordenacio, setOrdenacio] = useState({ columna: 'numeroSoci', direccio: 'desc' });
   const [seleccionats, setSeleccionats] = useState(new Set());
 
@@ -120,67 +123,81 @@ export default function SocisList() {
               Imprimir carnets ({seleccionats.size})
             </Link>
           )}
+          <BotoFiltres obert={filtresOberts} onClick={() => setFiltresOberts((v) => !v)} />
           <BotoAfegir to={ROUTES.SOCIS_NOU} etiqueta="Donar d'alta" />
         </div>
       </div>
-      <div className="socis-list__filtres">
-        <input
-          className="form__input"
-          placeholder="Cerca per nom, cognoms o número de soci"
-          value={cerca}
-          onChange={(e) => setCerca(e.target.value)}
-        />
-        <select className="form__input" value={estat} onChange={(e) => setEstat(e.target.value)}>
-          <option value="tots">Tots els estats</option>
-          <option value={ESTAT_AL_DIA}>Estat: Al dia</option>
-          <option value={ESTAT_PENDENT}>Estat: Pendent</option>
-          <option value={ESTAT_VENCUT}>Estat: Vençut</option>
-          <option value={FILTRE_PROXIMA_RENOVACIO}>Renovació pròxima (30 dies)</option>
-        </select>
+      <div className={`socis-list__filtres-wrap ${filtresOberts ? 'socis-list__filtres-wrap--obert' : ''}`}>
+        <div className="socis-list__filtres">
+          <input
+            className="form__input"
+            placeholder="Cerca per nom, cognoms o número de soci"
+            value={cerca}
+            onChange={(e) => setCerca(e.target.value)}
+          />
+          <select className="form__input" value={estat} onChange={(e) => setEstat(e.target.value)}>
+            <option value="tots">Tots els estats</option>
+            <option value={ESTAT_AL_DIA}>Estat: Al dia</option>
+            <option value={ESTAT_PENDENT}>Estat: Pendent</option>
+            <option value={ESTAT_VENCUT}>Estat: Vençut</option>
+            <option value={FILTRE_PROXIMA_RENOVACIO}>Renovació pròxima (30 dies)</option>
+          </select>
+        </div>
       </div>
-      <table className="socis-list__taula">
-        <thead>
-          <tr>
-            <th>
-              <input
-                type="checkbox"
-                aria-label="Seleccionar tots els socis"
-                checked={totsSeleccionats}
-                onChange={alternarSeleccioTots}
-              />
-            </th>
-            {COLUMNES.map(([columna, etiqueta]) => (
-              <th key={columna}>
-                <button
-                  type="button"
-                  className="socis-list__ordenar"
-                  onClick={() => canviarOrdenacio(columna)}
-                >
-                  {etiqueta}
-                  {ordenacio.columna === columna && (ordenacio.direccio === 'asc' ? ' ▲' : ' ▼')}
-                </button>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {socisFiltrats.map((soci) => (
-            <tr key={soci.id}>
-              <td>
+      <div className="socis-list__taula-wrap">
+        <table className="socis-list__taula">
+          <thead>
+            <tr>
+              <th>
                 <input
                   type="checkbox"
-                  aria-label={`Seleccionar ${soci.nom} ${soci.cognoms}`}
-                  checked={seleccionats.has(soci.id)}
-                  onChange={() => alternarSeleccio(soci.id)}
+                  aria-label="Seleccionar tots els socis"
+                  checked={totsSeleccionats}
+                  onChange={alternarSeleccioTots}
                 />
-              </td>
-              {COLUMNES.map(([columna]) => (
-                <td key={columna}>{RENDERITZAR_CELDA[columna](soci)}</td>
+              </th>
+              {COLUMNES.map(([columna, etiqueta]) => (
+                <th key={columna}>
+                  <button
+                    type="button"
+                    className="socis-list__ordenar"
+                    onClick={() => canviarOrdenacio(columna)}
+                  >
+                    {etiqueta}
+                    {ordenacio.columna === columna && (ordenacio.direccio === 'asc' ? ' ▲' : ' ▼')}
+                  </button>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {socisFiltrats.map((soci) => {
+              const anarAFitxa = () => navigate(ROUTES.SOCIS_EDITAR.replace(':id', soci.id));
+              return (
+              <tr
+                key={soci.id}
+                className="socis-list__fila"
+                tabIndex={0}
+                onClick={anarAFitxa}
+                onKeyDown={(e) => { if (e.key === 'Enter') anarAFitxa(); }}
+              >
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Seleccionar ${soci.nom} ${soci.cognoms}`}
+                    checked={seleccionats.has(soci.id)}
+                    onChange={() => alternarSeleccio(soci.id)}
+                  />
+                </td>
+                {COLUMNES.map(([columna]) => (
+                  <td key={columna}>{RENDERITZAR_CELDA[columna](soci)}</td>
+                ))}
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

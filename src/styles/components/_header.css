@@ -1,5 +1,8 @@
+body.menu-obert-body {
+  @apply overflow-hidden;
+}
 .site-header {
-  @apply relative flex items-center justify-between gap-4 bg-black px-4 py-3 text-white sm:px-6 print:hidden;
+  @apply sticky top-0 z-30 flex items-center justify-between gap-4 bg-black px-4 py-3 text-white sm:px-6 print:hidden;
 }
 .site-header__marca {
   @apply flex items-center gap-2;
@@ -10,18 +13,26 @@
 .site-header__hamburguesa {
   @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white md:hidden;
 }
+.site-header__overlay {
+  @apply pointer-events-none fixed inset-0 z-20 bg-black/60 opacity-0 transition-opacity duration-300 ease-in-out md:hidden;
+}
+.site-header__overlay--visible {
+  @apply pointer-events-auto opacity-100;
+}
 .site-header__nav {
-  @apply hidden w-full flex-col items-stretch gap-1 md:flex md:w-auto md:flex-row md:items-center md:gap-4;
+  @apply invisible fixed inset-y-0 right-0 z-20 flex w-4/5 max-w-xs translate-x-full flex-col gap-0 divide-y divide-white/10 overflow-y-auto bg-black py-2 shadow-2xl md:visible md:static md:z-auto md:w-auto md:max-w-none md:flex md:translate-x-0 md:flex-row md:items-center md:gap-4 md:divide-y-0 md:overflow-visible md:bg-transparent md:p-0 md:shadow-none md:transition-none;
+  transition: transform 300ms ease-in-out, visibility 0s linear 300ms;
 }
 .site-header__nav--obert {
-  @apply absolute inset-x-0 top-full z-20 flex flex-col gap-1 bg-black px-4 py-3 md:static md:flex-row md:gap-4 md:bg-transparent md:p-0;
+  @apply visible translate-x-0;
+  transition: transform 300ms ease-in-out, visibility 0s linear 0s;
 }
 .site-header__link {
-  @apply flex cursor-pointer items-center gap-2 border-0 bg-transparent p-2 font-body text-sm font-semibold text-white hover:text-gold md:p-0;
+  @apply flex cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-4 font-body text-base font-semibold text-white hover:text-gold md:gap-2 md:p-0 md:text-sm;
 }
 .site-header__link--actiu {
   @apply text-gold;
 }
 .site-header__icona {
-  @apply h-4 w-4 shrink-0;
+  @apply h-5 w-5 shrink-0 md:h-4 md:w-4;
 }

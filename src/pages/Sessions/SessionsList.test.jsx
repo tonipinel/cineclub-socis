@@ -27,7 +27,7 @@ describe('SessionsList', () => {
     render(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(screen.getByText(/The Artist/)).toBeInTheDocument();
     expect(screen.getByText(/Delicatessen/)).toBeInTheDocument();
-    expect(screen.getByText('Activa')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
   });
 
   it('l\'enllaç de cada sessió porta a la seva fitxa', () => {

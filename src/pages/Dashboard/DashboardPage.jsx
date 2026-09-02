@@ -141,19 +141,23 @@ export default function DashboardPage() {
         <div className="dashboard__modul dashboard__modul--ample">
           <h2 className="dashboard__modul-titol">Comptabilitat</h2>
           <div className="comptabilitat__formula">
-            <div className="comptabilitat__formula-terme">
-              <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
-              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--efectiu">{formatEuros(comptable.caixa)}</p>
+            <div className="comptabilitat__formula-fila">
+              <div className="comptabilitat__formula-terme">
+                <p className="comptabilitat__formula-etiqueta">Disponibilitat en efectiu</p>
+                <p className="comptabilitat__formula-valor comptabilitat__formula-valor--efectiu">{formatEuros(comptable.caixa)}</p>
+              </div>
+              <span className="comptabilitat__formula-operador">+</span>
+              <div className="comptabilitat__formula-terme">
+                <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
+                <p className="comptabilitat__formula-valor comptabilitat__formula-valor--banc">{formatEuros(comptable.banc)}</p>
+              </div>
             </div>
-            <span className="comptabilitat__formula-operador">+</span>
-            <div className="comptabilitat__formula-terme">
-              <p className="comptabilitat__formula-etiqueta">Disponibilitat bancària</p>
-              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--banc">{formatEuros(comptable.banc)}</p>
-            </div>
-            <span className="comptabilitat__formula-operador">=</span>
-            <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
-              <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
-              <p className="comptabilitat__formula-valor comptabilitat__formula-valor--total">{formatEuros(comptable.excedent)}</p>
+            <div className="comptabilitat__formula-fila">
+              <span className="comptabilitat__formula-operador">=</span>
+              <div className="comptabilitat__formula-terme comptabilitat__formula-terme--total">
+                <p className="comptabilitat__formula-etiqueta">Fons total de tresoreria</p>
+                <p className="comptabilitat__formula-valor comptabilitat__formula-valor--total">{formatEuros(comptable.excedent)}</p>
+              </div>
             </div>
           </div>
           <h3 className="comptabilitat__desglossament-titol">Ingressos</h3>

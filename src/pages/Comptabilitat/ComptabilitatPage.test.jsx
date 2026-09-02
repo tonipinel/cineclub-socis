@@ -57,6 +57,11 @@ describe('ComptabilitatPage', () => {
     expect(screen.getByText('Lloguer de sala')).toBeInTheDocument();
   });
 
+  it('el concepte és un enllaç real (obrible en pestanya nova), no només un clic de fila', () => {
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Quotes de març' })).toHaveAttribute('href', '/comptabilitat/1');
+  });
+
   it('filtra per tipus', async () => {
     const user = userEvent.setup();
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
@@ -87,7 +92,7 @@ describe('ComptabilitatPage', () => {
   it('no mostra cap badge de mètode buit a les files de traspàs', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     const fila = screen.getByText('Traspàs a banc').closest('tr');
-    expect(within(fila).queryAllByRole('cell')[4].querySelector('.badge')).not.toBeInTheDocument();
+    expect(within(fila).queryAllByRole('cell')[1].querySelector('.badge')).not.toBeInTheDocument();
   });
 
   it('filtra per sessió', async () => {
@@ -98,5 +103,28 @@ describe('ComptabilitatPage', () => {
     await user.selectOptions(screen.getAllByRole('combobox')[2], 's1');
     expect(screen.getByText('Quotes de març')).toBeInTheDocument();
     expect(screen.queryByText('Lloguer de sala')).not.toBeInTheDocument();
+  });
+
+  it('filtra per rang de dates (des de / fins)', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    await user.type(screen.getByLabelText('Data des de'), '2026-04-01');
+    expect(screen.queryByText('Quotes de març')).not.toBeInTheDocument();
+    expect(screen.getByText('Lloguer de sala')).toBeInTheDocument();
+    expect(screen.getByText('Traspàs a banc')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Data fins'), '2026-04-01');
+    expect(screen.getByText('Lloguer de sala')).toBeInTheDocument();
+    expect(screen.queryByText('Traspàs a banc')).not.toBeInTheDocument();
+  });
+
+  it('el botó de filtres mostra i amaga el bloc de filtres', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    const botoFiltres = screen.getByRole('button', { name: 'Mostrar filtres' });
+    expect(botoFiltres).toHaveAttribute('aria-expanded', 'false');
+    await user.click(botoFiltres);
+    expect(screen.getByRole('button', { name: 'Amagar filtres' })).toBe(botoFiltres);
+    expect(botoFiltres).toHaveAttribute('aria-expanded', 'true');
   });
 });

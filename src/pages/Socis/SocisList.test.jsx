@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
@@ -56,10 +56,38 @@ describe('SocisList', () => {
     expect(files[1]).toHaveTextContent('Marc');
   });
 
-  it('el nom i els cognoms enllacen a la fitxa del soci', () => {
+  it('el nom i els cognoms són enllaços reals (obribles en pestanya nova), no només un clic de fila', () => {
     render(<MemoryRouter><SocisList /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Anna' })).toHaveAttribute('href', '/socis/1');
     expect(screen.getByRole('link', { name: 'Vidal' })).toHaveAttribute('href', '/socis/1');
+  });
+
+  it('en clicar una fila, navega a la fitxa del soci', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis']}>
+        <Routes>
+          <Route path="/socis" element={<SocisList />} />
+          <Route path="/socis/:id" element={<p>Fitxa del soci</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(screen.getByText('Anna'));
+    expect(await screen.findByText('Fitxa del soci')).toBeInTheDocument();
+  });
+
+  it('en clicar la casella de selecció d\'una fila, no navega a la fitxa del soci', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis']}>
+        <Routes>
+          <Route path="/socis" element={<SocisList />} />
+          <Route path="/socis/:id" element={<p>Fitxa del soci</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Anna Vidal' }));
+    expect(screen.queryByText('Fitxa del soci')).not.toBeInTheDocument();
   });
 
   it('mostra el nombre d\'assistències dels últims 12 mesos per soci', async () => {
@@ -126,5 +154,15 @@ describe('SocisList', () => {
     render(<MemoryRouter><SocisList /></MemoryRouter>);
     expect(screen.getByText('Al dia')).toBeInTheDocument();
     expect(screen.getByText('Desactivat')).toBeInTheDocument();
+  });
+
+  it('el botó de filtres mostra i amaga el bloc de filtres', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    const botoFiltres = screen.getByRole('button', { name: 'Mostrar filtres' });
+    expect(botoFiltres).toHaveAttribute('aria-expanded', 'false');
+    await user.click(botoFiltres);
+    expect(screen.getByRole('button', { name: 'Amagar filtres' })).toBe(botoFiltres);
+    expect(botoFiltres).toHaveAttribute('aria-expanded', 'true');
   });
 });

@@ -89,9 +89,9 @@ describe('calcularSaldos', () => {
 
 describe('filtrarMoviments', () => {
   const moviments = [
-    { id: '1', tipus: 'ingres', categoria: 'Quotes socis', sessionId: 's1' },
-    { id: '2', tipus: 'despesa', categoria: 'Gestió pel·lícules', sessionId: 's1' },
-    { id: '3', tipus: 'traspas', sessionId: '' },
+    { id: '1', tipus: 'ingres', categoria: 'Quotes socis', sessionId: 's1', data: '2026-01-10' },
+    { id: '2', tipus: 'despesa', categoria: 'Gestió pel·lícules', sessionId: 's1', data: '2026-02-15' },
+    { id: '3', tipus: 'traspas', sessionId: '', data: '2026-03-20' },
   ];
 
   it('sense filtres retorna tots els moviments', () => {
@@ -113,6 +113,20 @@ describe('filtrarMoviments', () => {
   it('combina diversos filtres', () => {
     expect(
       filtrarMoviments(moviments, { tipus: 'despesa', sessionId: 's1' }).map((m) => m.id)
+    ).toEqual(['2']);
+  });
+
+  it('filtra per data des de', () => {
+    expect(filtrarMoviments(moviments, { desde: '2026-02-15' }).map((m) => m.id)).toEqual(['2', '3']);
+  });
+
+  it('filtra per data fins', () => {
+    expect(filtrarMoviments(moviments, { fins: '2026-02-15' }).map((m) => m.id)).toEqual(['1', '2']);
+  });
+
+  it('combina desde i fins per acotar un rang', () => {
+    expect(
+      filtrarMoviments(moviments, { desde: '2026-01-15', fins: '2026-02-28' }).map((m) => m.id)
     ).toEqual(['2']);
   });
 });

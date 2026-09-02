@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
@@ -94,6 +94,12 @@ export default function Header() {
   const [menuObert, setMenuObert] = useState(false);
   const enllacos = role === ROLE_ADMIN ? ENLLACOS_ADMIN : role === ROLE_TAQUILLA ? ENLLACOS_TAQUILLA : [];
 
+  useEffect(() => {
+    if (!menuObert) return undefined;
+    document.body.classList.add('menu-obert-body');
+    return () => document.body.classList.remove('menu-obert-body');
+  }, [menuObert]);
+
   return (
     <header className="site-header">
       <div className="site-header__marca">
@@ -116,6 +122,11 @@ export default function Header() {
           >
             ☰
           </button>
+          <div
+            className={`site-header__overlay ${menuObert ? 'site-header__overlay--visible' : ''}`}
+            onClick={() => setMenuObert(false)}
+            aria-hidden="true"
+          />
           <nav className={`site-header__nav ${menuObert ? 'site-header__nav--obert' : ''}`}>
             {enllacos.map(([to, etiqueta, icona]) => (
               <NavLink

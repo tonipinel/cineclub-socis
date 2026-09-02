@@ -153,8 +153,8 @@ describe('SociForm — accions', () => {
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    const enllac = await screen.findByRole('link', { name: 'Registrar pagament' });
-    expect(enllac).toHaveAttribute('href', '/socis/1/pagament');
+    const enllacos = await screen.findAllByRole('link', { name: 'Registrar pagament' });
+    expect(enllacos.every((e) => e.getAttribute('href') === '/socis/1/pagament')).toBe(true);
   });
 });
 
