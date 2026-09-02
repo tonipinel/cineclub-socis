@@ -156,6 +156,7 @@ export default function EscaneigPage() {
   const [missatge, setMissatge] = useState(() => mockup?.missatge ?? null);
   const [resum, setResum] = useState(RESUM_INICIAL);
   const [modeEntrada, setModeEntrada] = useState(() => mockup?.modeEntrada ?? 'idle');
+  const [modeProva, setModeProva] = useState(false);
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
 
@@ -228,6 +229,12 @@ export default function EscaneigPage() {
   };
 
   const registrarGeneric = async (codiTiquet, preuAplicat) => {
+    if (modeProva) {
+      mostrarResultat({
+        tipus: 'ok', text: `Entrada genèrica (${preuAplicat}€)`, prova: true, sessioProva: sessioActiva.titol,
+      });
+      return;
+    }
     try {
       await addDoc(collection(db, 'accessLog'), {
         sessionId: sessioActiva.id,
@@ -257,6 +264,25 @@ export default function EscaneigPage() {
       });
       return;
     }
+    // L'any de soci no compta des del pagament, sinó des del primer cop que
+    // fa servir el carnet després de pagar: si encara no ho ha fet des de
+    // l'últim pagament, aquesta entrada el fixa ara. Calculem aquí el valor
+    // que tindria (encara que en mode prova no s'arribi a desar) perquè
+    // l'estat i el venciment mostrats reflecteixin sempre el resultat final.
+    const inicPeriodeNou = soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)
+      ? avui()
+      : soci.inicPeriode;
+    const sociAmbInicPeriode = { ...soci, inicPeriode: inicPeriodeNou };
+    const estat = calcularEstatSoci(sociAmbInicPeriode);
+    const venciment = estat === ESTAT_AL_DIA
+      ? { data: formatData(calcularVenciment(sociAmbInicPeriode)), dies: diesFinsVenciment(sociAmbInicPeriode) }
+      : null;
+    if (modeProva) {
+      mostrarResultat({
+        tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment, prova: true, sessioProva: sessioActiva.titol,
+      });
+      return;
+    }
     await addDoc(collection(db, 'accessLog'), {
       sessionId: sessioActiva.id,
       timestamp: serverTimestamp(),
@@ -264,17 +290,9 @@ export default function EscaneigPage() {
       tipus: 'soci',
       numeroSoci: soci.numeroSoci,
     });
-    // L'any de soci no compta des del pagament, sinó des del primer cop que
-    // fa servir el carnet després de pagar: si encara no ho ha fet des de
-    // l'últim pagament, aquesta entrada el fixa ara.
-    if (soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)) {
-      soci.inicPeriode = avui();
-      await updateDoc(sociDoc.ref, { inicPeriode: soci.inicPeriode });
+    if (inicPeriodeNou !== soci.inicPeriode) {
+      await updateDoc(sociDoc.ref, { inicPeriode: inicPeriodeNou });
     }
-    const estat = calcularEstatSoci(soci);
-    const venciment = estat === ESTAT_AL_DIA
-      ? { data: formatData(calcularVenciment(soci)), dies: diesFinsVenciment(soci) }
-      : null;
     mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
   };
 
@@ -433,7 +451,12 @@ export default function EscaneigPage() {
 
   return (
     <div className="escaneig">
-      {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
+      {(mockup || modeProva) && (
+        <div className="escaneig__avisos">
+          {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
+          {modeProva && <p className="escaneig__prova-avis">Mode prova: no es desa res</p>}
+        </div>
+      )}
       <div
         className="escaneig__contingut"
         style={{ backgroundImage: fonsContingut }}
@@ -492,6 +515,11 @@ export default function EscaneigPage() {
             {missatge.tipus === 'avis' && <IconaAlerta />}
             <p className="escaneig__missatge-text">{missatge.text}</p>
             {missatge.detall && <p className="escaneig__missatge-detall">{missatge.detall}</p>}
+            {missatge.prova && (
+              <p className="escaneig__missatge-prova">
+                Mode prova: no s'ha desat res. S'afegiria a «{missatge.sessioProva}».
+              </p>
+            )}
             {missatge.estat && (
               <span className={`badge badge--${missatge.estat} escaneig__missatge-badge`}>{ETIQUETES_ESTAT[missatge.estat]}</span>
             )}
@@ -533,6 +561,14 @@ export default function EscaneigPage() {
             <span>No socis: {resum.entradesGeneriques}</span>
             <span>Import: {resum.importGeneric}€</span>
           </div>
+          <button
+            type="button"
+            className={`escaneig__prova-boto ${modeProva ? 'escaneig__prova-boto--actiu' : ''}`}
+            onClick={() => setModeProva((v) => !v)}
+            aria-pressed={modeProva}
+          >
+            Mode prova: {modeProva ? 'activat' : 'desactivat'}
+          </button>
         </div>
         {(modeEntrada !== 'idle' || missatge) && (
           <button

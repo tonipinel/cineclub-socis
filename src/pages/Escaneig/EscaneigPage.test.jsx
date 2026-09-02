@@ -29,6 +29,7 @@ import {
   addDoc, getDocs, onSnapshot, updateDoc, where,
 } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
+import { formatData } from '../../lib/data';
 
 async function obrirCodiManual(user) {
   await user.click(await screen.findByRole('button', { name: 'Introduir codi manualment' }));
@@ -466,6 +467,68 @@ describe('EscaneigPage', () => {
     expect(screen.queryByText('Codi no reconegut: XYZ')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
   });
+
+  describe('mode prova', () => {
+    it('per defecte està desactivat i no mostra l\'avís', () => {
+      render(<EscaneigPage />);
+      expect(screen.getByRole('button', { name: 'Mode prova: desactivat' })).toBeInTheDocument();
+      expect(screen.queryByText('Mode prova: no es desa res')).not.toBeInTheDocument();
+    });
+
+    it('activar-lo mostra l\'avís permanent i canvia el text del botó', async () => {
+      const user = userEvent.setup();
+      render(<EscaneigPage />);
+      await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
+      expect(screen.getByText('Mode prova: no es desa res')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Mode prova: activat' })).toBeInTheDocument();
+    });
+
+    it('comprova un soci sense desar res a l\'accessLog ni tocar el seu inicPeriode', async () => {
+      const ultimPagament = new Date().toISOString().slice(0, 10);
+      getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
+      });
+      const user = userEvent.setup();
+      render(<EscaneigPage />);
+      await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
+      const input = await obrirCodiManual(user);
+      await user.type(input, 'SOCI-7');
+      await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+      expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.getByText('Mode prova: no s\'ha desat res. S\'afegiria a «The Artist».')).toBeInTheDocument();
+      expect(addDoc).not.toHaveBeenCalled();
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('comprova un tiquet genèric sense registrar-lo', async () => {
+      getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+      onSnapshot
+        .mockImplementationOnce((q, callback) => {
+          callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+          return () => {};
+        })
+        .mockImplementationOnce((q, callback) => {
+          callback({ docs: [{ data: () => LOT_TIQUETS }] });
+          return () => {};
+        })
+        .mockImplementationOnce((q, callback) => {
+          callback({ docs: [] });
+          return () => {};
+        });
+      const user = userEvent.setup();
+      render(<EscaneigPage />);
+      await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
+      const input = await obrirCodiManual(user);
+      await user.type(input, 'T-000014');
+      await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+      expect(await screen.findByText('Entrada genèrica (5€)')).toBeInTheDocument();
+      expect(screen.getByText('Mode prova: no s\'ha desat res. S\'afegiria a «The Artist».')).toBeInTheDocument();
+      expect(addDoc).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carnet)', () => {
@@ -489,6 +552,14 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await screen.findByText('Anna Vidal');
     expect(updateDoc).toHaveBeenCalledWith(sociRef, { inicPeriode: new Date().toLocaleDateString('sv-SE') });
+
+    // El venciment mostrat en aquest mateix escaneig ha de comptar des d'avui
+    // (l'inicPeriode que s'acaba de fixar), no des de l'últim pagament
+    // (2026-01-01): si es calculés abans de fixar-lo, mostraria un venciment
+    // fins a un any més antic del que li correspon realment.
+    const vencimentEsperat = new Date();
+    vencimentEsperat.setFullYear(vencimentEsperat.getFullYear() + 1);
+    expect(screen.getByText(`Venç el ${formatData(vencimentEsperat)}`)).toBeInTheDocument();
   });
 
   it('no toca inicPeriode si ja es va fixar des de l\'últim pagament', async () => {
