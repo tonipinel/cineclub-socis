@@ -231,7 +231,7 @@ describe('resumPerSessio', () => {
 
 describe('resumDashboardTiquets', () => {
   it('retorna 0 disponibles si no hi ha lots', () => {
-    expect(resumDashboardTiquets([], [], [])).toEqual({ disponibles: 0, gastatsUltimaSessio: 0 });
+    expect(resumDashboardTiquets([], [], [])).toEqual({ disponibles: 0, usats: 0, gastatsUltimaSessio: 0 });
   });
 
   it('compta els tiquets no usats de tots els lots no anul·lats', () => {
@@ -242,10 +242,12 @@ describe('resumDashboardTiquets', () => {
     expect(resumDashboardTiquets(lots, [], []).disponibles).toBe(5);
   });
 
-  it('descompta els tiquets ja usats', () => {
+  it('descompta els tiquets ja usats i els compta a usats', () => {
     const lots = [{ numeroInicial: 1, quantitat: 3, anulat: false, codisAnulats: [] }];
     const entradesAccessLog = [{ tipus: 'generic', codiTiquet: 'T-000001' }];
-    expect(resumDashboardTiquets(lots, entradesAccessLog, []).disponibles).toBe(2);
+    const resultat = resumDashboardTiquets(lots, entradesAccessLog, []);
+    expect(resultat.disponibles).toBe(2);
+    expect(resultat.usats).toBe(1);
   });
 
   it('exclou tot un lot anul·lat', () => {

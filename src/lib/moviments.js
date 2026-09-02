@@ -144,15 +144,15 @@ export function subtotalsPerMetode(moviments) {
   return subtotals;
 }
 
-function agruparIngressosPerCategoria(moviments) {
+function agruparMovimentsPerCategoria(moviments, tipus, categoriaPerDefecte) {
   const grupsPerCategoria = {};
-  let ingressosTotal = 0;
+  let totalGeneral = 0;
 
   for (const moviment of moviments) {
-    if (moviment.tipus !== TIPUS_MOVIMENT.INGRES) continue;
+    if (moviment.tipus !== tipus) continue;
     const total = Number(moviment.total) || 0;
-    ingressosTotal += total;
-    const categoria = moviment.categoria || 'Altres ingressos';
+    totalGeneral += total;
+    const categoria = moviment.categoria || categoriaPerDefecte;
     const metode = moviment.metodePagament || 'altres';
     const preuUnitari = Number(moviment.preuUnitari) || 0;
     const quantitat = Number(moviment.quantitat) || 1;
@@ -169,15 +169,20 @@ function agruparIngressosPerCategoria(moviments) {
     grupsPerCategoria[categoria] = grupCategoria;
   }
 
-  const ingressosPerCategoria = {};
+  const perCategoria = {};
   for (const [categoria, grup] of Object.entries(grupsPerCategoria)) {
     const detalls = Object.values(grup.detallsPerClau).sort(
       (a, b) => b.preuUnitari - a.preuUnitari || a.metode.localeCompare(b.metode)
     );
-    ingressosPerCategoria[categoria] = { total: grup.total, detalls };
+    perCategoria[categoria] = { total: grup.total, detalls };
   }
 
-  return { ingressosPerCategoria, ingressosTotal };
+  return { perCategoria, totalGeneral };
+}
+
+function agruparIngressosPerCategoria(moviments) {
+  const { perCategoria, totalGeneral } = agruparMovimentsPerCategoria(moviments, TIPUS_MOVIMENT.INGRES, 'Altres ingressos');
+  return { ingressosPerCategoria: perCategoria, ingressosTotal: totalGeneral };
 }
 
 export function resumEconomicSessio(moviments) {
@@ -358,15 +363,9 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
 export function resumComptable(moviments) {
   const { caixa, banc, excedent } = calcularSaldos(moviments);
   const { ingressosPerCategoria, ingressosTotal } = agruparIngressosPerCategoria(moviments);
-  let despesesTotal = 0;
-  const despesesPerCategoria = {};
-  for (const moviment of moviments) {
-    if (moviment.tipus !== TIPUS_MOVIMENT.DESPESA) continue;
-    const total = Number(moviment.total) || 0;
-    despesesTotal += total;
-    const categoria = moviment.categoria || 'Altres despeses';
-    despesesPerCategoria[categoria] = (despesesPerCategoria[categoria] ?? 0) + total;
-  }
+  const { perCategoria: despesesPerCategoria, totalGeneral: despesesTotal } = agruparMovimentsPerCategoria(
+    moviments, TIPUS_MOVIMENT.DESPESA, 'Altres despeses'
+  );
 
   return { excedent, ingressosTotal, despesesTotal, banc, caixa, ingressosPerCategoria, despesesPerCategoria };
 }

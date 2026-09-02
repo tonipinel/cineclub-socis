@@ -123,26 +123,6 @@ describe('resumDashboardSocis', () => {
     expect(resumDashboardSocis(socis, [], [], avui).total).toBe(1);
   });
 
-  it('altesPerMes té 12 entrades, incloent els mesos sense altes, en ordre ascendent', () => {
-    const resultat = resumDashboardSocis([], [], [], avui).altesPerMes;
-    expect(resultat).toHaveLength(12);
-    expect(resultat[0].mes).toBe('2025-09');
-    expect(resultat[11].mes).toBe('2026-08');
-    expect(resultat.every((m) => m.total === 0)).toBe(true);
-  });
-
-  it('altesPerMes compta un soci en el mes de la seva dataAlta', () => {
-    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-03-15', ultimPagament: '2026-03-15' }];
-    const resultat = resumDashboardSocis(socis, [], [], avui).altesPerMes;
-    expect(resultat.find((m) => m.mes === '2026-03').total).toBe(1);
-  });
-
-  it('altesPerMes ignora altes fora de la finestra de 12 mesos', () => {
-    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2024-01-01', ultimPagament: '2024-01-01' }];
-    const resultat = resumDashboardSocis(socis, [], [], avui).altesPerMes;
-    expect(resultat.every((m) => m.total === 0)).toBe(true);
-  });
-
   it('assistenciaMitjana és 0 si no hi ha sessions passades', () => {
     const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' }];
     expect(resumDashboardSocis(socis, [], [], avui).assistenciaMitjana).toBe(0);

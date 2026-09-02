@@ -348,14 +348,28 @@ describe('resumComptable', () => {
     expect(resultat['Aportacions']).toBeUndefined();
   });
 
-  it('agrupa les despeses per categoria dinàmicament', () => {
+  it('agrupa les despeses per categoria dinàmicament, amb el total de cada categoria', () => {
     const moviments = [
       { tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'efectiu', total: 40 },
       { tipus: 'despesa', categoria: 'Gestió associació', metodePagament: 'banc', total: 25 },
       { tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'banc', total: 10 },
     ];
     const resultat = resumComptable(moviments).despesesPerCategoria;
-    expect(resultat).toEqual({ 'Gestió pel·lícules': 50, 'Gestió associació': 25 });
+    expect(resultat['Gestió pel·lícules'].total).toBe(50);
+    expect(resultat['Gestió associació'].total).toBe(25);
+  });
+
+  it('detalla les despeses per preu unitari i quantitat (p. ex. drets de pel·lícula)', () => {
+    const moviments = [
+      {
+        tipus: 'despesa', categoria: 'Gestió pel·lícules', metodePagament: 'banc',
+        preuUnitari: 180, quantitat: 5, total: 900,
+      },
+    ];
+    const resultat = resumComptable(moviments).despesesPerCategoria['Gestió pel·lícules'];
+    expect(resultat.detalls).toEqual([
+      { preuUnitari: 180, metode: 'banc', quantitat: 5, total: 900 },
+    ]);
   });
 
   it('ignora els traspassos en el desglossament per categoria', () => {

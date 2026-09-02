@@ -92,11 +92,13 @@ export function resumAccessLog(entrades) {
 
 export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = new Date()) {
   let disponibles = 0;
+  let usats = 0;
   for (const lot of lots) {
     if (lot.anulat) continue;
     const codisAnulats = new Set(lot.codisAnulats ?? []);
     for (const { codi, usat } of tiquetsDelLot(lot, entradesAccessLog)) {
-      if (!usat && !codisAnulats.has(codi)) disponibles += 1;
+      if (codisAnulats.has(codi)) continue;
+      if (usat) usats += 1; else disponibles += 1;
     }
   }
 
@@ -110,7 +112,7 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
     )).length
     : 0;
 
-  return { disponibles, gastatsUltimaSessio };
+  return { disponibles, usats, gastatsUltimaSessio };
 }
 
 export function entradesPerFranjaHoraria(entrades, intervalMinuts = 30) {

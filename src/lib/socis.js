@@ -53,30 +53,15 @@ function dataISO(data) {
   return data.toLocaleDateString('sv-SE');
 }
 
-function calcularAltesPerMes(socis, avui) {
-  const mesos = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(avui.getFullYear(), avui.getMonth() - i, 1);
-    mesos.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  const comptador = Object.fromEntries(mesos.map((m) => [m, 0]));
-  for (const soci of socis) {
-    const mes = (soci.dataAlta ?? '').slice(0, 7);
-    if (mes in comptador) comptador[mes] += 1;
-  }
-  return mesos.map((mes) => ({ mes, total: comptador[mes] }));
-}
-
 export function resumDashboardSocis(socisTots, sessions, entradesAccessLog, avui = new Date()) {
   const socis = socisTots.filter(estaActiu);
   const total = socis.length;
-  const altesPerMes = calcularAltesPerMes(socis, avui);
 
   const dataAvui = dataISO(avui);
   const sessionsPassades = [...sessions]
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
-    .slice(0, 12);
+    .slice(0, 5);
 
   const entradesSociPerNumero = new Map();
   for (const e of entradesAccessLog) {
@@ -101,5 +86,5 @@ export function resumDashboardSocis(socisTots, sessions, entradesAccessLog, avui
     .filter((s) => s.dies >= 0 && s.dies <= DIES_AVIS_RENOVACIO)
     .sort((a, b) => a.dies - b.dies);
 
-  return { total, altesPerMes, assistenciaMitjana, renovacionsProperes };
+  return { total, assistenciaMitjana, renovacionsProperes };
 }
