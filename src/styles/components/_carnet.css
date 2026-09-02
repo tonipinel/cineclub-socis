@@ -65,6 +65,9 @@
   margin-top: 0;
   white-space: nowrap;
 }
+.carnet__avis-token {
+  @apply font-body text-sm text-red-700;
+}
 
 @media print {
   .carnet-pagina {

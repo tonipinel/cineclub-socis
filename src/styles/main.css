@@ -13,6 +13,9 @@
 @import "./components/_dashboard.css";
 @import "./components/_carregant.css";
 @import "./components/_configuracio.css";
+@import "./components/_public.css";
+@import "./components/_propostes.css";
+@import "./components/_propostes-admin.css";
 
 @theme {
   --color-gold: #BF9000;

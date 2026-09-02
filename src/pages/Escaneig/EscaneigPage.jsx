@@ -243,6 +243,41 @@ export default function EscaneigPage() {
     }
   };
 
+  const processarSociTrobat = async (sociDoc, missatgeNoTrobat, detallNoTrobat) => {
+    if (!sociDoc) {
+      mostrarResultat({ tipus: 'error', text: missatgeNoTrobat, detall: detallNoTrobat });
+      return;
+    }
+    const soci = sociDoc.data();
+    if (!estaActiu(soci)) {
+      mostrarResultat({
+        tipus: 'error',
+        text: `${soci.nom} ${soci.cognoms}`,
+        detall: soci.motiuDesactivacio ? `Soci desactivat: ${soci.motiuDesactivacio}` : 'Aquest soci està desactivat',
+      });
+      return;
+    }
+    await addDoc(collection(db, 'accessLog'), {
+      sessionId: sessioActiva.id,
+      timestamp: serverTimestamp(),
+      escanejatPer: user.uid,
+      tipus: 'soci',
+      numeroSoci: soci.numeroSoci,
+    });
+    // L'any de soci no compta des del pagament, sinó des del primer cop que
+    // fa servir el carnet després de pagar: si encara no ho ha fet des de
+    // l'últim pagament, aquesta entrada el fixa ara.
+    if (soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)) {
+      soci.inicPeriode = avui();
+      await updateDoc(sociDoc.ref, { inicPeriode: soci.inicPeriode });
+    }
+    const estat = calcularEstatSoci(soci);
+    const venciment = estat === ESTAT_AL_DIA
+      ? { data: formatData(calcularVenciment(soci)), dies: diesFinsVenciment(soci) }
+      : null;
+    mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
+  };
+
   const processarCodi = async (codiOriginal) => {
     const codi = codiOriginal.trim();
     const ara = Date.now();
@@ -268,43 +303,19 @@ export default function EscaneigPage() {
         const socisTrobats = await getDocs(
           query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
         );
-        if (socisTrobats.empty) {
-          mostrarResultat({
-            tipus: 'error',
-            text: `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
-            detall: 'Comprova el número al carnet o al llistat de socis',
-          });
-          return;
-        }
-        const sociDoc = socisTrobats.docs[0];
-        const soci = sociDoc.data();
-        if (!estaActiu(soci)) {
-          mostrarResultat({
-            tipus: 'error',
-            text: `${soci.nom} ${soci.cognoms}`,
-            detall: soci.motiuDesactivacio ? `Soci desactivat: ${soci.motiuDesactivacio}` : 'Aquest soci està desactivat',
-          });
-          return;
-        }
-        await addDoc(collection(db, 'accessLog'), {
-          sessionId: sessioActiva.id,
-          timestamp: serverTimestamp(),
-          escanejatPer: user.uid,
-          tipus: 'soci',
-          numeroSoci: identificat.numeroSoci,
-        });
-        // L'any de soci no compta des del pagament, sinó des del primer cop
-        // que fa servir el carnet després de pagar: si encara no ho ha fet
-        // des de l'últim pagament, aquesta entrada el fixa ara.
-        if (soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)) {
-          soci.inicPeriode = avui();
-          await updateDoc(sociDoc.ref, { inicPeriode: soci.inicPeriode });
-        }
-        const estat = calcularEstatSoci(soci);
-        const venciment = estat === ESTAT_AL_DIA
-          ? { data: formatData(calcularVenciment(soci)), dies: diesFinsVenciment(soci) }
-          : null;
-        mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
+        await processarSociTrobat(
+          socisTrobats.docs[0],
+          `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
+          'Comprova el número al carnet o al llistat de socis'
+        );
+        return;
+      }
+
+      if (identificat.tipus === 'carnet-token') {
+        const socisTrobats = await getDocs(
+          query(collection(db, 'socis'), where('tokenCarnet', '==', identificat.token))
+        );
+        await processarSociTrobat(socisTrobats.docs[0], 'Aquest carnet no és vàlid.');
         return;
       }
 

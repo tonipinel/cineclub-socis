@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { teNumeroSoci } from '../../lib/socis';
+import { sincronitzarSociPublic, esborrarSociPublic } from '../../lib/propostes';
 import {
   calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
@@ -99,7 +100,10 @@ export default function SociForm() {
     setError(null);
     try {
       if (editant) {
-        await updateDoc(doc(db, 'socis', id), dades);
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'socis', id), dades);
+        if (estaActiu(dades)) sincronitzarSociPublic(batch, db, dades);
+        await batch.commit();
       } else {
         const data = avui();
         await addDoc(collection(db, 'socis'), {
@@ -107,6 +111,7 @@ export default function SociForm() {
           dataAlta: data,
           ultimPagament: data,
           actiu: true,
+          tokenCarnet: crypto.randomUUID(),
         });
       }
       navigate(ROUTES.SOCIS);
@@ -127,12 +132,34 @@ export default function SociForm() {
     setErrorEstat(null);
     try {
       const actualitzacio = { actiu: false, motiuDesactivacio: motiuDesactivacio.trim(), dataDesactivacio: avui() };
-      await updateDoc(doc(db, 'socis', id), actualitzacio);
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'socis', id), actualitzacio);
+      esborrarSociPublic(batch, db, dades.tokenCarnet);
+      await batch.commit();
       setDades((d) => ({ ...d, ...actualitzacio }));
       setMotiuDesactivacio('');
       setMostrarFormDesactivacio(false);
     } catch {
       setErrorEstat("No s'ha pogut desar. Torna-ho a provar.");
+    }
+  };
+
+  const handleRegenerarCarnet = async () => {
+    const confirmat = window.confirm(
+      'Segur que vols regenerar el carnet? El QR físic actual deixarà de funcionar i caldrà imprimir-ne un de nou.'
+    );
+    if (!confirmat) return;
+    setErrorEstat(null);
+    try {
+      const nouToken = crypto.randomUUID();
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'socis', id), { tokenCarnet: nouToken });
+      esborrarSociPublic(batch, db, dades.tokenCarnet);
+      sincronitzarSociPublic(batch, db, { ...dades, tokenCarnet: nouToken });
+      await batch.commit();
+      setDades((d) => ({ ...d, tokenCarnet: nouToken }));
+    } catch {
+      setErrorEstat("No s'ha pogut regenerar el carnet. Torna-ho a provar.");
     }
   };
 
@@ -142,7 +169,10 @@ export default function SociForm() {
     setErrorEstat(null);
     try {
       const actualitzacio = { actiu: true, motiuDesactivacio: null, dataDesactivacio: null };
-      await updateDoc(doc(db, 'socis', id), actualitzacio);
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'socis', id), actualitzacio);
+      sincronitzarSociPublic(batch, db, dades);
+      await batch.commit();
       setDades((d) => ({ ...d, ...actualitzacio }));
     } catch {
       setErrorEstat("No s'ha pogut desar. Torna-ho a provar.");
@@ -233,6 +263,9 @@ export default function SociForm() {
                 <Link className="soci-form-pagina__carnet" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
                   <CarnetCard soci={dades} />
                 </Link>
+                <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet}>
+                  Regenerar carnet
+                </button>
               </div>
             )}
 

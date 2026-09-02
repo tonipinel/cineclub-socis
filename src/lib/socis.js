@@ -8,6 +8,10 @@ export function teNumeroSoci(soci) {
   return Boolean(soci.numeroSoci);
 }
 
+export function etiquetaSoci(soci) {
+  return `${soci.nom} ${soci.cognoms} — núm. ${soci.numeroSoci}`;
+}
+
 export function cercaCoincideix(soci, cerca) {
   const cercaNormalitzada = cerca.trim().toLowerCase();
   if (!cercaNormalitzada) return true;

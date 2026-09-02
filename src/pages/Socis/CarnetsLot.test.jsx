@@ -9,8 +9,8 @@ vi.mock('firebase/firestore', () => ({
     exists: () => true,
     id,
     data: () => ({
-      '1': { nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 },
-      '2': { nom: 'Marc', cognoms: 'Serra', numeroSoci: 12 },
+      '1': { nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, tokenCarnet: 'tok-1' },
+      '2': { nom: 'Marc', cognoms: 'Serra', numeroSoci: 12, tokenCarnet: 'tok-2' },
     }[id]),
   })),
 }));
@@ -18,6 +18,7 @@ vi.mock('qrcode', () => ({
   default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,ABC') },
 }));
 
+import QRCode from 'qrcode';
 import CarnetsLot from './CarnetsLot';
 
 function renderAmb(ids) {
@@ -35,6 +36,7 @@ describe('CarnetsLot', () => {
     expect(screen.getByText('Marc Serra')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Imprimir o desar com a PDF' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tornar al llistat/ })).toHaveAttribute('href', '/socis');
+    expect(QRCode.toDataURL).toHaveBeenCalledWith('CARNET-tok-1', { width: 400, margin: 0 });
   });
 
   it('completa la fila amb carnets buits perquè sempre en surtin grups de 3', async () => {

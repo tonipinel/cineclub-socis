@@ -55,5 +55,50 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isAdmin();
     }
+
+    // Nom públic curt (p. ex. "Isabel M.") i numeroSoci, sincronitzats
+    // automàticament des de la fitxa del soci. L'ID del document és el
+    // tokenCarnet del soci (el mateix codificat al QR del carnet), no el
+    // numeroSoci: així cal haver escanejat realment el carnet per poder-hi
+    // llegir res. Només `get` (per token conegut) està permès, mai `list`:
+    // amb `read` a seques qualsevol visitant podria llistar tota la
+    // col·lecció (o filtrar-la per numeroSoci) i obtenir el token de
+    // qualsevol soci sense haver escanejat res.
+    match /socisPublic/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isAdmin();
+    }
+
+    // Propostes de pel·lícules dels socis: es creen sense autenticar-se
+    // (identificació pel carnet físic, no per Firebase Auth) — o per un
+    // admin en nom d'un soci que l'hi ha proposat de viva veu, amb la
+    // mateixa forma de document — però només queden visibles públicament
+    // un cop aprovades.
+    match /propostes/{id} {
+      allow create: if request.resource.data.keys().hasAll(['titol', 'numeroSoci', 'estat'])
+        && request.resource.data.estat == 'pendent';
+      allow read: if resource.data.estat != 'pendent' || isAdmin();
+      allow update, delete: if isAdmin();
+
+      // El vot inclou el token del carnet perquè `create` pugui comprovar,
+      // via `socisPublic`, que aquest token pertany realment al numeroSoci
+      // del document (evita que qualsevol pugui votar en nom d'un altre
+      // soci sense haver-ne escanejat mai el carnet).
+      match /vots/{numeroSoci} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['timestamp', 'token'])
+          && get(/databases/$(database)/documents/socisPublic/$(request.resource.data.token)).data.numeroSoci == int(numeroSoci);
+        allow delete: if true;
+      }
+    }
+
+    // Registre d'auditoria de propostes i vots: es pot crear sense
+    // autenticar-se (mateix motiu que propostes), però només l'admin el pot
+    // llegir, i mai es pot modificar ni esborrar (igual que accessLog).
+    match /propostesActivitat/{id} {
+      allow create: if request.resource.data.keys().hasAll(['tipus', 'propostaId', 'numeroSoci', 'timestamp']);
+      allow read: if isAdmin();
+    }
   }
 }

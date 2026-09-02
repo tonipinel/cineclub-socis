@@ -20,13 +20,20 @@ import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
 import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ConfiguracioPage from './pages/Configuracio/ConfiguracioPage';
+import PropostesPublic from './pages/Propostes/PropostesPublic';
+import ProposarPellicula from './pages/Propostes/ProposarPellicula';
+import PropostesPendents from './pages/Propostes/PropostesPendents';
+import PropostaForm from './pages/Propostes/PropostaForm';
+import PropostesNova from './pages/Propostes/PropostesNova';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Header />
       <Routes>
-        <Route path="/" element={<Navigate to={ROUTES.ACCEDIR} replace />} />
+        <Route path={ROUTES.INICI} element={<PropostesPublic />} />
+        <Route path={ROUTES.PROPOSTES} element={<PropostesPublic />} />
+        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={<ProposarPellicula />} />
         <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
         <Route
           path={ROUTES.SOCIS}
@@ -204,6 +211,36 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <ConfiguracioPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.PROPOSTES_PENDENTS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <PropostesPendents />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.PROPOSTES_NOVA}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <PropostesNova />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.PROPOSTES_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <PropostaForm />
               </RequireRole>
             </RequireAuth>
           }

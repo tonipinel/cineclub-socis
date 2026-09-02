@@ -6,6 +6,7 @@ import { db } from '../../firebase/firebase';
 import { solicitudASoci } from '../../lib/solicitudASoci';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import { avui, formatDataHora } from '../../lib/data';
+import { sincronitzarSociPublic, esborrarSociPublic } from '../../lib/propostes';
 
 const MISSATGE_ERROR = "No s'ha pogut desar. Torna-ho a provar.";
 
@@ -60,11 +61,17 @@ export default function SolicitudsPendents() {
       const numeroSoci = properNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
       const batch = writeBatch(db);
       const nouSociRef = doc(collection(db, 'socis'));
-      batch.set(nouSociRef, solicitudASoci(solicitud, avui(), numeroSoci));
+      const nouSoci = solicitudASoci(solicitud, avui(), numeroSoci);
+      batch.set(nouSociRef, nouSoci);
+      sincronitzarSociPublic(batch, db, nouSoci);
       batch.update(doc(db, 'solicituds', solicitud.id), { estat: 'aprovada' });
       await batch.commit();
       setUltimaAprovacio({
-        solicitudId: solicitud.id, sociId: nouSociRef.id, nom: solicitud.nom, cognoms: solicitud.cognoms,
+        solicitudId: solicitud.id,
+        sociId: nouSociRef.id,
+        nom: solicitud.nom,
+        cognoms: solicitud.cognoms,
+        tokenCarnet: nouSoci.tokenCarnet,
       });
     } catch {
       marcarProcessant(solicitud.id, false);
@@ -83,6 +90,7 @@ export default function SolicitudsPendents() {
     try {
       const batch = writeBatch(db);
       batch.delete(doc(db, 'socis', ultimaAprovacio.sociId));
+      esborrarSociPublic(batch, db, ultimaAprovacio.tokenCarnet);
       batch.update(doc(db, 'solicituds', ultimaAprovacio.solicitudId), { estat: 'pendent' });
       await batch.commit();
       setUltimaAprovacio(null);

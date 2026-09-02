@@ -1,0 +1,45 @@
+.propostes-pendents {
+  @apply p-6;
+}
+.propostes-pendents__capcalera {
+  @apply mb-4 flex items-center justify-between gap-2 border-b border-black/10 pb-4;
+}
+.propostes-pendents__titol {
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
+}
+.propostes-pendents__llista {
+  @apply flex list-none flex-col gap-2 p-0;
+}
+.propostes-pendents__item {
+  @apply flex items-center justify-between gap-2 border-b border-black/10 py-2;
+}
+.propostes-pendents__pestanyes {
+  @apply mb-4 flex gap-1 border-b border-black/10;
+}
+.propostes-pendents__pestanya {
+  @apply -mb-px cursor-pointer border-0 border-b-2 border-transparent bg-transparent px-3 py-2 font-body text-sm font-semibold text-black/60 hover:text-black;
+}
+.propostes-pendents__pestanya--activa {
+  @apply border-gold text-black;
+}
+.proposta-form {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.proposta-form__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.proposta-form__soci {
+  @apply -mt-2 mb-2 font-body text-sm text-black/70;
+}
+.proposta-form__comentari {
+  @apply -mt-2 mb-2 font-body text-sm italic text-black/70;
+}
+.proposta-form__accions {
+  @apply mt-2 flex items-center gap-3;
+}
+.propostes-nova {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.propostes-nova__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}

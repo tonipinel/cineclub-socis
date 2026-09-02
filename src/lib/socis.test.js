@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix, resumDashboardSocis } from './socis';
+import { filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix, resumDashboardSocis, etiquetaSoci } from './socis';
 
 const socis = [
   { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-01-01' },
@@ -168,5 +168,11 @@ describe('resumDashboardSocis', () => {
     ];
     const resultat = resumDashboardSocis(socis, [], [], avui).renovacionsProperes;
     expect(resultat.map((s) => s.numeroSoci)).toEqual([2, 1]);
+  });
+});
+
+describe('etiquetaSoci', () => {
+  it('combina el nom, els cognoms i el número de soci', () => {
+    expect(etiquetaSoci({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 })).toBe('Anna Vidal — núm. 7');
   });
 });

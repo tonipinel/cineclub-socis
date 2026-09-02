@@ -61,11 +61,23 @@ describe('SolicitudsPendents', () => {
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(getDocs).toHaveBeenCalledTimes(1);
     expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(__batchSet).toHaveBeenCalledTimes(1);
+    expect(__batchSet).toHaveBeenCalledTimes(2);
     expect(__batchSet.mock.calls[0][1].nom).toBe('Anna');
     expect(__batchSet.mock.calls[0][1].numeroSoci).toBe(42);
     expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'aprovada' });
     expect(__batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('aprova una sol·licitud: també crea el doc socisPublic amb el token del nou soci', async () => {
+    const user = userEvent.setup();
+    render(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).toHaveBeenCalledTimes(2);
+    const [, sociData] = __batchSet.mock.calls[0];
+    const [publicDocId, publicData] = __batchSet.mock.calls[1];
+    expect(publicDocId).toBe(sociData.tokenCarnet);
+    expect(publicData).toEqual({ numeroSoci: 42, nomPublic: 'Anna V.' });
   });
 
   it('després d\'aprovar, mostra un avís amb l\'opció de desfer', async () => {
@@ -86,6 +98,18 @@ describe('SolicitudsPendents', () => {
     expect(writeBatch).toHaveBeenCalledTimes(2);
     expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'pendent' });
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
+  });
+
+  it('en desfer una aprovació, també elimina el doc socisPublic del nou soci', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    const tokenCarnet = __batchSet.mock.calls[0][1].tokenCarnet;
+    await user.click(await screen.findByRole('button', { name: 'Desfer' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    expect(__batchDelete).toHaveBeenCalledWith(tokenCarnet);
   });
 
   it('no desfà res si es cancel·la la confirmació de desfer', async () => {

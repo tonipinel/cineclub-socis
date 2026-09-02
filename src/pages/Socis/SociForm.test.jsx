@@ -7,18 +7,31 @@ vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('qrcode', () => ({
   default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,ABC') },
 }));
-vi.mock('firebase/firestore', () => ({
-  addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
-  updateDoc: vi.fn().mockResolvedValue(undefined),
-  getDoc: vi.fn(),
-  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
-  collection: vi.fn((_, nom) => nom),
-  doc: vi.fn(),
-  query: vi.fn(),
-  where: vi.fn(),
-}));
+vi.mock('firebase/firestore', () => {
+  const batchSet = vi.fn();
+  const batchUpdate = vi.fn();
+  const batchDelete = vi.fn();
+  const batchCommit = vi.fn().mockResolvedValue(undefined);
+  const writeBatch = vi.fn(() => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }));
+  return {
+    addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
+    getDoc: vi.fn(),
+    getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+    collection: vi.fn((_, nom) => nom),
+    doc: vi.fn((...args) => args[args.length - 1]),
+    query: vi.fn(),
+    where: vi.fn(),
+    writeBatch,
+    __batchSet: batchSet,
+    __batchUpdate: batchUpdate,
+    __batchDelete: batchDelete,
+    __batchCommit: batchCommit,
+  };
+});
 
-import { addDoc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import {
+  addDoc, getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
+} from 'firebase/firestore';
 import SociForm from './SociForm';
 
 describe('SociForm — alta', () => {
@@ -60,13 +73,28 @@ describe('SociForm — alta', () => {
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(screen.queryByText('Llistat de socis')).not.toBeInTheDocument();
   });
+
+  it('en crear un soci nou, es genera un token de carnet', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/nou']}>
+        <Routes>
+          <Route path="/socis/nou" element={<SociForm />} />
+          <Route path="/socis" element={<p>Llistat de socis</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.type(screen.getByLabelText('Nom'), 'Anna');
+    await user.type(screen.getByLabelText('Cognoms'), 'Vidal');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llistat de socis');
+    const [, dadesDesades] = addDoc.mock.calls[0];
+    expect(typeof dadesDesades.tokenCarnet).toBe('string');
+    expect(dadesDesades.tokenCarnet.length).toBeGreaterThan(0);
+  });
 });
 
 describe('SociForm — mode lectura/edició', () => {
-  beforeEach(() => {
-    updateDoc.mockClear();
-  });
-
   it('en editar un soci existent, els camps són de només lectura per defecte', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     render(
@@ -201,7 +229,7 @@ describe('SociForm — previsualització del carnet', () => {
   });
 
   it('mostra el carnet clicable si el soci ja té número de soci, i porta a la pàgina del carnet', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }) });
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
@@ -395,7 +423,12 @@ describe('SociForm — assistència a sessions', () => {
 
 describe('SociForm — desactivació', () => {
   beforeEach(() => {
-    updateDoc.mockClear();
+    writeBatch.mockClear();
+    __batchSet.mockClear();
+    __batchUpdate.mockClear();
+    __batchDelete.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -422,11 +455,13 @@ describe('SociForm — desactivació', () => {
     await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
     expect(await screen.findByText('Cal indicar el motiu de la desactivació.')).toBeInTheDocument();
-    expect(updateDoc).not.toHaveBeenCalled();
+    expect(__batchCommit).not.toHaveBeenCalled();
   });
 
-  it('desactiva el soci amb el motiu indicat, després de confirmar', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+  it('desactiva el soci amb el motiu indicat, després de confirmar, i esborra el seu socisPublic', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }),
+    });
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/socis/1']}>
@@ -437,16 +472,48 @@ describe('SociForm — desactivació', () => {
     await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
     await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
     expect(window.confirm).toHaveBeenCalledTimes(1);
-    const [, actualitzacio] = updateDoc.mock.calls[0];
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(false);
     expect(actualitzacio.motiuDesactivacio).toBe('Mal comportament');
+    expect(__batchDelete).toHaveBeenCalledWith('tok-1');
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
   });
 
-  it('mostra el motiu i permet reactivar un soci desactivat', async () => {
+  it('esborra socisPublic pel token en desactivar, encara que el soci no tingui numeroSoci (esborrar per token és inofensiu)', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '', tokenCarnet: 'tok-1' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchDelete).toHaveBeenCalledWith('tok-1');
+  });
+
+  it('no toca socisPublic en desactivar un soci sense tokenCarnet', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchDelete).not.toHaveBeenCalled();
+  });
+
+  it('mostra el motiu i permet reactivar un soci desactivat, tornant a escriure socisPublic', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({
-        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: false,
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false,
         motiuDesactivacio: 'Mal comportament', dataDesactivacio: '2026-06-01',
       }),
     });
@@ -459,8 +526,119 @@ describe('SociForm — desactivació', () => {
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
     expect(screen.getByText(/Mal comportament/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reactivar soci' }));
-    const [, actualitzacio] = updateDoc.mock.calls[0];
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(true);
     expect(actualitzacio.motiuDesactivacio).toBe(null);
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
+  });
+});
+
+describe('SociForm — sincronització de socisPublic en desar', () => {
+  beforeEach(() => {
+    writeBatch.mockClear();
+    __batchSet.mockClear();
+    __batchUpdate.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
+  });
+
+  it('en editar un soci amb numeroSoci i tokenCarnet, sincronitza socisPublic', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1' }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
+  });
+
+  it('en editar un soci sense numeroSoci encara, no toca socisPublic', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '', tokenCarnet: 'tok-1' }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).not.toHaveBeenCalled();
+  });
+
+  it('en editar un soci desactivat, no torna a escriure socisPublic', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('SociForm — regenerar carnet', () => {
+  beforeEach(() => {
+    writeBatch.mockClear();
+    __batchSet.mockClear();
+    __batchUpdate.mockClear();
+    __batchDelete.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
+    // mockReset (not mockReturnValue directly): vi.spyOn reuses the mock
+    // already installed by the "desactivació" tests above, so its call
+    // count must be cleared here too, or toHaveBeenCalledTimes below would
+    // count clicks from earlier describe blocks.
+    vi.spyOn(window, 'confirm').mockReset().mockReturnValue(true);
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-nou');
+  });
+
+  it('regenera el token del carnet després de confirmar, i sincronitza socisPublic', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    const [, actualitzacio] = __batchUpdate.mock.calls[0];
+    expect(actualitzacio.tokenCarnet).toBe('token-nou');
+    expect(__batchDelete).toHaveBeenCalledWith('token-vell');
+    expect(__batchSet).toHaveBeenCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' });
+  });
+
+  it('no regenera el token si es cancel·la la confirmació', async () => {
+    window.confirm.mockReturnValue(false);
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    expect(__batchCommit).not.toHaveBeenCalled();
   });
 });

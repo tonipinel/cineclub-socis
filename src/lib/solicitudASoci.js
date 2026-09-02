@@ -22,5 +22,6 @@ export function solicitudASoci(solicitud, dataPagament, numeroSoci) {
     dataAlta: dataISO(solicitud.timestamp, dataPagament),
     ultimPagament: dataPagament,
     actiu: true,
+    tokenCarnet: crypto.randomUUID(),
   };
 }

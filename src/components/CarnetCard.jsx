@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { carnetPayload } from '../lib/carnet';
+import { carnetPayload, carnetQR } from '../lib/carnet';
 
 function numeroSociFormatat(numeroSoci) {
   return String(numeroSoci ?? '').padStart(4, '0');
@@ -10,12 +10,17 @@ export default function CarnetCard({ soci }) {
   const [dataUrl, setDataUrl] = useState(null);
 
   useEffect(() => {
+    if (!soci.tokenCarnet) return;
     let activa = true;
-    QRCode.toDataURL(carnetPayload(soci), { width: 400, margin: 0 }).then((url) => {
+    QRCode.toDataURL(carnetQR(soci), { width: 400, margin: 0 }).then((url) => {
       if (activa) setDataUrl(url);
     });
     return () => { activa = false; };
   }, [soci]);
+
+  if (!soci.tokenCarnet) {
+    return <p className="carnet__avis-token">Aquest soci no té cap token de carnet assignat.</p>;
+  }
 
   if (!dataUrl) return <p>Generant carnet…</p>;
 

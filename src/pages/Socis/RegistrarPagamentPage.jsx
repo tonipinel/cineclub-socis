@@ -11,6 +11,7 @@ import {
 } from '../../lib/moviments';
 import { avui, formatData } from '../../lib/data';
 import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
+import { sincronitzarSociPublic } from '../../lib/propostes';
 import Carregant from '../../components/Carregant';
 
 // Entre totes les sessions, la que té la data més propera a avui (abans o
@@ -118,6 +119,11 @@ export default function RegistrarPagamentPage() {
       const total = Number(importPagament) || 0;
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacioSoci);
+      if (estaActiu(soci)) {
+        sincronitzarSociPublic(batch, db, {
+          nom: soci.nom, cognoms: soci.cognoms, numeroSoci, tokenCarnet: soci.tokenCarnet,
+        });
+      }
       batch.set(doc(collection(db, 'moviments')), {
         data,
         concepte: `Quota ${soci.nom} ${soci.cognoms}`,

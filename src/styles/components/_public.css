@@ -1,0 +1,12 @@
+.lector-carnet {
+  @apply flex flex-col items-center gap-3;
+}
+.lector-carnet__camera {
+  @apply w-full max-w-xs;
+}
+.lector-carnet__video {
+  @apply w-full rounded bg-black;
+}
+.lector-carnet__estat {
+  @apply mt-2 font-body text-sm text-black/70;
+}

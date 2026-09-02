@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { solicitudASoci } from './solicitudASoci';
 
 describe('solicitudASoci', () => {
   it('mapeja els camps de la sol·licitud i fixa dataAlta/ultimPagament/numeroSoci a les dades indicades', () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-fixe');
     const soci = solicitudASoci(
       { nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883', telefon: '600000000' },
       '2026-08-29',
@@ -13,6 +14,7 @@ describe('solicitudASoci', () => {
       nom: 'Anna', cognoms: 'Vidal', poblacio: 'Roda de Berà', codiPostal: '43883',
       telefon: '600000000', correuElectronic: '', comentaris: '', dni: '', grupWhatsapp: '',
       dataAlta: '2026-08-29', ultimPagament: '2026-08-29', actiu: true,
+      tokenCarnet: 'token-fixe',
     });
   });
 

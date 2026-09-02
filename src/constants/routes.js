@@ -1,3 +1,9 @@
+export const INICI = '/';
+export const PROPOSTES = '/propostes';
+export const PROPOSTES_PROPOSAR = '/propostes/proposar';
+export const PROPOSTES_PENDENTS = '/propostes/pendents';
+export const PROPOSTES_NOVA = '/propostes/pendents/nova';
+export const PROPOSTES_EDITAR = '/propostes/pendents/:id';
 export const ACCEDIR = '/accedir';
 export const DASHBOARD = '/dashboard';
 export const SOCIS = '/socis';

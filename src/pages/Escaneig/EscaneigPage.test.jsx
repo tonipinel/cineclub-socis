@@ -25,7 +25,9 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { addDoc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
+import {
+  addDoc, getDocs, onSnapshot, updateDoc, where,
+} from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 
 async function obrirCodiManual(user) {
@@ -76,6 +78,36 @@ describe('EscaneigPage', () => {
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
     expect(screen.getByText(/Venç el/)).not.toHaveClass('escaneig__missatge-venciment--avis');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
+    });
+  });
+
+  it('registra l\'entrada d\'un soci identificat per un codi de carnet amb token (CARNET-)', async () => {
+    const ultimPagament = new Date().toISOString().slice(0, 10);
+    // El mock només retorna el soci si la consulta és per 'tokenCarnet': així
+    // es demostra que el flux CARNET- consulta pel camp correcte i no pel
+    // 'numeroSoci' que fa servir el flux SOCI-.
+    getDocs.mockImplementation(async () => {
+      const ultimaWhere = where.mock.calls.at(-1);
+      if (ultimaWhere?.[0] === 'tokenCarnet' && ultimaWhere?.[2] === 'abc-123') {
+        return {
+          empty: false,
+          docs: [{
+            data: () => ({
+              nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: true, tokenCarnet: 'abc-123', ultimPagament,
+            }),
+          }],
+        };
+      }
+      return { empty: true, docs: [] };
+    });
+    const user = userEvent.setup();
+    render(<EscaneigPage />);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'CARNET-abc-123');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
     });

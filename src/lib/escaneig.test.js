@@ -33,6 +33,17 @@ describe('identificarCodi', () => {
   it('identifica correctament un codi generat per carnetPayload', () => {
     expect(identificarCodi(carnetPayload({ numeroSoci: 42 }))).toEqual({ tipus: 'soci', numeroSoci: 42 });
   });
+
+  it('reconeix un codi de carnet amb token (CARNET-)', () => {
+    expect(identificarCodi('CARNET-3fa85f64-5717-4562-b3fc-2c963f66afa6')).toEqual({
+      tipus: 'carnet-token',
+      token: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    });
+  });
+
+  it('retalla espais en blanc també per als codis de carnet amb token', () => {
+    expect(identificarCodi('  CARNET-abc123  ')).toEqual({ tipus: 'carnet-token', token: 'abc123' });
+  });
 });
 
 describe('codisDesDe', () => {

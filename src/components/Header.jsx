@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../firebase/firebase';
 import { useAuth } from '../auth/useAuth';
+import { useIdentitatPublica } from '../auth/useIdentitatPublica';
 import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
 
 const ENLLACOS_ADMIN = [
   [ROUTES.SOCIS, 'Socis', 'socis'],
   [ROUTES.SOLICITUDS, "Sol·licituds", 'solicituds'],
+  [ROUTES.PROPOSTES_PENDENTS, 'Propostes', 'propostes'],
   [ROUTES.SESSIONS, 'Sessions', 'sessions'],
   [ROUTES.TICKETS, 'Tiquets', 'tiquets'],
   [ROUTES.ESCANEIG, 'Escaneig', 'escaneig'],
@@ -30,6 +34,12 @@ const ICONES = {
       <rect x="5" y="3" width="14" height="18" rx="2" />
       <path d="M9 3v4h6V3" />
       <path d="M9 12h6M9 16h6" />
+    </>
+  ),
+  propostes: (
+    <>
+      <path d="M3 8h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8Z" />
+      <path d="M3 8l1.3-4h3L6 8M9.7 8 11 4h3l-1.3 4M16.3 8l1.3-4h3L19 8" />
     </>
   ),
   sessions: (
@@ -91,14 +101,27 @@ function Icona({ nom }) {
 
 export default function Header() {
   const { user, role, signOut } = useAuth();
+  const { identitat: identitatPublica } = useIdentitatPublica();
   const [menuObert, setMenuObert] = useState(false);
+  const [comptadorSolicituds, setComptadorSolicituds] = useState(0);
+  const [comptadorPropostes, setComptadorPropostes] = useState(0);
   const enllacos = role === ROLE_ADMIN ? ENLLACOS_ADMIN : role === ROLE_TAQUILLA ? ENLLACOS_TAQUILLA : [];
+  const comptadors = { solicituds: comptadorSolicituds, propostes: comptadorPropostes };
 
   useEffect(() => {
     if (!menuObert) return undefined;
     document.body.classList.add('menu-obert-body');
     return () => document.body.classList.remove('menu-obert-body');
   }, [menuObert]);
+
+  useEffect(() => {
+    if (role !== ROLE_ADMIN) return undefined;
+    const qSolicituds = query(collection(db, 'solicituds'), where('estat', '==', 'pendent'));
+    const unsubSolicituds = onSnapshot(qSolicituds, (snap) => setComptadorSolicituds(snap.size));
+    const qPropostes = query(collection(db, 'propostes'), where('estat', '==', 'pendent'));
+    const unsubPropostes = onSnapshot(qPropostes, (snap) => setComptadorPropostes(snap.size));
+    return () => { unsubSolicituds(); unsubPropostes(); };
+  }, [role]);
 
   return (
     <header className="site-header">
@@ -109,6 +132,9 @@ export default function Header() {
           </Link>
         ) : (
           <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+        )}
+        {!user && identitatPublica && (
+          <span className="site-header__salutacio">Hola, {identitatPublica.nomPublic}!</span>
         )}
       </div>
       {user && enllacos.length > 0 && (
@@ -132,11 +158,15 @@ export default function Header() {
               <NavLink
                 key={to}
                 to={to}
+                aria-label={etiqueta}
                 className={({ isActive }) => `site-header__link${isActive ? ' site-header__link--actiu' : ''}`}
                 onClick={() => setMenuObert(false)}
               >
                 <Icona nom={icona} />
                 {etiqueta}
+                {comptadors[icona] > 0 && (
+                  <span className="site-header__badge" aria-hidden="true">{comptadors[icona]}</span>
+                )}
               </NavLink>
             ))}
             <button

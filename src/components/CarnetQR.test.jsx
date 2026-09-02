@@ -9,7 +9,7 @@ import CarnetQR from './CarnetQR';
 
 describe('CarnetQR', () => {
   it('mostra el carnet amb el QR i les dades del soci quan es genera', async () => {
-    render(<CarnetQR soci={{ id: '1', numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-03-15' }} />);
+    render(<CarnetQR soci={{ id: '1', numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal', dataAlta: '2026-03-15', tokenCarnet: 'tok-1' }} />);
     const qr = await screen.findByAltText('Codi QR del carnet de Anna Vidal');
     expect(qr).toHaveAttribute('src', 'data:image/png;base64,ABC');
     expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
