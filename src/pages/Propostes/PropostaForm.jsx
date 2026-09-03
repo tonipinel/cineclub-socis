@@ -4,6 +4,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
+import { calcularNomPublic } from '../../lib/propostes';
 import Carregant from '../../components/Carregant';
 
 const ESTATS = [
@@ -54,6 +55,7 @@ export default function PropostaForm() {
         trailerUrl: dades.trailerUrl,
         sinopsi: dades.sinopsi,
         numeroSoci: sociTriat.numeroSoci,
+        nomProposant: calcularNomPublic(sociTriat),
       });
       navigate(ROUTES.PROPOSTES_PENDENTS);
     } catch {

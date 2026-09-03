@@ -7,7 +7,7 @@ import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { useIdentitatPublica } from '../../auth/useIdentitatPublica';
 import { formatData } from '../../lib/data';
-import { ordenarPerVots } from '../../lib/propostes';
+import { ordenarPerVots, ordenarPerData } from '../../lib/propostes';
 import LectorCarnet from '../../components/LectorCarnet';
 import Carregant from '../../components/Carregant';
 
@@ -87,6 +87,17 @@ function CartellPelicula({ proposta, className }) {
   );
 }
 
+// L'únic hash de la URL fa doble servei: '#top'/'#recents' selecciona la
+// vista, qualsevol altre valor és l'id d'una proposta oberta. Centralitzat
+// aquí perquè els dos useState inicials i el listener de hashchange llegeixin
+// sempre el mateix criteri.
+function llegirHash() {
+  const hash = window.location.hash.slice(1);
+  if (hash === 'top') return { vista: 'vots', obertaId: null };
+  if (hash === 'recents' || hash === '') return { vista: 'data', obertaId: null };
+  return { vista: null, obertaId: hash };
+}
+
 export default function PropostesPublic() {
   const navigate = useNavigate();
   const { identitat, setIdentitat } = useIdentitatPublica();
@@ -95,14 +106,27 @@ export default function PropostesPublic() {
   const [info, setInfo] = useState(null);
   const [propostaPendent, setPropostaPendent] = useState(null);
   const [volProposar, setVolProposar] = useState(false);
-  const [propostaObertaId, setPropostaObertaId] = useState(() => window.location.hash.slice(1) || null);
+  const [propostaObertaId, setPropostaObertaId] = useState(() => llegirHash().obertaId);
+  const [vistaOrdre, setVistaOrdre] = useState(() => llegirHash().vista ?? 'data');
   const identitatRevisadaRef = useRef(null);
 
   useEffect(() => {
-    const handler = () => setPropostaObertaId(window.location.hash.slice(1) || null);
+    const handler = () => {
+      const { vista, obertaId } = llegirHash();
+      if (vista) {
+        setVistaOrdre(vista);
+        setPropostaObertaId(null);
+      } else {
+        setPropostaObertaId(obertaId);
+      }
+    };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
   }, []);
+
+  const canviarVista = (nova) => {
+    window.location.hash = nova === 'vots' ? 'top' : 'recents';
+  };
 
   useEffect(() => {
     getDocs(query(collection(db, 'propostes'), where('estat', '==', 'aprovada'))).then((snap) => {
@@ -112,7 +136,7 @@ export default function PropostesPublic() {
           ...p, vots: votsSnap.docs.length, heVotat: false,
         }))
       )));
-    }).then((ambVots) => setPropostes(ordenarPerVots(ambVots)));
+    }).then((ambVots) => setPropostes(ambVots));
   }, []);
 
   // Si la identitat ja es coneixia (compartida entre pàgines) quan aquest
@@ -129,7 +153,7 @@ export default function PropostesPublic() {
       const votSnap = await getDoc(doc(db, 'propostes', p.id, 'vots', String(identitat.numeroSoci)));
       return { ...p, heVotat: votSnap.exists() };
     })).then((actualitzades) => {
-      if (actiu) setPropostes(ordenarPerVots(actualitzades));
+      if (actiu) setPropostes(actualitzades);
     });
     return () => { actiu = false; };
   }, [identitat, propostes]);
@@ -156,9 +180,9 @@ export default function PropostesPublic() {
           tipus: 'vot', propostaId: proposta.id, numeroSoci: identitatUsada.numeroSoci, timestamp: serverTimestamp(),
         });
       }
-      setPropostes((actual) => ordenarPerVots(actual.map((p) => (
+      setPropostes((actual) => actual.map((p) => (
         p.id === proposta.id ? { ...p, heVotat: nouHeVotat, vots: p.vots + (nouHeVotat ? 1 : -1) } : p
-      ))));
+      )));
     } catch {
       setError("No s'ha pogut registrar el vot. Torna-ho a provar.");
     }
@@ -184,7 +208,7 @@ export default function PropostesPublic() {
         const votSnap = await getDoc(doc(db, 'propostes', p.id, 'vots', String(nova.numeroSoci)));
         return { ...p, heVotat: votSnap.exists() };
       }));
-      llistaActual = ordenarPerVots(actualitzades);
+      llistaActual = actualitzades;
       setPropostes(llistaActual);
     }
     if (propostaPendent) {
@@ -213,6 +237,7 @@ export default function PropostesPublic() {
   };
 
   const propostaOberta = propostes?.find((p) => p.id === propostaObertaId) ?? null;
+  const propostesMostrades = propostes && (vistaOrdre === 'vots' ? ordenarPerVots(propostes) : ordenarPerData(propostes));
 
   const obrirProposta = (id) => {
     // eslint-disable-next-line react-hooks/immutability -- pushes a shareable/history-friendly URL, mirrors the hashchange listener above
@@ -220,18 +245,56 @@ export default function PropostesPublic() {
   };
 
   const tancarProposta = () => {
-    history.pushState(null, '', window.location.pathname + window.location.search);
+    const hashVista = vistaOrdre === 'vots' ? '#top' : '#recents';
+    history.pushState(null, '', window.location.pathname + window.location.search + hashVista);
     setPropostaObertaId(null);
   };
 
   return (
     <div className="propostes-public">
       <header className="propostes-public__capcalera">
-        <span className="propostes-public__marca">Propostes de pel·lícules</span>
-        <button type="button" className="btn propostes-public__proposar-boto" onClick={handleProposarClick}>
-          + Proposar
-        </button>
+        <div className="propostes-public__capcalera-fila">
+          <span className="propostes-public__marca">Propostes de programació</span>
+          <button
+            type="button"
+            className="btn propostes-public__proposar-boto"
+            onClick={handleProposarClick}
+            aria-label="Proposar pel·lícula"
+          >
+            +
+          </button>
+        </div>
       </header>
+
+      <div className="propostes-public__intro">
+        <p>
+          Aquesta secció recull les pel·lícules proposades per les persones sòcies del cineclub.
+          Explora-les, vota les que t'agradaria veure a la pantalla gran i afegeix-ne de noves.
+          Entre totes i tots construïm la programació de les properes sessions.
+        </p>
+        <p><strong>Per votar i fer noves propostes cal tenir el carnet de soci del cineclub.</strong></p>
+      </div>
+
+      <div className="propostes-public__ordre" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={vistaOrdre === 'data'}
+          className={`propostes-public__ordre-boto ${vistaOrdre === 'data' ? 'propostes-public__ordre-boto--activa' : ''}`}
+          onClick={() => canviarVista('data')}
+        >
+          Més recents
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={vistaOrdre === 'vots'}
+          className={`propostes-public__ordre-boto ${vistaOrdre === 'vots' ? 'propostes-public__ordre-boto--activa' : ''}`}
+          onClick={() => canviarVista('vots')}
+        >
+          Més votades
+        </button>
+      </div>
 
       {error && <p className="form__error">{error}</p>}
       {info && <p className="propostes-public__info">{info}</p>}
@@ -239,13 +302,51 @@ export default function PropostesPublic() {
       {propostes === null && <Carregant />}
 
       {propostes !== null && (
-        propostes.length === 0 ? (
+        propostesMostrades.length === 0 ? (
           <p className="propostes-public__buit">
             Encara no hi ha cap proposta aprovada. Sigues el primer a proposar-ne una!
           </p>
+        ) : vistaOrdre === 'vots' ? (
+          <ol className="propostes-public__top">
+            {propostesMostrades.map((p, index) => (
+              <li key={p.id} className="proposta-top__fila">
+                <button type="button" className="proposta-top__titol-linia" onClick={() => obrirProposta(p.id)}>
+                  <span className="proposta-top__posicio">{index + 1}</span>
+                  <span className="proposta-top__titol">{p.titol}</span>
+                </button>
+                <button type="button" className="proposta-top__data-linia" onClick={() => obrirProposta(p.id)}>
+                  {p.timestamp?.toDate && (
+                    <span className="proposta-top__data">{formatData(p.timestamp.toDate())}</span>
+                  )}
+                  {p.nomProposant && <span className="proposta-top__autor">Proposada per {p.nomProposant}</span>}
+                </button>
+                <button
+                  type="button"
+                  className={`proposta-top__vot ${p.heVotat ? 'proposta-top__vot--activa' : ''}`}
+                  onClick={() => handleVotarClick(p)}
+                  aria-label={p.heVotat ? 'Has votat, treure el vot' : 'Votar'}
+                  aria-pressed={p.heVotat}
+                >
+                  <IconaPolze className="proposta-top__vot-icona" omplert={p.heVotat} />
+                  <span className="proposta-top__vot-num">{p.vots}</span>
+                </button>
+                <button type="button" className="proposta-top__detall" onClick={() => obrirProposta(p.id)}>
+                  {p.sinopsi && <p className="proposta-top__sinopsi">{p.sinopsi}</p>}
+                </button>
+                <button
+                  type="button"
+                  className="proposta-top__imatge-boto"
+                  onClick={() => obrirProposta(p.id)}
+                  aria-label={`Obrir ${p.titol}`}
+                >
+                  <CartellPelicula proposta={p} className="proposta-top__imatge" />
+                </button>
+              </li>
+            ))}
+          </ol>
         ) : (
           <ul className="propostes-public__llista">
-            {propostes.map((p) => (
+            {propostesMostrades.map((p) => (
               <li key={p.id} className="proposta-carta">
                 <button
                   type="button"
@@ -257,6 +358,9 @@ export default function PropostesPublic() {
                   </div>
                   <div className="proposta-carta__info">
                     <span className="proposta-carta__titol">{p.titol}</span>
+                    {p.timestamp?.toDate && (
+                      <span className="proposta-carta__data">{formatData(p.timestamp.toDate())}</span>
+                    )}
                     {p.sinopsi && <p className="proposta-carta__sinopsi">{p.sinopsi}</p>}
                   </div>
                 </button>
@@ -318,6 +422,12 @@ export default function PropostesPublic() {
               {volProposar ? 'Escaneja el teu carnet per proposar' : 'Escaneja el teu carnet per votar'}
             </p>
             <LectorCarnet onIdentificat={handleIdentificat} />
+            <p className="propostes-public__overlay-registre">
+              Encara no ets soci/a?{' '}
+              <a className="enllac" href={`${ROUTES.MARCA_URL}/fes-te-socia/`} target="_blank" rel="noopener noreferrer">
+                Fes-te Soci/a
+              </a>
+            </p>
           </div>
         </div>
       )}

@@ -10,9 +10,6 @@ body.menu-obert-body {
 .site-header__logo {
   @apply h-8 w-8 object-contain md:h-12 md:w-16;
 }
-.site-header__salutacio {
-  @apply font-body text-sm text-white/90;
-}
 .site-header__hamburguesa {
   @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white md:hidden;
 }
@@ -41,4 +38,69 @@ body.menu-obert-body {
 }
 .site-header__badge {
   @apply flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 font-body text-xs font-bold text-black;
+}
+
+/* Capçalera per a visitants no identificats: idèntica a la del lloc
+   principal (cineclubrodadebera.cat) perquè navegar entre tots dos sembli
+   quedar-se al mateix lloc — mateix logo, mateixos elements i posició. */
+.capcalera-publica {
+  @apply sticky top-0 z-30 bg-black text-white print:hidden;
+}
+.capcalera-publica__interior {
+  @apply mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6;
+}
+.capcalera-publica__marca {
+  @apply flex items-center gap-3 no-underline;
+}
+.capcalera-publica__logo {
+  @apply h-10 w-auto invert;
+}
+.capcalera-publica__marca-text {
+  @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
+}
+.capcalera-publica__nav {
+  @apply hidden gap-x-6 gap-y-1 sm:flex;
+}
+.capcalera-publica__link {
+  @apply font-body text-sm font-semibold uppercase tracking-wide text-white/70 no-underline hover:text-gold;
+}
+.capcalera-publica__link--activa {
+  @apply text-gold;
+}
+.capcalera-publica__salutacio {
+  @apply font-body text-xs text-white/60;
+}
+.capcalera-publica__hamburguesa {
+  @apply flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-white sm:hidden;
+}
+.capcalera-publica__icona {
+  @apply h-6 w-6;
+}
+.capcalera-publica__menu-mobil {
+  @apply invisible fixed inset-0 z-30 sm:hidden;
+}
+.capcalera-publica__menu-mobil--obert {
+  @apply visible;
+}
+.capcalera-publica__backdrop {
+  @apply absolute inset-0 bg-black/70 opacity-0 transition-opacity duration-300;
+}
+.capcalera-publica__menu-mobil--obert .capcalera-publica__backdrop {
+  @apply opacity-100;
+}
+.capcalera-publica__panell {
+  @apply absolute right-0 top-0 flex h-full w-4/5 max-w-xs flex-col gap-1 border-l-2 border-dashed border-white bg-black p-6 pt-16 transition-transform duration-300;
+  transform: translateX(100%);
+}
+.capcalera-publica__menu-mobil--obert .capcalera-publica__panell {
+  transform: translateX(0);
+}
+.capcalera-publica__tancar {
+  @apply absolute right-4 top-4 flex h-10 w-10 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-white;
+}
+.capcalera-publica__enllac-mobil {
+  @apply border-b border-dashed border-white/20 py-3 font-body text-lg font-semibold uppercase tracking-wide text-white/80 no-underline hover:text-gold;
+}
+.capcalera-publica__enllac-mobil--actiu {
+  @apply text-gold;
 }

@@ -22,6 +22,17 @@ const ENLLACOS_TAQUILLA = [
   [ROUTES.ESCANEIG, 'Escaneig', 'escaneig'],
 ];
 
+// Quan ningú ha iniciat sessió, aquesta app es mostra com una secció més del
+// lloc principal (cineclubrodadebera.cat): la capçalera ha de ser idèntica a
+// la seva (mateix logo, mateixos elements i posició), amb "Propostes" com a
+// única entrada interna — la resta apunten al lloc principal.
+const ENLLACOS_PUBLICS = [
+  { etiqueta: 'Inici', href: `${ROUTES.MARCA_URL}/` },
+  { etiqueta: 'Programació', href: `${ROUTES.MARCA_URL}/programacio/` },
+  { etiqueta: 'Propostes', to: ROUTES.INICI },
+  { etiqueta: 'Fes-te soci/a', href: `${ROUTES.MARCA_URL}/fes-te-socia/` },
+];
+
 const ICONES = {
   socis: (
     <>
@@ -80,22 +91,39 @@ const ICONES = {
       <path d="M21 12H9" />
     </>
   ),
+  barres: <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />,
+  creu: <path d="M6 18 18 6M6 6l12 12" />,
 };
 
-function Icona({ nom }) {
+function Icona({ nom, className = 'site-header__icona', strokeWidth = '1.6' }) {
   return (
     <svg
-      className="site-header__icona"
+      className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
       {ICONES[nom]}
     </svg>
+  );
+}
+
+function EnllacPublic({ item, className, classNameActiva, onClick }) {
+  if (item.to) {
+    return (
+      <Link className={`${className} ${classNameActiva}`} to={item.to} onClick={onClick}>
+        {item.etiqueta}
+      </Link>
+    );
+  }
+  return (
+    <a className={className} href={item.href} onClick={onClick}>
+      {item.etiqueta}
+    </a>
   );
 }
 
@@ -123,6 +151,67 @@ export default function Header() {
     return () => { unsubSolicituds(); unsubPropostes(); };
   }, [role]);
 
+  if (!user) {
+    return (
+      <header className="capcalera-publica">
+        <div className="capcalera-publica__interior">
+          <Link className="capcalera-publica__marca" to={ROUTES.INICI} aria-label="Cineclub Roda de Berà">
+            <img className="capcalera-publica__logo" src="/logo-marca.png" alt="" />
+            <span className="capcalera-publica__marca-text">Cineclub Roda de Berà</span>
+          </Link>
+          {identitatPublica && (
+            <span className="capcalera-publica__salutacio">Hola, {identitatPublica.nomPublic}!</span>
+          )}
+          <nav className="capcalera-publica__nav">
+            {ENLLACOS_PUBLICS.map((item) => (
+              <EnllacPublic
+                key={item.etiqueta}
+                item={item}
+                className="capcalera-publica__link"
+                classNameActiva="capcalera-publica__link--activa"
+              />
+            ))}
+          </nav>
+          <button
+            type="button"
+            className="capcalera-publica__hamburguesa"
+            aria-label="Obrir menú"
+            aria-expanded={menuObert}
+            aria-controls="menu-mobil-public"
+            onClick={() => setMenuObert((v) => !v)}
+          >
+            <Icona nom="barres" className="capcalera-publica__icona" strokeWidth="1.5" />
+          </button>
+        </div>
+        <div
+          id="menu-mobil-public"
+          className={`capcalera-publica__menu-mobil ${menuObert ? 'capcalera-publica__menu-mobil--obert' : ''}`}
+        >
+          <div className="capcalera-publica__backdrop" onClick={() => setMenuObert(false)} aria-hidden="true" />
+          <nav className="capcalera-publica__panell">
+            <button
+              type="button"
+              className="capcalera-publica__tancar"
+              aria-label="Tancar menú"
+              onClick={() => setMenuObert(false)}
+            >
+              <Icona nom="creu" className="capcalera-publica__icona" strokeWidth="1.5" />
+            </button>
+            {ENLLACOS_PUBLICS.map((item) => (
+              <EnllacPublic
+                key={item.etiqueta}
+                item={item}
+                className="capcalera-publica__enllac-mobil"
+                classNameActiva="capcalera-publica__enllac-mobil--actiu"
+                onClick={() => setMenuObert(false)}
+              />
+            ))}
+          </nav>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="site-header">
       <div className="site-header__marca">
@@ -133,11 +222,8 @@ export default function Header() {
         ) : (
           <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
         )}
-        {!user && identitatPublica && (
-          <span className="site-header__salutacio">Hola, {identitatPublica.nomPublic}!</span>
-        )}
       </div>
-      {user && enllacos.length > 0 && (
+      {enllacos.length > 0 && (
         <>
           <button
             type="button"

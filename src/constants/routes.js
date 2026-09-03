@@ -1,4 +1,5 @@
 export const INICI = '/';
+export const MARCA_URL = 'https://cineclubrodadebera.cat';
 export const PROPOSTES = '/propostes';
 export const PROPOSTES_PROPOSAR = '/propostes/proposar';
 export const PROPOSTES_PENDENTS = '/propostes/pendents';

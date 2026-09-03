@@ -86,6 +86,7 @@ describe('PropostaForm', () => {
       trailerUrl: 'https://youtube.com/x',
       sinopsi: 'Una noia parisenca...',
       numeroSoci: 9,
+      nomProposant: 'Toni P.',
     });
   });
 

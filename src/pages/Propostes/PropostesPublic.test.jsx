@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { IdentitatPublicaProvider } from '../../auth/IdentitatPublicaProvider';
@@ -95,12 +95,131 @@ describe('PropostesPublic', () => {
     expect(screen.getAllByText('El padrí').length).toBeGreaterThan(0);
   });
 
+  it('mostra la data de cada proposta i, per defecte, les ordena de més nova a més antiga', async () => {
+    getDocs.mockImplementation((q) => {
+      if (q?.collectionName === 'propostes') {
+        return Promise.resolve({
+          docs: [
+            {
+              id: 'antiga',
+              data: () => ({
+                titol: 'Antiga', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/antiga.jpg', timestamp: { toDate: () => new Date(2026, 0, 1) },
+              }),
+            },
+            {
+              id: 'nova',
+              data: () => ({
+                titol: 'Nova', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/nova.jpg', timestamp: { toDate: () => new Date(2026, 5, 1) },
+              }),
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ docs: [] });
+    });
+    renderPagina();
+    await screen.findByText('Nova');
+    const titols = screen.getAllByText(/^(Antiga|Nova)$/).map((el) => el.textContent);
+    expect(titols).toEqual(['Nova', 'Antiga']);
+    expect(screen.getAllByText('01/06/2026').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('01/01/2026').length).toBeGreaterThan(0);
+  });
+
+  it('el botó "Top" reordena les propostes de més a menys vots', async () => {
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          {
+            id: 'poc-votada',
+            data: () => ({
+              titol: 'Poc votada', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/poc.jpg', timestamp: { toDate: () => new Date(2026, 5, 1) },
+            }),
+          },
+          {
+            id: 'molt-votada',
+            data: () => ({
+              titol: 'Molt votada', estat: 'aprovada', numeroSoci: 5, imatgeUrl: 'https://exemple.com/molt.jpg', timestamp: { toDate: () => new Date(2026, 0, 1) },
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [{}, {}, {}] });
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByText('Poc votada');
+    expect(screen.getAllByText(/Poc votada|Molt votada/).map((el) => el.textContent)).toEqual(['Poc votada', 'Molt votada']);
+
+    await user.click(screen.getByRole('tab', { name: 'Més votades' }));
+    expect(screen.getAllByText(/Poc votada|Molt votada/).map((el) => el.textContent)).toEqual(['Molt votada', 'Poc votada']);
+
+    await user.click(screen.getByRole('tab', { name: 'Més recents' }));
+    expect(screen.getAllByText(/Poc votada|Molt votada/).map((el) => el.textContent)).toEqual(['Poc votada', 'Molt votada']);
+  });
+
+  it('a la vista Top mostra la posició, el número de vots i obre el detall en clicar la fila (però no en votar)', async () => {
+    mockPropostesAmbVots([
+      { id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/a.jpg' } },
+      { id: 'p2', dades: { titol: 'El padrí', estat: 'aprovada', numeroSoci: 5, imatgeUrl: 'https://exemple.com/b.jpg' } },
+    ]);
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByText('Amélie');
+    await user.click(screen.getByRole('tab', { name: 'Més votades' }));
+
+    const files = screen.getAllByRole('listitem');
+    expect(files[0]).toHaveTextContent('1');
+    expect(files[1]).toHaveTextContent('2');
+
+    await user.click(within(files[0]).getByRole('button', { name: 'Votar' }));
+    expect(screen.queryByRole('button', { name: 'Tornar al llistat' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Amélie'));
+    expect(await screen.findByRole('button', { name: 'Tornar al llistat' })).toBeInTheDocument();
+  });
+
+  it('canviar de pestanya actualitza el hash de la URL, i es pot obrir directament amb #top', async () => {
+    mockPropostesAmbVots([
+      { id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/a.jpg' } },
+    ]);
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByText('Amélie');
+    expect(window.location.hash).toBe('');
+
+    await user.click(screen.getByRole('tab', { name: 'Més votades' }));
+    expect(window.location.hash).toBe('#top');
+
+    await user.click(screen.getByRole('tab', { name: 'Més recents' }));
+    expect(window.location.hash).toBe('#recents');
+  });
+
+  it('carregar la pàgina amb #top obre directament la vista de més votades', async () => {
+    window.location.hash = '#top';
+    mockPropostesAmbVots([
+      { id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/a.jpg' } },
+    ]);
+    renderPagina();
+    await screen.findByText('Amélie');
+    expect(screen.getByRole('tab', { name: 'Més votades' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('el modal d\'escaneig inclou un enllaç per fer-se soci/a', async () => {
+    mockPropostesAmbVots([]);
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByText(/Encara no hi ha cap proposta/);
+    await user.click(screen.getByRole('button', { name: 'Proposar pel·lícula' }));
+    const enllac = screen.getByRole('link', { name: 'Fes-te Soci/a' });
+    expect(enllac).toHaveAttribute('href', 'https://cineclubrodadebera.cat/fes-te-socia/');
+  });
+
   it('en clicar "+ Proposar" sense identificar-se, demana escanejar per proposar', async () => {
     mockPropostesAmbVots([]);
     const user = userEvent.setup();
     renderPagina();
     await screen.findByText(/Encara no hi ha cap proposta/);
-    await user.click(screen.getByRole('button', { name: '+ Proposar' }));
+    await user.click(screen.getByRole('button', { name: 'Proposar pel·lícula' }));
     expect(screen.getByText('Escaneja el teu carnet per proposar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Simular escaneig' })).toBeInTheDocument();
   });
@@ -110,7 +229,7 @@ describe('PropostesPublic', () => {
     const user = userEvent.setup();
     renderPagina();
     await screen.findByText(/Encara no hi ha cap proposta/);
-    await user.click(screen.getByRole('button', { name: '+ Proposar' }));
+    await user.click(screen.getByRole('button', { name: 'Proposar pel·lícula' }));
     await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
     expect(await screen.findByText('Pàgina de proposar')).toBeInTheDocument();
   });
@@ -123,7 +242,7 @@ describe('PropostesPublic', () => {
     await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
     await screen.findByRole('button', { name: 'Has votat, treure el vot' });
 
-    await user.click(screen.getByRole('button', { name: '+ Proposar' }));
+    await user.click(screen.getByRole('button', { name: 'Proposar pel·lícula' }));
     expect(await screen.findByText('Pàgina de proposar')).toBeInTheDocument();
   });
 
@@ -260,17 +379,29 @@ describe('PropostesPublic', () => {
     await user.click(await screen.findByRole('button', { name: /Amélie/ }));
     expect(await screen.findByText(/Proposada per/)).toBeInTheDocument();
     expect(screen.getByText('Anna M.')).toBeInTheDocument();
-    expect(screen.getByText('22/07/2026')).toBeInTheDocument();
+    expect(screen.getAllByText('22/07/2026').length).toBeGreaterThan(0);
   });
 
-  it('el botó de tornar tanca el detall i buida el hash', async () => {
+  it('el botó de tornar tanca el detall i restaura el hash de la pestanya activa', async () => {
     mockPropostesAmbVots([{ id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3 } }]);
     const user = userEvent.setup();
     renderPagina();
     await user.click(await screen.findByRole('button', { name: /Amélie/ }));
     await user.click(screen.getByRole('button', { name: 'Tornar al llistat' }));
     expect(screen.queryByRole('button', { name: 'Tornar al llistat' })).not.toBeInTheDocument();
-    expect(window.location.hash).toBe('');
+    expect(window.location.hash).toBe('#recents');
+  });
+
+  it('tancar un detall obert des de la vista "Més votades" torna a "#top", no a "#recents"', async () => {
+    mockPropostesAmbVots([{ id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3 } }]);
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findAllByText('Amélie');
+    await user.click(screen.getByRole('tab', { name: 'Més votades' }));
+    await user.click(screen.getAllByRole('button', { name: /Amélie/ })[0]);
+    await user.click(screen.getByRole('button', { name: 'Tornar al llistat' }));
+    expect(window.location.hash).toBe('#top');
+    expect(screen.getByRole('tab', { name: 'Més votades' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('carregar la pàgina amb un hash existent obre directament aquell detall', async () => {

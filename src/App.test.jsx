@@ -23,8 +23,8 @@ vi.mock('firebase/firestore', () => ({
 import App from './App';
 
 describe('App', () => {
-  it('mostra el logo del cineclub', () => {
+  it('mostra la marca del cineclub', () => {
     render(<App />);
-    expect(screen.getByRole('img', { name: 'Cineclub Roda de Berà' })).toBeInTheDocument();
+    expect(screen.getByText('Cineclub Roda de Berà')).toBeInTheDocument();
   });
 });

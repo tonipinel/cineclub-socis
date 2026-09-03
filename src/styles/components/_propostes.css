@@ -1,14 +1,29 @@
 .propostes-public {
-  @apply mx-auto flex max-w-5xl flex-col gap-4 pb-10;
+  @apply mx-auto flex max-w-6xl flex-col gap-4 pb-10;
 }
 .propostes-public__capcalera {
-  @apply sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-black/10 bg-white px-4 py-3;
+  @apply sticky top-0 z-10 flex flex-col gap-2 border-b border-black/10 bg-white px-4 py-3;
+}
+.propostes-public__capcalera-fila {
+  @apply flex items-center justify-between gap-3;
 }
 .propostes-public__marca {
-  @apply font-display text-lg font-bold uppercase tracking-wide text-black;
+  @apply font-display text-lg font-bold uppercase tracking-wide text-black md:text-[2rem];
 }
 .propostes-public__proposar-boto {
-  @apply px-5 py-2.5 text-base;
+  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-lg p-0 font-display text-2xl leading-none;
+}
+.propostes-public__intro {
+  @apply flex flex-col gap-2 px-4 font-body text-sm text-black/70;
+}
+.propostes-public__ordre {
+  @apply flex gap-1 border-b border-black/10;
+}
+.propostes-public__ordre-boto {
+  @apply -mb-px cursor-pointer rounded-t-lg border border-b-0 border-transparent bg-black/5 px-4 py-2 font-body text-sm font-semibold text-black/50;
+}
+.propostes-public__ordre-boto--activa {
+  @apply border-black/10 bg-white text-black;
 }
 .propostes-public__buit {
   @apply px-4 font-body text-black/70;
@@ -18,6 +33,72 @@
 }
 .propostes-public__llista {
   @apply grid list-none grid-cols-2 gap-3 p-0 px-4 sm:grid-cols-3 lg:grid-cols-4;
+}
+
+.propostes-public__top {
+  @apply flex list-none flex-col gap-0 p-0 px-4;
+}
+.proposta-top__fila {
+  @apply grid items-stretch gap-x-2 gap-y-1 border-b border-black/10 px-3 py-3 sm:gap-x-3;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "titol titol imatge" "data data imatge" "vot info imatge";
+}
+.proposta-top__fila:nth-child(even) {
+  @apply bg-black/5;
+}
+.proposta-top__fila:hover {
+  @apply bg-gold/10;
+}
+.proposta-top__titol-linia {
+  @apply flex cursor-pointer items-baseline gap-2 overflow-hidden border-0 bg-transparent p-0 text-left;
+  grid-area: titol;
+}
+.proposta-top__posicio {
+  @apply shrink-0 text-center font-display text-sm font-bold text-black/40 sm:text-lg;
+}
+.proposta-top__titol {
+  @apply min-w-0 flex-1 truncate font-display text-base font-bold text-black sm:text-lg;
+}
+.proposta-top__data-linia {
+  @apply flex cursor-pointer items-center gap-2 overflow-hidden border-0 bg-transparent p-0 text-left;
+  grid-area: data;
+}
+.proposta-top__vot {
+  @apply flex w-14 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 self-start rounded border-2 border-gold bg-transparent py-1 text-gold-dark transition hover:bg-gold hover:text-black sm:w-16;
+  grid-area: vot;
+}
+.proposta-top__vot--activa {
+  @apply border-gold bg-gold text-black;
+}
+.proposta-top__vot-icona {
+  @apply h-4 w-4;
+}
+.proposta-top__vot-num {
+  @apply font-body text-xs font-semibold;
+}
+.proposta-top__detall {
+  @apply flex min-w-0 cursor-pointer flex-col justify-center gap-0.5 overflow-hidden border-0 bg-transparent p-0 text-left;
+  grid-area: info;
+}
+.proposta-top__sinopsi {
+  @apply line-clamp-2 w-full font-body text-xs text-black/60;
+}
+.proposta-top__data {
+  @apply shrink-0 text-center font-body text-xs text-black/40;
+  width: calc(var(--spacing) * 17);
+}
+.proposta-top__autor {
+  @apply min-w-0 flex-1 truncate font-body text-xs text-black/50;
+}
+.proposta-top__imatge-boto {
+  @apply shrink-0 cursor-pointer self-stretch border-0 bg-transparent p-0;
+  grid-area: imatge;
+}
+.proposta-top__imatge {
+  @apply block h-full w-16 rounded object-cover sm:w-24;
+}
+.proposta-top__imatge.proposta-carta__cartell-placeholder {
+  @apply aspect-auto p-1 text-[8px] leading-tight;
 }
 
 .proposta-carta {
@@ -40,6 +121,9 @@
 }
 .proposta-carta__titol {
   @apply line-clamp-2 font-display text-base font-bold text-black sm:text-xl;
+}
+.proposta-carta__data {
+  @apply font-body text-xs text-black/50;
 }
 .proposta-carta__sinopsi {
   @apply line-clamp-3 font-body text-sm text-black/80;
@@ -129,6 +213,9 @@ body.proposta-detall-obert-body {
 }
 .propostes-public__overlay-text {
   @apply text-center font-body text-base text-black;
+}
+.propostes-public__overlay-registre {
+  @apply text-center font-body text-sm text-black/60;
 }
 
 .proposar-pellicula {

@@ -53,7 +53,7 @@ export default function PropostesPendents() {
   return (
     <div className="propostes-pendents">
       <div className="propostes-pendents__capcalera">
-        <h1 className="propostes-pendents__titol">Propostes de pel·lícules</h1>
+        <h1 className="propostes-pendents__titol">Propostes de programació</h1>
         <BotoAfegir to={ROUTES.PROPOSTES_NOVA} etiqueta="Nova proposta" />
       </div>
       <div className="propostes-pendents__pestanyes" role="tablist">
