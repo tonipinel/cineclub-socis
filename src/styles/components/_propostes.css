@@ -2,7 +2,7 @@
   @apply mx-auto flex max-w-6xl flex-col gap-4 pb-10;
 }
 .propostes-public__capcalera {
-  @apply sticky top-0 z-10 flex flex-col gap-2 border-b border-black/10 bg-white px-4 py-3;
+  @apply sticky top-0 z-10 flex flex-col gap-2 bg-white pt-3;
 }
 .propostes-public__capcalera-fila {
   @apply flex items-center justify-between gap-3;
@@ -13,8 +13,20 @@
 .propostes-public__proposar-boto {
   @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-lg p-0 font-display text-2xl leading-none;
 }
-.propostes-public__intro {
-  @apply flex flex-col gap-2 px-4 font-body text-sm text-black/70;
+.propostes-hero {
+  @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-8 text-center text-white;
+  background-image: url('/cinema-pattern.jpg');
+  background-repeat: repeat;
+  background-color: #4d4d4d;
+  background-blend-mode: multiply;
+}
+.propostes-hero__title {
+  @apply font-display text-5xl font-bold uppercase text-gold;
+  line-height: 1;
+  text-shadow: 2px 2px 2px black;
+}
+.propostes-hero__hook {
+  @apply mt-2 flex max-w-xl flex-col gap-2 font-body text-base text-white/80 sm:text-lg;
 }
 .propostes-public__ordre {
   @apply flex gap-1 border-b border-black/10;

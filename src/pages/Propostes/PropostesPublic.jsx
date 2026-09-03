@@ -251,186 +251,189 @@ export default function PropostesPublic() {
   };
 
   return (
-    <div className="propostes-public">
-      <header className="propostes-public__capcalera">
-        <div className="propostes-public__capcalera-fila">
-          <span className="propostes-public__marca">Propostes de programació</span>
+    <>
+      <section className="propostes-hero">
+        <h1 className="propostes-hero__title">Propostes</h1>
+        <div className="propostes-hero__hook">
+          <p>
+            Descobreix les pel·lícules proposades per les persones sòcies, vota les que vols veure
+            i afegeix-ne de noves. (Cal tenir el carnet)
+          </p>
+        </div>
+      </section>
+
+      <div className="propostes-public">
+        <header className="propostes-public__capcalera">
+          <div className="propostes-public__capcalera-fila">
+            <span className="propostes-public__marca">Propostes de programació</span>
+            <button
+              type="button"
+              className="btn propostes-public__proposar-boto"
+              onClick={handleProposarClick}
+              aria-label="Proposar pel·lícula"
+            >
+              +
+            </button>
+          </div>
+        </header>
+
+        <div className="propostes-public__ordre" role="tablist">
           <button
             type="button"
-            className="btn propostes-public__proposar-boto"
-            onClick={handleProposarClick}
-            aria-label="Proposar pel·lícula"
+            role="tab"
+            aria-selected={vistaOrdre === 'data'}
+            className={`propostes-public__ordre-boto ${vistaOrdre === 'data' ? 'propostes-public__ordre-boto--activa' : ''}`}
+            onClick={() => canviarVista('data')}
           >
-            +
+            Més recents
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vistaOrdre === 'vots'}
+            className={`propostes-public__ordre-boto ${vistaOrdre === 'vots' ? 'propostes-public__ordre-boto--activa' : ''}`}
+            onClick={() => canviarVista('vots')}
+          >
+            Més votades
           </button>
         </div>
-      </header>
 
-      <div className="propostes-public__intro">
-        <p>
-          Aquesta secció recull les pel·lícules proposades per les persones sòcies del cineclub.
-          Explora-les, vota les que t'agradaria veure a la pantalla gran i afegeix-ne de noves.
-          Entre totes i tots construïm la programació de les properes sessions.
-        </p>
-        <p><strong>Per votar i fer noves propostes cal tenir el carnet de soci del cineclub.</strong></p>
-      </div>
+        {error && <p className="form__error">{error}</p>}
+        {info && <p className="propostes-public__info">{info}</p>}
 
-      <div className="propostes-public__ordre" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={vistaOrdre === 'data'}
-          className={`propostes-public__ordre-boto ${vistaOrdre === 'data' ? 'propostes-public__ordre-boto--activa' : ''}`}
-          onClick={() => canviarVista('data')}
-        >
-          Més recents
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={vistaOrdre === 'vots'}
-          className={`propostes-public__ordre-boto ${vistaOrdre === 'vots' ? 'propostes-public__ordre-boto--activa' : ''}`}
-          onClick={() => canviarVista('vots')}
-        >
-          Més votades
-        </button>
-      </div>
+        {propostes === null && <Carregant />}
 
-      {error && <p className="form__error">{error}</p>}
-      {info && <p className="propostes-public__info">{info}</p>}
-
-      {propostes === null && <Carregant />}
-
-      {propostes !== null && (
-        propostesMostrades.length === 0 ? (
-          <p className="propostes-public__buit">
-            Encara no hi ha cap proposta aprovada. Sigues el primer a proposar-ne una!
-          </p>
-        ) : vistaOrdre === 'vots' ? (
-          <ol className="propostes-public__top">
-            {propostesMostrades.map((p, index) => (
-              <li key={p.id} className="proposta-top__fila">
-                <button type="button" className="proposta-top__titol-linia" onClick={() => obrirProposta(p.id)}>
-                  <span className="proposta-top__posicio">{index + 1}</span>
-                  <span className="proposta-top__titol">{p.titol}</span>
-                </button>
-                <button type="button" className="proposta-top__data-linia" onClick={() => obrirProposta(p.id)}>
-                  {p.timestamp?.toDate && (
-                    <span className="proposta-top__data">{formatData(p.timestamp.toDate())}</span>
-                  )}
-                  {p.nomProposant && <span className="proposta-top__autor">Proposada per {p.nomProposant}</span>}
-                </button>
-                <button
-                  type="button"
-                  className={`proposta-top__vot ${p.heVotat ? 'proposta-top__vot--activa' : ''}`}
-                  onClick={() => handleVotarClick(p)}
-                  aria-label={p.heVotat ? 'Has votat, treure el vot' : 'Votar'}
-                  aria-pressed={p.heVotat}
-                >
-                  <IconaPolze className="proposta-top__vot-icona" omplert={p.heVotat} />
-                  <span className="proposta-top__vot-num">{p.vots}</span>
-                </button>
-                <button type="button" className="proposta-top__detall" onClick={() => obrirProposta(p.id)}>
-                  {p.sinopsi && <p className="proposta-top__sinopsi">{p.sinopsi}</p>}
-                </button>
-                <button
-                  type="button"
-                  className="proposta-top__imatge-boto"
-                  onClick={() => obrirProposta(p.id)}
-                  aria-label={`Obrir ${p.titol}`}
-                >
-                  <CartellPelicula proposta={p} className="proposta-top__imatge" />
-                </button>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <ul className="propostes-public__llista">
-            {propostesMostrades.map((p) => (
-              <li key={p.id} className="proposta-carta">
-                <button
-                  type="button"
-                  className="proposta-carta__obrir"
-                  onClick={() => obrirProposta(p.id)}
-                >
-                  <div className="proposta-carta__cartell-marc">
-                    <CartellPelicula proposta={p} className="proposta-carta__cartell" />
-                  </div>
-                  <div className="proposta-carta__info">
-                    <span className="proposta-carta__titol">{p.titol}</span>
+        {propostes !== null && (
+          propostesMostrades.length === 0 ? (
+            <p className="propostes-public__buit">
+              Encara no hi ha cap proposta aprovada. Sigues el primer a proposar-ne una!
+            </p>
+          ) : vistaOrdre === 'vots' ? (
+            <ol className="propostes-public__top">
+              {propostesMostrades.map((p, index) => (
+                <li key={p.id} className="proposta-top__fila">
+                  <button type="button" className="proposta-top__titol-linia" onClick={() => obrirProposta(p.id)}>
+                    <span className="proposta-top__posicio">{index + 1}</span>
+                    <span className="proposta-top__titol">{p.titol}</span>
+                  </button>
+                  <button type="button" className="proposta-top__data-linia" onClick={() => obrirProposta(p.id)}>
                     {p.timestamp?.toDate && (
-                      <span className="proposta-carta__data">{formatData(p.timestamp.toDate())}</span>
+                      <span className="proposta-top__data">{formatData(p.timestamp.toDate())}</span>
                     )}
-                    {p.sinopsi && <p className="proposta-carta__sinopsi">{p.sinopsi}</p>}
-                  </div>
-                </button>
-                <AccionsVot proposta={p} onVotar={() => handleVotarClick(p)} />
-              </li>
-            ))}
-          </ul>
-        )
-      )}
+                    {p.nomProposant && <span className="proposta-top__autor">Proposada per {p.nomProposant}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`proposta-top__vot ${p.heVotat ? 'proposta-top__vot--activa' : ''}`}
+                    onClick={() => handleVotarClick(p)}
+                    aria-label={p.heVotat ? 'Has votat, treure el vot' : 'Votar'}
+                    aria-pressed={p.heVotat}
+                  >
+                    <IconaPolze className="proposta-top__vot-icona" omplert={p.heVotat} />
+                    <span className="proposta-top__vot-num">{p.vots}</span>
+                  </button>
+                  <button type="button" className="proposta-top__detall" onClick={() => obrirProposta(p.id)}>
+                    {p.sinopsi && <p className="proposta-top__sinopsi">{p.sinopsi}</p>}
+                  </button>
+                  <button
+                    type="button"
+                    className="proposta-top__imatge-boto"
+                    onClick={() => obrirProposta(p.id)}
+                    aria-label={`Obrir ${p.titol}`}
+                  >
+                    <CartellPelicula proposta={p} className="proposta-top__imatge" />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <ul className="propostes-public__llista">
+              {propostesMostrades.map((p) => (
+                <li key={p.id} className="proposta-carta">
+                  <button
+                    type="button"
+                    className="proposta-carta__obrir"
+                    onClick={() => obrirProposta(p.id)}
+                  >
+                    <div className="proposta-carta__cartell-marc">
+                      <CartellPelicula proposta={p} className="proposta-carta__cartell" />
+                    </div>
+                    <div className="proposta-carta__info">
+                      <span className="proposta-carta__titol">{p.titol}</span>
+                      {p.timestamp?.toDate && (
+                        <span className="proposta-carta__data">{formatData(p.timestamp.toDate())}</span>
+                      )}
+                      {p.sinopsi && <p className="proposta-carta__sinopsi">{p.sinopsi}</p>}
+                    </div>
+                  </button>
+                  <AccionsVot proposta={p} onVotar={() => handleVotarClick(p)} />
+                </li>
+              ))}
+            </ul>
+          )
+        )}
 
-      {propostaOberta && (
-        <div className="proposta-detall" role="dialog" aria-modal="true">
-          <div className="proposta-detall__capcalera">
-            <img className="proposta-detall__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
-            <div className="proposta-detall__autor">
-              {propostaOberta.nomProposant && (
-                <>
-                  <span>Proposada per <b>{propostaOberta.nomProposant}</b></span>
-                  {propostaOberta.timestamp?.toDate && (
-                    <span className="proposta-detall__data">{formatData(propostaOberta.timestamp.toDate())}</span>
-                  )}
-                </>
-              )}
+        {propostaOberta && (
+          <div className="proposta-detall" role="dialog" aria-modal="true">
+            <div className="proposta-detall__capcalera">
+              <img className="proposta-detall__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+              <div className="proposta-detall__autor">
+                {propostaOberta.nomProposant && (
+                  <>
+                    <span>Proposada per <b>{propostaOberta.nomProposant}</b></span>
+                    {propostaOberta.timestamp?.toDate && (
+                      <span className="proposta-detall__data">{formatData(propostaOberta.timestamp.toDate())}</span>
+                    )}
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                className="proposta-detall__tancar"
+                onClick={tancarProposta}
+                aria-label="Tornar al llistat"
+              >
+                ✕
+              </button>
             </div>
-            <button
-              type="button"
-              className="proposta-detall__tancar"
-              onClick={tancarProposta}
-              aria-label="Tornar al llistat"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="proposta-detall__scroll">
-            <CartellPelicula proposta={propostaOberta} className="proposta-detall__cartell" />
-            <div className="proposta-detall__info">
-              <h2 className="proposta-detall__titol">{propostaOberta.titol}</h2>
-              {propostaOberta.sinopsi && <p className="proposta-detall__sinopsi">{propostaOberta.sinopsi}</p>}
+            <div className="proposta-detall__scroll">
+              <CartellPelicula proposta={propostaOberta} className="proposta-detall__cartell" />
+              <div className="proposta-detall__info">
+                <h2 className="proposta-detall__titol">{propostaOberta.titol}</h2>
+                {propostaOberta.sinopsi && <p className="proposta-detall__sinopsi">{propostaOberta.sinopsi}</p>}
+              </div>
+            </div>
+            <div className="proposta-detall__footer">
+              <AccionsVot proposta={propostaOberta} onVotar={() => handleVotarClick(propostaOberta)} ambText />
             </div>
           </div>
-          <div className="proposta-detall__footer">
-            <AccionsVot proposta={propostaOberta} onVotar={() => handleVotarClick(propostaOberta)} ambText />
-          </div>
-        </div>
-      )}
+        )}
 
-      {(propostaPendent || volProposar) && (
-        <div className="propostes-public__overlay" role="dialog" aria-modal="true">
-          <div className="propostes-public__overlay-panell">
-            <button
-              type="button"
-              className="propostes-public__overlay-tancar"
-              onClick={() => { setPropostaPendent(null); setVolProposar(false); }}
-              aria-label="Cancel·lar"
-            >
-              ✕
-            </button>
-            <p className="propostes-public__overlay-text">
-              {volProposar ? 'Escaneja el teu carnet per proposar' : 'Escaneja el teu carnet per votar'}
-            </p>
-            <LectorCarnet onIdentificat={handleIdentificat} />
-            <p className="propostes-public__overlay-registre">
-              Encara no ets soci/a?{' '}
-              <a className="enllac" href={`${ROUTES.MARCA_URL}/fes-te-socia/`} target="_blank" rel="noopener noreferrer">
-                Fes-te Soci/a
-              </a>
-            </p>
+        {(propostaPendent || volProposar) && (
+          <div className="propostes-public__overlay" role="dialog" aria-modal="true">
+            <div className="propostes-public__overlay-panell">
+              <button
+                type="button"
+                className="propostes-public__overlay-tancar"
+                onClick={() => { setPropostaPendent(null); setVolProposar(false); }}
+                aria-label="Cancel·lar"
+              >
+                ✕
+              </button>
+              <p className="propostes-public__overlay-text">
+                {volProposar ? 'Escaneja el teu carnet per proposar' : 'Escaneja el teu carnet per votar'}
+              </p>
+              <LectorCarnet onIdentificat={handleIdentificat} />
+              <p className="propostes-public__overlay-registre">
+                Encara no ets soci/a?{' '}
+                <a className="enllac" href={`${ROUTES.MARCA_URL}/fes-te-socia/`} target="_blank" rel="noopener noreferrer">
+                  Fes-te Soci/a
+                </a>
+              </p>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
