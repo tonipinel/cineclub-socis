@@ -60,6 +60,43 @@ describe('MovimentForm — alta', () => {
     });
   });
 
+  it('no deixa desar un moviment amb el concepte en blanc (el navegador el bloqueja com a camp requerit)', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByLabelText('Concepte')).toBeRequired();
+    await user.type(screen.getByLabelText('Preu unitari'), '100');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
+  it('no deixa desar un moviment amb el concepte només amb espais, i el retalla en desar-lo', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes>
+          <Route path="/comptabilitat/nou" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.type(screen.getByLabelText('Concepte'), '   ');
+    await user.type(screen.getByLabelText('Preu unitari'), '100');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText('El concepte no pot estar en blanc.')).toBeInTheDocument();
+    expect(addDoc).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText('Concepte'));
+    await user.type(screen.getByLabelText('Concepte'), '  Quotes de març  ');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
+    const [, dadesDesades] = addDoc.mock.calls[0];
+    expect(dadesDesades.concepte).toBe('Quotes de març');
+  });
+
   it('en triar tipus Traspàs, desa la direcció en comptes de categoria i mètode', async () => {
     const user = userEvent.setup();
     render(
@@ -456,6 +493,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
     );
     await user.selectOptions(screen.getByLabelText('Tipus'), 'despesa');
     await user.selectOptions(screen.getByLabelText('Categoria'), 'Gestió pel·lícules');
+    await user.type(screen.getByLabelText('Concepte'), 'Lloguer sala');
     await user.type(screen.getByLabelText('Preu unitari'), '100');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByText(/ha d'estar vinculat a una sessió/)).toBeInTheDocument();
@@ -477,6 +515,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
     await user.selectOptions(screen.getByLabelText('Tipus'), 'despesa');
     await user.selectOptions(screen.getByLabelText('Categoria'), 'Gestió pel·lícules');
     await user.selectOptions(screen.getByLabelText('Sessió (pel·lícula)'), 's1');
+    await user.type(screen.getByLabelText('Concepte'), 'Lloguer sala');
     await user.type(screen.getByLabelText('Preu unitari'), '100');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
@@ -537,6 +576,7 @@ describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => 
     await screen.findByRole('option', { name: 'The Artist' });
     await user.selectOptions(screen.getByLabelText('Sessió (opcional)'), 's1');
     await user.selectOptions(screen.getByLabelText('Tipus'), 'traspas');
+    await user.type(screen.getByLabelText('Concepte'), 'Traspàs a banc');
     await user.type(screen.getByLabelText('Preu unitari'), '50');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByText('Llibre de moviments');

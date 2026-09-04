@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('barcode-detector/polyfill', () => ({}));
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -10,7 +11,7 @@ const SESSIO_ACTIVA = { id: 'sessio-1', titol: 'The Artist' };
 const LOT_TIQUETS = { numeroInicial: 1, quantitat: 150, preu: 5 };
 
 vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
+  collection: vi.fn((_, nom) => nom),
   query: vi.fn(),
   where: vi.fn(),
   doc: vi.fn(),
@@ -47,15 +48,21 @@ describe('EscaneigPage', () => {
   });
 
   it('per defecte mostra el botó Escanejar i l\'enllaç per introduir un codi manualment, sense el camp encara', async () => {
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Introduir codi manualment' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
   });
 
+  it('mostra un enllaç LOG al footer que porta al registre d\'incidències', async () => {
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'Escanejar' });
+    expect(screen.getByRole('link', { name: 'LOG' })).toHaveAttribute('href', '/escaneig/log');
+  });
+
   it('en clicar l\'enllaç, mostra el camp de codi manual i amaga el botó Escanejar', async () => {
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Registrar' })).toBeInTheDocument();
@@ -72,7 +79,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -80,7 +87,7 @@ describe('EscaneigPage', () => {
     expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
     expect(screen.getByText(/Venç el/)).not.toHaveClass('escaneig__missatge-venciment--avis');
     expect(addDoc.mock.calls[0][1]).toEqual({
-      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7, metode: 'manual',
     });
   });
 
@@ -104,13 +111,13 @@ describe('EscaneigPage', () => {
       return { empty: true, docs: [] };
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'CARNET-abc-123');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
-      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7,
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7, metode: 'manual',
     });
   });
 
@@ -130,7 +137,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament, inicPeriode: ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -143,13 +150,17 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: false, motiuDesactivacio: 'Mal comportament' }) }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Soci desactivat: Mal comportament')).toBeInTheDocument();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
+      motiu: 'soci-desactivat', codi: 'SOCI-7', metode: 'manual', numeroSoci: 7, detall: 'Mal comportament',
+    });
   });
 
   it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
@@ -167,14 +178,18 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000047');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('El codi T-000047 ha estat anul·lat.')).toBeInTheDocument();
     expect(screen.getByText('Aquest tiquet ja no és vàlid per accedir-hi')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
+      motiu: 'tiquet-anullat', codi: 'T-000047', codiTiquet: 'T-000047', metode: 'manual',
+    });
   });
 
   it('mostra un error si el tiquet no pertany a cap lot conegut, sense registrar-lo amb preu 0', async () => {
@@ -192,25 +207,33 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('El codi T-000999 no pertany a cap lot de tiquets conegut.')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
+      motiu: 'tiquet-desconegut', codi: 'T-000999', codiTiquet: 'T-000999', metode: 'manual',
+    });
   });
 
   it('mostra un error si el número de soci no existeix', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('No hi ha cap soci amb el número 999')).toBeInTheDocument();
     expect(screen.getByText('Comprova el número al carnet o al llistat de socis')).toBeInTheDocument();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
+      motiu: 'soci-no-trobat', codi: 'SOCI-999', metode: 'manual', detall: 'No hi ha cap soci amb el número 999',
+    });
   });
 
   it('registra un tiquet genèric nou amb el preu del lot de tiquets', async () => {
@@ -229,14 +252,14 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
-      tipus: 'generic', codiTiquet: 'T-000014', preuAplicat: 5,
+      tipus: 'generic', codiTiquet: 'T-000014', preuAplicat: 5, metode: 'manual',
     });
   });
 
@@ -260,17 +283,22 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     const dataFormatada = `05/03/2026 ${dataEscaneigPrevi.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}`;
     expect(await screen.findByText('Codi ja utilitzat')).toBeInTheDocument();
     expect(await screen.findByText(new RegExp(`ja s'ha escanejat \\(${dataFormatada.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`))).toBeInTheDocument();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
+      motiu: 'tiquet-ja-utilitzat', codi: 'T-000014', metode: 'manual', codiTiquet: 'T-000014',
+    });
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
     expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(addDoc.mock.calls[0][1].codiTiquet).toBe('T-000014');
+    expect(addDoc.mock.calls[1][1].codiTiquet).toBe('T-000014');
+    expect(addDoc.mock.calls[1][1].tipus).toBe('generic');
   });
 
   it('no registra el codi repetit si es cancel·la la confirmació', async () => {
@@ -293,35 +321,42 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await user.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc).toHaveBeenCalledTimes(1);
+    expect(addDoc.mock.calls[0][1].motiu).toBe('tiquet-ja-utilitzat');
   });
 
   it('mostra un error per a un codi no reconegut', async () => {
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
     expect(screen.getByText('Els codis vàlids comencen per SOCI- o T-')).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', motiu: 'codi-desconegut', codi: 'XYZ', metode: 'manual',
+    });
   });
 
   it('mostra un error si falla la consulta a Firestore', async () => {
     getDocs.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
-    expect(addDoc).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', motiu: 'excepcio', codi: 'SOCI-7', metode: 'manual', detall: 'offline',
+    });
   });
 
   it('ignora un mateix codi reenviat dins la finestra de debounce, sense duplicar el registre', async () => {
@@ -340,7 +375,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -363,7 +398,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -374,7 +409,7 @@ describe('EscaneigPage', () => {
 
   it('en clicar "Escanejar un altre", neteja el missatge anterior i torna a mostrar el camp manual', async () => {
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -385,7 +420,7 @@ describe('EscaneigPage', () => {
   });
 
   it('afegeix la classe escaneig-body al body i la treu en desmuntar', async () => {
-    const { unmount } = render(<EscaneigPage />);
+    const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByRole('button', { name: 'Escanejar' });
     expect(document.body).toHaveClass('escaneig-body');
     unmount();
@@ -393,14 +428,14 @@ describe('EscaneigPage', () => {
   });
 
   it('el botó de tancar del footer no es mostra a l\'estat inicial', async () => {
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByRole('button', { name: 'Escanejar' });
     expect(screen.queryByRole('button', { name: "Tancar i tornar a l'inici" })).not.toBeInTheDocument();
   });
 
   it('el botó de tancar del footer torna a l\'estat inicial des del mode manual', async () => {
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
@@ -409,7 +444,7 @@ describe('EscaneigPage', () => {
 
   it('amb #ok a la URL mostra directament el missatge de prova (mode mockup)', async () => {
     window.location.hash = '#ok';
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
     expect(screen.getByText('Mode mockup: #ok')).toBeInTheDocument();
@@ -417,7 +452,7 @@ describe('EscaneigPage', () => {
 
   it('amb #codi a la URL mostra directament el formulari manual (mode mockup)', async () => {
     window.location.hash = '#codi';
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByLabelText('Codi manual')).toBeInTheDocument();
   });
 
@@ -428,7 +463,7 @@ describe('EscaneigPage', () => {
       return () => {};
     });
     window.location.hash = '#ok';
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
     expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
     vi.unstubAllEnvs();
@@ -436,7 +471,7 @@ describe('EscaneigPage', () => {
 
   it('canviar el fragment de la URL sense recarregar actualitza el mockup mostrat', async () => {
     window.location.hash = '#ok';
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByText('Anna Vidal');
 
     window.location.hash = '#error';
@@ -447,7 +482,7 @@ describe('EscaneigPage', () => {
 
   it('treure el fragment de mockup de la URL torna a l\'estat inicial real', async () => {
     window.location.hash = '#ok';
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByText('Anna Vidal');
 
     window.location.hash = '';
@@ -458,7 +493,7 @@ describe('EscaneigPage', () => {
 
   it('el botó de tancar del footer torna a l\'estat inicial des d\'un missatge', async () => {
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -470,14 +505,14 @@ describe('EscaneigPage', () => {
 
   describe('mode prova', () => {
     it('per defecte està desactivat i no mostra l\'avís', () => {
-      render(<EscaneigPage />);
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       expect(screen.getByRole('button', { name: 'Mode prova: desactivat' })).toBeInTheDocument();
       expect(screen.queryByText('Mode prova: no es desa res')).not.toBeInTheDocument();
     });
 
     it('activar-lo mostra l\'avís permanent i canvia el text del botó', async () => {
       const user = userEvent.setup();
-      render(<EscaneigPage />);
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       expect(screen.getByText('Mode prova: no es desa res')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Mode prova: activat' })).toBeInTheDocument();
@@ -490,7 +525,7 @@ describe('EscaneigPage', () => {
         docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
       });
       const user = userEvent.setup();
-      render(<EscaneigPage />);
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       const input = await obrirCodiManual(user);
       await user.type(input, 'SOCI-7');
@@ -518,7 +553,7 @@ describe('EscaneigPage', () => {
           return () => {};
         });
       const user = userEvent.setup();
-      render(<EscaneigPage />);
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       const input = await obrirCodiManual(user);
       await user.type(input, 'T-000014');
@@ -527,6 +562,55 @@ describe('EscaneigPage', () => {
       expect(await screen.findByText('Entrada genèrica (5€)')).toBeInTheDocument();
       expect(screen.getByText('Mode prova: no s\'ha desat res. S\'afegiria a «The Artist».')).toBeInTheDocument();
       expect(addDoc).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('escaneig per càmera', () => {
+    const originalBarcodeDetector = window.BarcodeDetector;
+    const originalGetUserMedia = navigator.mediaDevices?.getUserMedia;
+    const originalPlay = window.HTMLMediaElement?.prototype.play;
+
+    beforeEach(() => {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) },
+      });
+      window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockResolvedValue([{ rawValue: 'SOCI-7' }]);
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      window.BarcodeDetector = originalBarcodeDetector;
+      window.HTMLMediaElement.prototype.play = originalPlay;
+      if (originalGetUserMedia) {
+        Object.defineProperty(navigator, 'mediaDevices', {
+          configurable: true,
+          value: { getUserMedia: originalGetUserMedia },
+        });
+      }
+    });
+
+    it('un codi detectat per la càmera es desa amb metode: \'qr\'', async () => {
+      const ultimPagament = new Date().toISOString().slice(0, 10);
+      getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
+      });
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(400);
+
+      expect(addDoc.mock.calls[0][1]).toEqual({
+        sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7, metode: 'qr',
+      });
     });
   });
 });
@@ -546,7 +630,7 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
       docs: [{ ref: sociRef, data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -571,7 +655,7 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
       }],
     });
     const user = userEvent.setup();
-    render(<EscaneigPage />);
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));

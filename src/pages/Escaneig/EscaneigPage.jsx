@@ -1,5 +1,7 @@
 import 'barcode-detector/polyfill';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import * as ROUTES from '../../constants/routes';
 import {
   addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where,
 } from 'firebase/firestore';
@@ -228,7 +230,26 @@ export default function EscaneigPage() {
     setModeEntrada('BarcodeDetector' in window ? 'escanejant' : 'manual');
   };
 
-  const registrarGeneric = async (codiTiquet, preuAplicat) => {
+  // Registre de diagnòstic per poder investigar més tard per què un carnet o
+  // tiquet concret no s'ha pogut llegir (p. ex. si sempre falla el mateix
+  // carnet, probablement és un problema d'impressió, no de l'aplicació).
+  // Mai bloqueja el flux principal: si fallés aquesta escriptura, s'ignora.
+  const registrarErrorEscaneig = async (motiu, dades) => {
+    if (modeProva) return;
+    try {
+      await addDoc(collection(db, 'escaneigErrors'), {
+        sessionId: sessioActiva?.id ?? null,
+        timestamp: serverTimestamp(),
+        escanejatPer: user.uid,
+        motiu,
+        ...dades,
+      });
+    } catch {
+      // No hi ha res més a fer si ni tan sols es pot desar l'error.
+    }
+  };
+
+  const registrarGeneric = async (codiTiquet, preuAplicat, metode) => {
     if (modeProva) {
       mostrarResultat({
         tipus: 'ok', text: `Entrada genèrica (${preuAplicat}€)`, prova: true, sessioProva: sessioActiva.titol,
@@ -243,6 +264,7 @@ export default function EscaneigPage() {
         tipus: 'generic',
         codiTiquet,
         preuAplicat,
+        metode,
       });
       mostrarResultat({ tipus: 'ok', text: `Entrada genèrica registrada (${preuAplicat}€)` });
     } catch {
@@ -250,13 +272,19 @@ export default function EscaneigPage() {
     }
   };
 
-  const processarSociTrobat = async (sociDoc, missatgeNoTrobat, detallNoTrobat) => {
+  const processarSociTrobat = async ({
+    sociDoc, missatgeNoTrobat, detallNoTrobat, metode, codi,
+  }) => {
     if (!sociDoc) {
+      registrarErrorEscaneig('soci-no-trobat', { codi, metode, detall: missatgeNoTrobat });
       mostrarResultat({ tipus: 'error', text: missatgeNoTrobat, detall: detallNoTrobat });
       return;
     }
     const soci = sociDoc.data();
     if (!estaActiu(soci)) {
+      registrarErrorEscaneig('soci-desactivat', {
+        codi, metode, numeroSoci: soci.numeroSoci, detall: soci.motiuDesactivacio ?? null,
+      });
       mostrarResultat({
         tipus: 'error',
         text: `${soci.nom} ${soci.cognoms}`,
@@ -289,6 +317,7 @@ export default function EscaneigPage() {
       escanejatPer: user.uid,
       tipus: 'soci',
       numeroSoci: soci.numeroSoci,
+      metode,
     });
     if (inicPeriodeNou !== soci.inicPeriode) {
       await updateDoc(sociDoc.ref, { inicPeriode: inicPeriodeNou });
@@ -296,7 +325,7 @@ export default function EscaneigPage() {
     mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
   };
 
-  const processarCodi = async (codiOriginal) => {
+  const processarCodi = async (codiOriginal, metode) => {
     const codi = codiOriginal.trim();
     const ara = Date.now();
     if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) {
@@ -309,6 +338,7 @@ export default function EscaneigPage() {
       const identificat = identificarCodi(codi);
 
       if (identificat.tipus === 'desconegut') {
+        registrarErrorEscaneig('codi-desconegut', { codi, metode });
         mostrarResultat({
           tipus: 'error',
           text: `Codi no reconegut: ${codi}`,
@@ -321,11 +351,13 @@ export default function EscaneigPage() {
         const socisTrobats = await getDocs(
           query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
         );
-        await processarSociTrobat(
-          socisTrobats.docs[0],
-          `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
-          'Comprova el número al carnet o al llistat de socis'
-        );
+        await processarSociTrobat({
+          sociDoc: socisTrobats.docs[0],
+          missatgeNoTrobat: `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
+          detallNoTrobat: 'Comprova el número al carnet o al llistat de socis',
+          metode,
+          codi,
+        });
         return;
       }
 
@@ -333,7 +365,9 @@ export default function EscaneigPage() {
         const socisTrobats = await getDocs(
           query(collection(db, 'socis'), where('tokenCarnet', '==', identificat.token))
         );
-        await processarSociTrobat(socisTrobats.docs[0], 'Aquest carnet no és vàlid.');
+        await processarSociTrobat({
+          sociDoc: socisTrobats.docs[0], missatgeNoTrobat: 'Aquest carnet no és vàlid.', metode, codi,
+        });
         return;
       }
 
@@ -343,6 +377,7 @@ export default function EscaneigPage() {
       }
 
       if (tiquetEstaAnulat(identificat.codiTiquet, lotsRef.current)) {
+        registrarErrorEscaneig('tiquet-anullat', { codi, metode, codiTiquet: identificat.codiTiquet });
         mostrarResultat({
           tipus: 'error',
           text: `El codi ${identificat.codiTiquet} ha estat anul·lat.`,
@@ -353,6 +388,7 @@ export default function EscaneigPage() {
 
       const preuTiquet = preuDelTiquet(identificat.codiTiquet, lotsRef.current);
       if (preuTiquet === undefined) {
+        registrarErrorEscaneig('tiquet-desconegut', { codi, metode, codiTiquet: identificat.codiTiquet });
         mostrarResultat({
           tipus: 'error',
           text: `El codi ${identificat.codiTiquet} no pertany a cap lot de tiquets conegut.`,
@@ -372,6 +408,7 @@ export default function EscaneigPage() {
           ? formatDataHora(timestampRepetit)
           : null;
         const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat`;
+        registrarErrorEscaneig('tiquet-ja-utilitzat', { codi, metode, codiTiquet: identificat.codiTiquet });
         mostrarResultat({
           tipus: 'avis',
           text: 'Codi ja utilitzat',
@@ -379,12 +416,13 @@ export default function EscaneigPage() {
             ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
             : `${textBase}. Confirma si vols comptar-lo igualment.`,
           codiTiquet: identificat.codiTiquet,
-          onConfirmar: () => registrarGeneric(identificat.codiTiquet, preuTiquet),
+          onConfirmar: () => registrarGeneric(identificat.codiTiquet, preuTiquet, metode),
         });
         return;
       }
-      await registrarGeneric(identificat.codiTiquet, preuTiquet);
-    } catch {
+      await registrarGeneric(identificat.codiTiquet, preuTiquet, metode);
+    } catch (error) {
+      registrarErrorEscaneig('excepcio', { codi, metode, detall: String(error?.message ?? error) });
       mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
     }
   };
@@ -412,7 +450,7 @@ export default function EscaneigPage() {
       if (!videoRef.current?.srcObject) return;
       try {
         const barcodes = await detector.detect(videoRef.current);
-        if (barcodes[0]) processarCodi(barcodes[0].rawValue);
+        if (barcodes[0]) processarCodi(barcodes[0].rawValue, 'qr');
       } catch {
         // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
       }
@@ -429,7 +467,7 @@ export default function EscaneigPage() {
   const handleCodiManual = (e) => {
     e.preventDefault();
     if (!codiManual.trim()) return;
-    processarCodi(codiManual.trim());
+    processarCodi(codiManual.trim(), 'manual');
     setCodiManual('');
   };
 
@@ -570,6 +608,7 @@ export default function EscaneigPage() {
             Mode prova: {modeProva ? 'activat' : 'desactivat'}
           </button>
         </div>
+        <Link className="escaneig__footer-log" to={ROUTES.ESCANEIG_LOG}>LOG</Link>
         {(modeEntrada !== 'idle' || missatge) && (
           <button
             type="button"

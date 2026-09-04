@@ -37,6 +37,12 @@ service cloud.firestore {
       allow create, read: if isStaff();
     }
 
+    // Registre de diagnòstic de codis que l'escaneig no ha pogut resoldre
+    // (per investigar més tard problemes d'impressió o de lectura de QR).
+    match /escaneigErrors/{id} {
+      allow create, read: if isStaff();
+    }
+
     // Només l'admin gestiona la comptabilitat; taquilla no hi té cap accés.
     match /moviments/{id} {
       allow read, write: if isAdmin();

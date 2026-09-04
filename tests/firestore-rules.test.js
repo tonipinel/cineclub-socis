@@ -116,6 +116,27 @@ describe('firestore.rules — accessLog', () => {
   });
 });
 
+describe('firestore.rules — escaneigErrors', () => {
+  it('impedeix a un visitant no autenticat crear ni llegir escaneigErrors', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(anonDb, 'escaneigErrors/1'), { motiu: 'codi-desconegut', codi: 'XYZ' }));
+    await assertFails(getDoc(doc(anonDb, 'escaneigErrors/1')));
+  });
+
+  it('permet a taquilla crear i llegir escaneigErrors', async () => {
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    await assertSucceeds(setDoc(doc(taquillaDb, 'escaneigErrors/1'), { motiu: 'codi-desconegut', codi: 'XYZ' }));
+    await assertSucceeds(getDoc(doc(taquillaDb, 'escaneigErrors/1')));
+  });
+
+  it('impedeix actualitzar o esborrar escaneigErrors fins i tot a un admin', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'escaneigErrors/1'), { motiu: 'codi-desconegut', codi: 'XYZ' });
+    await assertFails(updateDoc(doc(adminDb, 'escaneigErrors/1'), { motiu: 'excepcio' }));
+    await assertFails(deleteDoc(doc(adminDb, 'escaneigErrors/1')));
+  });
+});
+
 describe('firestore.rules — socis (Fase 2)', () => {
   it('permet a taquilla llegir socis però no escriure-hi', async () => {
     const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();

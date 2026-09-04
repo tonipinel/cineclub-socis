@@ -16,6 +16,7 @@ import TicketsPage from './pages/Tickets/TicketsPage';
 import TicketsLotPage from './pages/Tickets/TicketsLotPage';
 import SolicitudsPendents from './pages/Solicituds/SolicitudsPendents';
 import EscaneigPage from './pages/Escaneig/EscaneigPage';
+import EscaneigLogPage from './pages/Escaneig/EscaneigLogPage';
 import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
 import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
@@ -151,6 +152,16 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
                 <EscaneigPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.ESCANEIG_LOG}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
+                <EscaneigLogPage />
               </RequireRole>
             </RequireAuth>
           }

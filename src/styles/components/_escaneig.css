@@ -103,6 +103,9 @@ body.escaneig-body {
 .escaneig__footer-tancar {
   @apply absolute right-3 top-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-black/10 text-black;
 }
+.escaneig__footer-log {
+  @apply absolute bottom-3 right-3 font-body text-xs font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted;
+}
 .escaneig__footer-tancar-icona {
   @apply h-4 w-4;
 }
@@ -123,4 +126,50 @@ body.escaneig-body {
 }
 .escaneig__prova-boto--actiu {
   @apply border-amber-500 bg-amber-500 text-black;
+}
+
+.escaneig-log {
+  @apply mx-auto flex max-w-4xl flex-col gap-4 p-6 pb-24;
+}
+.escaneig-log__capcalera {
+  @apply flex flex-col gap-1 border-b border-black/10 pb-4;
+}
+.escaneig-log__tornar {
+  @apply font-body text-sm text-black/70;
+}
+.escaneig-log__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.escaneig-log__buit {
+  @apply font-body text-black/70;
+}
+.escaneig-log__llista {
+  @apply flex list-none flex-col gap-0 p-0;
+}
+.escaneig-log__item {
+  @apply border-b border-black/10 py-3;
+}
+.escaneig-log__fila {
+  @apply grid grid-cols-2 items-center gap-x-3 gap-y-1 font-body text-sm sm:grid-cols-[9rem_9rem_1fr_5rem_10rem];
+}
+.escaneig-log__detall {
+  @apply mt-1 truncate font-body text-xs text-black/50;
+}
+.escaneig-log__data {
+  @apply text-black/60;
+}
+.escaneig-log__motiu {
+  @apply font-semibold text-black;
+}
+.escaneig-log__codi {
+  @apply truncate font-mono text-black/80;
+}
+.escaneig-log__metode {
+  @apply w-fit rounded-full border-2 border-gold px-2 py-0.5 text-xs font-semibold uppercase text-gold-dark;
+}
+.escaneig-log__metode--manual {
+  @apply border-amber-500 text-amber-600;
+}
+.escaneig-log__sessio {
+  @apply truncate text-black/60;
 }

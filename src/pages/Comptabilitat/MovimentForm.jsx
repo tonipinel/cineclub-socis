@@ -133,6 +133,10 @@ export default function MovimentForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    if (!dades.concepte.trim()) {
+      setError('El concepte no pot estar en blanc.');
+      return;
+    }
     if (dades.categoria === 'Gestió pel·lícules' && !dades.sessionId) {
       setError('Un moviment de "Gestió pel·lícules" ha d\'estar vinculat a una sessió.');
       return;
@@ -143,7 +147,7 @@ export default function MovimentForm() {
       const totalNum = calcularTotal(preuUnitariNum, quantitatNum);
       const base = {
         data: dades.data,
-        concepte: dades.concepte,
+        concepte: dades.concepte.trim(),
         tipus: dades.tipus,
         preuUnitari: preuUnitariNum,
         quantitat: quantitatNum,
@@ -219,7 +223,7 @@ export default function MovimentForm() {
 
       <div className="form__field">
         <label className="form__label" htmlFor="concepte">Concepte</label>
-        <input id="concepte" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.concepte} onChange={handleChange('concepte')} readOnly={!desbloquejat} />
+        <input id="concepte" className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'} value={dades.concepte} onChange={handleChange('concepte')} readOnly={!desbloquejat} required />
       </div>
 
       <div className="form__field">
