@@ -192,10 +192,14 @@ export default function SessionForm() {
   const comparacioSocis = comparativa(resum.socisDistints, resumAnterior?.socisDistints);
   const comparacioAportacions = comparativa(resum.entradesGeneriques, resumAnterior?.entradesGeneriques);
   const comparacioTotal = comparativa(totalPersones, totalPersonesAnterior);
-  // Avisem si a la porta s'han escanejat entrades genèriques (no-socis) però
-  // encara no s'ha registrat el moviment d'"Aportacions" corresponent — un
-  // oblit fàcil, ja que és un pas manual separat de l'escaneig.
-  const aportacionsPendents = resum.entradesGeneriques > 0 && !resumEconomic.ingressosPerCategoria['Aportacions'];
+  // Avisem si a la porta s'han escanejat entrades genèriques (no-socis) amb
+  // cost però encara no s'ha registrat el moviment d'"Aportacions"
+  // corresponent — un oblit fàcil, ja que és un pas manual separat de
+  // l'escaneig. Les entrades a 0€ (cortesies, mode prova, etc.) no compten:
+  // no generen cap aportació a registrar.
+  const entradesAportacio = entradesAccessLog.filter((e) => e.tipus === 'generic' && (e.preuAplicat ?? 0) > 0);
+  const importAportacions = entradesAportacio.reduce((total, e) => total + e.preuAplicat, 0);
+  const aportacionsPendents = entradesAportacio.length > 0 && !resumEconomic.ingressosPerCategoria['Aportacions'];
   const enllacAfegirAportacions = editant
     ? `${ROUTES.COMPTABILITAT_NOU}?${new URLSearchParams({
       sessionId: id,
@@ -203,8 +207,8 @@ export default function SessionForm() {
       tipus: 'ingres',
       categoria: 'Aportacions',
       concepte: 'Aportacions',
-      preuUnitari: String(resum.importGeneric / resum.entradesGeneriques),
-      quantitat: String(resum.entradesGeneriques),
+      preuUnitari: String(importAportacions / entradesAportacio.length),
+      quantitat: String(entradesAportacio.length),
     })}`
     : '';
 
@@ -363,7 +367,7 @@ export default function SessionForm() {
               </div>
               {aportacionsPendents && (
                 <p className="session-form__avis">
-                  Falta afegir les {resum.entradesGeneriques} aportacions d'aquesta sessió per un total de {formatEuros(resum.importGeneric)}.
+                  Falta afegir les {entradesAportacio.length} aportacions d'aquesta sessió per un total de {formatEuros(importAportacions)}.
                   {' '}
                   <Link className="enllac" to={enllacAfegirAportacions}>Afegir-les ara</Link>
                 </p>

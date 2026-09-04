@@ -299,6 +299,51 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
     await screen.findByText('Desglossament econòmic');
     expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
   });
+
+  it('no compta les entrades genèriques a 0€ ni a l\'avís ni a l\'enllaç', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-1', preuAplicat: 5 }) },
+            { data: () => ({ tipus: 'generic', codiTiquet: 'T-2', preuAplicat: 0 }) },
+          ],
+        });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    renderEnEdicio();
+    expect(await screen.findByText("Falta afegir les 1 aportacions d'aquesta sessió per un total de 5.00€.")).toBeInTheDocument();
+    const enllac = screen.getByRole('link', { name: 'Afegir-les ara' });
+    expect(enllac).toHaveAttribute(
+      'href',
+      '/comptabilitat/nou?sessionId=1&data=2026-03-05&tipus=ingres&categoria=Aportacions&concepte=Aportacions&preuUnitari=5&quantitat=1'
+    );
+  });
+
+  it('no avisa si totes les entrades genèriques són a 0€', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => ({ tipus: 'generic', codiTiquet: 'T-1', preuAplicat: 0 }) }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    renderEnEdicio();
+    await screen.findByText('Desglossament econòmic');
+    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+  });
 });
 
 describe('SessionForm — detall de socis i aportacions', () => {
