@@ -10,6 +10,7 @@ import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
+import EnllacAdjunt from '../../components/EnllacAdjunt';
 
 const COLUMNES = [
   ['total', 'Import'],
@@ -26,9 +27,12 @@ const PREFIX_TIPUS = { ingres: '+', despesa: '−', traspas: '>' };
 const RENDERITZAR_CELDA = {
   data: (m) => formatData(m.data),
   concepte: (m) => (
-    <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', m.id)} onClick={(e) => e.stopPropagation()}>
-      {m.concepte}
-    </Link>
+    <>
+      <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', m.id)} onClick={(e) => e.stopPropagation()}>
+        {m.concepte}
+      </Link>
+      {m.adjunt && <EnllacAdjunt adjunt={m.adjunt} />}
+    </>
   ),
   categoriaODireccio: (m) => m.categoria ?? ETIQUETES_DIRECCIO[m.direccio] ?? '',
   metodePagament: (m) => {

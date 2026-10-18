@@ -116,6 +116,12 @@
 .comptabilitat__taula tbody .comptabilitat__fila:active {
   @apply bg-gold/20;
 }
+.comptabilitat__adjunt {
+  @apply ml-2 inline-flex cursor-pointer items-center border-0 bg-transparent p-0 align-middle text-gold-dark transition hover:text-black;
+}
+.comptabilitat__adjunt-icona {
+  @apply h-5 w-5;
+}
 .comptabilitat__ordenar {
   @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black;
 }

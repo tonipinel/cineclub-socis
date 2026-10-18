@@ -16,6 +16,7 @@ vi.mock('firebase/firestore', () => ({
           data: () => ({
             data: '2026-03-01', concepte: 'Quotes de març', tipus: 'ingres',
             categoria: 'Quotes socis', metodePagament: 'efectiu', total: 100, sessionId: 's1',
+            adjunt: { path: 'factures/abc/factura.pdf', nom: 'factura.pdf' },
           }),
         },
         {
@@ -36,6 +37,8 @@ vi.mock('firebase/firestore', () => ({
     return () => {};
   },
 }));
+
+vi.mock('../../lib/adjunts', () => ({ urlAdjunt: vi.fn().mockResolvedValue('https://storage.test/factura.pdf') }));
 
 import { getDocs } from 'firebase/firestore';
 import ComptabilitatPage from './ComptabilitatPage';
@@ -60,6 +63,26 @@ describe('ComptabilitatPage', () => {
   it('el concepte és un enllaç real (obrible en pestanya nova), no només un clic de fila', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Quotes de març' })).toHaveAttribute('href', '/comptabilitat/1');
+  });
+
+  it('els moviments amb document mostren una icona que l\'obre en una finestra nova, sense anar al detall', async () => {
+    const finestra = { location: {}, close: vi.fn() };
+    const obrir = vi.spyOn(window, 'open').mockReturnValue(finestra);
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route path="/" element={<ComptabilitatPage />} />
+          <Route path="/comptabilitat/:id" element={<p>Detall del moviment</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getAllByRole('button', { name: /Veure el document/ })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Veure el document factura.pdf' }));
+    expect(obrir).toHaveBeenCalledWith('', '_blank');
+    await vi.waitFor(() => expect(finestra.location.href).toBe('https://storage.test/factura.pdf'));
+    expect(screen.queryByText('Detall del moviment')).not.toBeInTheDocument();
+    obrir.mockRestore();
   });
 
   it('filtra per tipus', async () => {
