@@ -10,7 +10,7 @@ import { avui } from '../../lib/data';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
 import {
-  resumComptable, resumReal, resumPrevisio, balancPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
+  resumComptable, resumReal, resumPrevisio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
@@ -101,7 +101,7 @@ export default function DashboardPage() {
   if (real.mesos.length > 0 && mesosPrevisio.length > 0) {
     dadesGrafic[real.mesos.length - 1].tresoreriaPrevista = dadesGrafic[real.mesos.length - 1].tresoreriaReal;
   }
-  const balancSessions = balancPerSessio(dades.moviments);
+  const rendibilitatSessions = rendibilitatPerSessio(dades.moviments, dades.socis, dades.sessions);
   const dataAvui = avui();
   const ultimesSessions = dades.sessions
     .filter((s) => (s.data ?? '') <= dataAvui)
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     .slice(0, 5);
   const dadesBalancSessions = [...ultimesSessions].reverse().map((s) => ({
     titol: s.titol,
-    balanc: balancSessions[s.id] ?? 0,
+    balanc: rendibilitatSessions[s.id] ?? 0,
   }));
   const resumAssistenciaPerSessio = resumPerSessio(dades.accessLog);
   const dadesAssistenciaSessions = [...ultimesSessions].reverse().map((s) => {
@@ -222,7 +222,7 @@ export default function DashboardPage() {
 
         <div className="dashboard__modul">
           <h2 className="dashboard__modul-titol">Rentabilitat de les sessions</h2>
-          <p className="dashboard__subtitol">Balanç per sessió (últimes 5)</p>
+          <p className="dashboard__subtitol">Rendibilitat per sessió (últimes 5), amb la part que li toca de les quotes dels socis</p>
           {ultimesSessions.length === 0 && <p>Encara no hi ha cap sessió.</p>}
           {ultimesSessions.length > 0 && (
             <ResponsiveContainer width="100%" height={220}>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
-import { balancPerSessio, formatEuros } from '../../lib/moviments';
+import { rendibilitatPerSessio, formatEuros } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
@@ -14,7 +14,8 @@ const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 
 export default function SessionsList() {
   const [sessions, setSessions] = useState([]);
   const [resumPerSessioState, setResumPerSessioState] = useState({});
-  const [balancPerSessioState, setBalancPerSessioState] = useState({});
+  const [moviments, setMoviments] = useState([]);
+  const [socis, setSocis] = useState([]);
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), orderBy('data', 'desc'));
@@ -33,9 +34,17 @@ export default function SessionsList() {
   useEffect(() => {
     const q = query(collection(db, 'moviments'));
     getDocs(q).then((snap) => {
-      setBalancPerSessioState(balancPerSessio(snap.docs.map((d) => d.data())));
+      setMoviments(snap.docs.map((d) => d.data()));
     });
   }, []);
+
+  useEffect(() => {
+    getDocs(query(collection(db, 'socis'))).then((snap) => {
+      setSocis(snap.docs.map((d) => d.data()));
+    });
+  }, []);
+
+  const rendibilitat = rendibilitatPerSessio(moviments, socis, sessions);
 
   return (
     <div className="sessions-list">
@@ -46,7 +55,7 @@ export default function SessionsList() {
       <ul className="sessions-list__graella">
         {sessions.map((s) => {
           const resum = resumPerSessioState[s.id] ?? RESUM_INICIAL;
-          const balanc = balancPerSessioState[s.id] ?? 0;
+          const rendibilitatSessio = rendibilitat[s.id] ?? 0;
           return (
             <li key={s.id} className="sessions-list__targeta">
               <Link className="sessions-list__enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
@@ -62,8 +71,8 @@ export default function SessionsList() {
                   <div className="sessions-list__resum">
                     <span>Socis: {resum.socisDistints}</span>
                     <span>No socis: {resum.entradesGeneriques}</span>
-                    <span className={balanc < 0 ? 'sessions-list__balanc--negatiu' : 'sessions-list__balanc--positiu'}>
-                      Balanç: {formatEuros(balanc)}
+                    <span className={rendibilitatSessio < 0 ? 'sessions-list__balanc--negatiu' : 'sessions-list__balanc--positiu'}>
+                      Rendibilitat: {formatEuros(rendibilitatSessio)}
                     </span>
                   </div>
                 </div>

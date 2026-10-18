@@ -122,14 +122,64 @@ export function ordenarMoviments(moviments, { columna = 'data', direccio = 'desc
   });
 }
 
-export function balancPerSessio(moviments) {
-  const balanc = {};
+function dataIso(data) {
+  return data.toLocaleDateString('sv-SE');
+}
+
+function mesUnAnyDespres(dataIsoStr) {
+  const [any, mes, dia] = dataIsoStr.split('-').map(Number);
+  return dataIso(new Date(any + 1, mes - 1, dia));
+}
+
+// Període de vigència de cada quota: un any des del pagament (o, en l'última
+// quota d'un soci, des del primer escaneig posterior al pagament, vegeu
+// `inicPeriode` a estatSoci.js).
+function periodesDeQuotes(moviments, socis) {
+  const socisPerNumero = new Map(socis.map((soci) => [Number(soci.numeroSoci), soci]));
+  const quotes = moviments.filter((m) => (
+    m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES && m.data
+  ));
+  const ultimaPerSoci = new Map();
+  for (const quota of quotes) {
+    const numero = Number(quota.numeroSoci);
+    const ultima = ultimaPerSoci.get(numero);
+    if (!ultima || quota.data > ultima.data) ultimaPerSoci.set(numero, quota);
+  }
+  return quotes.map((quota) => {
+    const soci = socisPerNumero.get(Number(quota.numeroSoci));
+    const esUltima = ultimaPerSoci.get(Number(quota.numeroSoci)) === quota;
+    const inici = esUltima && soci?.inicPeriode && soci.inicPeriode >= quota.data ? soci.inicPeriode : quota.data;
+    return { total: Number(quota.total) || 0, inici, fi: mesUnAnyDespres(inici) };
+  });
+}
+
+// Mínim de pel·lícules que comptem per any: les quotes es reparteixen com a
+// mínim entre 12 sessions, encara que se'n hagin programat menys, perquè
+// les poques ja programades no s'emportin tot el pes de les quotes.
+export const MINIM_SESSIONS_ANY = 12;
+
+// Rendibilitat imputada de cada sessió: el que aporta la pel·lícula per si
+// mateixa (aportacions de la porta i el seu cost, és a dir, els moviments
+// lligats a la sessió que no són quotes) més la part que li toca de les
+// quotes vigents aquell dia. Cada quota es reparteix per igual entre les
+// sessions del seu període, o entre MINIM_SESSIONS_ANY si n'hi ha menys.
+export function rendibilitatPerSessio(moviments, socis, sessions) {
+  const rendibilitat = {};
   for (const moviment of moviments) {
     if (!moviment.sessionId || moviment.tipus === TIPUS_MOVIMENT.TRASPAS) continue;
+    if (moviment.categoria === CATEGORIA_QUOTA_SOCI) continue;
     const signe = moviment.tipus === TIPUS_MOVIMENT.DESPESA ? -1 : 1;
-    balanc[moviment.sessionId] = (balanc[moviment.sessionId] ?? 0) + signe * (Number(moviment.total) || 0);
+    rendibilitat[moviment.sessionId] = (rendibilitat[moviment.sessionId] ?? 0) + signe * (Number(moviment.total) || 0);
   }
-  return balanc;
+
+  for (const periode of periodesDeQuotes(moviments, socis)) {
+    const sessionsDelPeriode = sessions.filter((s) => s.data && s.data >= periode.inici && s.data <= periode.fi);
+    const divisor = Math.max(sessionsDelPeriode.length, MINIM_SESSIONS_ANY);
+    for (const sessio of sessionsDelPeriode) {
+      rendibilitat[sessio.id] = (rendibilitat[sessio.id] ?? 0) + periode.total / divisor;
+    }
+  }
+  return rendibilitat;
 }
 
 export function subtotalsPerMetode(moviments) {

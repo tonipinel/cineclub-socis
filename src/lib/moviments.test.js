@@ -5,7 +5,7 @@ import {
   filtrarMoviments,
   ordenarMoviments,
   subtotalsPerMetode,
-  balancPerSessio,
+  rendibilitatPerSessio,
   resumEconomicSessio,
   formatEuros,
   resumComptable,
@@ -237,14 +237,19 @@ describe('resumEconomicSessio', () => {
   });
 });
 
-describe('balancPerSessio', () => {
-  it('calcula ingressos menys despeses per cada sessió', () => {
+describe('rendibilitatPerSessio', () => {
+  const quota = (numeroSoci, data, total = 20, extra = {}) => ({
+    tipus: 'ingres', categoria: 'Quotes socis', numeroSoci, data, total, ...extra,
+  });
+  const sessio = (id, data) => ({ id, data });
+
+  it('suma aportacions i resta el cost de la pel·lícula de cada sessió', () => {
     const moviments = [
-      { sessionId: 's1', tipus: 'ingres', total: 100 },
-      { sessionId: 's1', tipus: 'despesa', total: 40 },
-      { sessionId: 's2', tipus: 'ingres', total: 30 },
+      { sessionId: 's1', tipus: 'ingres', categoria: 'Aportacions', total: 100 },
+      { sessionId: 's1', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 40 },
+      { sessionId: 's2', tipus: 'ingres', categoria: 'Aportacions', total: 30 },
     ];
-    expect(balancPerSessio(moviments)).toEqual({ s1: 60, s2: 30 });
+    expect(rendibilitatPerSessio(moviments, [], [])).toEqual({ s1: 60, s2: 30 });
   });
 
   it('ignora els moviments sense sessió i els traspassos', () => {
@@ -252,11 +257,49 @@ describe('balancPerSessio', () => {
       { sessionId: '', tipus: 'ingres', total: 100 },
       { sessionId: 's1', tipus: 'traspas', direccio: 'caixa-a-banc', total: 50 },
     ];
-    expect(balancPerSessio(moviments)).toEqual({});
+    expect(rendibilitatPerSessio(moviments, [], [])).toEqual({});
   });
 
   it('retorna un objecte buit sense moviments', () => {
-    expect(balancPerSessio([])).toEqual({});
+    expect(rendibilitatPerSessio([], [], [])).toEqual({});
+  });
+
+  it('reparteix una quota per igual entre 12 sessions quan el període en té menys', () => {
+    const sessions = [sessio('s1', '2024-02-01'), sessio('s2', '2024-06-01'), sessio('s3', '2024-10-01'), sessio('s4', '2024-12-01')];
+    const resultat = rendibilitatPerSessio([quota(1, '2024-01-15', 24)], [], sessions);
+    expect(resultat).toEqual({ s1: 2, s2: 2, s3: 2, s4: 2 });
+  });
+
+  it('si el període té més de 12 sessions, la reparteix entre totes', () => {
+    const sessions = Array.from({ length: 14 }, (_, i) => sessio(`s${i}`, `2024-${String(i % 12 + 1).padStart(2, '0')}-${i < 12 ? '10' : '20'}`));
+    const resultat = rendibilitatPerSessio([quota(1, '2024-01-05', 28)], [], sessions);
+    expect(Object.values(resultat)).toHaveLength(14);
+    expect(resultat.s0).toBe(2);
+  });
+
+  it('no atribueix la quota a la sessió on el soci es va fer soci, sinó a totes les del període', () => {
+    const sessions = [sessio('s1', '2024-01-15'), sessio('s2', '2024-03-01')];
+    const moviments = [quota(1, '2024-01-15', 24, { sessionId: 's1', tipusQuota: 'alta' })];
+    expect(rendibilitatPerSessio(moviments, [], sessions)).toEqual({ s1: 2, s2: 2 });
+  });
+
+  it('no compta les sessions fora de la vigència de la quota', () => {
+    const sessions = [sessio('abans', '2024-01-01'), sessio('dins', '2024-06-01'), sessio('despres', '2025-03-01')];
+    const resultat = rendibilitatPerSessio([quota(1, '2024-02-01', 24)], [], sessions);
+    expect(resultat).toEqual({ dins: 2 });
+  });
+
+  it('suma les quotes de diversos socis i les renovacions', () => {
+    const sessions = [sessio('s1', '2024-06-01'), sessio('s2', '2025-06-01')];
+    const moviments = [quota(1, '2024-03-01', 24), quota(1, '2025-03-01', 24), quota(2, '2024-03-01', 12)];
+    expect(rendibilitatPerSessio(moviments, [], sessions)).toEqual({ s1: 3, s2: 2 });
+  });
+
+  it('en l\'última quota d\'un soci, el període comença a inicPeriode', () => {
+    const sessions = [sessio('abans', '2024-03-01'), sessio('dins', '2024-06-01')];
+    const socis = [{ numeroSoci: 1, inicPeriode: '2024-05-01' }];
+    const resultat = rendibilitatPerSessio([quota(1, '2024-02-01', 24)], socis, sessions);
+    expect(resultat).toEqual({ dins: 2 });
   });
 });
 

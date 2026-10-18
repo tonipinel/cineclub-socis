@@ -35,7 +35,7 @@ describe('SessionsList', () => {
     expect(screen.getByRole('link', { name: /The Artist/ })).toHaveAttribute('href', '/sessions/1');
   });
 
-  it('mostra el resum de socis, aportacions i balanç de cada sessió', async () => {
+  it('mostra el resum de socis, aportacions i rendibilitat de cada sessió', async () => {
     onSnapshot.mockImplementationOnce((q, callback) => {
       callback({ docs: [{ id: '1', data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }) }] });
       return () => {};
@@ -52,10 +52,11 @@ describe('SessionsList', () => {
           { data: () => ({ sessionId: '1', tipus: 'ingres', total: 100 }) },
           { data: () => ({ sessionId: '1', tipus: 'despesa', total: 40 }) },
         ],
-      });
+      })
+      .mockResolvedValueOnce({ docs: [] });
     render(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Socis: 1')).toBeInTheDocument();
     expect(screen.getByText('No socis: 1')).toBeInTheDocument();
-    expect(screen.getByText('Balanç: 60.00€')).toBeInTheDocument();
+    expect(screen.getByText('Rendibilitat: 60.00€')).toBeInTheDocument();
   });
 });
