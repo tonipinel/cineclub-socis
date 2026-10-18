@@ -8,6 +8,9 @@ import {
   calcularTotal, CATEGORIES_PER_TIPUS, CATEGORIA_QUOTA_SOCI, DIRECCIONS_TRASPAS, METODES_DESPESA, METODES_INGRES,
   TIPUS_MOVIMENT, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
+import {
+  ACCEPT_ADJUNT, eliminarAdjunt, pujarAdjunt, urlAdjunt, validarAdjunt,
+} from '../../lib/adjunts';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import * as ROUTES from '../../constants/routes';
@@ -75,6 +78,9 @@ export default function MovimentForm() {
   const [carregant, setCarregant] = useState(editant);
   const [error, setError] = useState(null);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
+  const [fitxerNou, setFitxerNou] = useState(null);
+  const [treureAdjunt, setTreureAdjunt] = useState(false);
+  const [urlAdjuntActual, setUrlAdjuntActual] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -101,6 +107,33 @@ export default function MovimentForm() {
       setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
   }, []);
+
+  const pathAdjunt = dades.adjunt?.path;
+  useEffect(() => {
+    if (!pathAdjunt) return;
+    let cancelat = false;
+    urlAdjunt(pathAdjunt).then((url) => {
+      if (!cancelat) setUrlAdjuntActual(url);
+    }).catch(() => {});
+    return () => { cancelat = true; };
+  }, [pathAdjunt]);
+
+  const handleCanviFitxer = (e) => {
+    const fitxer = e.target.files[0];
+    if (!fitxer) {
+      setFitxerNou(null);
+      return;
+    }
+    const errorFitxer = validarAdjunt(fitxer);
+    if (errorFitxer) {
+      setError(errorFitxer);
+      e.target.value = '';
+      setFitxerNou(null);
+      return;
+    }
+    setError(null);
+    setFitxerNou(fitxer);
+  };
 
   const handleChange = (camp) => (e) => {
     setDades((d) => ({ ...d, [camp]: e.target.value }));
@@ -141,7 +174,10 @@ export default function MovimentForm() {
       setError('Un moviment de "Gestió pel·lícules" ha d\'estar vinculat a una sessió.');
       return;
     }
+    let adjuntNou = null;
     try {
+      if (fitxerNou) adjuntNou = await pujarAdjunt(fitxerNou);
+      const adjuntFinal = adjuntNou ?? (treureAdjunt ? null : dades.adjunt);
       const quantitatNum = Number(dades.quantitat) || 0;
       const preuUnitariNum = Number(dades.preuUnitari) || 0;
       const totalNum = calcularTotal(preuUnitariNum, quantitatNum);
@@ -160,6 +196,7 @@ export default function MovimentForm() {
         // llistat aquí es perdria en desar.
         ...(dades.numeroSoci != null ? { numeroSoci: dades.numeroSoci } : {}),
         ...(dades.tipusQuota != null ? { tipusQuota: dades.tipusQuota } : {}),
+        ...(adjuntFinal ? { adjunt: adjuntFinal } : {}),
       };
       const moviment = dades.tipus === TIPUS_MOVIMENT.TRASPAS
         ? { ...base, direccio: dades.direccio }
@@ -175,8 +212,12 @@ export default function MovimentForm() {
       if (moviment.numeroSoci != null) {
         await sincronitzarUltimPagament(Number(moviment.numeroSoci));
       }
+      if (dades.adjunt && adjuntFinal?.path !== dades.adjunt.path) {
+        await eliminarAdjunt(dades.adjunt.path);
+      }
       navigate(ROUTES.COMPTABILITAT);
     } catch {
+      if (adjuntNou) await eliminarAdjunt(adjuntNou.path);
       setError("No s'ha pogut desar. Torna-ho a provar.");
     }
   };
@@ -187,6 +228,7 @@ export default function MovimentForm() {
     setError(null);
     try {
       await deleteDoc(doc(db, 'moviments', id));
+      if (dades.adjunt) await eliminarAdjunt(dades.adjunt.path);
       if (dades.numeroSoci != null) {
         await sincronitzarUltimPagament(Number(dades.numeroSoci));
       }
@@ -311,6 +353,26 @@ export default function MovimentForm() {
           value={calcularTotal(dades.preuUnitari, dades.quantitat)}
           readOnly
         />
+      </div>
+
+      <div className="form__field">
+        <label className="form__label" htmlFor="adjunt">Document / factura</label>
+        {dades.adjunt && !treureAdjunt && (
+          <p className="moviment-form__adjunt">
+            {urlAdjuntActual ? (
+              <a className="enllac" href={urlAdjuntActual} target="_blank" rel="noreferrer">{dades.adjunt.nom}</a>
+            ) : dades.adjunt.nom}
+            {desbloquejat && (
+              <button className="moviment-form__adjunt-treure" type="button" onClick={() => setTreureAdjunt(true)}>
+                Treure
+              </button>
+            )}
+          </p>
+        )}
+        {!dades.adjunt && !desbloquejat && <p className="moviment-form__adjunt">Cap document adjunt.</p>}
+        {desbloquejat && (
+          <input id="adjunt" type="file" className="form__input" accept={ACCEPT_ADJUNT} onChange={handleCanviFitxer} />
+        )}
       </div>
 
       {error && <p className="form__error">{error}</p>}

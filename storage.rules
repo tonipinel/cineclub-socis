@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // Factures i documents adjunts als moviments de comptabilitat: només
+    // l'admin els veu o els gestiona, i només PDF o imatge de fins a 10 MB.
+    match /factures/{id}/{nom} {
+      allow read, delete: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.size <= 10 * 1024 * 1024
+        && (request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/.*'));
+    }
+  }
+}

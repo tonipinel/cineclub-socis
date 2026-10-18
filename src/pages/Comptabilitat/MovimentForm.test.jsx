@@ -17,7 +17,15 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
 }));
 
+vi.mock('../../lib/adjunts', async (importOriginal) => ({
+  ...(await importOriginal()),
+  pujarAdjunt: vi.fn(),
+  urlAdjunt: vi.fn(),
+  eliminarAdjunt: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { addDoc, deleteDoc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { eliminarAdjunt, pujarAdjunt, urlAdjunt } from '../../lib/adjunts';
 import MovimentForm from './MovimentForm';
 
 const MOVIMENT_EXISTENT = {
@@ -660,5 +668,166 @@ describe('MovimentForm — moviment inexistent', () => {
       </MemoryRouter>
     );
     expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
+  });
+});
+
+describe('MovimentForm — document / factura adjunt', () => {
+  const ADJUNT = { path: 'factures/abc/factura.pdf', nom: 'factura.pdf' };
+  const pdf = (nom = 'nova.pdf') => new File(['contingut'], nom, { type: 'application/pdf' });
+
+  beforeEach(() => {
+    addDoc.mockClear();
+    setDoc.mockClear();
+    deleteDoc.mockClear();
+    pujarAdjunt.mockReset();
+    urlAdjunt.mockReset();
+    eliminarAdjunt.mockClear();
+  });
+
+  function renderNou() {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes>
+          <Route path="/comptabilitat/nou" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  function renderEdicio() {
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes>
+          <Route path="/comptabilitat/:id" element={<MovimentForm />} />
+          <Route path="/comptabilitat" element={<p>Llibre de moviments</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  async function omplirNou(user) {
+    await user.type(screen.getByLabelText('Data'), '2026-03-05');
+    await user.type(screen.getByLabelText('Concepte'), 'Lloguer de la pel·lícula');
+    await user.type(screen.getByLabelText('Preu unitari'), '100');
+  }
+
+  it('en crear un moviment amb un document, el puja i en desa la referència', async () => {
+    pujarAdjunt.mockResolvedValue(ADJUNT);
+    const user = userEvent.setup();
+    renderNou();
+    await omplirNou(user);
+    await user.upload(screen.getByLabelText('Document / factura'), pdf('factura.pdf'));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(pujarAdjunt).toHaveBeenCalledWith(expect.objectContaining({ name: 'factura.pdf' }));
+    expect(addDoc.mock.calls[0][1].adjunt).toEqual(ADJUNT);
+  });
+
+  it('sense cap document, no puja res ni desa cap camp adjunt', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    await omplirNou(user);
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(pujarAdjunt).not.toHaveBeenCalled();
+    expect(addDoc.mock.calls[0][1]).not.toHaveProperty('adjunt');
+  });
+
+  it('rebutja un fitxer que no és PDF ni imatge', async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    renderNou();
+    await user.upload(screen.getByLabelText('Document / factura'), new File(['x'], 'notes.txt', { type: 'text/plain' }));
+    expect(screen.getByText('El document ha de ser un PDF o una imatge.')).toBeInTheDocument();
+  });
+
+  it('rebutja un fitxer de més de 10 MB', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    const gran = pdf('gran.pdf');
+    Object.defineProperty(gran, 'size', { value: 10 * 1024 * 1024 + 1 });
+    await user.upload(screen.getByLabelText('Document / factura'), gran);
+    expect(screen.getByText('El document no pot ocupar més de 10 MB.')).toBeInTheDocument();
+  });
+
+  it('si no es pot desar el moviment, esborra el fitxer que ja s\'havia pujat', async () => {
+    pujarAdjunt.mockResolvedValue(ADJUNT);
+    addDoc.mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    renderNou();
+    await omplirNou(user);
+    await user.upload(screen.getByLabelText('Document / factura'), pdf());
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
+    expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
+  });
+
+  it('en veure un moviment amb document, mostra l\'enllaç al fitxer encara que els camps siguin de només lectura', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    renderEdicio();
+    const enllac = await screen.findByRole('link', { name: 'factura.pdf' });
+    expect(enllac).toHaveAttribute('href', 'https://storage.test/factura.pdf');
+    expect(screen.queryByLabelText('Document / factura')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Treure' })).not.toBeInTheDocument();
+  });
+
+  it('en veure un moviment sense document, ho indica', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    renderEdicio();
+    expect(await screen.findByText('Cap document adjunt.')).toBeInTheDocument();
+  });
+
+  it('en desar sense tocar el document, el conserva', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    const user = userEvent.setup();
+    renderEdicio();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(setDoc.mock.calls[0][1].adjunt).toEqual(ADJUNT);
+    expect(eliminarAdjunt).not.toHaveBeenCalled();
+  });
+
+  it('en substituir el document, desa el nou i esborra l\'antic', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    const nou = { path: 'factures/xyz/nova.pdf', nom: 'nova.pdf' };
+    pujarAdjunt.mockResolvedValue(nou);
+    const user = userEvent.setup();
+    renderEdicio();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.upload(screen.getByLabelText('Document / factura'), pdf());
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(setDoc.mock.calls[0][1].adjunt).toEqual(nou);
+    expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
+  });
+
+  it('en treure el document, no el desa i l\'esborra de l\'emmagatzematge', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    const user = userEvent.setup();
+    renderEdicio();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Treure' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(setDoc.mock.calls[0][1]).not.toHaveProperty('adjunt');
+    expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
+  });
+
+  it('en eliminar el moviment, esborra també el seu document', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    renderEdicio();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await screen.findByText('Llibre de moviments');
+    expect(deleteDoc).toHaveBeenCalled();
+    expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
   });
 });

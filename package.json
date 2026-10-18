@@ -9,8 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src",
     "test": "vitest run",
-    "deploy": "vite build && firebase deploy --only hosting,firestore:rules",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.js\""
+    "deploy": "vite build && firebase deploy --only hosting,firestore:rules,storage",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --config vitest.rules.config.js\""
   },
   "dependencies": {
     "barcode-detector": "3.2.2",
