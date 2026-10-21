@@ -47,3 +47,6 @@ functions/.env
 functions/.env.*
 !functions/.env.example
 .claude/
+
+# Còpies de seguretat
+backups/
