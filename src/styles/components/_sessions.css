@@ -154,3 +154,6 @@
 .session-form__hora {
   @apply font-body text-xs text-black/50;
 }
+.badge--especial {
+  @apply border-gold-dark text-gold-dark;
+}

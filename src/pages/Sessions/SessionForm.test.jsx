@@ -134,6 +134,36 @@ describe('SessionForm — desar una sessió ja activa', () => {
   });
 });
 
+describe('SessionForm — camps de la web pública', () => {
+  beforeEach(() => {
+    getDoc.mockClear();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    updateDoc.mockClear();
+  });
+
+  it('en desar una sessió, no esborra ni modifica `publica`, `slug` ni `publicada`', async () => {
+    const publica = { titolOriginal: 'The Artist', directors: ['Michel Hazanavicius'], galeria: [], cos: '## Sinopsi' };
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false, slug: 'the-artist', publicada: true, publica }),
+    });
+    const user = userEvent.setup();
+    renderEnEdicio();
+    await screen.findByDisplayValue('The Artist');
+    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), "L'artista");
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const [, dadesDesades] = updateDoc.mock.calls[0];
+    expect(dadesDesades.titol).toBe("L'artista");
+    // `updateDoc` només toca els camps que rep: si hi són, han de tenir el mateix valor.
+    for (const [camp, valor] of Object.entries({ slug: 'the-artist', publicada: true, publica })) {
+      if (camp in dadesDesades) expect(dadesDesades[camp]).toEqual(valor);
+    }
+  });
+});
+
 describe('SessionForm — desglossament econòmic', () => {
   beforeEach(() => {
     getDoc.mockClear();
@@ -428,7 +458,7 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
       });
     getDocs.mockImplementation((q) => {
       if (q?.collectionName === 'sessions' && q.constraints?.some((c) => c?.field === 'data')) {
-        return Promise.resolve({ docs: [{ id: 'sessio-anterior' }] });
+        return Promise.resolve({ docs: [{ id: 'sessio-anterior', data: () => ({}) }] });
       }
       if (q?.collectionName === 'accessLog') {
         return Promise.resolve({
@@ -465,5 +495,70 @@ describe('SessionForm — comparativa amb la sessió anterior', () => {
     renderEnEdicio();
     await screen.findByText('Socis');
     expect(screen.queryByText(/▲|▼/)).not.toBeInTheDocument();
+  });
+});
+
+describe('SessionForm — sessions especials sense control', () => {
+  beforeEach(() => {
+    getDoc.mockClear();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('mostra les dades editables però amaga assistència, desglossament econòmic, moviments i socis', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'Carretera a Gusen', data: '2026-03-05', activa: false, senseControl: true }),
+    });
+    const user = userEvent.setup();
+    renderEnEdicio();
+    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
+    expect(screen.queryByText("Resum d'assistència")).not.toBeInTheDocument();
+    expect(screen.queryByText('Desglossament econòmic')).not.toBeInTheDocument();
+    expect(screen.queryByText('Moviments')).not.toBeInTheDocument();
+    expect(screen.queryByText('Socis que han vingut')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar com a activa' })).not.toBeInTheDocument();
+  });
+
+  it('la comparativa amb la sessió anterior salta les sessions senseControl', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [{ data: () => ({ tipus: 'soci', numeroSoci: 1 }) }] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      });
+    getDocs.mockImplementation((q) => {
+      if (q?.collectionName === 'sessions' && q.constraints?.some((c) => c?.field === 'data')) {
+        return Promise.resolve({
+          docs: [
+            { id: 'especial', data: () => ({ senseControl: true }) },
+            { id: 'normal', data: () => ({}) },
+          ],
+        });
+      }
+      if (q?.collectionName === 'accessLog' && q.constraints?.some((c) => c?.value === 'normal')) {
+        return Promise.resolve({ docs: [{ data: () => ({ tipus: 'soci', numeroSoci: 9 }) }] });
+      }
+      if (q?.collectionName === 'accessLog' && q.constraints?.some((c) => c?.value === 'especial')) {
+        return Promise.resolve({
+          docs: [1, 2, 3].map((n) => ({ data: () => ({ tipus: 'soci', numeroSoci: n }) })),
+        });
+      }
+      return Promise.resolve({ docs: [] });
+    });
+    renderEnEdicio();
+    const resumAssistencia = within(
+      (await screen.findByText("Resum d'assistència")).closest('.session-form__bloc')
+    );
+    const filaSocis = resumAssistencia.getByText('Socis').closest('.session-form__estadistica-fila');
+    // 1 soci ara vs 1 soci a la sessió normal anterior: diferència 0.
+    expect(await within(filaSocis).findByText('0')).toBeInTheDocument();
   });
 });

@@ -295,6 +295,16 @@ describe('rendibilitatPerSessio', () => {
     expect(rendibilitatPerSessio(moviments, [], sessions)).toEqual({ s1: 3, s2: 2 });
   });
 
+  it('ignora les sessions senseControl: no reben quota ni canvien el divisor', () => {
+    const sessions = Array.from({ length: 13 }, (_, i) => sessio(`s${i}`, `2024-${String(i % 12 + 1).padStart(2, '0')}-${i < 12 ? '10' : '20'}`));
+    const especial = { id: 'e1', data: '2024-06-15', senseControl: true };
+    const moviments = [quota(1, '2024-01-05', 26)];
+    const sense = rendibilitatPerSessio(moviments, [], sessions);
+    const amb = rendibilitatPerSessio(moviments, [], [...sessions, especial]);
+    expect(amb).toEqual(sense);
+    expect(amb).not.toHaveProperty('e1');
+  });
+
   it('en l\'última quota d\'un soci, el període comença a inicPeriode', () => {
     const sessions = [sessio('abans', '2024-03-01'), sessio('dins', '2024-06-01')];
     const socis = [{ numeroSoci: 1, inicPeriode: '2024-05-01' }];
@@ -712,6 +722,38 @@ describe('resumPrevisio — renovacions per data de venciment real', () => {
     const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
     expect(octubre.renovacionsEsperades).toBe(1);
     expect(octubre.ingressosQuotes).toBe(30);
+  });
+});
+
+describe('resumPrevisio — sessions especials sense control', () => {
+  const avui = new Date(2026, 7, 31);
+  const sessions = [
+    { id: 'sA', data: '2026-08-01' },
+    { id: 'sB', data: '2026-08-15' },
+  ];
+  const especial = { id: 'e1', data: '2026-08-20', senseControl: true };
+
+  it('no canvia el cost per sessió ni les renovacions esperades', () => {
+    // 30€ ÷ 1 sessió assistida = 30€/sessió (no renova); si l'especial comptés
+    // com a assistida (30 ÷ 2 = 15€) seguiria sent no renova, així que fem
+    // que amb ella el cost baixi per sota del llindar: 30 ÷ 4 = 7,5€.
+    const socis = [{ numeroSoci: 10, ultimPagament: '2025-10-01' }];
+    const moviments = [
+      { data: '2025-10-01', tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 10, total: 30 },
+    ];
+    const especials = [
+      especial,
+      { id: 'e2', data: '2026-08-21', senseControl: true },
+      { id: 'e3', data: '2026-08-22', senseControl: true },
+    ];
+    const accessLog = [
+      { tipus: 'soci', numeroSoci: 10, sessionId: 'sA' },
+      ...especials.map((e) => ({ tipus: 'soci', numeroSoci: 10, sessionId: e.id })),
+    ];
+    const sense = resumPrevisio(moviments, socis, sessions, accessLog, avui);
+    const amb = resumPrevisio(moviments, socis, [...sessions, ...especials], accessLog, avui);
+    expect(amb).toEqual(sense);
+    expect(sense.mesos.find((m) => m.etiqueta === 'Octubre 2026').renovacionsEsperades).toBe(0);
   });
 });
 

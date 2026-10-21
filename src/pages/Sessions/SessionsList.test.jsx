@@ -59,4 +59,22 @@ describe('SessionsList', () => {
     expect(screen.getByText('No socis: 1')).toBeInTheDocument();
     expect(screen.getByText('Rendibilitat: 60.00€')).toBeInTheDocument();
   });
+
+  it('en una sessió senseControl mostra una etiqueta en lloc de les estadístiques i no la compta a la rendibilitat', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: '1', data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }) },
+          { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', data: '2026-03-20', activa: false, senseControl: true }) },
+        ],
+      });
+      return () => {};
+    });
+    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(await screen.findByText('Carretera a Gusen')).toBeInTheDocument();
+    expect(screen.getByText('Sessió especial · sense control')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Socis:/)).toHaveLength(1);
+    expect(screen.getAllByText(/^Rendibilitat:/)).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Carretera a Gusen/ })).toHaveAttribute('href', '/sessions/e1');
+  });
 });

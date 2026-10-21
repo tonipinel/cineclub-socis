@@ -335,4 +335,20 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     expect(moviment.tipusQuota).toBe('renovacio');
     expect(moviment.sessionId).toBe('');
   });
+
+  it('no ofereix ni preselecciona les sessions senseControl, encara que siguin les més properes a avui', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-x' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    const avuiStr = new Date().toLocaleDateString('sv-SE');
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 'llunyana', data: () => ({ titol: 'Sessió llunyana', data: '2020-01-01' }) },
+        { id: 'especial', data: () => ({ titol: 'Carretera a Gusen', data: avuiStr, senseControl: true }) },
+      ],
+    });
+    renderPagina();
+    expect(await screen.findByLabelText('Sessió')).toHaveValue('llunyana');
+    expect(screen.queryByRole('option', { name: 'Carretera a Gusen' })).not.toBeInTheDocument();
+  });
 });

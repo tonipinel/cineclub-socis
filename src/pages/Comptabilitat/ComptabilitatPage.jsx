@@ -7,6 +7,7 @@ import {
   TIPUS_MOVIMENT, CATEGORIES, ETIQUETES_METODE, ETIQUETES_DIRECCIO,
 } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
+import { sessionsAmbControl } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
@@ -69,7 +70,7 @@ export default function ComptabilitatPage() {
 
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
-      setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
     });
   }, []);
 

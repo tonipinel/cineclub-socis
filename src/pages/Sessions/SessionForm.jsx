@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, updateDoc, where, writeBatch,
+  addDoc, collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
@@ -10,6 +10,7 @@ import {
   resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
 } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
+import { sessionsAmbControl } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
@@ -116,13 +117,14 @@ export default function SessionForm() {
   useEffect(() => {
     if (!editant || !dades.data) return;
     let cancelat = false;
-    const q = query(collection(db, 'sessions'), where('data', '<', dades.data), orderBy('data', 'desc'), limit(1));
+    const q = query(collection(db, 'sessions'), where('data', '<', dades.data), orderBy('data', 'desc'));
     getDocs(q).then(async (snap) => {
-      if (snap.docs.length === 0) {
+      const anterior = sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() })))[0];
+      if (!anterior) {
         if (!cancelat) setResumAnterior(null);
         return;
       }
-      const logSnap = await getDocs(query(collection(db, 'accessLog'), where('sessionId', '==', snap.docs[0].id)));
+      const logSnap = await getDocs(query(collection(db, 'accessLog'), where('sessionId', '==', anterior.id)));
       if (!cancelat) setResumAnterior(resumAccessLog(logSnap.docs.map((d) => d.data())));
     });
     return () => { cancelat = true; };
@@ -221,7 +223,7 @@ export default function SessionForm() {
               {editant && dades.activa && <EstrellaActiva className="session-form__estrella" />}
               {editant ? dades.titol : 'Nova sessió'}
             </h1>
-            {editant && !dades.activa && (
+            {editant && !dades.activa && !dades.senseControl && (
               <button
                 type="button"
                 className="btn-icona"
@@ -276,7 +278,7 @@ export default function SessionForm() {
         </div>
       </div>
 
-      {editant && (
+      {editant && !dades.senseControl && (
         <div className="session-form__seccio session-form__seccio--gris">
           <div className="session-form__contingut session-form__graella--3">
             <div className="session-form__bloc">
@@ -395,7 +397,7 @@ export default function SessionForm() {
         </div>
       )}
 
-      {editant && (
+      {editant && !dades.senseControl && (
         <div className="session-form__seccio session-form__seccio--blanc">
           <div className="session-form__contingut session-form__graella">
             <div className="session-form__bloc">

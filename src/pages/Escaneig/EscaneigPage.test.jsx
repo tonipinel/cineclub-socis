@@ -663,3 +663,37 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     expect(updateDoc).not.toHaveBeenCalled();
   });
 });
+
+describe('EscaneigPage — sessions especials sense control', () => {
+  beforeEach(() => {
+    getDocs.mockReset();
+    window.location.hash = '';
+  });
+
+  it('una sessió senseControl, encara que sigui activa, no es tria: es comporta com si no hi hagués sessió activa', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [{ id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) }],
+      });
+      return () => {};
+    });
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
+  });
+
+  it('si la consulta retorna una senseControl i una de normal, tria la normal', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) },
+          { id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA },
+        ],
+      });
+      return () => {};
+    });
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    expect(screen.queryByText(/No hi ha cap sessió activa/)).not.toBeInTheDocument();
+  });
+});

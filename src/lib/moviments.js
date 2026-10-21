@@ -1,5 +1,6 @@
 import { estaActiu, calcularVenciment } from './estatSoci';
 import { assistenciaPerSessio } from './escaneig';
+import { sessionsAmbControl } from './sessions';
 
 export const TIPUS_MOVIMENT = { INGRES: 'ingres', DESPESA: 'despesa', TRASPAS: 'traspas' };
 
@@ -163,7 +164,8 @@ export const MINIM_SESSIONS_ANY = 12;
 // lligats a la sessió que no són quotes) més la part que li toca de les
 // quotes vigents aquell dia. Cada quota es reparteix per igual entre les
 // sessions del seu període, o entre MINIM_SESSIONS_ANY si n'hi ha menys.
-export function rendibilitatPerSessio(moviments, socis, sessions) {
+export function rendibilitatPerSessio(moviments, socis, sessionsTotes) {
+  const sessions = sessionsAmbControl(sessionsTotes);
   const rendibilitat = {};
   for (const moviment of moviments) {
     if (!moviment.sessionId || moviment.tipus === TIPUS_MOVIMENT.TRASPAS) continue;
@@ -366,7 +368,7 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
   const ingressosAportacionsPerMes = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / MESOS_REFERENCIA;
   const costPellicula = pellicules.reduce((max, m) => Math.max(max, Number(m.total) || 0), 0);
 
-  const sessionsPassades = sessions.filter((s) => (s.data ?? '') <= dataAvui);
+  const sessionsPassades = sessionsAmbControl(sessions).filter((s) => (s.data ?? '') <= dataAvui);
   const entradesPerNumero = agruparEntradesPerNumero(accessLog);
   const sociesActius = socis.filter((s) => estaActiu(s) && s.numeroSoci && s.ultimPagament);
 

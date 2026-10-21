@@ -192,7 +192,8 @@ export default function EscaneigPage() {
   useEffect(() => {
     const q = query(collection(db, 'sessions'), where('activa', '==', true));
     return onSnapshot(q, (snap) => {
-      setSessioActiva(snap.docs[0] ? { id: snap.docs[0].id, ...snap.docs[0].data() } : null);
+      const docSessio = snap.docs.find((d) => d.data().senseControl !== true);
+      setSessioActiva(docSessio ? { id: docSessio.id, ...docSessio.data() } : null);
     });
   }, []);
 

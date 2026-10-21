@@ -69,11 +69,17 @@ export default function SessionsList() {
                     {s.activa && <EstrellaActiva className="sessions-list__estrella" />}
                   </div>
                   <div className="sessions-list__resum">
-                    <span>Socis: {resum.socisDistints}</span>
-                    <span>No socis: {resum.entradesGeneriques}</span>
-                    <span className={rendibilitatSessio < 0 ? 'sessions-list__balanc--negatiu' : 'sessions-list__balanc--positiu'}>
-                      Rendibilitat: {formatEuros(rendibilitatSessio)}
-                    </span>
+                    {s.senseControl ? (
+                      <span className="badge badge--especial">Sessió especial · sense control</span>
+                    ) : (
+                      <>
+                        <span>Socis: {resum.socisDistints}</span>
+                        <span>No socis: {resum.entradesGeneriques}</span>
+                        <span className={rendibilitatSessio < 0 ? 'sessions-list__balanc--negatiu' : 'sessions-list__balanc--positiu'}>
+                          Rendibilitat: {formatEuros(rendibilitatSessio)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </Link>

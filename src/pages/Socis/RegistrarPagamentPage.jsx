@@ -12,6 +12,7 @@ import {
 import { avui, formatData } from '../../lib/data';
 import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
 import { sincronitzarSociPublic } from '../../lib/propostes';
+import { sessionsAmbControl } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
 
 // Entre totes les sessions, la que té la data més propera a avui (abans o
@@ -57,7 +58,7 @@ export default function RegistrarPagamentPage() {
         navigate(ROUTES.SOCIS, { replace: true });
         return;
       }
-      const totesSessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const totesSessions = sessionsAmbControl(sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       // És una renovació si ja té algun moviment de quota (alta o renovació)
       // registrat — no simplement perquè `ultimPagament` estigui fixat: una
       // sol·licitud aprovada ja el fixa sense que encara hi hagi cap

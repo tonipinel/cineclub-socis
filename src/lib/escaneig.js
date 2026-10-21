@@ -1,3 +1,5 @@
+import { sessionsAmbControl } from './sessions';
+
 export function identificarCodi(codi) {
   const text = (codi ?? '').trim();
 
@@ -45,7 +47,7 @@ export function tiquetsDelLot(lot, entradesGeneriques) {
 
 export function assistenciaPerSessio(sessions, entradesSoci) {
   const sessionsAssistides = new Set(entradesSoci.map((e) => e.sessionId));
-  return [...sessions]
+  return sessionsAmbControl(sessions)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
     .map((s) => ({ ...s, assisteix: sessionsAssistides.has(s.id) }));
 }
@@ -106,7 +108,7 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
   }
 
   const dataAvui = avui.toLocaleDateString('sv-SE');
-  const ultimaSessio = [...sessions]
+  const ultimaSessio = sessionsAmbControl(sessions)
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   const gastatsUltimaSessio = ultimaSessio

@@ -159,6 +159,22 @@ describe('resumDashboardSocis', () => {
     expect(resumDashboardSocis(socis, sessions, entrades, avui).assistenciaMitjana).toBe(50);
   });
 
+  it('ignora les sessions senseControl (no compten ni a la mitjana ni a les 5 últimes)', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' }];
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 's2', data: '2026-08-15' },
+    ];
+    const especials = [
+      { id: 'e1', data: '2026-08-20', senseControl: true },
+      { id: 'e2', data: '2026-08-21', senseControl: true },
+    ];
+    const entrades = [{ tipus: 'soci', numeroSoci: 1, sessionId: 's1' }];
+    const sense = resumDashboardSocis(socis, sessions, entrades, avui);
+    expect(resumDashboardSocis(socis, [...sessions, ...especials], entrades, avui)).toEqual(sense);
+    expect(sense.assistenciaMitjana).toBe(50);
+  });
+
   it('renovacionsProperes inclou només socis al dia que venceran en els propers 30 dies, ordenats per dies', () => {
     const socis = [
       { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2025-09-10' },   // venç 2026-09-10, dins 30 dies

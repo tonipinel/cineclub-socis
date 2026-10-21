@@ -305,6 +305,28 @@ describe('SociForm — assistència a sessions', () => {
     expect(screen.queryByText('Sessions a les que no ha assistit (període actual)')).not.toBeInTheDocument();
   });
 
+  it('ignora les sessions senseControl: no apareixen entre les no assistides', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) },
+          { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', data: '2026-04-05', senseControl: true }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('The Artist')).toBeInTheDocument();
+    expect(screen.queryByText('Carretera a Gusen')).not.toBeInTheDocument();
+  });
+
   it('no mostra les sessions futures', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),

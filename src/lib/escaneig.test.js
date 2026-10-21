@@ -185,6 +185,16 @@ describe('assistenciaPerSessio', () => {
   });
 });
 
+describe('assistenciaPerSessio — sessions especials sense control', () => {
+  it('no inclou les sessions amb senseControl', () => {
+    const sessions = [
+      { id: 's1', titol: 'The Artist', data: '2026-03-05' },
+      { id: 'e1', titol: 'Carretera a Gusen', data: '2026-04-01', senseControl: true },
+    ];
+    expect(assistenciaPerSessio(sessions, [])).toEqual(assistenciaPerSessio([sessions[0]], []));
+  });
+});
+
 describe('comptarAssistenciesRecents', () => {
   const avui = new Date('2026-08-31T12:00:00');
 
@@ -311,6 +321,24 @@ describe('resumDashboardTiquets', () => {
       { tipus: 'generic', codiTiquet: 'HIST-002', sessionId: 's1', escanejatPer: 'importacio-historica' },
     ];
     expect(resumDashboardTiquets([], entradesAccessLog, sessions).gastatsUltimaSessio).toBe(1);
+  });
+});
+
+describe('resumDashboardTiquets — sessions especials sense control', () => {
+  it('gastatsUltimaSessio ignora una sessió senseControl més recent', () => {
+    const avui = new Date(2026, 7, 31);
+    const sessions = [
+      { id: 's1', data: '2026-08-01' },
+      { id: 'e1', data: '2026-08-20', senseControl: true },
+    ];
+    const entradesAccessLog = [
+      { tipus: 'generic', codiTiquet: 'T-000001', sessionId: 's1' },
+      { tipus: 'generic', codiTiquet: 'T-000002', sessionId: 'e1' },
+      { tipus: 'generic', codiTiquet: 'T-000003', sessionId: 'e1' },
+    ];
+    expect(resumDashboardTiquets([], entradesAccessLog, sessions, avui))
+      .toEqual(resumDashboardTiquets([], entradesAccessLog, [sessions[0]], avui));
+    expect(resumDashboardTiquets([], entradesAccessLog, sessions, avui).gastatsUltimaSessio).toBe(1);
   });
 });
 

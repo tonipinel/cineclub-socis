@@ -151,3 +151,17 @@ describe('ComptabilitatPage', () => {
     expect(botoFiltres).toHaveAttribute('aria-expanded', 'true');
   });
 });
+
+describe('ComptabilitatPage — sessions especials sense control', () => {
+  it('no ofereix les sessions senseControl al filtre per sessió', async () => {
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 's1', data: () => ({ titol: 'The Artist' }) },
+        { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', senseControl: true }) },
+      ],
+    });
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    await screen.findByRole('option', { name: 'The Artist' });
+    expect(screen.queryByRole('option', { name: 'Carretera a Gusen' })).not.toBeInTheDocument();
+  });
+});

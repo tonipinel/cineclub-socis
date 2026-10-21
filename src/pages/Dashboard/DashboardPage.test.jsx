@@ -114,6 +114,32 @@ describe('DashboardPage', () => {
     expect(m.getByText(/Assistència mitjana \(últimes 5 sessions\)/)).toBeInTheDocument();
   });
 
+  it('ignora les sessions senseControl a les últimes 5 sessions (mitjana d\'altes i missatge buit)', async () => {
+    mockCarrega({
+      sessions: [
+        { id: 's1', titol: 'The Artist', data: '2026-08-01' },
+        { id: 'e1', titol: 'Carretera a Gusen', data: '2026-08-10', senseControl: true },
+      ],
+      moviments: [
+        {
+          tipus: 'ingres', categoria: 'Quotes socis', tipusQuota: 'alta', metodePagament: 'efectiu',
+          total: 30, sessionId: 's1',
+        },
+      ],
+    });
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Noves altes de socis' });
+    expect(modul('Noves altes de socis').getByText('1.0')).toBeInTheDocument();
+  });
+
+  it('si totes les sessions passades són senseControl, els mòduls diuen que no hi ha cap sessió', async () => {
+    mockCarrega({ sessions: [{ id: 'e1', titol: 'Carretera a Gusen', data: '2026-08-10', senseControl: true }] });
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Assistència' });
+    expect(modul('Assistència').getByText('Encara no hi ha cap sessió.')).toBeInTheDocument();
+    expect(modul('Rentabilitat de les sessions').getByText('Encara no hi ha cap sessió.')).toBeInTheDocument();
+  });
+
   it('mòdul Assistència: mostra el missatge buit si no hi ha sessions passades', async () => {
     mockCarrega({ sessions: [{ id: 's2', titol: 'Sessió futura', data: '2099-01-01' }] });
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);

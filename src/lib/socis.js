@@ -1,5 +1,6 @@
 import { calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu, ESTAT_AL_DIA } from './estatSoci';
 import { assistenciaPerSessio } from './escaneig';
+import { sessionsAmbControl } from './sessions';
 
 export const DIES_AVIS_RENOVACIO = 30;
 export const FILTRE_PROXIMA_RENOVACIO = 'proxima-renovacio';
@@ -62,7 +63,7 @@ export function resumDashboardSocis(socisTots, sessions, entradesAccessLog, avui
   const total = socis.length;
 
   const dataAvui = dataISO(avui);
-  const sessionsPassades = [...sessions]
+  const sessionsPassades = sessionsAmbControl(sessions)
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
     .slice(0, 5);

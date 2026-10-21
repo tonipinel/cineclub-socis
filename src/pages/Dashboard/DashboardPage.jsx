@@ -9,6 +9,7 @@ import { db } from '../../firebase/firebase';
 import { avui } from '../../lib/data';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
+import { sessionsAmbControl } from '../../lib/sessions';
 import {
   resumComptable, resumReal, resumPrevisio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
@@ -103,7 +104,7 @@ export default function DashboardPage() {
   }
   const rendibilitatSessions = rendibilitatPerSessio(dades.moviments, dades.socis, dades.sessions);
   const dataAvui = avui();
-  const ultimesSessions = dades.sessions
+  const ultimesSessions = sessionsAmbControl(dades.sessions)
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
     .slice(0, 5);

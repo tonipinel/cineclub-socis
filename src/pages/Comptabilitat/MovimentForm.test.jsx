@@ -831,3 +831,21 @@ describe('MovimentForm — document / factura adjunt', () => {
     expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
   });
 });
+
+describe('MovimentForm — sessions especials sense control', () => {
+  it('no ofereix les sessions senseControl al selector de sessió', async () => {
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 's1', data: () => ({ titol: 'The Artist' }) },
+        { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', senseControl: true }) },
+      ],
+    });
+    render(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole('option', { name: 'The Artist' });
+    expect(screen.queryByRole('option', { name: 'Carretera a Gusen' })).not.toBeInTheDocument();
+  });
+});

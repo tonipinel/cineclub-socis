@@ -11,6 +11,7 @@ import {
 import {
   ACCEPT_ADJUNT, eliminarAdjunt, pujarAdjunt, urlAdjunt, validarAdjunt,
 } from '../../lib/adjunts';
+import { sessionsAmbControl } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import * as ROUTES from '../../constants/routes';
@@ -104,7 +105,7 @@ export default function MovimentForm() {
 
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
-      setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
     });
   }, []);
 
