@@ -38,12 +38,17 @@ function titolSegonsIdioma(pellicula, titolAnglès) {
     : titolAnglès || pellicula.title;
 }
 
+// El títol a Espanya només es guarda quan el títol que mostrem no és ja en
+// castellà ni en català (en aquests casos seria redundant).
+const IDIOMES_SENSE_TITOL_LOCAL = new Set(['es', 'ca']);
+
 function normalitzar(pellicula, titolAnglès, titolLocal) {
   const titol = titolSegonsIdioma(pellicula, titolAnglès);
+  const calTitolLocal = titolLocal && titolLocal !== titol && !IDIOMES_SENSE_TITOL_LOCAL.has(pellicula.original_language);
   return {
     tmdbId: pellicula.id,
     titol,
-    titolLocal: titolLocal && titolLocal !== titol ? titolLocal : null,
+    titolLocal: calTitolLocal ? titolLocal : null,
     any: pellicula.release_date ? pellicula.release_date.slice(0, 4) : '',
     posterUrl: pellicula.poster_path ? `${URL_IMATGES}/w154${pellicula.poster_path}` : null,
   };

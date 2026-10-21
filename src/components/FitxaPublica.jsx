@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import CartellPelicula from './CartellPelicula';
 import FitxaPellicula from './FitxaPellicula';
 import TrailerPellicula from './TrailerPellicula';
+import TitolLocal from './TitolLocal';
 
 const URL_IMATGES_TMDB = 'https://image.tmdb.org/t/p';
 
@@ -30,6 +31,7 @@ export default function FitxaPublica({ proposta }) {
     <div className="fitxa-publica">
       <header className="fitxa-publica__hero">
         <h2 className="fitxa-publica__titol">{proposta.titol}</h2>
+        <TitolLocal proposta={proposta} className="fitxa-publica__titol-local" />
         {resum && <p className="fitxa-publica__resum">{resum}</p>}
         {proposta.generes?.length > 0 && (
           <ul className="fitxa-publica__generes">

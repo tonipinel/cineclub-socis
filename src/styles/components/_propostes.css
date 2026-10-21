@@ -68,6 +68,12 @@
 .proposta-top__posicio {
   @apply shrink-0 text-center font-display text-sm font-bold text-black/40 sm:text-lg;
 }
+.proposta-top__titols {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+.proposta-top__titol-local {
+  @apply truncate font-body text-xs text-black/60;
+}
 .proposta-top__titol {
   @apply min-w-0 flex-1 truncate font-display text-base font-bold text-black sm:text-lg;
 }
@@ -131,6 +137,9 @@
 .proposta-carta__info {
   @apply flex flex-col gap-2 p-4;
 }
+.proposta-carta__titol-local {
+  @apply line-clamp-1 font-body text-xs text-black/60 sm:text-sm;
+}
 .proposta-carta__titol {
   @apply line-clamp-2 font-display text-base font-bold text-black sm:text-xl;
 }
@@ -175,7 +184,7 @@ body.proposta-detall-obert-body {
   @apply h-8 w-auto;
 }
 .proposta-detall__autor {
-  @apply flex flex-col items-center font-body text-sm text-white;
+  @apply flex min-w-0 flex-col items-start font-body text-sm leading-tight text-white sm:items-center sm:text-center;
 }
 .proposta-detall__data {
   @apply text-xs text-white/60;
@@ -223,10 +232,10 @@ body.proposta-detall-obert-body {
   @apply justify-center border-t-0 p-0;
 }
 .proposta-detall__footer .proposta-carta__vot-bloc {
-  @apply flex-col gap-1 sm:flex-row sm:gap-4;
+  @apply flex-row gap-3 sm:gap-4;
 }
 .proposta-detall__footer .proposta-carta__accio {
-  @apply rounded-full border-gold bg-gold px-10 py-4 font-display text-xl font-bold uppercase tracking-wide text-black shadow-lg hover:border-white hover:bg-white hover:text-black;
+  @apply rounded-full border-gold bg-gold px-8 py-3 font-display text-lg sm:px-10 sm:py-4 sm:text-xl font-bold uppercase tracking-wide text-black shadow-lg hover:border-white hover:bg-white hover:text-black;
 }
 .proposta-detall__footer .proposta-carta__accio--activa {
   @apply border-white bg-white text-black hover:border-gold hover:bg-gold;
@@ -448,4 +457,7 @@ body.proposta-detall-obert-body {
 }
 .trailer-pellicula__enllac {
   @apply self-start;
+}
+.fitxa-publica__titol-local {
+  @apply -mt-1 font-body text-base text-white/80 sm:text-lg;
 }

@@ -49,6 +49,12 @@ describe('cercarPellicules', () => {
     expect((await cercarPellicules('samuráis', 'clau', fetchFn))[0]).toMatchObject({ titol: 'Seven Samurai', titolLocal: 'Los siete samuráis' });
   });
 
+  it('si l\'original és en castellà o català, no guarda el títol local (seria redundant)', async () => {
+    const es = [{ id: 7, title: 'Pan negro', original_title: 'Pa negre', original_language: 'ca', release_date: '2010-01-01' }];
+    const fetchFn = servidor({ cerca: { 'es-ES': es, 'en-US': es } });
+    expect((await cercarPellicules('pa negre', 'clau', fetchFn))[0]).toMatchObject({ titol: 'Pa negre', titolLocal: null });
+  });
+
   it('el francès també es considera idioma propi: es manté el títol original', async () => {
     const es = [{ id: 5, title: 'El odio', original_title: 'La Haine', original_language: 'fr', release_date: '1995-05-31' }];
     const en = [{ id: 5, title: 'Hate', original_title: 'La Haine', original_language: 'fr' }];

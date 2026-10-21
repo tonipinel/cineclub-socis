@@ -127,4 +127,14 @@ describe('FitxaPublica', () => {
     render(<FitxaPublica proposta={PROPOSTA} />);
     expect(screen.queryByRole('img', { name: 'Imatge de La Haine' })).not.toBeInTheDocument();
   });
+
+  it('si el títol no és en castellà ni català, mostra a sota entre parèntesis el títol a Espanya', () => {
+    render(<FitxaPublica proposta={{ ...PROPOSTA, titolLocal: 'El odio' }} />);
+    expect(screen.getByText('(El odio)')).toBeInTheDocument();
+  });
+
+  it('sense títol local, no mostra cap parèntesi', () => {
+    render(<FitxaPublica proposta={PROPOSTA} />);
+    expect(screen.queryByText(/^\(/)).not.toBeInTheDocument();
+  });
 });

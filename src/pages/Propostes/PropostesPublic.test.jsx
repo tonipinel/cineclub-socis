@@ -95,6 +95,16 @@ describe('PropostesPublic', () => {
     expect(screen.getAllByText('El padrí').length).toBeGreaterThan(0);
   });
 
+  it('si el títol no és en castellà ni català, mostra a sota el títol a Espanya entre parèntesis', async () => {
+    mockPropostesAmbVots([
+      { id: 'p1', dades: { titol: 'La Haine', titolLocal: 'El odio', estat: 'aprovada', numeroSoci: 3 } },
+      { id: 'p2', dades: { titol: 'El padrí', estat: 'aprovada', numeroSoci: 5 } },
+    ]);
+    renderPagina();
+    expect((await screen.findAllByText('(El odio)')).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^\(El padrí/)).not.toBeInTheDocument();
+  });
+
   it('mostra la data de cada proposta i, per defecte, les ordena de més nova a més antiga', async () => {
     getDocs.mockImplementation((q) => {
       if (q?.collectionName === 'propostes') {

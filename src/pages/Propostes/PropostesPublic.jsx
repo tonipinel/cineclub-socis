@@ -13,6 +13,7 @@ import Carregant from '../../components/Carregant';
 import FooterPublic from '../../components/FooterPublic';
 import FitxaPublica from '../../components/FitxaPublica';
 import CartellPelicula from '../../components/CartellPelicula';
+import TitolLocal from '../../components/TitolLocal';
 
 function IconaPolze({ omplert, className }) {
   return (
@@ -309,7 +310,10 @@ export default function PropostesPublic() {
                 <li key={p.id} className="proposta-top__fila">
                   <button type="button" className="proposta-top__titol-linia" onClick={() => obrirProposta(p.id)}>
                     <span className="proposta-top__posicio">{index + 1}</span>
-                    <span className="proposta-top__titol">{p.titol}</span>
+                    <span className="proposta-top__titols">
+                      <span className="proposta-top__titol">{p.titol}</span>
+                      <TitolLocal proposta={p} className="proposta-top__titol-local" />
+                    </span>
                   </button>
                   <button type="button" className="proposta-top__data-linia" onClick={() => obrirProposta(p.id)}>
                     {p.timestamp?.toDate && (
@@ -355,6 +359,7 @@ export default function PropostesPublic() {
                     </div>
                     <div className="proposta-carta__info">
                       <span className="proposta-carta__titol">{p.titol}</span>
+                      <TitolLocal proposta={p} className="proposta-carta__titol-local" />
                       {p.timestamp?.toDate && (
                         <span className="proposta-carta__data">{formatData(p.timestamp.toDate())}</span>
                       )}
