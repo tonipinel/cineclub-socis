@@ -10,6 +10,9 @@ import { formatData } from '../../lib/data';
 import { ordenarPerVots, ordenarPerData } from '../../lib/propostes';
 import LectorCarnet from '../../components/LectorCarnet';
 import Carregant from '../../components/Carregant';
+import FooterPublic from '../../components/FooterPublic';
+import FitxaPublica from '../../components/FitxaPublica';
+import CartellPelicula from '../../components/CartellPelicula';
 
 function IconaPolze({ omplert, className }) {
   return (
@@ -46,7 +49,7 @@ function IconaPlay({ className }) {
   );
 }
 
-function AccionsVot({ proposta, onVotar, ambText }) {
+function AccionsVot({ proposta, onVotar, ambText, senseTrailer }) {
   const classeAccio = `proposta-carta__accio ${ambText ? 'proposta-carta__accio--ample' : ''}`;
   return (
     <div className="proposta-carta__footer">
@@ -63,7 +66,7 @@ function AccionsVot({ proposta, onVotar, ambText }) {
         </button>
         <span className="proposta-carta__vots">{proposta.vots}</span>
       </div>
-      {proposta.trailerUrl && (
+      {proposta.trailerUrl && !senseTrailer && (
         <a
           className={classeAccio}
           href={proposta.trailerUrl}
@@ -76,14 +79,6 @@ function AccionsVot({ proposta, onVotar, ambText }) {
         </a>
       )}
     </div>
-  );
-}
-
-function CartellPelicula({ proposta, className }) {
-  return proposta.imatgeUrl ? (
-    <img className={className} src={proposta.imatgeUrl} alt={proposta.titol} />
-  ) : (
-    <div className={`${className} proposta-carta__cartell-placeholder`}>{proposta.titol}</div>
   );
 }
 
@@ -376,7 +371,7 @@ export default function PropostesPublic() {
         {propostaOberta && (
           <div className="proposta-detall" role="dialog" aria-modal="true">
             <div className="proposta-detall__capcalera">
-              <img className="proposta-detall__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+              <img className="proposta-detall__logo" src="/logo-footer.png" alt="Cineclub Roda de Berà" />
               <div className="proposta-detall__autor">
                 {propostaOberta.nomProposant && (
                   <>
@@ -397,14 +392,10 @@ export default function PropostesPublic() {
               </button>
             </div>
             <div className="proposta-detall__scroll">
-              <CartellPelicula proposta={propostaOberta} className="proposta-detall__cartell" />
-              <div className="proposta-detall__info">
-                <h2 className="proposta-detall__titol">{propostaOberta.titol}</h2>
-                {propostaOberta.sinopsi && <p className="proposta-detall__sinopsi">{propostaOberta.sinopsi}</p>}
-              </div>
+              <FitxaPublica proposta={propostaOberta} />
             </div>
             <div className="proposta-detall__footer">
-              <AccionsVot proposta={propostaOberta} onVotar={() => handleVotarClick(propostaOberta)} ambText />
+              <AccionsVot proposta={propostaOberta} onVotar={() => handleVotarClick(propostaOberta)} ambText senseTrailer />
             </div>
           </div>
         )}
@@ -434,6 +425,7 @@ export default function PropostesPublic() {
           </div>
         )}
       </div>
+      <FooterPublic />
     </>
   );
 }

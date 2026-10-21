@@ -25,3 +25,6 @@ export const COMPTABILITAT = '/comptabilitat';
 export const COMPTABILITAT_NOU = '/comptabilitat/nou';
 export const COMPTABILITAT_EDITAR = '/comptabilitat/:id';
 export const CONFIGURACIO = '/configuracio';
+export const DISTRIBUIDORES = '/distribuidores';
+export const DISTRIBUIDORES_NOVA = '/distribuidores/nova';
+export const DISTRIBUIDORES_EDITAR = '/distribuidores/:id';

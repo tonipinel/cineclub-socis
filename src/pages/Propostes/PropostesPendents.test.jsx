@@ -29,6 +29,12 @@ describe('PropostesPendents', () => {
     expect(screen.getByRole('link', { name: /nova proposta/i })).toHaveAttribute('href', '/propostes/pendents/nova');
   });
 
+  it('té un enllaç al llistat de distribuïdores', async () => {
+    render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
+    await screen.findByText('Amélie');
+    expect(screen.getByRole('link', { name: 'Distribuïdores' })).toHaveAttribute('href', '/distribuidores');
+  });
+
   it('mostra un missatge si no hi ha cap proposta', async () => {
     const { getDocs } = await import('firebase/firestore');
     getDocs.mockResolvedValueOnce({ docs: [] });

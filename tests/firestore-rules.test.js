@@ -358,3 +358,35 @@ describe('firestore.rules — propostesActivitat', () => {
     await assertFails(deleteDoc(doc(adminDb, 'propostesActivitat/1')));
   });
 });
+
+describe('firestore.rules — propostesInternes i distribuidores', () => {
+  const adminDb = () => testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+
+  it.each(['propostesInternes/p1', 'distribuidores/d1'])('%s: només l\'admin hi pot llegir i escriure', async (cami) => {
+    await assertSucceeds(setDoc(doc(adminDb(), cami), { preu: 100 }));
+    await assertSucceeds(getDoc(doc(adminDb(), cami)));
+    await assertSucceeds(updateDoc(doc(adminDb(), cami), { preu: 120 }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), cami)));
+  });
+
+  it.each(['propostesInternes/p1', 'distribuidores/d1'])('%s: ni un visitant ni taquilla hi tenen accés', async (cami) => {
+    await setDoc(doc(adminDb(), cami), { preu: 100 });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    await assertFails(getDoc(doc(anonDb, cami)));
+    await assertFails(setDoc(doc(anonDb, cami), { preu: 1 }));
+    await assertFails(getDoc(doc(taquillaDb, cami)));
+    await assertFails(setDoc(doc(taquillaDb, cami), { preu: 1 }));
+    await assertFails(deleteDoc(doc(taquillaDb, cami)));
+  });
+
+  it('les dades internes no es filtren encara que la proposta sigui pública', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'propostes/p1'), { titol: 'La Haine', numeroSoci: 7, estat: 'aprovada' });
+      await setDoc(doc(ctx.firestore(), 'propostesInternes/p1'), { preu: 350, condicions: 'Només 35mm' });
+    });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(anonDb, 'propostes/p1')));
+    await assertFails(getDoc(doc(anonDb, 'propostesInternes/p1')));
+  });
+});

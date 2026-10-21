@@ -5,6 +5,12 @@ service firebase.storage {
       return request.auth != null && request.auth.token.role == 'admin';
     }
 
+    // Carteles de les propostes de pel·lícules (els desa la Cloud Function
+    // des de TMDB): públics perquè la pàgina de propostes també ho és.
+    match /carteils/{nom} {
+      allow read: if true;
+    }
+
     // Factures i documents adjunts als moviments de comptabilitat: només
     // l'admin els veu o els gestiona, i només PDF o imatge de fins a 10 MB.
     match /factures/{id}/{nom} {

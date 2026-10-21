@@ -99,6 +99,18 @@ service cloud.firestore {
       }
     }
 
+    // Dades internes de gestió d'una proposta (preu, condicions especials,
+    // distribuïdora). Van en un document apart (mateix id que la proposta)
+    // perquè `propostes` és públic un cop aprovada: aquí no s'ha de veure mai.
+    match /propostesInternes/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Distribuïdores amb les quals es gestiona la cessió de pel·lícules.
+    match /distribuidores/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // Registre d'auditoria de propostes i vots: es pot crear sense
     // autenticar-se (mateix motiu que propostes), però només l'admin el pot
     // llegir, i mai es pot modificar ni esborrar (igual que accessLog).

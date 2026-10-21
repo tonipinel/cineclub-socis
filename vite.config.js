@@ -8,6 +8,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    include: ['src/**/*.test.{js,jsx}', 'scripts/**/*.test.js'],
+    include: ['src/**/*.test.{js,jsx}', 'scripts/**/*.test.js', 'functions/**/*.test.js'],
   },
 });

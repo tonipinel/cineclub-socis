@@ -6,9 +6,10 @@ import { IdentitatPublicaProvider } from '../../auth/IdentitatPublicaProvider';
 import { useIdentitatPublica } from '../../auth/useIdentitatPublica';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
+vi.mock('../../lib/pellicules', () => ({ cercarPellicules: vi.fn() }));
 vi.mock('../../components/LectorCarnet', () => ({
   default: ({ onIdentificat }) => (
-    <button type="button" onClick={() => onIdentificat({ numeroSoci: 7, nomPublic: 'Isabel M.' })}>
+    <button type="button" onClick={() => onIdentificat({ numeroSoci: 7, nomPublic: 'Isabel M.', token: 'tok-7' })}>
       Simular escaneig
     </button>
   ),
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import { addDoc } from 'firebase/firestore';
+import { cercarPellicules } from '../../lib/pellicules';
 import ProposarPellicula from './ProposarPellicula';
 
 function renderPagina() {
@@ -41,7 +43,7 @@ function IdentificarAbans({ children }) {
   const { setIdentitat } = useIdentitatPublica();
   return (
     <>
-      <button type="button" onClick={() => setIdentitat({ numeroSoci: 7, nomPublic: 'Isabel M.' })}>
+      <button type="button" onClick={() => setIdentitat({ numeroSoci: 7, nomPublic: 'Isabel M.', token: 'tok-7' })}>
         Identificar abans
       </button>
       {children}
@@ -53,22 +55,30 @@ describe('ProposarPellicula', () => {
   it('demana escanejar el carnet abans de mostrar el formulari', () => {
     renderPagina();
     expect(screen.getByRole('button', { name: 'Simular escaneig' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Títol')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Pel·lícula')).not.toBeInTheDocument();
   });
 
-  it('un cop identificat, mostra el formulari i permet enviar una proposta', async () => {
+  it('un cop identificat, només es pot proposar una pel·lícula triada del cercador', async () => {
+    cercarPellicules.mockResolvedValue([
+      { tmdbId: 11, titol: "L'endemà", any: '1990', posterUrl: null },
+      { tmdbId: 12, titol: "L'endemà (altra)", any: '2001', posterUrl: null },
+    ]);
     const user = userEvent.setup();
     renderPagina();
     await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
 
-    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Títol'), "L'endemà");
+    expect(screen.getByRole('button', { name: 'Enviar proposta' })).toBeDisabled();
+    await user.type(await screen.findByLabelText('Pel·lícula'), 'endem');
+    expect(screen.queryByLabelText(/Explica'ns breument/)).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /L'endemà \(1990\)/ }));
+    expect(cercarPellicules).toHaveBeenCalledWith('endem', 'tok-7');
+    await user.type(screen.getByLabelText("Explica'ns breument per què la recomanes (opcional)"), 'Una joia');
     await user.click(screen.getByRole('button', { name: 'Enviar proposta' }));
 
     expect(await screen.findByText(/s'ha enviat/i)).toBeInTheDocument();
     const [, dadesDesades] = addDoc.mock.calls[0];
     expect(dadesDesades).toEqual({
-      titol: "L'endemà", enllac: '', comentari: '', numeroSoci: 7, nomProposant: 'Isabel M.', estat: 'pendent', timestamp: 'TIMESTAMP',
+      titol: "L'endemà", any: '1990', tmdbId: 11, comentari: 'Una joia', numeroSoci: 7, nomProposant: 'Isabel M.', estat: 'pendent', timestamp: 'TIMESTAMP',
     });
   });
 
@@ -84,7 +94,7 @@ describe('ProposarPellicula', () => {
       </IdentitatPublicaProvider>
     );
     await user.click(screen.getByRole('button', { name: 'Identificar abans' }));
-    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Pel·lícula')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Simular escaneig' })).not.toBeInTheDocument();
   });
 

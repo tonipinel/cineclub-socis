@@ -5,11 +5,11 @@ import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { useIdentitatPublica } from '../../auth/useIdentitatPublica';
 import LectorCarnet from '../../components/LectorCarnet';
+import CercadorPellicula from '../../components/CercadorPellicula';
 
 export default function ProposarPellicula() {
   const { identitat, setIdentitat } = useIdentitatPublica();
-  const [titol, setTitol] = useState('');
-  const [enllac, setEnllac] = useState('');
+  const [pellicula, setPellicula] = useState(null);
   const [comentari, setComentari] = useState('');
   const [enviant, setEnviant] = useState(false);
   const [error, setError] = useState(null);
@@ -17,13 +17,14 @@ export default function ProposarPellicula() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!identitat || !titol.trim()) return;
+    if (!identitat || !pellicula) return;
     setEnviant(true);
     setError(null);
     try {
       const nova = await addDoc(collection(db, 'propostes'), {
-        titol: titol.trim(),
-        enllac: enllac.trim(),
+        titol: pellicula.titol,
+        any: pellicula.any,
+        tmdbId: pellicula.tmdbId,
         comentari: comentari.trim(),
         numeroSoci: identitat.numeroSoci,
         nomProposant: identitat.nomPublic,
@@ -71,26 +72,17 @@ export default function ProposarPellicula() {
       <h1 className="proposar-pellicula__titol">Proposa una pel·lícula</h1>
 
       <div className="form__field">
-        <label className="form__label" htmlFor="titol">Títol</label>
-        <input
-          id="titol"
-          className="form__input"
-          value={titol}
-          onChange={(e) => setTitol(e.target.value)}
-          required
-        />
+        <CercadorPellicula token={identitat.token} onTriar={setPellicula} />
       </div>
-      <div className="form__field">
-        <label className="form__label" htmlFor="enllac">Enllaç (opcional)</label>
-        <input id="enllac" className="form__input" value={enllac} onChange={(e) => setEnllac(e.target.value)} />
-      </div>
-      <div className="form__field">
-        <label className="form__label" htmlFor="comentari">Comentari (opcional)</label>
-        <input id="comentari" className="form__input" value={comentari} onChange={(e) => setComentari(e.target.value)} />
-      </div>
+      {pellicula && (
+        <div className="form__field">
+          <label className="form__label" htmlFor="comentari">Explica'ns breument per què la recomanes (opcional)</label>
+          <textarea id="comentari" className="form__input" rows={3} value={comentari} onChange={(e) => setComentari(e.target.value)} />
+        </div>
+      )}
 
       {error && <p className="form__error">{error}</p>}
-      <button className="btn proposar-pellicula__enviar" type="submit" disabled={enviant}>Enviar proposta</button>
+      <button className="btn proposar-pellicula__enviar" type="submit" disabled={enviant || !pellicula}>Enviar proposta</button>
     </form>
   );
 }

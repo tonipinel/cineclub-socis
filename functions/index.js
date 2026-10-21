@@ -1,8 +1,16 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
+const { logger } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
+const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
 
 initializeApp();
+
+const TMDB_API_KEY = defineSecret('TMDB_API_KEY');
+const SECRETS = [TMDB_API_KEY];
 
 const URL_SOLICITUDS = 'https://associacio.cineclubrodadebera.cat/solicituds';
 const DESTINATARI = 'cineclub.rodadebera@gmail.com';
@@ -86,4 +94,97 @@ exports.notificarNovaSolicitud = onDocumentCreated('solicituds/{id}', async (eve
       },
     });
   }
+});
+
+// Tota la ficha de la proposta (títol, any, cartell, sinopsi, durada,
+// repartiment, director, tràiler, etc.) surt de TMDB. Els títols es deixen
+// en versió original; la sinopsi arriba en català si n'hi ha i, si no, en
+// castellà o anglès (`sinopsiIdioma`) perquè l'admin la tradueixi a mà. El cartell es descarrega i es desa a
+// Storage perquè no depenguem de cap web externa que ens pugui bloquejar la
+// imatge.
+async function desarFitxa(propostaId, tmdbId) {
+  const pellicula = await detallPellicula(tmdbId, TMDB_API_KEY.value());
+  const canvis = {
+    tmdbId: pellicula.tmdbId,
+    titol: pellicula.titol,
+    titolLocal: pellicula.titolLocal,
+    any: pellicula.any,
+    sinopsi: pellicula.sinopsi,
+    sinopsiIdioma: pellicula.sinopsiIdioma,
+    durada: pellicula.durada,
+    directors: pellicula.directors,
+    generes: pellicula.generes,
+    imatges: pellicula.escenes,
+    guionistes: pellicula.guionistes,
+    repartiment: pellicula.repartiment,
+    lema: pellicula.lema,
+    paisos: pellicula.paisos,
+    idiomes: pellicula.idiomes,
+    valoracio: pellicula.valoracio,
+    tmdbUrl: pellicula.tmdbUrl,
+  };
+  if (pellicula.trailerUrl) canvis.trailerUrl = pellicula.trailerUrl;
+  if (pellicula.posterPath) {
+    const { contingut, contentType } = await descarregarCartell(pellicula.posterPath);
+    const bucket = getStorage().bucket();
+    // Ruta nova a cada actualització: el cartell es serveix amb una caché d'un
+    // any, així que reutilitzar la ruta faria veure el cartell antic.
+    const ruta = `carteils/${propostaId}-${Date.now()}.jpg`;
+    await bucket.file(ruta).save(contingut, { contentType, metadata: { cacheControl: 'public, max-age=31536000' } });
+    canvis.cartellPath = ruta;
+    canvis.imatgeUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(ruta)}?alt=media`;
+  }
+  const referencia = getFirestore().doc(`propostes/${propostaId}`);
+  // Si l'admin ja ha revisat/traduït la sinopsi d'aquesta mateixa pel·lícula
+  // (la desa amb sinopsiIdioma 'ca'), no la tornem a trepitjar.
+  const actual = (await referencia.get()).data();
+  if (actual.tmdbId === pellicula.tmdbId && actual.sinopsi && actual.sinopsiIdioma === 'ca') {
+    delete canvis.sinopsi;
+    delete canvis.sinopsiIdioma;
+  }
+  await referencia.update(canvis);
+  if (canvis.cartellPath) {
+    // El cartell anterior ja no es fa servir (inclòs el de la ruta antiga, sense marca de temps).
+    const bucket = getStorage().bucket();
+    const anteriors = [actual.cartellPath, `carteils/${propostaId}.jpg`].filter((ruta) => ruta && ruta !== canvis.cartellPath);
+    await Promise.all(anteriors.map((ruta) => bucket.file(ruta).delete({ ignoreNotFound: true }).catch(() => {})));
+  }
+  return { ...canvis, sinopsi: canvis.sinopsi ?? actual.sinopsi, sinopsiIdioma: canvis.sinopsiIdioma ?? actual.sinopsiIdioma };
+}
+
+exports.desarFitxaNovaProposta = onDocumentCreated(
+  { document: 'propostes/{id}', secrets: SECRETS },
+  async (event) => {
+    const dades = event.data.data();
+    if (!dades.tmdbId) return;
+    try {
+      await desarFitxa(event.params.id, dades.tmdbId);
+    } catch (error) {
+      logger.error('No s\'ha pogut desar la fitxa de la proposta', event.params.id, error);
+    }
+  }
+);
+
+// La clau de TMDB no pot sortir del servidor, així que el cercador del
+// formulari passa per aquí. S'hi pot accedir amb el token del carnet d'un
+// soci (formulari públic) o com a admin.
+exports.cercarPellicules = onCall({ secrets: SECRETS }, async (request) => {
+  const consulta = String(request.data?.consulta ?? '').trim();
+  if (consulta.length < 2) return [];
+  const esAdmin = request.auth?.token?.role === 'admin';
+  if (!esAdmin) {
+    const token = request.data?.token;
+    const soci = token ? await getFirestore().doc(`socisPublic/${token}`).get() : null;
+    if (!soci?.exists) throw new HttpsError('permission-denied', 'Identifica\'t amb el carnet per cercar pel·lícules.');
+  }
+  return cercarPellicules(consulta, TMDB_API_KEY.value());
+});
+
+// L'admin tria a mà la pel·lícula d'una proposta ja existent (p. ex. les
+// anteriors al cercador): se'n torna a agafar tota la fitxa de TMDB.
+exports.assignarPellicula = onCall({ secrets: SECRETS }, async (request) => {
+  if (request.auth?.token?.role !== 'admin') throw new HttpsError('permission-denied', 'Només l\'admin.');
+  const { propostaId, tmdbId } = request.data ?? {};
+  if (!propostaId || !tmdbId) throw new HttpsError('invalid-argument', 'Falten dades.');
+  return desarFitxa(propostaId, tmdbId);
 });
