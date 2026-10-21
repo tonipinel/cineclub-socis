@@ -111,6 +111,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Pàgines de contingut de la web pública (portada, preguntes freqüents...). La web les llegeix
+    // des del servidor amb l'Admin SDK, que no passa per aquestes regles: aquí només l'admin.
+    match /pagines/{slug} {
+      allow read, write: if isAdmin();
+    }
+
     // Registre d'auditoria de propostes i vots: es pot crear sense
     // autenticar-se (mateix motiu que propostes), però només l'admin el pot
     // llegir, i mai es pot modificar ni esborrar (igual que accessLog).

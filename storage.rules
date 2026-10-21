@@ -11,6 +11,13 @@ service firebase.storage {
       allow read: if true;
     }
 
+    // Imatges de la web pública (cartells i galeries de sessions, imatges de pàgines):
+    // qualsevol les pot veure; només l'admin les pot pujar o canviar.
+    match /web/{cami=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Factures i documents adjunts als moviments de comptabilitat: només
     // l'admin els veu o els gestiona, i només PDF o imatge de fins a 10 MB.
     match /factures/{id}/{nom} {
