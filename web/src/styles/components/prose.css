@@ -1,0 +1,25 @@
+.prose-ca h2 {
+  margin-bottom: 0.5rem;
+  margin-top: 1.5rem;
+  font-family: Oswald, sans-serif;
+  font-size: 1.5rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+  text-transform: uppercase;
+}
+.prose-heading__icon {
+  @apply mr-1 inline-block;
+}
+.prose-ca p {
+  @apply mb-4;
+}
+.prose-ca ul {
+  @apply mb-4 list-disc space-y-1 pl-5;
+}
+.prose-ca ol {
+  @apply mb-4 list-decimal space-y-1 pl-5;
+}
+.prose-ca a:not(.btn) {
+  @apply text-gold-dark underline hover:text-gold;
+}

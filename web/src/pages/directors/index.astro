@@ -1,0 +1,8 @@
+---
+import TaxonomiaIndex from '../../components/TaxonomiaIndex.astro';
+import { sessionsPubliques } from '../../lib/sessions.js';
+import { termesDe } from '../../lib/taxonomies.js';
+
+const termes = termesDe(await sessionsPubliques(), 'directors');
+---
+<TaxonomiaIndex taxonomia="directors" termes={termes} />

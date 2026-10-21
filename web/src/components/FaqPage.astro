@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import JsonLdFaq from './JsonLdFaq.astro';
+import { renderMarkdownInline } from '../lib/markdown.js';
+
+// Traducció de layouts/faq/single.html. `pagina`: `pagines/{slug}` amb `dades.faq[]` i `dades.hook`.
+const { pagina } = Astro.props;
+const hook = pagina.dades?.hook;
+const faq = (Array.isArray(pagina.dades?.faq) ? pagina.dades.faq : []).map((f) => ({
+  pregunta: f?.pregunta ?? '',
+  resposta: f?.resposta ?? '',
+}));
+---
+<BaseLayout titol={pagina.titol} descripcio={pagina.dades?.description || hook || undefined}>
+  <Fragment slot="head">
+    <JsonLdFaq faq={faq} />
+  </Fragment>
+
+  <section class="page-hero">
+    <h1 class="page-hero__title">{pagina.titol}</h1>
+    {hook && <p class="page-hero__hook">{hook}</p>}
+  </section>
+  <div class="page-body">
+    {faq.map((f) => (
+      <details class="faq__item">
+        <summary class="faq__question">{f.pregunta}</summary>
+        <div class="faq__answer prose-ca" set:html={renderMarkdownInline(f.resposta)}></div>
+      </details>
+    ))}
+  </div>
+</BaseLayout>

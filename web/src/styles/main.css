@@ -1,0 +1,17 @@
+@import "./components/layout.css";
+@import "./components/header.css";
+@import "./components/footer.css";
+@import "./components/button.css";
+@import "./components/session-card.css";
+@import "./components/session-detail.css";
+@import "./components/home.css";
+@import "./components/page.css";
+@import "./components/member.css";
+@import "./components/signup-form.css";
+@import "./components/faq.css";
+@import "./components/prose.css";
+@import "./components/cartell.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

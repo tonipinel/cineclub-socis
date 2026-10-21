@@ -1,0 +1,18 @@
+---
+import { jsonLd } from '../lib/jsonld.js';
+import { renderMarkdownInline, textPla } from '../lib/markdown.js';
+
+// Traducció de partials/jsonld-faq.html (claus en ordre alfabètic, com el jsonify de Hugo; la
+// resposta és `markdownify | plainify`).
+const { faq } = Astro.props;
+const json = jsonLd({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map(({ pregunta, resposta }) => ({
+    '@type': 'Question',
+    acceptedAnswer: { '@type': 'Answer', text: textPla(renderMarkdownInline(resposta)) },
+    name: pregunta,
+  })),
+});
+---
+<script type="application/ld+json" set:html={json}></script>

@@ -1,0 +1,12 @@
+---
+import FaqPage from '../components/FaqPage.astro';
+import ContingutPagina from '../components/ContingutPagina.astro';
+import { SLUGS_CONTINGUT, paginaPerSlug } from '../lib/pagines.js';
+
+// /preguntes-frequents/ i /privacitat/ (pagines/{slug}). Qualsevol altre segment, o una pàgina que
+// no existeix, dona el 404 de la web sense llegir res de Firestore si el slug no és de la llista.
+const { slug } = Astro.params;
+const pagina = SLUGS_CONTINGUT.includes(slug) ? await paginaPerSlug(slug) : null;
+if (!pagina) return Astro.rewrite('/404');
+---
+{pagina.tipus === 'faq' ? <FaqPage pagina={pagina} /> : <ContingutPagina pagina={pagina} />}

@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from './Icon.astro';
+import SessioHero from './SessioHero.astro';
+import CollabStrip from './CollabStrip.astro';
+import SessioGaleria from './SessioGaleria.astro';
+import SessioInfo from './SessioInfo.astro';
+import SessioFitxa from './SessioFitxa.astro';
+import RelatedSessions from './RelatedSessions.astro';
+import JsonLdEvent from './JsonLdEvent.astro';
+import JsonLdBreadcrumb from './JsonLdBreadcrumb.astro';
+import { CARTELL_ACTIU, SITE_URL } from '../lib/env.js';
+import { renderMarkdown } from '../lib/markdown.js';
+import { descripcioSessio, titolSessio, urlSessio } from '../lib/sessio-camps.js';
+
+// Traducció de layouts/programacio/single.html. `sessions`: totes les sessions publicades
+// (per a «Sessions relacionades»).
+const { sessio, sessions } = Astro.props;
+const titol = titolSessio(sessio);
+const url = urlSessio(sessio);
+const { trailerYoutubeId, cartell, cos } = sessio.publica ?? {};
+---
+<BaseLayout
+  titol={titol}
+  descripcio={descripcioSessio(sessio)}
+  canonical={new URL(url, SITE_URL).href}
+  imatgeOg={cartell || undefined}
+>
+  <Fragment slot="head">
+    <JsonLdEvent sessio={sessio} />
+    <JsonLdBreadcrumb sessio={sessio} />
+  </Fragment>
+
+  <SessioHero sessio={sessio} />
+  <CollabStrip sessio={sessio} />
+  <SessioGaleria sessio={sessio} />
+  <SessioInfo sessio={sessio} />
+  <SessioFitxa sessio={sessio} />
+
+  {CARTELL_ACTIU && (
+    <div class="session-cartell-banner-wrapper">
+      <div class="session-cartell-banner">
+        <div class="session-cartell-banner__message">
+          <Icon name="megaphone" />
+          <div class="session-cartell-banner__text">
+            <span class="session-cartell-banner__title">Ajuda'ns a fer difusió!</span>
+            <p class="session-cartell-banner__body">Imprimeix el cartell del cineclub i enganxa'l per la teva zona o descarrega'l en PDF i envia'l a qui vulguis.</p>
+          </div>
+        </div>
+        <a class="session-cartell-banner__button" href={`${url}cartell.html`} target="_blank" rel="noopener"><Icon name="printer" />Imprimir/veure cartell de la sessió</a>
+      </div>
+    </div>
+  )}
+
+  {trailerYoutubeId && (
+    <div class="session-trailer">
+      <div class="session-trailer__frame">
+        <iframe src={`https://www.youtube-nocookie.com/embed/${trailerYoutubeId}`} title={`Tràiler de ${titol}`} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+  )}
+
+  <div class="session-body prose-ca" set:html={renderMarkdown(cos)}></div>
+
+  <RelatedSessions sessio={sessio} sessions={sessions} />
+</BaseLayout>

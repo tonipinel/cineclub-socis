@@ -1,0 +1,30 @@
+{
+  "descripcio": "Diferències esperades entre el build de Hugo i la web nova mentre les dues sessions de la secció Xarxa no són a Firestore (i, per tant, no hi ha sessió publicada que les generi). Cada entrada admet l'estat 404 de la web nova (i que la URL falti al seu sitemap). Quan les sessions es migrin, s'han de treure d'aquí.",
+  "permesos": [
+    {
+      "path": "/programacio/2026/carretera-a-gusen/",
+      "estat": 404,
+      "motiu": "Sessió de la secció Xarxa (organitza L'Ateneu Rodenc) encara no migrada a Firestore."
+    },
+    {
+      "path": "/programacio/2026/la-preso-invisible-executada/",
+      "estat": 404,
+      "motiu": "Sessió de la secció Xarxa (organitza l'Associació Republicana) encara no migrada a Firestore."
+    },
+    {
+      "path": "/directors/eloy-calvo/",
+      "estat": 404,
+      "motiu": "Director només de «Carretera a Gusen» (Xarxa, no migrada): sense sessions publicades el terme no existeix."
+    },
+    {
+      "path": "/interprets/%C3%A0lex-cirera-izquierdo/",
+      "estat": 404,
+      "motiu": "Intèrpret només de «Carretera a Gusen» (Xarxa, no migrada): sense sessions publicades el terme no existeix."
+    },
+    {
+      "path": "/generes/documental/",
+      "estat": 404,
+      "motiu": "Gènere que només aporten les dues sessions Xarxa no migrades («Carretera a Gusen» i «La presó invisible / Executada»)."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "L'Ateneu Rodenc": {
+    "logo": "/images/entitats/ateneu-rodenc.jpg",
+    "url": "https://www.instagram.com/ateneu_rodenc.rdb/"
+  },
+  "Amical de Mauthausen": {
+    "logo": "/images/entitats/amical-mauthausen.jpg",
+    "url": "https://amical-mauthausen.org/ca/missio-valors-i-historia/"
+  },
+  "Associació Republicana de Roda de Berà": {
+    "logo": "/images/entitats/associacio-republicana.jpg",
+    "url": "https://web.rodadebera.cat/hotelentitats/associacions-entitats/21-tambe-hi-som"
+  },
+  "Cineclub Roda de Berà": {
+    "logo": "/images/entitats/cineclub-roda-de-bera.png",
+    "url": "https://cineclubrodadebera.cat/"
+  },
+  "Ajuntament de Roda de Berà": {
+    "logo": "/images/entitats/ajuntament-roda-de-bera.png",
+    "url": "https://web.rodadebera.cat/"
+  }
+}

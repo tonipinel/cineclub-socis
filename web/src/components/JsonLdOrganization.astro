@@ -1,0 +1,17 @@
+---
+import site from '../data/site.json';
+import { SITE_URL } from '../lib/env.js';
+import { jsonLd } from '../lib/jsonld.js';
+
+// Traducció de partials/jsonld-organization.html (claus en ordre alfabètic, com el jsonify de Hugo).
+const json = jsonLd({
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  email: site.contactEmail,
+  logo: `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
+  name: site.title,
+  sameAs: [site.instagramURL, site.facebookURL].filter(Boolean),
+  url: `${SITE_URL}/`,
+});
+---
+<script type="application/ld+json" set:html={json}></script>

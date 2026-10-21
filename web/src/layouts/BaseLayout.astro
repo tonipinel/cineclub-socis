@@ -1,0 +1,55 @@
+---
+import '../styles/main.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import site from '../data/site.json';
+import { SITE_URL } from '../lib/env.js';
+
+// titol: absent a la portada. canonical i imatgeOg: URLs absolutes.
+const {
+  titol,
+  descripcio = site.tagline,
+  imatgeOg = `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
+  canonical = new URL(Astro.url.pathname, SITE_URL).href,
+} = Astro.props;
+const titolPagina = titol ? `${titol} · ${site.title}` : site.title;
+const titolSocial = titol || site.title;
+---
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{titolPagina}</title>
+  <meta name="description" content={descripcio}>
+  <link rel="canonical" href={canonical}>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content={titolSocial}>
+  <meta property="og:description" content={descripcio}>
+  <meta property="og:url" content={canonical}>
+  <meta property="og:image" content={imatgeOg}>
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content={titolSocial}>
+  <meta name="twitter:description" content={descripcio}>
+  <meta name="twitter:image" content={imatgeOg}>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <slot name="head" />
+</head>
+<body class="site-body">
+  <SiteHeader pathname={Astro.url.pathname} />
+  <main>
+    <slot />
+  </main>
+  <SiteFooter />
+  <script src="/js/gallery.js" defer></script>
+  <script src="/js/poster-modal.js" defer></script>
+  <script src="/js/mobile-menu.js" defer></script>
+  <script src="/js/session-card-title.js" defer></script>
+</body>
+</html>

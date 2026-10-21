@@ -1,0 +1,283 @@
+.session-hero {
+  @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white text-center text-white;
+  padding: 1.5rem 1rem 1.5rem;
+}
+.session-hero__meta {
+  @apply flex;
+}
+.session-hero__date {
+  font-family: Inter, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #000;
+  background: #fff;
+  text-transform: uppercase;
+  padding: 0.1rem 0.5rem;
+  margin-bottom: -4px;
+}
+.section-badge--hero {
+  @apply border-0 text-white;
+  font-family: Inter, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.1rem 0.5rem;
+  margin-bottom: -4px;
+}
+.session-hero__title {
+  @apply font-display font-bold uppercase text-gold;
+  font-size: 3rem;
+  line-height: 1.1;
+  text-shadow: 2px 2px 2px black;
+}
+@media (min-width: 640px) {
+  .session-hero__title {
+    font-size: 5rem;
+  }
+}
+.session-hero__subtitle {
+  @apply text-base normal-case tracking-normal text-white/70 sm:text-lg;
+}
+.session-gallery-wrapper {
+  @apply w-full bg-black;
+}
+.session-gallery {
+  @apply relative border-dashed border-white;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.session-gallery__track {
+  @apply flex snap-x snap-mandatory overflow-x-auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.session-gallery__track::-webkit-scrollbar {
+  display: none;
+}
+.session-gallery__image {
+  @apply aspect-video w-full flex-shrink-0 snap-center object-cover;
+}
+.session-gallery__prev,
+.session-gallery__next {
+  @apply absolute top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center bg-black/60 text-xl text-white transition hover:bg-gold hover:text-black sm:flex;
+}
+.session-gallery__prev {
+  @apply left-2;
+}
+.session-gallery__next {
+  @apply right-2;
+}
+.session-gallery__prev .icon,
+.session-gallery__next .icon {
+  color: #fff;
+}
+.session-gallery__prev:hover .icon,
+.session-gallery__next:hover .icon {
+  color: #000;
+}
+.session-gallery__dots {
+  @apply absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-2;
+}
+.session-gallery__dot {
+  @apply h-2 w-2 rounded-full bg-white/40 transition;
+}
+.session-gallery__dot--active {
+  @apply bg-gold;
+}
+.session-trailer {
+  @apply mx-4 mt-8 max-w-3xl border-2 border-b-0 border-dashed border-white bg-black p-6 shadow-lg sm:mx-auto;
+}
+.session-trailer__frame {
+  @apply relative aspect-video w-full overflow-hidden;
+}
+.session-trailer__frame iframe {
+  @apply absolute inset-0 h-full w-full border-0;
+}
+.collab-strip-wrapper {
+  width: 100%;
+  border-style: dashed;
+  --tw-border-opacity: 1;
+  border-color: rgb(47 111 118);
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  border-bottom-width: 6px;
+  margin-top: -6px;
+}
+.collab-strip {
+  @apply mx-auto grid max-w-[1000px] grid-cols-2 gap-6 text-center sm:flex sm:flex-nowrap sm:justify-center sm:gap-10;
+  padding: .75rem 1.5rem 1.5rem;
+}
+.collab-strip__item {
+  @apply flex flex-col items-center gap-1;
+}
+.collab-strip__label {
+  font-family: Oswald, sans-serif;
+  font-size: .75rem;
+  line-height: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .025em;
+  color: #2f6f76;
+  width: 100%;
+  text-align: left;
+  border-bottom: 2px dashed #2f6f76;
+}
+.collab-strip__entity {
+  @apply text-sm font-medium text-black;
+}
+.collab-strip__logo {
+  @apply h-20 w-auto object-contain transition sm:h-24;
+}
+.collab-strip__link:hover .collab-strip__logo {
+  @apply opacity-80;
+}
+.collab-strip .collab-strip__logo[alt="Cineclub Roda de Berà"] {
+  height: 5rem;
+}
+.collab-strip__group {
+  @apply contents sm:flex sm:flex-col sm:items-center sm:gap-2;
+}
+.collab-strip__group-items {
+  @apply contents sm:flex sm:items-center sm:gap-10;
+}
+.collab-strip__label--group {
+  @apply hidden sm:block;
+}
+.collab-strip__label--repeat {
+  @apply sm:hidden;
+}
+.session-fitxa-wrapper {
+  @apply w-full border-b-[6px] border-dashed border-black bg-white/90;
+  border-top: 4px dashed #ffffff;
+}
+.session-fitxa {
+  @apply mx-auto flex max-w-[1000px] flex-col gap-6 text-sm sm:flex-row;
+  padding: 2.5rem 2.5rem 2.25rem;
+}
+.session-fitxa__poster-col {
+  @apply mx-auto flex w-40 flex-shrink-0 flex-col items-center gap-4 self-start sm:mx-0 sm:w-48 sm:items-start;
+}
+.session-fitxa__poster-button {
+  @apply block w-full cursor-zoom-in border-0 bg-transparent p-0;
+}
+.session-fitxa__poster {
+  @apply w-full object-cover transition hover:opacity-90;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+.poster-modal {
+  @apply relative m-auto max-h-[90vh] max-w-[95vw] border-0 bg-transparent p-0;
+}
+.poster-modal::backdrop {
+  @apply bg-black/90;
+}
+.poster-modal__image {
+  @apply block max-h-[90vh] max-w-[95vw] object-contain;
+}
+.poster-modal__close {
+  @apply absolute right-4 top-4 flex h-10 w-10 items-center justify-center bg-black/70 text-2xl text-white transition hover:bg-gold hover:text-black;
+}
+.poster-modal__close .icon {
+  color: #fff;
+}
+.poster-modal__close:hover .icon {
+  color: #000;
+}
+.session-fitxa__details {
+  @apply grid flex-1 grid-cols-[auto_1fr] content-start gap-x-4 gap-y-2;
+}
+.session-fitxa__label {
+  @apply font-display font-bold uppercase tracking-wide text-gold-dark;
+}
+.session-fitxa__taxonomy-link {
+  @apply text-gold-dark underline decoration-dotted hover:text-gold;
+}
+.session-version {
+  @apply px-6 pt-4 font-display text-sm font-bold uppercase tracking-wide text-gold-dark;
+}
+.session-body {
+  @apply mx-4 mb-8 max-w-3xl border-2 border-t-0 border-dashed border-black bg-white p-6 shadow-lg sm:mx-auto;
+}
+.session-cartell-banner-wrapper {
+  @apply w-full border-b-[6px] border-dashed border-black bg-gold;
+}
+.session-cartell-banner {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-4 px-6 py-6 text-center sm:flex-row sm:justify-between sm:text-left;
+}
+.session-cartell-banner__button {
+  @apply inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-black px-6 py-3 font-display font-bold uppercase text-white no-underline transition hover:bg-neutral-800;
+}
+.session-cartell-banner__button .icon {
+  @apply h-6 w-6 flex-shrink-0 text-white;
+}
+.session-cartell-banner__message {
+  @apply flex items-center gap-4;
+}
+.session-cartell-banner__message .icon {
+  @apply w-auto flex-shrink-0 text-black;
+  height: 5rem;
+}
+.session-cartell-banner__text {
+  @apply flex flex-col justify-center gap-1 sm:max-w-md;
+}
+.session-cartell-banner__title {
+  @apply font-display text-2xl font-bold text-black;
+}
+.session-cartell-banner__body {
+  @apply font-body text-sm font-semibold text-black;
+}
+.session-info-wrapper {
+  @apply w-full border-dashed border-black bg-white;
+  border-top-width: 6px;
+}
+.session-info {
+  @apply mx-auto grid max-w-[1000px] grid-cols-2 gap-8 p-6 text-center sm:grid-cols-5;
+}
+.info-item {
+  @apply flex flex-col items-center gap-2;
+}
+.info-item__icon .icon {
+  height: 2.5rem;
+  width: 2.5rem;
+}
+.info-item__icon--with-price {
+  @apply flex items-center gap-2;
+}
+.info-item__price {
+  @apply font-display text-3xl font-bold text-gold-dark;
+}
+.info-item__logo {
+  @apply h-10 w-auto object-contain;
+}
+.session-fitxa__poster-col .info-item__logo {
+  @apply h-16;
+}
+.info-item__icon--text {
+  display: flex;
+  height: 2.5rem;
+  width: 5.5rem;
+  align-items: center;
+  justify-content: center;
+  border-width: 2px;
+  border-color: rgb(127 96 0 / var(--tw-border-opacity, 1));
+  font-family: Oswald, sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(127 96 0 / var(--tw-text-opacity, 1));
+}
+.info-item__caption {
+  @apply text-xs text-gray-700;
+}
+.info-item__link {
+  @apply flex flex-col items-center gap-2 transition;
+}
+.info-item__link .info-item__caption {
+  @apply text-gold-dark underline;
+}
+.info-item__link:hover .info-item__caption {
+  @apply text-gold;
+}
+.info-item__link:hover .icon {
+  color: #bf9000;
+}
+.info-item__link:hover .info-item__logo {
+  opacity: 0.8;
+}

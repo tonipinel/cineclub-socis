@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { renderMarkdown } from '../lib/markdown.js';
+
+// Traducció de layouts/_default/single.html. `pagina`: `pagines/{slug}` (títol i `cos` en Markdown).
+const { pagina } = Astro.props;
+---
+<BaseLayout titol={pagina.titol} descripcio={pagina.dades?.description || pagina.dades?.hook || undefined}>
+  <section class="page-hero">
+    <h1 class="page-hero__title">{pagina.titol}</h1>
+  </section>
+  <div class="page-body prose-ca" set:html={renderMarkdown(pagina.cos)}></div>
+</BaseLayout>

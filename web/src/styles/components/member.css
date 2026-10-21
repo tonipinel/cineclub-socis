@@ -1,0 +1,86 @@
+.page-hero__hook {
+  @apply mt-2 max-w-xl text-base text-white/80 sm:text-lg;
+}
+.page-hero .btn {
+  @apply mt-4;
+}
+.btn--join {
+  @apply inline-flex items-center gap-2;
+}
+.btn--join .icon {
+  @apply h-5 w-5;
+  color: inherit;
+}
+.member-block-wrapper {
+  @apply w-full border-b-2 border-dashed border-black bg-white;
+}
+.member-block-wrapper--alt {
+  background-color: rgba(255 255 255 / 0.8);
+}
+.member-block {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-8 p-6 py-10 sm:flex-row;
+}
+.member-block--reverse {
+  @apply sm:flex-row-reverse;
+}
+.member-block__image {
+  @apply mx-auto w-full max-w-sm flex-shrink-0 object-cover sm:mx-0 sm:w-2/5;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+.member-block__body {
+  @apply flex-1 text-center sm:text-left;
+}
+.member-block-wrapper .member-block__body h2,
+.member-signup-wrapper .member-signup__body h2 {
+  font-size: 2rem;
+  line-height: 2.2rem;
+}
+@media (min-width: 640px) {
+  .member-block-wrapper .member-block__body h2,
+  .member-signup-wrapper .member-signup__body h2 {
+    font-size: 3rem;
+    line-height: 3.5rem;
+  }
+}
+.member-benefits-wrapper {
+  @apply w-full border-b-2 border-dashed border-black bg-white;
+}
+.member-benefits {
+  @apply mx-auto max-w-2xl px-6 pb-4 pt-12 text-center;
+}
+.member-benefits h2 {
+  @apply font-display font-bold uppercase;
+  font-size: 2rem;
+  line-height: 2.2rem;
+}
+.member-signup-wrapper {
+  @apply w-full;
+  background-color: rgba(255 255 255 / 0.8);
+}
+.member-signup {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-8 p-6 py-12 sm:flex-row;
+}
+.member-signup__image {
+  @apply mx-auto w-full max-w-sm flex-shrink-0 object-cover sm:mx-0 sm:w-2/5;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+.member-signup__body {
+  @apply flex-1 text-center sm:text-left;
+}
+.floating-cta-bar {
+  @apply pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-6 pt-20;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.85) 55%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.floating-cta-bar--visible {
+  @apply pointer-events-auto;
+  opacity: 1;
+}
+.floating-cta {
+  @apply inline-flex items-center gap-3 rounded-full bg-gold px-8 py-4 font-display text-lg font-bold text-black no-underline shadow-lg transition hover:bg-gold-dark hover:text-white;
+}
+.floating-cta .icon {
+  @apply h-6 w-6;
+  color: inherit;
+}

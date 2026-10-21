@@ -1,0 +1,26 @@
+---
+import InfoItem from './InfoItem.astro';
+import { versioInfo } from '../lib/versio.js';
+import site from '../data/site.json';
+
+// Traducció del bloc `session-info` de layouts/programacio/single.html.
+const { sessio } = Astro.props;
+const { preu, queInclou, versioTipus, idioma, edatMinimaRecomanada: edat } = sessio.publica ?? {};
+const mapsUrl = `https://www.google.com/maps/search/?api=1&${new URLSearchParams({ query: `${site.venueName}, ${site.venueAddress}` })}`;
+const { sigles, explicacio } = versioInfo(versioTipus, idioma);
+---
+<div class="session-info-wrapper">
+  <div class="session-info">
+    <InfoItem icon="map-pin" href={mapsUrl} external={true} caption={site.venueName} />
+    {preu === 0 && <InfoItem icon="ticket" price="0€" caption="Entrada gratuïta" />}
+    {preu != null && preu !== 0 && (
+      <InfoItem icon="ticket" price={`${preu}€`} href="/fes-te-socia/" caption="Aportació requerida<br>(Gratuït per a socis/es)" />
+    )}
+    {queInclou && <InfoItem icon="chat-bubble-left-right" caption="Col·loqui després<br/> de la projecció" />}
+    {sigles && <InfoItem text={sigles} caption={explicacio} />}
+    {edat === 0 && <InfoItem logo="/images/icaa/icaa-tp.svg" caption="Recomanada per a tots els públics" />}
+    {edat != null && edat !== 0 && (
+      <InfoItem logo={`/images/icaa/icaa-${edat}.svg`} caption={`No recomanada per a menors de ${edat} anys`} />
+    )}
+  </div>
+</div>

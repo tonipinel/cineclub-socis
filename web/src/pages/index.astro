@@ -1,0 +1,96 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import JsonLdOrganization from '../components/JsonLdOrganization.astro';
+import NextSessions from '../components/NextSessions.astro';
+import Mosaic from '../components/Mosaic.astro';
+import site from '../data/site.json';
+import { resizedUrl } from '../lib/images.js';
+import { renderMarkdown } from '../lib/markdown.js';
+import { CACHE_AVUI } from '../lib/cache.js';
+import { paginaPerSlug } from '../lib/pagines.js';
+import { sessionsMosaic, sessionsPubliques } from '../lib/sessions.js';
+
+// Traducció de layouts/index.html. Dades: `pagines/portada` (features, membership_benefits,
+// cos en Markdown i imatges per nom de fitxer) i les sessions publicades.
+const [pagina, sessions] = await Promise.all([paginaPerSlug('portada'), sessionsPubliques()]);
+// Firestore pot tornar `null` (o res) en llistes i mapes: es tracten com a buits.
+const llista = (valor) => (Array.isArray(valor) ? valor : []);
+const features = llista(pagina?.dades?.features);
+const beneficis = llista(pagina?.dades?.membership_benefits);
+const imatges = pagina?.imatges ?? {};
+// El mosaic depèn de la data de la petició: caché més curta que la resta de pàgines.
+Astro.response.headers.set('Cache-Control', CACHE_AVUI);
+const imatge = (nom, ample) => (imatges[nom] ? resizedUrl(imatges[nom], ample) : '');
+const [tagline1, tagline2 = ''] = site.tagline.split('cinema');
+const logo = imatge('hero-logo.png', 600);
+const poster = imatge('neix-espai.png', 500);
+const iconaSocia = imatge('fes-te-socia.png', 160);
+---
+<BaseLayout>
+  <Fragment slot="head">
+    <JsonLdOrganization />
+  </Fragment>
+
+  <section class="hero">
+    {logo && <img class="hero__logo" src={logo} alt="Cineclub Roda de Berà">}
+    <h1 class="hero__tagline">
+      <span class="hero__tagline--white">{tagline1}</span><br>
+      <span class="hero__tagline--gold">cinema{tagline2}</span>
+    </h1>
+    <a class="btn" href="/fes-te-socia/">Fes-te sòcia/soci</a>
+  </section>
+
+  <NextSessions sessions={sessions} />
+
+  <div class="intro-wrapper">
+    <div class="intro">
+      {poster && <img class="intro__poster" src={poster} alt="">}
+      <div class="intro__body prose-ca" set:html={renderMarkdown(pagina?.cos)}></div>
+    </div>
+  </div>
+
+  <div class="programming-wrapper">
+    <div class="programming">
+      <div class="programming__body prose-ca">
+        <h2>Com funciona<br><span class="text-gold">la programació</span></h2>
+        <p>Cada mes projectem una pel·lícula en versió original subtitulada, si cal, seguida d'un col·loqui obert. Publiquem un calendari orientatiu a principi d'any i concretem la programació amb 2-3 mesos d'antelació.</p>
+        <p>La programació es construeix de manera participativa. A través de la nostra web, podeu proposar pel·lícules que us agradaria veure al Cineclub. També podeu participar en les votacions que fem al grup de WhatsApp del Cineclub, on periòdicament posem a votació dues propostes per decidir entre tots quines seran les properes sessions.</p>
+        <p>Alhora, algunes pel·lícules són proposades directament per la junta, tenint en compte criteris de programació, disponibilitat i calendari, així com possibles col·laboracions amb altres entitats o activitats especials.</p>
+        <p>D'aquesta manera, intentem combinar les preferències i propostes de les persones sòcies amb una programació variada i coherent amb la línia del Cineclub.</p>
+        <div class="programming__actions">
+          <a class="btn" href="/programacio/">Veure la programació</a>
+          <a class="btn btn--outline" href="https://associacio.cineclubrodadebera.cat/">Veure propostes</a>
+        </div>
+      </div>
+      <Mosaic sessions={sessionsMosaic(sessions, new Date())} />
+    </div>
+  </div>
+
+  <div class="features-wrapper">
+    <section class="features">
+      {features.map((f) => (
+        <div class="features__item">
+          {f.imatge && imatge(f.imatge, 200) && <img class="features__icon" src={imatge(f.imatge, 200)} alt="">}
+          <h2 class="features__title">{f.titol}</h2>
+          <p>{f.text}</p>
+        </div>
+      ))}
+    </section>
+  </div>
+
+  <div class="membership-teaser-wrapper">
+    <section class="membership-teaser">
+      {iconaSocia && <img class="membership-teaser__icon" src={iconaSocia} alt="">}
+      <h2 class="membership-teaser__title">Fes-te sòcia/soci!</h2>
+      <ul class="membership-teaser__list">
+        {beneficis.map((b) => <li>{b}</li>)}
+      </ul>
+      <a class="btn" href="/fes-te-socia/">Fes-te sòcia/soci</a>
+    </section>
+  </div>
+
+  <section class="faq-teaser">
+    <h2>Encara tens dubtes?</h2>
+    <a class="btn btn--outline" href="/preguntes-frequents/">Accedeix a Preguntes Freqüents</a>
+  </section>
+</BaseLayout>

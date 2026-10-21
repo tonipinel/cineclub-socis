@@ -1,0 +1,276 @@
+{
+  "directors": [
+    {
+      "nom": "Alauda Ruiz de Azúa",
+      "carpeta": "alauda-ruiz-de-azúa"
+    },
+    {
+      "nom": "Cary Joji Fukunaga",
+      "carpeta": "cary-joji-fukunaga"
+    },
+    {
+      "nom": "David Pujol",
+      "carpeta": "david-pujol"
+    },
+    {
+      "nom": "Eloy Calvo",
+      "carpeta": "eloy-calvo"
+    },
+    {
+      "nom": "Estibaliz Urresola Solaguren",
+      "carpeta": "estibaliz-urresola-solaguren"
+    },
+    {
+      "nom": "Felix Herngren",
+      "carpeta": "felix-herngren"
+    },
+    {
+      "nom": "George A. Romero",
+      "carpeta": "george-a.-romero"
+    },
+    {
+      "nom": "Michael Sarnoski",
+      "carpeta": "michael-sarnoski"
+    },
+    {
+      "nom": "Michel Hazanavicius",
+      "carpeta": "michel-hazanavicius"
+    },
+    {
+      "nom": "Mike Leigh",
+      "carpeta": "mike-leigh"
+    }
+  ],
+  "generes": [
+    {
+      "nom": "Aventures",
+      "carpeta": "aventures"
+    },
+    {
+      "nom": "Comèdia",
+      "carpeta": "comèdia"
+    },
+    {
+      "nom": "Comèdia dramàtica",
+      "carpeta": "comèdia-dramàtica"
+    },
+    {
+      "nom": "Documental",
+      "carpeta": "documental"
+    },
+    {
+      "nom": "Drama",
+      "carpeta": "drama"
+    },
+    {
+      "nom": "Drama psicològic",
+      "carpeta": "drama-psicològic"
+    },
+    {
+      "nom": "Època",
+      "carpeta": "època"
+    },
+    {
+      "nom": "Gastronòmica",
+      "carpeta": "gastronòmica"
+    },
+    {
+      "nom": "Misteri",
+      "carpeta": "misteri"
+    },
+    {
+      "nom": "Romàntic",
+      "carpeta": "romàntic"
+    },
+    {
+      "nom": "Romàntica",
+      "carpeta": "romàntica"
+    },
+    {
+      "nom": "Terror",
+      "carpeta": "terror"
+    },
+    {
+      "nom": "Zombis",
+      "carpeta": "zombis"
+    }
+  ],
+  "interprets": [
+    {
+      "nom": "Adam Arkin",
+      "carpeta": "adam-arkin"
+    },
+    {
+      "nom": "Àlex Cirera Izquierdo",
+      "carpeta": "àlex-cirera-izquierdo"
+    },
+    {
+      "nom": "Alex Wolff",
+      "carpeta": "alex-wolff"
+    },
+    {
+      "nom": "Ane Gabarain",
+      "carpeta": "ane-gabarain"
+    },
+    {
+      "nom": "Bérénice Bejo",
+      "carpeta": "bérénice-bejo"
+    },
+    {
+      "nom": "Blanca Soroa",
+      "carpeta": "blanca-soroa"
+    },
+    {
+      "nom": "Brenda Blethyn",
+      "carpeta": "brenda-blethyn"
+    },
+    {
+      "nom": "Clara Ponsot",
+      "carpeta": "clara-ponsot"
+    },
+    {
+      "nom": "David Wiberg",
+      "carpeta": "david-wiberg"
+    },
+    {
+      "nom": "Duane Jones",
+      "carpeta": "duane-jones"
+    },
+    {
+      "nom": "Francesc Ferrer",
+      "carpeta": "francesc-ferrer"
+    },
+    {
+      "nom": "Gal Soler",
+      "carpeta": "gal-soler"
+    },
+    {
+      "nom": "Itziar Lazkano",
+      "carpeta": "itziar-lazkano"
+    },
+    {
+      "nom": "Iván Massagué",
+      "carpeta": "iván-massagué"
+    },
+    {
+      "nom": "Iwar Wiklander",
+      "carpeta": "iwar-wiklander"
+    },
+    {
+      "nom": "Jamie Bell",
+      "carpeta": "jamie-bell"
+    },
+    {
+      "nom": "Jean Dujardin",
+      "carpeta": "jean-dujardin"
+    },
+    {
+      "nom": "John Goodman",
+      "carpeta": "john-goodman"
+    },
+    {
+      "nom": "José Garcia",
+      "carpeta": "josé-garcia"
+    },
+    {
+      "nom": "Juan Minujín",
+      "carpeta": "juan-minujín"
+    },
+    {
+      "nom": "Judi Dench",
+      "carpeta": "judi-dench"
+    },
+    {
+      "nom": "Judith O'Dea",
+      "carpeta": "judith-odea"
+    },
+    {
+      "nom": "Judith Ridley",
+      "carpeta": "judith-ridley"
+    },
+    {
+      "nom": "Karl Hardman",
+      "carpeta": "karl-hardman"
+    },
+    {
+      "nom": "Keith Wayne",
+      "carpeta": "keith-wayne"
+    },
+    {
+      "nom": "Kyra Schon",
+      "carpeta": "kyra-schon"
+    },
+    {
+      "nom": "Mabel Rivera",
+      "carpeta": "mabel-rivera"
+    },
+    {
+      "nom": "Marianne Jean-Baptiste",
+      "carpeta": "marianne-jean-baptiste"
+    },
+    {
+      "nom": "Marilyn Eastman",
+      "carpeta": "marilyn-eastman"
+    },
+    {
+      "nom": "Martxelo Rubio",
+      "carpeta": "martxelo-rubio"
+    },
+    {
+      "nom": "Mia Wasikowska",
+      "carpeta": "mia-wasikowska"
+    },
+    {
+      "nom": "Michael Fassbender",
+      "carpeta": "michael-fassbender"
+    },
+    {
+      "nom": "Miguel Garcés",
+      "carpeta": "miguel-garcés"
+    },
+    {
+      "nom": "Nagore Aranburu",
+      "carpeta": "nagore-aranburu"
+    },
+    {
+      "nom": "Nicolas Cage",
+      "carpeta": "nicolas-cage"
+    },
+    {
+      "nom": "Paco Tous",
+      "carpeta": "paco-tous"
+    },
+    {
+      "nom": "Patricia López Arnaiz",
+      "carpeta": "patricia-lópez-arnaiz"
+    },
+    {
+      "nom": "Phyllis Logan",
+      "carpeta": "phyllis-logan"
+    },
+    {
+      "nom": "Pol López",
+      "carpeta": "pol-lópez"
+    },
+    {
+      "nom": "Robert Gustafsson",
+      "carpeta": "robert-gustafsson"
+    },
+    {
+      "nom": "Sally Hawkins",
+      "carpeta": "sally-hawkins"
+    },
+    {
+      "nom": "Sofía Otero",
+      "carpeta": "sofía-otero"
+    },
+    {
+      "nom": "Timothy Spall",
+      "carpeta": "timothy-spall"
+    },
+    {
+      "nom": "Vicky Peña",
+      "carpeta": "vicky-peña"
+    }
+  ]
+}

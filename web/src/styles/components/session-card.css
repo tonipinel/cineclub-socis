@@ -1,0 +1,185 @@
+.session-card {
+  @apply flex flex-col overflow-hidden rounded-none border-[6px] border-black bg-black shadow-sm transition hover:shadow-md;
+}
+.session-card__link {
+  @apply flex flex-1 flex-col border-2 border-dashed border-white text-inherit no-underline transition hover:border-gold;
+}
+.session-card__image {
+  @apply aspect-[2/3] w-full object-cover transition duration-300;
+}
+.session-card__link:hover .session-card__image {
+  @apply opacity-90;
+}
+.session-card__body {
+  @apply flex flex-1 flex-col gap-1 p-4;
+}
+.date-ca__main {
+  @apply font-bold;
+}
+.date-ca__rest {
+  color: #666;
+}
+.session-card__date {
+  @apply inline-block self-start;
+  font-family: Inter, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #000;
+  background: #fff;
+  text-transform: uppercase;
+  padding: 0.1rem 0.5rem;
+}
+.session-card__title {
+  @apply font-display font-bold uppercase tracking-wide text-white transition;
+  font-size: 2.5rem;
+  line-height: 1.15;
+}
+.session-card__title--long {
+  font-size: 1.75rem;
+}
+.session-card__link:hover .session-card__title {
+  @apply text-gold;
+}
+.session-card__subtitle {
+  @apply text-sm normal-case tracking-normal text-white/70;
+}
+.session-card__badge {
+  @apply inline-block w-fit rounded-full bg-gold/10 px-2 py-0.5 text-xs font-semibold text-gold-dark;
+}
+.section-badge {
+  @apply inline-block w-fit border border-dashed px-2 py-0.5 font-display text-xs font-bold uppercase tracking-wide;
+}
+.session-grid {
+  @apply grid grid-cols-1 gap-12 p-12 pt-8 sm:grid-cols-2 lg:grid-cols-3;
+}
+.related-sessions-wrapper {
+  @apply w-full border-t-[6px] border-dashed border-black bg-white;
+  border-bottom-width: 6px;
+}
+.related-sessions__title {
+  @apply mx-auto max-w-[1280px] px-12 pt-8 font-display text-2xl font-bold uppercase tracking-wide text-gold-dark;
+}
+.related-sessions__grid {
+  @apply mx-auto max-w-[1280px];
+}
+.calendar-wrapper {
+  @apply w-full border-b-2 border-dashed border-black bg-white;
+}
+.calendar {
+  @apply mx-auto max-w-3xl p-6 py-12;
+}
+.calendar__subscribe {
+  @apply mb-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-gold-dark bg-gold/10 px-6 py-4 text-center sm:flex-row sm:text-left;
+}
+.calendar__subscribe .icon {
+  @apply h-8 w-8 flex-shrink-0 text-gold-dark;
+}
+.calendar__subscribe-text {
+  @apply flex flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2;
+}
+.calendar__subscribe-title {
+  @apply font-display text-lg font-bold uppercase text-gold-dark;
+}
+.calendar__subscribe-body {
+  @apply font-body text-sm text-black;
+}
+.calendar__subscribe-button {
+  @apply flex-shrink-0 rounded-full bg-gold-dark px-5 py-2 font-display text-sm font-bold uppercase text-white no-underline transition hover:bg-black;
+}
+.calendar__list {
+  @apply divide-y divide-dashed divide-black/20;
+}
+.calendar__item {
+  @apply py-3;
+}
+.calendar__link,
+.calendar__row {
+  @apply flex flex-col gap-1 no-underline transition sm:flex-row sm:items-center sm:justify-between sm:gap-4;
+}
+.calendar__link {
+  @apply text-inherit;
+}
+.calendar__link:hover .calendar__title {
+  @apply text-gold-dark;
+}
+.calendar__date {
+  @apply flex-shrink-0 text-sm;
+}
+.calendar__title {
+  @apply font-display font-semibold uppercase tracking-wide text-black transition;
+}
+.calendar__title--pending {
+  @apply italic tracking-normal text-gray-500;
+}
+.calendar__venue {
+  @apply text-xs text-gray-500 sm:text-right;
+}
+.section-filter-wrapper {
+  @apply w-full;
+  background: #000;
+}
+.section-filter {
+  @apply mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-3 px-6 pt-8;
+  padding-bottom: 2rem;
+}
+.section-filter__label {
+  @apply font-display tracking-wide;
+  color: #fff;
+  font-weight: bold;
+  text-transform: uppercase;
+  line-height: 2.5;
+  text-shadow: 2px 2px 0 black;
+}
+.section-filter__btn {
+  @apply relative cursor-pointer border border-dashed bg-transparent px-3 py-1 font-display font-bold uppercase tracking-wide transition;
+  border-color: var(--filter-color, #000);
+  color: var(--filter-color, #000);
+  font-size: 2rem;
+  line-height: 2rem;
+}
+.section-filter__btn[data-filter-value="all"] {
+  border-color: #fff;
+  color: #fff;
+}
+.section-filter__btn.is-active {
+  background-color: var(--filter-color, #000);
+  color: #fff;
+}
+.section-filter__btn[data-filter-value="all"].is-active {
+  background-color: #fff;
+  color: #000;
+}
+.section-filter__btn[data-filter-value="all"].is-active::after {
+  border-top-color: #fff;
+}
+.section-filter__btn.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--filter-color, #000);
+}
+.programacio-year {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.programacio-year__title {
+  padding-left: 3rem;
+  padding-right: 3rem;
+  padding-top: 2rem;
+  font-family: Oswald, sans-serif;
+  font-size: 5rem;
+  line-height: 4.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #4d4d4d;
+  border-bottom: 2px;
+  border-color: #fff;
+  border-style: dashed;
+  background: #000;
+  text-align: center;
+}

@@ -1,0 +1,6 @@
+[
+  { "name": "Inici", "url": "/" },
+  { "name": "Programació", "url": "/programacio/" },
+  { "name": "Propostes", "url": "https://associacio.cineclubrodadebera.cat/" },
+  { "name": "Fes-te soci/a", "url": "/fes-te-socia/" }
+]

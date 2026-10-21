@@ -1,0 +1,28 @@
+---
+import SectionBadge from './SectionBadge.astro';
+import { dataCaCurtaHtml } from '../lib/format.js';
+import { resizedUrl } from '../lib/images.js';
+import { titolSessio, urlSessio } from '../lib/sessio-camps.js';
+
+// Traducció de partials/session-card.html (cartell a 600 d'ample).
+const { sessio } = Astro.props;
+const { seccio, cartell, titolOriginal, titolTraduit, organitza, participa = [], collabora = [] } = sessio.publica ?? {};
+const clau = seccio || 'cartellera';
+const titol = titolSessio(sessio);
+const entitats = [organitza, ...participa, ...collabora];
+const llista = entitats.length > 1 ? `${entitats.slice(0, -1).join(', ')} i ${entitats.at(-1)}` : entitats[0];
+const colabora = participa.length > 0 || collabora.length > 0;
+const insignia = colabora ? `${llista}.` : organitza && organitza !== 'cineclub' ? `Amb ${organitza}` : '';
+---
+<article class="session-card" data-seccio={clau}>
+  <a class="session-card__link" href={urlSessio(sessio)}>
+    {cartell && <img class="session-card__image" src={resizedUrl(cartell, 600)} alt={titolOriginal || titol} loading="lazy" />}
+    <div class="session-card__body">
+      <SectionBadge seccio={seccio} variant="hero" />
+      <span class="session-card__date" set:html={dataCaCurtaHtml(sessio.data, sessio.hora)}></span>
+      <h3 class="session-card__title">{titol}</h3>
+      {titolTraduit && <p class="session-card__subtitle">{titolTraduit}</p>}
+      {insignia && <span class="session-card__badge">{insignia}</span>}
+    </div>
+  </a>
+</article>

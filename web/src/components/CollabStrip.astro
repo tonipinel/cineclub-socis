@@ -1,0 +1,55 @@
+---
+import { entitatPerNom } from '../lib/entitats.js';
+
+// Traducció de partials/collab-strip.html.
+const { sessio } = Astro.props;
+const { organitza, participa = [], collabora = [] } = sessio.publica ?? {};
+const grups = [
+  { etiqueta: 'Participen', repetida: 'Participa', noms: participa },
+  { etiqueta: 'Col·laboren', repetida: 'Col·labora', noms: collabora },
+].filter((grup) => grup.noms.length);
+const entitat = (nom) => entitatPerNom(nom);
+---
+{(participa.length || collabora.length) ? (
+  <div class="collab-strip-wrapper">
+    <div class="collab-strip">
+      <div class="collab-strip__item">
+        <span class="collab-strip__label">Organitza</span>
+        {entitat(organitza) ? (
+          entitat(organitza).url ? (
+            <a class="collab-strip__link" href={entitat(organitza).url} target="_blank" rel="noopener">
+              <img class="collab-strip__logo" src={entitat(organitza).logo} alt={organitza} />
+            </a>
+          ) : (
+            <img class="collab-strip__logo" src={entitat(organitza).logo} alt={organitza} />
+          )
+        ) : (
+          <span class="collab-strip__entity">{organitza}</span>
+        )}
+      </div>
+      {grups.map((grup) => (
+        <div class="collab-strip__group">
+          <span class="collab-strip__label collab-strip__label--group">{grup.etiqueta}</span>
+          <div class="collab-strip__group-items">
+            {grup.noms.map((nom) => (
+              <div class="collab-strip__item">
+                <span class="collab-strip__label collab-strip__label--repeat">{grup.repetida}</span>
+                {entitat(nom) ? (
+                  entitat(nom).url ? (
+                    <a class="collab-strip__link" href={entitat(nom).url} target="_blank" rel="noopener">
+                      <img class="collab-strip__logo" src={entitat(nom).logo} alt={nom} />
+                    </a>
+                  ) : (
+                    <img class="collab-strip__logo" src={entitat(nom).logo} alt={nom} />
+                  )
+                ) : (
+                  <span class="collab-strip__entity">{nom}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+) : null}

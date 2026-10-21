@@ -1,0 +1,121 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import NextSessions from '../../components/NextSessions.astro';
+import SessionCard from '../../components/SessionCard.astro';
+import seccions from '../../data/seccions.json';
+import { dataCaCurtaHtml, dataIso } from '../../lib/format.js';
+import { renderMarkdown } from '../../lib/markdown.js';
+import { CACHE_AVUI } from '../../lib/cache.js';
+import { paginaPerSlug } from '../../lib/pagines.js';
+import { anysAmbSessions, sessionsPubliques } from '../../lib/sessions.js';
+import { elementsCalendari } from '../../lib/calendari.js';
+
+// Traducció de layouts/programacio/list.html. Títol, descripció i introducció: `pagines/programacio`.
+const [pagina, sessions] = await Promise.all([paginaPerSlug('programacio'), sessionsPubliques()]);
+const calendari = elementsCalendari(sessions, new Date());
+const titol = pagina?.titol || 'Programació';
+// Els «Per determinar» del calendari depenen de la data de la petició: caché més curta.
+Astro.response.headers.set('Cache-Control', CACHE_AVUI);
+// Hugo recorre `Site.Data.seccions` per ordre alfabètic de clau.
+const botonsSeccio = Object.entries(seccions).sort(([a], [b]) => (a < b ? -1 : 1));
+---
+<BaseLayout titol={titol} descripcio={pagina?.dades?.description || undefined}>
+  <section class="page-hero">
+    <h1 class="page-hero__title">{titol}</h1>
+    <div class="page-hero__hook" set:html={renderMarkdown(pagina?.cos)}></div>
+  </section>
+
+  <NextSessions sessions={sessions} />
+
+  <div class="calendar-wrapper">
+    <div class="calendar">
+      <div class="calendar__subscribe">
+        <Icon name="calendar" />
+        <div class="calendar__subscribe-text">
+          <span class="calendar__subscribe-title">Subscriu-te al calendari</span>
+          <span class="calendar__subscribe-body">I no et perdis cap sessió</span>
+        </div>
+        <a class="calendar__subscribe-button" href="https://calendar.google.com/calendar/render?cid=a1659922865eabbdc8ea753f5996bd8025d3afabffe476fc36872643e2749be7%40group.calendar.google.com" target="_blank" rel="noopener">Subscriu-te</a>
+      </div>
+      <ul class="calendar__list" data-calendar-list>
+        {calendari.map((e) => (
+          <li class="calendar__item" data-calendar-date={dataIso(e.data, e.hora)}>
+            {e.url ? (
+              <a class="calendar__link" href={e.url}>
+                <span class="calendar__date" set:html={dataCaCurtaHtml(e.data, e.hora)}></span>
+                <span class="calendar__title">{e.titol}</span>
+              </a>
+            ) : (
+              <span class="calendar__row">
+                <span class="calendar__date" set:html={dataCaCurtaHtml(e.data, e.hora)}></span>
+                <span class="calendar__title calendar__title--pending">{e.titol}</span>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+  <script is:inline>
+(function () {
+  var list = document.querySelector("[data-calendar-list]");
+  if (!list) return;
+  var now = new Date();
+  Array.prototype.forEach.call(list.querySelectorAll("[data-calendar-date]"), function (el) {
+    if (new Date(el.getAttribute("data-calendar-date")) < now) {
+      el.remove();
+    }
+  });
+})();
+</script>
+
+  <div class="section-filter-wrapper">
+    <div class="section-filter" data-section-filter>
+      <span class="section-filter__label">Filtrar per seccions:</span>
+      <button type="button" class="section-filter__btn is-active" data-filter-value="all">Totes</button>
+      {botonsSeccio.map(([clau, dades]) => (
+        <button type="button" class="section-filter__btn" data-filter-value={clau} style={`--filter-color: ${dades.color};`}>{dades.nom}</button>
+      ))}
+    </div>
+  </div>
+
+  {anysAmbSessions(sessions).map((grup) => (
+    <div class="programacio-year">
+      <h2 class="programacio-year__title">{grup.any}</h2>
+      <div class="session-grid">
+        {grup.sessions.map((s) => <SessionCard sessio={s} />)}
+      </div>
+    </div>
+  ))}
+  <script is:inline>
+(function () {
+  var filterBar = document.querySelector("[data-section-filter]");
+  if (!filterBar) return;
+
+  var buttons = Array.prototype.slice.call(filterBar.querySelectorAll("[data-filter-value]"));
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".session-grid .session-card[data-seccio]"));
+  var yearBlocks = Array.prototype.slice.call(document.querySelectorAll(".programacio-year"));
+
+  function applyFilter(value) {
+    cards.forEach(function (card) {
+      var match = value === "all" || card.getAttribute("data-seccio") === value;
+      card.style.display = match ? "" : "none";
+    });
+    yearBlocks.forEach(function (year) {
+      var cardsInYear = Array.prototype.slice.call(year.querySelectorAll(".session-card"));
+      var anyVisible = cardsInYear.some(function (c) { return c.style.display !== "none"; });
+      year.style.display = anyVisible ? "" : "none";
+    });
+  }
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      buttons.forEach(function (b) { b.classList.remove("is-active"); });
+      btn.classList.add("is-active");
+      applyFilter(btn.getAttribute("data-filter-value"));
+    });
+  });
+})();
+</script>
+</BaseLayout>

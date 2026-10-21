@@ -1,0 +1,37 @@
+.site-footer {
+  @apply bg-black text-white;
+}
+.site-footer__inner {
+  @apply mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-10 text-center sm:flex-row sm:justify-between sm:text-left;
+}
+.site-footer__brand {
+  @apply flex items-center gap-3;
+}
+.site-footer__logo {
+  @apply w-auto;
+  height: 5.5rem;
+}
+.site-footer__brand span {
+  @apply font-display text-base font-bold;
+}
+.site-footer__nav {
+  @apply flex flex-wrap justify-center gap-4 text-sm;
+}
+.site-footer__link {
+  @apply text-white/70 no-underline hover:text-gold;
+}
+.site-footer__social {
+  @apply flex gap-4;
+}
+.site-footer__icon {
+  @apply flex h-9 w-9 items-center justify-center rounded-full border border-white/30 text-white transition hover:border-gold hover:text-gold;
+}
+.site-footer__icon svg {
+  @apply h-4 w-4;
+}
+.site-footer__atribucio {
+  @apply mx-auto max-w-6xl px-4 pb-6 text-center text-xs text-white/50;
+}
+.site-footer__copyright {
+  @apply border-t border-white/10 py-4 text-center text-xs text-white/50;
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "slug": "20000-especies-de-abejas",
+    "data": "2026-10-08",
+    "hora": "19:00",
+    "iso": "2026-10-08T19:00:00+02:00",
+    "completa": "<span class=date-ca__main>Dijous 8 d'octubre</span><span class=date-ca__rest> 2026 - 19:00h</span>",
+    "curta": "<span class=date-ca__main>Dijous 8 d'octubre</span><span class=date-ca__rest> 19:00h</span>",
+    "cartell": "<div class=cartell__date-line><span class=cartell__date>Dijous 8 d'octubre</span> <span class=cartell__date-time>a les 19:00h</span></div>"
+  },
+  {
+    "slug": "la-preso-invisible-executada",
+    "data": "2026-09-24",
+    "hora": "18:30",
+    "iso": "2026-09-24T18:30:00+02:00",
+    "completa": "<span class=date-ca__main>Dijous 24 de setembre</span><span class=date-ca__rest> 2026 - 18:30h</span>",
+    "curta": "<span class=date-ca__main>Dijous 24 de setembre</span><span class=date-ca__rest> 18:30h</span>",
+    "cartell": "<div class=cartell__date-line><span class=cartell__date>Dijous 24 de setembre</span> <span class=cartell__date-time>a les 18:30h</span></div>"
+  },
+  {
+    "slug": "the-artist",
+    "data": "2026-03-05",
+    "hora": "19:00",
+    "iso": "2026-03-05T19:00:00+01:00",
+    "completa": "<span class=date-ca__main>Dijous 5 de març</span><span class=date-ca__rest> 2026 - 19:00h</span>",
+    "curta": "<span class=date-ca__main>Dijous 5 de març</span><span class=date-ca__rest> 19:00h</span>",
+    "cartell": "<div class=cartell__date-line><span class=cartell__date>Dijous 5 de març</span> <span class=cartell__date-time>a les 19:00h</span></div>"
+  },
+  {
+    "slug": "carretera-a-gusen",
+    "data": "2026-05-09",
+    "hora": "19:00",
+    "iso": "2026-05-09T19:00:00+02:00",
+    "completa": "<span class=date-ca__main>Dissabte 9 de maig</span><span class=date-ca__rest> 2026 - 19:00h</span>",
+    "curta": "<span class=date-ca__main>Dissabte 9 de maig</span><span class=date-ca__rest> 19:00h</span>",
+    "cartell": "<div class=cartell__date-line><span class=cartell__date>Dissabte 9 de maig</span> <span class=cartell__date-time>a les 19:00h</span></div>"
+  }
+]

@@ -1,0 +1,18 @@
+---
+import { SITE_URL } from '../lib/env.js';
+import { titolSessio, urlSessio } from '../lib/sessio-camps.js';
+import { jsonLd } from '../lib/jsonld.js';
+
+// Traducció de partials/jsonld-breadcrumb.html.
+const { sessio } = Astro.props;
+const json = jsonLd({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', item: `${SITE_URL}/`, name: 'Inici', position: 1 },
+    { '@type': 'ListItem', item: `${SITE_URL}/programacio/`, name: 'Programació', position: 2 },
+    { '@type': 'ListItem', item: new URL(urlSessio(sessio), SITE_URL).href, name: titolSessio(sessio), position: 3 },
+  ],
+}).trim();
+---
+<script type="application/ld+json" set:html={json}></script>

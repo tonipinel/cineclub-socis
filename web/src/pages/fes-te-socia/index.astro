@@ -1,0 +1,98 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import InfoItem from '../../components/InfoItem.astro';
+import SocisForm from '../../components/SocisForm.astro';
+import site from '../../data/site.json';
+import { resizedUrl } from '../../lib/images.js';
+import { renderMarkdown, renderMarkdownInline } from '../../lib/markdown.js';
+import { paginaPerSlug } from '../../lib/pagines.js';
+
+// Traducció de layouts/fes-te-socia/single.html. Dades: `pagines/fes-te-socia` (`dades.blocks[]`,
+// `dades.benefits[]`, textos de tancament, `cos` en Markdown i `imatges` per nom de fitxer).
+const pagina = await paginaPerSlug('fes-te-socia');
+if (!pagina) return Astro.rewrite('/404');
+const dades = pagina.dades ?? {};
+const llista = (valor) => (Array.isArray(valor) ? valor : []);
+const imatges = pagina.imatges ?? {};
+// Hugo redimensiona a 700 d'ample (i no amplia mai).
+const imatge = (nom) => (nom && imatges[nom] ? resizedUrl(imatges[nom], 700) : '');
+const imatgeSocia = imatge(dades.signup_image);
+---
+<BaseLayout titol={pagina.titol} descripcio={dades.hook || undefined}>
+  <section class="page-hero">
+    <h1 class="page-hero__title">{pagina.titol}</h1>
+    {dades.hook && <p class="page-hero__hook">{dades.hook}</p>}
+    <a class="btn btn--join" href={site.membershipFormURL}>
+      <Icon name="ticket" />
+      Vull fer-me soci/a
+    </a>
+  </section>
+
+  <div class="member-benefits-wrapper">
+    <div class="member-benefits">
+      <h2>Què hi guanyes <span class="text-gold">fent-te sòcia o soci</span></h2>
+    </div>
+    <div class="session-info">
+      {llista(dades.benefits).map((b) => <InfoItem icon={b.icona} caption={b.text} />)}
+    </div>
+  </div>
+
+  {llista(dades.blocks).map((bloc, i) => (
+    <div class={`member-block-wrapper${i % 2 === 0 ? ' member-block-wrapper--alt' : ''}`}>
+      <div class={`member-block${bloc.costat === 'esquerra' ? ' member-block--reverse' : ''}`}>
+        {imatge(bloc.imatge) && <img class="member-block__image" src={imatge(bloc.imatge)} alt="">}
+        <div class="member-block__body prose-ca">
+          <h2>{bloc.titol1}<br><span class="text-gold">{bloc.titol2}</span></h2>
+          <Fragment set:html={renderMarkdownInline(bloc.text)} />
+        </div>
+      </div>
+    </div>
+  ))}
+
+  <div class="member-signup-wrapper">
+    <div class="member-signup">
+      {imatgeSocia && <img class="member-signup__image" src={imatgeSocia} alt="">}
+      <div class="member-signup__body prose-ca">
+        <h2>{dades.signup_titol1}<br><span class="text-gold">{dades.signup_titol2}</span></h2>
+        <Fragment set:html={renderMarkdown(pagina.cos)} />
+      </div>
+    </div>
+  </div>
+
+  <section class="page-hero" data-bottom-hero id="inscriu-te">
+    <h2 class="page-hero__title">{dades.closing_titol}</h2>
+    {dades.closing_hook && <p class="page-hero__hook">{dades.closing_hook}</p>}
+    <SocisForm />
+  </section>
+
+  <div class="floating-cta-bar" data-floating-cta>
+    <a class="floating-cta" href={site.membershipFormURL}>
+      <Icon name="ticket" />
+      Vull fer-me soci/a
+    </a>
+  </div>
+  <script is:inline type="module" src="/js/fes-te-socia-form.js"></script>
+  <script is:inline>
+(function () {
+  var bar = document.querySelector("[data-floating-cta]");
+  var hero = document.querySelector(".page-hero");
+  var bottomHero = document.querySelector("[data-bottom-hero]");
+  if (!bar || !hero) return;
+
+  function update() {
+    var pastTopHero = hero.getBoundingClientRect().bottom < 0;
+    var bottomHeroVisible = bottomHero && bottomHero.getBoundingClientRect().top < window.innerHeight;
+    if (pastTopHero && !bottomHeroVisible) {
+      bar.classList.add("floating-cta-bar--visible");
+    } else {
+      bar.classList.remove("floating-cta-bar--visible");
+    }
+  }
+
+  window.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("resize", update);
+  update();
+})();
+</script>
+</BaseLayout>

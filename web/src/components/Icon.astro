@@ -1,0 +1,5 @@
+---
+import { paths } from '../lib/icones.js';
+const { name } = Astro.props;
+---
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class={`icon icon--${name}`}><path stroke-linecap="round" stroke-linejoin="round" d={paths[name]}></path></svg>

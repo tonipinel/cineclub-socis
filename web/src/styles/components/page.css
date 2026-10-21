@@ -1,0 +1,35 @@
+.page {
+  @apply m-0 rounded-none border-b-2 border-dashed border-black bg-white/80 pt-4 px-8 pb-[0.4rem];
+}
+.page__title {
+  @apply font-display text-3xl font-bold uppercase tracking-tight text-black;
+}
+.page-hero {
+  @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white text-center text-white;
+  padding: 1rem 1rem 1.5rem;
+  padding-top: 3rem;
+}
+.page-hero__title {
+  @apply font-display font-bold uppercase text-gold;
+  font-size: 3rem;
+  line-height: 1;
+  text-shadow: 2px 2px 2px black;
+}
+.page-body {
+  @apply mx-4 my-8 max-w-3xl border-2 border-dashed border-black bg-white p-6 shadow-lg sm:mx-auto;
+}
+.taxonomy-grid-wrapper {
+  @apply mx-auto max-w-[1280px];
+}
+.taxonomy-list {
+  @apply divide-y divide-black/10;
+}
+.taxonomy-list__item {
+  @apply flex items-center justify-between gap-4 py-3;
+}
+.taxonomy-list__link {
+  @apply font-display text-lg font-bold uppercase tracking-wide text-gold-dark underline decoration-dotted hover:text-gold;
+}
+.taxonomy-list__count {
+  @apply font-display text-sm text-gray-500;
+}

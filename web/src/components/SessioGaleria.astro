@@ -1,0 +1,35 @@
+---
+import Icon from './Icon.astro';
+import { resizedUrl } from '../lib/images.js';
+import { titolSessio } from '../lib/sessio-camps.js';
+
+// Traducció del bloc `session-gallery` de layouts/programacio/single.html (imatges a 800 d'ample).
+// Sense galeria no es pinta res (Hugo deixaria un contenidor buit).
+const { sessio } = Astro.props;
+const galeria = sessio.publica?.galeria ?? [];
+const alt = `Fotograma de ${sessio.publica?.titolOriginal || titolSessio(sessio)}`;
+---
+{galeria.length > 0 && (
+  <div class="session-gallery-wrapper">
+    <div class="session-gallery">
+      {galeria.length > 1 && (
+        <button type="button" class="session-gallery__prev" aria-label="Imatge anterior"><Icon name="chevron-left" /></button>
+      )}
+      <div class="session-gallery__track">
+        {galeria.map((imatge) => (
+          <img class="session-gallery__image" src={resizedUrl(imatge, 800)} alt={alt} loading="lazy" />
+        ))}
+      </div>
+      {galeria.length > 1 && (
+        <button type="button" class="session-gallery__next" aria-label="Imatge següent"><Icon name="chevron-right" /></button>
+      )}
+      {galeria.length > 1 && (
+        <div class="session-gallery__dots" aria-hidden="true">
+          {galeria.map((_, i) => (
+            <span class={`session-gallery__dot${i === 0 ? ' session-gallery__dot--active' : ''}`}></span>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}

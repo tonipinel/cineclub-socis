@@ -1,0 +1,17 @@
+---
+import SectionBadge from './SectionBadge.astro';
+import { dataCaHtml } from '../lib/format.js';
+import { titolSessio } from '../lib/sessio-camps.js';
+
+// Traducció de la secció `session-hero` de layouts/programacio/single.html.
+const { sessio } = Astro.props;
+const { titolTraduit, seccio } = sessio.publica ?? {};
+---
+<section class="session-hero">
+  <div class="session-hero__meta">
+    <SectionBadge seccio={seccio} variant="hero" />
+    <span class="session-hero__date" set:html={dataCaHtml(sessio.data, sessio.hora)}></span>
+  </div>
+  <h1 class="session-hero__title">{titolSessio(sessio)}</h1>
+  {titolTraduit && <p class="session-hero__subtitle">{titolTraduit}</p>}
+</section>

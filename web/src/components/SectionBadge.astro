@@ -1,0 +1,11 @@
+---
+import seccions from '../data/seccions.json';
+
+// Traducció de partials/section-badge.html. `seccio` és la clau de la secció (per defecte «cartellera»).
+const { seccio, variant = 'listing' } = Astro.props;
+const clau = seccio || 'cartellera';
+const dades = Object.hasOwn(seccions, clau) ? seccions[clau] : null;
+---
+{dades && (variant === 'hero'
+  ? <span class="section-badge section-badge--hero" data-seccio={clau} style={`background-color: ${dades.color};`}>{dades.nom}</span>
+  : <span class="section-badge" data-seccio={clau} style={`border-color: ${dades.color}; color: ${dades.color};`}>{dades.nom}</span>)}

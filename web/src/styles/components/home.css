@@ -1,0 +1,158 @@
+.hero {
+  @apply flex flex-col items-center gap-6 border-b-[6px] border-dashed border-white bg-transparent px-6 py-16 text-center text-white;
+}
+.hero__logo {
+  @apply h-auto w-full max-w-md;
+}
+.hero__tagline {
+  @apply font-display font-bold uppercase tracking-tight;
+  font-size: 1.6rem;
+  line-height: 2rem;
+  text-shadow: 2px 2px 2px black;
+}
+@media (min-width: 640px) {
+  .hero__tagline {
+    font-size: 3rem;
+    line-height: 3rem;
+  }
+}
+.hero__tagline--white {
+  @apply text-white;
+}
+.hero__tagline--gold {
+  @apply text-gold;
+}
+.intro-wrapper {
+  @apply w-full border-b-2 border-dashed border-black bg-white;
+}
+.intro {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-8 p-6 sm:flex-row sm:items-start;
+}
+.intro__poster {
+  @apply mx-auto w-72 flex-shrink-0 self-start object-cover sm:mx-0 sm:w-80;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+.intro-wrapper .intro__body h2,
+.programming-wrapper .programming__body h2 {
+  text-align: center;
+  font-size: 2rem;
+  line-height: 2.2rem;
+}
+.intro-wrapper .intro__body .btn,
+.programming-wrapper .programming__body .btn {
+  display: block;
+  width: -moz-fit-content;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (min-width: 640px) {
+  .intro-wrapper .intro__body h2,
+  .programming-wrapper .programming__body h2 {
+    text-align: left;
+    font-size: 3rem;
+    line-height: 3.5rem;
+  }
+  .intro-wrapper .intro__body .btn,
+  .programming-wrapper .programming__body .btn {
+    display: inline-block;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+.intro__body p {
+  @apply mb-4;
+}
+.programming-wrapper {
+  @apply w-full border-b-2 border-dashed border-black;
+  background-color: rgba(255 255 255 / 0.8);
+}
+.programming {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-8 sm:flex-row;
+  padding: 3.5rem 1.5rem 4rem;
+}
+.programming__body {
+  @apply flex-1;
+}
+.programming__actions {
+  @apply flex flex-col items-center gap-3 sm:flex-row sm:items-start sm:gap-4;
+}
+.programming__mosaic {
+  @apply grid w-full max-w-xs flex-shrink-0 grid-cols-3 gap-1 sm:w-64;
+}
+.programming__mosaic-img {
+  @apply aspect-[2/3] w-full object-cover;
+}
+.features-wrapper {
+  @apply w-full border-b-2 border-dashed border-black bg-white;
+}
+.features {
+  @apply mx-auto grid max-w-[1000px] grid-cols-1 gap-10 p-6 py-10 text-center sm:grid-cols-3;
+}
+.features__icon {
+  @apply mx-auto mb-4 h-20 w-auto object-contain;
+}
+.features__title {
+  @apply mb-2 font-display font-bold uppercase text-gold-dark;
+  font-size: 1.4rem;
+}
+.next-session-wrapper {
+  @apply w-full border-b-2 border-dashed border-black;
+  background: #bf9000a3;
+}
+.next-session {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 64rem;
+  padding: 1.5rem 1.5rem 3rem;
+  text-align: center;
+}
+.next-session h2 {
+  margin-bottom: 1rem;
+  font-family: Oswald, sans-serif;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgb(255 255 255);
+  text-shadow: 2px 2px 2px black;
+}
+.next-session__grid {
+  @apply flex flex-wrap justify-center gap-8 text-left;
+}
+.next-session__item {
+  @apply flex w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.34rem)];
+}
+.membership-teaser-wrapper {
+  @apply w-full border-t-2 border-dashed border-black;
+  background-color: rgba(255 255 255 / 0.8);
+}
+.membership-teaser {
+  @apply mx-auto max-w-xl px-6 py-12 text-center;
+}
+.membership-teaser__icon {
+  @apply mx-auto mb-4 h-16 w-auto object-contain;
+}
+.membership-teaser__title {
+  @apply mb-4 font-display font-bold uppercase text-black;
+  font-size: 2rem;
+  line-height: 2.2rem;
+}
+@media (min-width: 640px) {
+  .membership-teaser__title {
+    font-size: 3rem;
+    line-height: 3rem;
+  }
+}
+.membership-teaser__list {
+  @apply mb-6 list-disc space-y-1 pl-5 text-left;
+}
+.faq-teaser {
+  @apply mx-4 my-8 max-w-2xl bg-transparent px-6 py-16 text-center sm:mx-auto;
+}
+.faq-teaser h2 {
+  @apply mb-4 font-display font-bold uppercase text-white;
+  font-size: 3rem;
+  line-height: 3rem;
+  text-shadow: 2px 2px 2px black;
+}

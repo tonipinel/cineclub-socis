@@ -1,0 +1,17 @@
+{
+  "cartellera": {
+    "nom": "Cartellera",
+    "descripcio": "Acostuma a ser el primer dijous de cada mes",
+    "color": "#bf9000"
+  },
+  "xarxa": {
+    "nom": "Xarxa",
+    "descripcio": "Sessions en col·laboració amb altres entitats",
+    "color": "#2f6f76"
+  },
+  "extra": {
+    "nom": "Extra",
+    "descripcio": "Sessions especials",
+    "color": "#8b2e2e"
+  }
+}

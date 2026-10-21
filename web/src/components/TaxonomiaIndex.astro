@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { urlTerme } from '../lib/sessio-camps.js';
+
+// Traducció de la branca «llista» de layouts/_default/taxonomy.html. `taxonomia`: directors |
+// generes | interprets. `termes`: els de `termesDe`, ja en ordre alfabètic.
+const { taxonomia, termes } = Astro.props;
+const TITOLS = { directors: 'Directors i directores', interprets: 'Intèrprets', generes: 'Gèneres' };
+const HOOKS = {
+  directors: 'Totes les directores i directors de les pel·lícules programades pel Cineclub Roda de Berà.',
+  interprets: 'Totes les persones intèrprets de les pel·lícules programades pel Cineclub Roda de Berà.',
+  generes: 'Tots els gèneres de les pel·lícules programades pel Cineclub Roda de Berà.',
+};
+---
+<BaseLayout titol={taxonomia}>
+  <section class="page-hero">
+    <h1 class="page-hero__title">{TITOLS[taxonomia]}</h1>
+    <p class="page-hero__hook">{HOOKS[taxonomia]}</p>
+  </section>
+  <div class="page-body">
+    <ul class="taxonomy-list">
+      {termes.map((t) => (
+        <li class="taxonomy-list__item">
+          <a class="taxonomy-list__link" href={urlTerme(taxonomia, t.nom)}>{t.nom}</a>
+          <span class="taxonomy-list__count">{t.sessions.length}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</BaseLayout>

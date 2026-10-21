@@ -1,0 +1,11 @@
+---
+import SessioPagina from '../../../components/SessioPagina.astro';
+import { sessionsPubliques, trobaSessio } from '../../../lib/sessions.js';
+
+// /programacio/<any>/<slug>/. Les sessions inexistents o no publicades donen el 404 de la web.
+const { any, slug } = Astro.params;
+const sessions = /^\d{4}$/.test(any ?? '') ? await sessionsPubliques() : [];
+const sessio = trobaSessio(sessions, any, slug);
+if (!sessio) return Astro.rewrite('/404');
+---
+<SessioPagina sessio={sessio} sessions={sessions} />

@@ -1,0 +1,16 @@
+---
+import SessionCard from './SessionCard.astro';
+import { sessionsRelacionades } from '../lib/sessions.js';
+
+// Traducció de partials/related-sessions.html. `sessions`: totes les sessions publicades.
+const { sessio, sessions } = Astro.props;
+const relacionades = sessionsRelacionades(sessio, sessions);
+---
+{relacionades.length > 0 && (
+  <div class="related-sessions-wrapper">
+    <h2 class="related-sessions__title">Sessions relacionades</h2>
+    <div class="related-sessions__grid session-grid">
+      {relacionades.map((relacionada) => <SessionCard sessio={relacionada} />)}
+    </div>
+  </div>
+)}

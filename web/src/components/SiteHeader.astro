@@ -1,0 +1,36 @@
+---
+import Icon from './Icon.astro';
+import site from '../data/site.json';
+import menu from '../data/menu.json';
+
+// Equivalent a IsMenuCurrent de Hugo: l'entrada és activa només a la seva pròpia pàgina.
+const { pathname = Astro.url.pathname } = Astro.props;
+---
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="site-header__brand" href="/">
+      <img class="site-header__logo" src={site.logo} alt="">
+      <span class="site-header__brand-text">{site.title}</span>
+    </a>
+    <nav class="site-header__nav">
+      {menu.map((item) => (
+        <a class={`site-header__link${item.url === pathname ? ' site-header__link--active' : ''}`} href={item.url}>{item.name}</a>
+      ))}
+    </nav>
+    <button type="button" class="site-header__menu-toggle" aria-label="Obrir menú" aria-expanded="false" aria-controls="mobile-menu" data-menu-toggle>
+      <Icon name="bars-3" />
+    </button>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobile-menu" data-mobile-menu>
+  <div class="mobile-menu__backdrop" data-menu-close></div>
+  <nav class="mobile-menu__panel">
+    <button type="button" class="mobile-menu__close" aria-label="Tancar menú" data-menu-close>
+      <Icon name="x-mark" />
+    </button>
+    {menu.map((item) => (
+      <a class={`mobile-menu__link${item.url === pathname ? ' mobile-menu__link--active' : ''}`} href={item.url}>{item.name}</a>
+    ))}
+  </nav>
+</div>

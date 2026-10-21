@@ -1,0 +1,67 @@
+---
+import Icon from './Icon.astro';
+import InfoItem from './InfoItem.astro';
+import { resizedUrl } from '../lib/images.js';
+import { distribuidoraPerNom } from '../lib/entitats.js';
+import { titolSessio, urlTerme } from '../lib/sessio-camps.js';
+
+// Traducció del bloc `session-fitxa` de layouts/programacio/single.html (cartell: miniatura a 400
+// d'ample i, al modal, 1400).
+const { sessio } = Astro.props;
+const p = sessio.publica ?? {};
+const nomImatge = p.titolOriginal || titolSessio(sessio);
+const distribuidora = p.suportDistribucio ? distribuidoraPerNom(p.suportDistribucio) : null;
+const termes = (clau) => (p[clau] ?? []).map((nom) => ({ nom, url: urlTerme(clau, nom) }));
+const camps = [
+  ['Títol a Espanya', p.titolEspanya],
+  ['Direcció', termes('directors')],
+  ['Guió', p.guio],
+  ['País', p.pais, true],
+  ['Any', p.any],
+  ['Durada', p.durada ? `${p.durada} minuts` : ''],
+  ['Idioma', p.idioma, true],
+  ['Gènere', termes('generes')],
+  ['Fotografia', p.fotografia],
+  ['Muntatge', p.muntatge],
+  ['Música', p.musica],
+  ['Producció', p.produccio],
+  ['Repartiment', termes('interprets')],
+  ['Premis destacats', p.premisDestacats],
+];
+---
+<div class="session-fitxa-wrapper">
+  <div class="session-fitxa">
+    {p.cartell && (
+      <div class="session-fitxa__poster-col">
+        <button type="button" class="session-fitxa__poster-button" data-poster-trigger="poster-modal">
+          <img class="session-fitxa__poster" src={resizedUrl(p.cartell, 400)} alt={nomImatge} />
+        </button>
+        <dialog id="poster-modal" class="poster-modal">
+          <button type="button" class="poster-modal__close" aria-label="Tancar"><Icon name="x-mark" /></button>
+          <img class="poster-modal__image" src={resizedUrl(p.cartell, 1400)} alt={nomImatge} />
+        </dialog>
+        {p.suportDistribucio && (distribuidora
+          ? <InfoItem logo={distribuidora.logo} href={distribuidora.url} external={true} />
+          : <InfoItem icon="film" caption={`Distribució i cessió de drets: ${p.suportDistribucio}`} />)}
+      </div>
+    )}
+    <dl class="session-fitxa__details">
+      <dt class="session-fitxa__label">Títol original</dt><dd>{p.titolOriginal}</dd>
+      {camps.map(([etiqueta, valor, sempre]) => {
+        if (Array.isArray(valor)) {
+          return valor.length > 0 && (
+            <Fragment>
+              <dt class="session-fitxa__label">{etiqueta}</dt>
+              <dd>{valor.map((terme, i) => (
+                <Fragment>{i > 0 && ', '}<a class="session-fitxa__taxonomy-link" href={terme.url}>{terme.nom}</a></Fragment>
+              ))}</dd>
+            </Fragment>
+          );
+        }
+        return (valor || sempre) && (
+          <Fragment><dt class="session-fitxa__label">{etiqueta}</dt><dd>{valor}</dd></Fragment>
+        );
+      })}
+    </dl>
+  </div>
+</div>

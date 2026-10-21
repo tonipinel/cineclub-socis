@@ -1,0 +1,49 @@
+---
+import SessionCard from './SessionCard.astro';
+import { dataIso } from '../lib/format.js';
+import { sessionsDescendents } from '../lib/sessions.js';
+
+// Traducció de partials/next-sessions.html. El servidor no sap quina és «avui» (la pàgina
+// es guarda a la memòria cau durant hores): emet totes les sessions amagades i el script de
+// Hugo, tal qual, mostra les 3 properes al navegador.
+const { sessions } = Astro.props;
+---
+<div class="next-session-wrapper" data-next-session-wrapper hidden>
+  <section class="next-session">
+    <h2>Properes sessions</h2>
+    <div class="next-session__grid" data-next-session-grid>
+      {sessionsDescendents(sessions).map((s) => (
+        <div class="next-session__item" data-session-date={dataIso(s.data, s.hora || '00:00')} hidden>
+          <SessionCard sessio={s} />
+        </div>
+      ))}
+    </div>
+  </section>
+</div>
+<script is:inline>
+(function () {
+  var wrapper = document.querySelector("[data-next-session-wrapper]");
+  var grid = document.querySelector("[data-next-session-grid]");
+  if (!wrapper || !grid) return;
+
+  var items = Array.prototype.slice.call(grid.querySelectorAll("[data-session-date]"));
+  var now = new Date();
+
+  var upcoming = items
+    .filter(function (el) {
+      return new Date(el.getAttribute("data-session-date")) >= now;
+    })
+    .sort(function (a, b) {
+      return new Date(a.getAttribute("data-session-date")) - new Date(b.getAttribute("data-session-date"));
+    })
+    .slice(0, 3);
+
+  if (!upcoming.length) return;
+
+  upcoming.forEach(function (el) {
+    el.hidden = false;
+    grid.appendChild(el);
+  });
+  wrapper.hidden = false;
+})();
+</script>

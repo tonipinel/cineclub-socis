@@ -1,0 +1,27 @@
+---
+import Icon from './Icon.astro';
+
+// Traducció de partials/info-item.html.
+const { icon, logo, text, caption, price, href, external } = Astro.props;
+const Embolcall = href ? 'a' : Fragment;
+const atributs = href
+  ? { class: 'info-item__link', href, target: external ? '_blank' : undefined, rel: external ? 'noopener' : undefined }
+  : {};
+---
+<div class="info-item">
+  <Embolcall {...atributs}>
+    {logo ? (
+      <img class="info-item__logo" src={logo} alt="" />
+    ) : price ? (
+      <span class="info-item__icon info-item__icon--with-price">
+        <Icon name={icon} />
+        <span class="info-item__price">{price}</span>
+      </span>
+    ) : text ? (
+      <span class="info-item__icon info-item__icon--text">{text}</span>
+    ) : (
+      <span class="info-item__icon"><Icon name={icon} /></span>
+    )}
+    {caption && <p class="info-item__caption" set:html={caption} />}
+  </Embolcall>
+</div>

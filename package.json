@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src",
     "test": "vitest run",
-    "deploy": "vite build && firebase deploy --only hosting,firestore:rules,storage",
+    "deploy": "vite build && firebase deploy --only hosting:cineclub-socis,firestore:rules,storage",
     "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --config vitest.rules.config.js\""
   },
   "dependencies": {
