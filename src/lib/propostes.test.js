@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  calcularNomPublic, ordenarPerVots, ordenarPerData, sincronitzarSociPublic, esborrarSociPublic,
+  calcularNomPublic, NOM_ORGANITZACIO, ordenarPerVots, ordenarPerData, sincronitzarSociPublic, esborrarSociPublic,
 } from './propostes';
 
 vi.mock('firebase/firestore', () => ({
@@ -10,6 +10,15 @@ vi.mock('firebase/firestore', () => ({
 const db = {};
 
 describe('calcularNomPublic', () => {
+  it('per a una persona de l\'organització, torna el nom de l\'organització', () => {
+    expect(calcularNomPublic({ nom: 'Toni', cognoms: 'Pinel', organitzacio: true })).toBe('Organització Cineclub Roda de Berà');
+    expect(NOM_ORGANITZACIO).toBe('Organització Cineclub Roda de Berà');
+  });
+
+  it('si organitzacio és fals o no hi és, torna el nom i la inicial', () => {
+    expect(calcularNomPublic({ nom: 'Toni', cognoms: 'Pinel', organitzacio: false })).toBe('Toni P.');
+  });
+
   it('combina el nom i la inicial del primer cognom', () => {
     expect(calcularNomPublic({ nom: 'Isabel', cognoms: 'Mondéjar Ruiz' })).toBe('Isabel M.');
   });

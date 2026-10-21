@@ -22,3 +22,9 @@
 .enllac {
   @apply text-gold-dark transition hover:underline;
 }
+.form__casella {
+  @apply flex cursor-pointer items-center gap-2 font-body text-sm font-semibold text-black;
+}
+.form__ajuda {
+  @apply mt-1 text-xs text-black/60;
+}

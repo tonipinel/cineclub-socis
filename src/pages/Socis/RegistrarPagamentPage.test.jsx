@@ -201,6 +201,26 @@ describe('RegistrarPagamentPage', () => {
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
   });
 
+  it('en registrar el pagament d\'una persona de l\'organització, no perd el nom d\'organització', async () => {
+    getDoc
+      .mockResolvedValueOnce({
+        id: '1', data: () => ({
+          nom: 'Toni', cognoms: 'Pinel', numeroSoci: '9', tokenCarnet: 'tok-9', organitzacio: true,
+        }),
+      })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({
+      docs: [{ id: 's1', data: () => ({ titol: 'Sessió de test', data: '2026-08-01' }) }],
+    });
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByDisplayValue('30');
+    await user.selectOptions(screen.getByLabelText('Sessió'), 'Sessió de test');
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).toHaveBeenCalledWith('tok-9', { numeroSoci: 9, nomPublic: 'Organització Cineclub Roda de Berà' });
+  });
+
   it('no sincronitza socisPublic si el soci està desactivat en registrar el pagament', async () => {
     getDoc
       .mockResolvedValueOnce({

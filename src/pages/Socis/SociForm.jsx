@@ -5,7 +5,9 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { teNumeroSoci } from '../../lib/socis';
-import { sincronitzarSociPublic, esborrarSociPublic } from '../../lib/propostes';
+import {
+  calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic,
+} from '../../lib/propostes';
 import {
   calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
@@ -51,6 +53,7 @@ export default function SociForm() {
   const [error, setError] = useState(null);
   const [errorEstat, setErrorEstat] = useState(null);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
+  const [organitzacioInicial, setOrganitzacioInicial] = useState(false);
   const [assistencies, setAssistencies] = useState([]);
   const [pagaments, setPagaments] = useState([]);
   const [motiuDesactivacio, setMotiuDesactivacio] = useState('');
@@ -61,6 +64,7 @@ export default function SociForm() {
     if (!editant) return;
     getDoc(doc(db, 'socis', id)).then((snap) => {
       setDades({ ...CAMPS_INICIALS, ...snap.data() });
+      setOrganitzacioInicial(Boolean(snap.data()?.organitzacio));
       setCarregant(false);
     });
   }, [id, editant]);
@@ -103,6 +107,12 @@ export default function SociForm() {
         const batch = writeBatch(db);
         batch.update(doc(db, 'socis', id), dades);
         if (estaActiu(dades)) sincronitzarSociPublic(batch, db, dades);
+        // El nom amb què es mostren les seves propostes es desa a cada
+        // proposta: si canvia el fet de ser de l'organització, s'hi propaga.
+        if (Boolean(dades.organitzacio) !== organitzacioInicial && dades.numeroSoci) {
+          const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(dades.numeroSoci))));
+          propostes.docs.forEach((p) => batch.update(p.ref, { nomProposant: calcularNomPublic(dades) }));
+        }
         await batch.commit();
       } else {
         const data = avui();
@@ -249,6 +259,22 @@ export default function SociForm() {
               />
             </div>
           ))}
+
+          <div className="form__field form__field--casella">
+            <label className="form__casella" htmlFor="organitzacio">
+              <input
+                id="organitzacio"
+                type="checkbox"
+                checked={Boolean(dades.organitzacio)}
+                onChange={(e) => setDades((d) => ({ ...d, organitzacio: e.target.checked }))}
+                disabled={!desbloquejat}
+              />
+              Persona de l'organització del Cineclub
+            </label>
+            <p className="form__ajuda">
+              Les seves propostes de pel·lícules es mostren com a «{NOM_ORGANITZACIO}».
+            </p>
+          </div>
 
           {error && <p className="form__error">{error}</p>}
 

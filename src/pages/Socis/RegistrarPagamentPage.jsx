@@ -121,7 +121,11 @@ export default function RegistrarPagamentPage() {
       batch.update(doc(db, 'socis', id), actualitzacioSoci);
       if (estaActiu(soci)) {
         sincronitzarSociPublic(batch, db, {
-          nom: soci.nom, cognoms: soci.cognoms, numeroSoci, tokenCarnet: soci.tokenCarnet,
+          nom: soci.nom,
+          cognoms: soci.cognoms,
+          organitzacio: soci.organitzacio,
+          numeroSoci,
+          tokenCarnet: soci.tokenCarnet,
         });
       }
       batch.set(doc(collection(db, 'moviments')), {

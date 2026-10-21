@@ -592,6 +592,77 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
   });
 });
 
+describe('SociForm — persona de l\'organització', () => {
+  beforeEach(() => {
+    writeBatch.mockClear();
+    __batchSet.mockClear();
+    __batchUpdate.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
+    getDocs.mockClear();
+  });
+
+  const SOCI = { nom: 'Toni', cognoms: 'Pinel', numeroSoci: '9', tokenCarnet: 'tok-9' };
+
+  function renderSoci() {
+    return render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('en marcar-lo com a persona de l\'organització, el seu nom públic passa a ser el de l\'organització', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => SOCI });
+    const user = userEvent.setup();
+    renderSoci();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).toHaveBeenCalledWith('tok-9', { numeroSoci: 9, nomPublic: 'Organització Cineclub Roda de Berà' });
+    expect(__batchUpdate.mock.calls[0][1]).toMatchObject({ organitzacio: true });
+  });
+
+  it('el canvi es propaga al nom que mostren les propostes que ja havia fet', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => SOCI });
+    const referencia = { id: 'p1' };
+    getDocs.mockImplementation(async () => ({ docs: [{ ref: referencia, data: () => ({}) }] }));
+    const user = userEvent.setup();
+    renderSoci();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Organització Cineclub Roda de Berà' });
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('en deixar de ser-ho, les seves propostes tornen a mostrar el seu nom', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI, organitzacio: true }) });
+    const referencia = { id: 'p1' };
+    getDocs.mockImplementation(async () => ({ docs: [{ ref: referencia, data: () => ({}) }] }));
+    const user = userEvent.setup();
+    renderSoci();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Toni P.' });
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  it('si no es canvia, no es toquen les propostes', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI, organitzacio: true }) });
+    const user = userEvent.setup();
+    renderSoci();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('SociForm — regenerar carnet', () => {
   beforeEach(() => {
     writeBatch.mockClear();
