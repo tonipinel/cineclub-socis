@@ -1,4 +1,4 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
@@ -7,11 +7,17 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
 const { gestionarEstat, gestionarVot, gestionarRanking } = require('./votacio-handlers');
+const { credencialsCalendari } = require('./calendari');
+const { clientCalendari } = require('./calendari-google');
+const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
 
 initializeApp();
 
 const TMDB_API_KEY = defineSecret('TMDB_API_KEY');
 const SECRETS = [TMDB_API_KEY];
+const GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY = defineSecret('GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY');
+const GOOGLE_CALENDAR_ID = defineSecret('GOOGLE_CALENDAR_ID');
+const SECRETS_CALENDARI = [GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY, GOOGLE_CALENDAR_ID];
 
 const URL_SOLICITUDS = 'https://associacio.cineclubrodadebera.cat/solicituds';
 const DESTINATARI = 'cineclub.rodadebera@gmail.com';
@@ -204,3 +210,34 @@ function votacio(gestor) {
 exports.estatVotacio = votacio(gestionarEstat);
 exports.votarProposta = votacio(gestionarVot);
 exports.rankingTanda = votacio(gestionarRanking);
+
+let calendari;
+const obtenirCalendari = () => (calendari ??= clientCalendari(credencialsCalendari({
+  GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY: GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY.value(),
+  GOOGLE_CALENDAR_ID: GOOGLE_CALENDAR_ID.value(),
+})));
+
+// Manté el Google Calendar del club al dia amb cada sessió publicada. No escriu mai a `sessions`.
+exports.sincronitzarCalendari = onDocumentWritten(
+  { document: 'sessions/{id}', secrets: SECRETS_CALENDARI, retry: false, timeoutSeconds: 60 },
+  (event) => sincronitzarSessio({
+    id: event.params.id,
+    abans: event.data?.before?.exists ? event.data.before.data() : null,
+    despres: event.data?.after?.exists ? event.data.after.data() : null,
+    db: getFirestore(),
+    obtenirCalendari,
+    logger,
+  })
+);
+
+// Sincronització completa (adoptar els de Hugo, reparar desajustos). Per defecte és un informe.
+exports.sincronitzarCalendariTot = onCall({ secrets: SECRETS_CALENDARI, timeoutSeconds: 300 }, async (request) => {
+  try {
+    return await sincronitzarTot({
+      db: getFirestore(), obtenirCalendari, auth: request.auth, dades: request.data, logger,
+    });
+  } catch (error) {
+    if (error.codi) throw new HttpsError(error.codi, error.message);
+    throw error;
+  }
+});

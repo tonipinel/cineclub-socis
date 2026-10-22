@@ -1,5 +1,14 @@
 # Sincronització del Google Calendar
 
+## Automàtica (Cloud Functions)
+
+- `sincronitzarCalendari` (disparador de `sessions/{id}`): en publicar, editar, despublicar o esborrar una sessió crea, actualitza o esborra el seu esdeveniment segons l'estat actual del document (els disparadors poden arribar desordenats). Només actua si canvia alguna cosa que surt al calendari (títol, títol a Espanya, sinopsi, data, hora, slug, publicada). Els errors es registren al log i no es reintenten.
+- `sincronitzarCalendariTot` (callable, només admin): sincronització completa. `{ aplicar: false }` (per defecte) retorna l'informe; `{ aplicar: true }` l'aplica. Només mira d'un any enrere a dos endavant; dels esdeveniments no gestionats en dóna només el recompte. Serveix per a la primera adopció dels esdeveniments de Hugo i per reparar desajustos (p. ex. després d'un error).
+- Secrets de Firebase: `GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY` i `GOOGLE_CALENDAR_ID`.
+- La lògica és a `functions/calendari.js` (compartida amb l'script), els gestors a `functions/calendari-handlers.js` i el client de Google a `functions/calendari-google.js`.
+
+## Manual (script)
+
 `npm run sync-calendar` fa que el calendari del club reflecteixi les sessions publicades de Firestore (`publicada === true`, amb `slug` i `data` vàlida).
 
 ```
