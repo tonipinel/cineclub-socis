@@ -330,6 +330,35 @@ describe('firestore.rules — propostes/{id}/vots', () => {
   });
 });
 
+describe('firestore.rules — tandes/{id}/vots', () => {
+  const VOT = { valors: { p1: 'like' }, bloquejat: false };
+  const sembra = () => testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'tandes/t1/vots/12'), VOT);
+  });
+
+  it('permet a un admin llegir i esborrar un vot', async () => {
+    await sembra();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(getDoc(doc(adminDb, 'tandes/t1/vots/12')));
+    await assertSucceeds(deleteDoc(doc(adminDb, 'tandes/t1/vots/12')));
+  });
+
+  it('impedeix a un admin crear o modificar un vot (només les Cloud Functions n\'escriuen)', async () => {
+    await sembra();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertFails(setDoc(doc(adminDb, 'tandes/t1/vots/13'), VOT));
+    await assertFails(updateDoc(doc(adminDb, 'tandes/t1/vots/12'), { bloquejat: true }));
+  });
+
+  it('impedeix a un visitant llegir, esborrar o escriure vots', async () => {
+    await sembra();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'tandes/t1/vots/12')));
+    await assertFails(deleteDoc(doc(anonDb, 'tandes/t1/vots/12')));
+    await assertFails(setDoc(doc(anonDb, 'tandes/t1/vots/13'), VOT));
+  });
+});
+
 describe('firestore.rules — propostesActivitat', () => {
   const ACTIVITAT = { tipus: 'vot', propostaId: '1', numeroSoci: 7, timestamp: new Date() };
 

@@ -120,15 +120,17 @@ service cloud.firestore {
     // Tandes de votació (hot or not): el resultat és públic, però només
     // l'admin les gestiona. Els vots individuals els escriuen les Cloud
     // Functions amb l'Admin SDK (que no passa per aquestes regles), així que
-    // cap client hi pot escriure; només l'admin els pot llegir, per no
-    // revelar qui ha votat què.
+    // cap client pot crear-los ni modificar-los; només l'admin els pot llegir,
+    // per no revelar qui ha votat què, i esborrar (p. ex. vots de prova d'un
+    // soci perquè pugui tornar a votar).
     match /tandes/{id} {
       allow read: if true;
       allow write: if isAdmin();
 
       match /vots/{n} {
         allow read: if isAdmin();
-        allow write: if false;
+        allow delete: if isAdmin();
+        allow create, update: if false;
       }
     }
 

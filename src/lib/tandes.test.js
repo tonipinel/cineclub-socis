@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validarTanda, tandaOberta, potCrearTanda, resumirResultats, classificarSocis, comptarEstats, propostesEfectives,
+  ordenarPropostesPerResultat,
 } from './tandes';
 
 const ARA = new Date('2026-10-22T12:00:00');
@@ -197,5 +198,32 @@ describe('propostesEfectives', () => {
     const [fila] = classificarSocis(socis, [{ numeroSoci: 12, valors: { p1: 'like', p2: 'dislike' } }], efectives);
     expect(fila.estat).toBe('completat');
     expect(fila.total).toBe(2);
+  });
+});
+
+describe('ordenarPropostesPerResultat', () => {
+  const resum = (likes, dislikes) => ({ likes, dislikes });
+
+  it('ordena pel % de 👍 descendent', () => {
+    const perProposta = { a: resum(1, 3), b: resum(3, 1), c: resum(1, 1) };
+    expect(ordenarPropostesPerResultat(['a', 'b', 'c'], perProposta)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('en cas d\'empat de % desempata per vots totals i després per l\'ordre de la tanda', () => {
+    const perProposta = {
+      a: resum(1, 1), b: resum(3, 3), c: resum(2, 2), d: resum(2, 2),
+    };
+    expect(ordenarPropostesPerResultat(['a', 'c', 'b', 'd'], perProposta)).toEqual(['b', 'c', 'd', 'a']);
+  });
+
+  it('les propostes sense cap vot van al final, entre elles per l\'ordre de la tanda', () => {
+    const perProposta = { a: resum(0, 0), b: resum(0, 2), c: resum(0, 0), d: resum(1, 0) };
+    expect(ordenarPropostesPerResultat(['a', 'b', 'c', 'd'], perProposta)).toEqual(['d', 'b', 'a', 'c']);
+  });
+
+  it('no modifica l\'array d\'entrada', () => {
+    const ids = ['a', 'b'];
+    ordenarPropostesPerResultat(ids, { a: resum(0, 1), b: resum(1, 0) });
+    expect(ids).toEqual(['a', 'b']);
   });
 });

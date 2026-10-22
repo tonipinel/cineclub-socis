@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  collection, doc, getDocs, onSnapshot,
+  collection, deleteDoc, doc, getDocs, onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import {
-  classificarSocis, comptarEstats, propostesEfectives, resumirResultats,
+  aData, classificarSocis, comptarEstats, ordenarPropostesPerResultat, percentatgeLikes,
+  propostesEfectives, resumirResultats,
 } from '../../lib/tandes';
 import Carregant from '../../components/Carregant';
 
@@ -25,10 +26,6 @@ const etiquetaEstat = ({ estat, votats, total }) => {
   return `${estat === 'en-curs' ? 'En curs' : 'Sense començar'} (${votats}/${total})`;
 };
 
-const percentatgeLikes = ({ likes, dislikes }) => (
-  likes + dislikes === 0 ? null : Math.round((likes / (likes + dislikes)) * 100)
-);
-
 export default function TandaResultats() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,6 +35,8 @@ export default function TandaResultats() {
   const [filtre, setFiltre] = useState('tots');
   const [error, setError] = useState(false);
   const [intent, setIntent] = useState(0);
+  const [esborrant, setEsborrant] = useState(null);
+  const [errorEsborrar, setErrorEsborrar] = useState(null);
 
   useEffect(() => {
     const alFallar = () => setError(true);
@@ -79,6 +78,25 @@ export default function TandaResultats() {
     setIntent((n) => n + 1);
   };
 
+  const esborrarVots = async (fila) => {
+    const nom = fila.nom || `Núm. ${fila.numeroSoci}`;
+    const tancada = aData(tanda.tanca) <= new Date();
+    const confirmat = window.confirm(
+      `Segur que vols esborrar tots els vots de ${nom} (${fila.votats} de ${fila.total})? `
+      + `Aquesta acció no es pot desfer. ${tancada ? 'El resultat final de la tanda canviarà.' : 'El soci podrà tornar a votar.'}`
+    );
+    if (!confirmat) return;
+    setErrorEsborrar(null);
+    setEsborrant(fila.numeroSoci);
+    try {
+      await deleteDoc(doc(db, 'tandes', id, 'vots', String(fila.numeroSoci)));
+    } catch {
+      setErrorEsborrar(`No s'han pogut esborrar els vots de ${nom}. Torna-ho a provar.`);
+    } finally {
+      setEsborrant(null);
+    }
+  };
+
   if (error) {
     return (
       <div className="tanda-resultats">
@@ -94,9 +112,7 @@ export default function TandaResultats() {
   const efectives = propostesEfectives(tanda.propostes, estats);
   const { perProposta } = resumirResultats(vots, efectives);
   const titol = (propostaId) => titols[propostaId] ?? propostaId;
-  const ordenades = [...efectives].sort((a, b) => (
-    (percentatgeLikes(perProposta[b]) ?? -1) - (percentatgeLikes(perProposta[a]) ?? -1)
-  ));
+  const ordenades = ordenarPropostesPerResultat(efectives, perProposta);
 
   const files = classificarSocis(socis, vots, efectives);
   const comptadors = comptarEstats(files);
@@ -104,6 +120,7 @@ export default function TandaResultats() {
   const pendents = elegibles['sense-comencar'];
   const haVotat = elegibles.tots - pendents;
   const participacio = elegibles.tots === 0 ? 0 : Math.round((elegibles.completat / elegibles.tots) * 100);
+  const numerosAmbVot = new Set(vots.map((v) => String(v.numeroSoci)));
   const visibles = filtre === 'tots' ? files : files.filter((f) => f.estat === filtre);
 
   return (
@@ -155,6 +172,7 @@ export default function TandaResultats() {
           </button>
         ))}
       </div>
+      {errorEsborrar && <p className="tanda-resultats__error" role="alert">{errorEsborrar}</p>}
       {visibles.length === 0 ? (
         <p>Cap soci en aquest estat.</p>
       ) : (
@@ -164,7 +182,7 @@ export default function TandaResultats() {
               <tr>
                 <th scope="col">Soci</th>
                 <th scope="col">Estat</th>
-                {efectives.map((propostaId) => (
+                {ordenades.map((propostaId) => (
                   <th key={propostaId} scope="col" className="tanda-resultats__proposta-columna" title={titol(propostaId)}>
                     {titol(propostaId)}
                   </th>
@@ -185,9 +203,20 @@ export default function TandaResultats() {
                         no elegible
                       </span>
                     )}
+                    {numerosAmbVot.has(String(fila.numeroSoci)) && (
+                      <button
+                        type="button"
+                        className="tanda-resultats__esborrar"
+                        aria-label={`Esborrar tots els vots de ${fila.nom || `Núm. ${fila.numeroSoci}`}`}
+                        disabled={esborrant === fila.numeroSoci}
+                        onClick={() => esborrarVots(fila)}
+                      >
+                        Esborrar els vots
+                      </button>
+                    )}
                   </th>
                   <td><span className={`badge badge--${fila.estat}`}>{etiquetaEstat(fila)}</span></td>
-                  {efectives.map((propostaId) => (
+                  {ordenades.map((propostaId) => (
                     <td key={propostaId}>
                       <span role="img" aria-label={VOTS_TEXT[fila.valors[propostaId]] ?? 'Sense vot'}>
                         {ICONES[fila.valors[propostaId]] ?? '—'}

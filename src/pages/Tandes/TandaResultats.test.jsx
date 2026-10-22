@@ -8,12 +8,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db, ...segments) => segments.join('/')),
+  deleteDoc: vi.fn(),
   doc: vi.fn((_db, ...segments) => segments.join('/')),
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
 }));
 
-import { getDocs, onSnapshot } from 'firebase/firestore';
+import { deleteDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import TandaResultats from './TandaResultats';
 
 const stamp = (d) => ({ toDate: () => d });
@@ -75,6 +76,8 @@ describe('TandaResultats', () => {
       (subscripcions[`${ruta}-error`] ??= []).push(errorCb);
       return desubscriure;
     });
+    deleteDoc.mockReset();
+    deleteDoc.mockResolvedValue();
     getDocs.mockReset();
     getDocs.mockImplementation((ruta) => Promise.resolve(docs({ socis: SOCIS, propostes: PROPOSTES }[ruta])));
   });
@@ -109,15 +112,31 @@ describe('TandaResultats', () => {
     await renderitzaIEmet();
     const taula = await screen.findByRole('table');
     const capcalera = within(taula).getAllByRole('row')[0];
-    expect(within(capcalera).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Soci', 'Estat', 'Stalker', 'Solaris', 'El mirall']);
+    expect(within(capcalera).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Soci', 'Estat', 'El mirall', 'Solaris', 'Stalker']);
     expect(within(capcalera).getByRole('columnheader', { name: 'Stalker' })).toHaveAttribute('title', 'Stalker');
     expect(files().map(textsDeFila)).toEqual([
-      ['Anna Puignúm. 12', 'En curs (2/3)', '👎', '👍', '—'],
-      ['Núm. 77no elegible', 'En curs (2/3)', '👎', '👎', '—'],
-      ['Rosa Masnúm. 80no elegible', 'En curs (1/3)', '👍', '—', '—'],
+      ['Anna Puignúm. 12Esborrar els vots', 'En curs (2/3)', '—', '👍', '👎'],
+      ['Núm. 77no elegibleEsborrar els vots', 'En curs (2/3)', '—', '👎', '👎'],
+      ['Rosa Masnúm. 80no elegibleEsborrar els vots', 'En curs (1/3)', '—', '—', '👍'],
       ['Pere Vilanúm. 55', 'Sense començar (0/3)', '—', '—', '—'],
-      ['Joan Serranúm. 40', 'Completat', '👍', '👍', '👍'],
+      ['Joan Serranúm. 40Esborrar els vots', 'Completat', '👍', '👍', '👍'],
     ]);
+  });
+
+  it('les columnes segueixen l\'ordre de millor a pitjor i es reordenen en temps real', async () => {
+    await renderitzaIEmet();
+    const taula = await screen.findByRole('table');
+    const columnes = () => within(within(taula).getAllByRole('row')[0]).getAllByRole('columnheader').slice(2).map((c) => c.textContent);
+    expect(columnes()).toEqual(['El mirall', 'Solaris', 'Stalker']);
+    // Dos 👎 nous a «El mirall» (100% → 33%) i 👍 a les altres: Solaris 75%, Stalker 67%.
+    emet('tandes/t1/vots', snapVots([
+      ...VOTS,
+      { id: '90', valors: { p1: 'like', p2: 'like', p3: 'dislike' } },
+      { id: '91', valors: { p1: 'like', p3: 'dislike' } },
+    ]));
+    expect(columnes()).toEqual(['Solaris', 'Stalker', 'El mirall']);
+    const resultats = screen.getAllByTestId('resultat-proposta');
+    expect(resultats.map((r) => within(r).getByRole('heading').textContent)).toEqual(columnes());
   });
 
   it('marca capçaleres de columna i de fila, i dona text alternatiu als vots', async () => {
@@ -165,7 +184,7 @@ describe('TandaResultats', () => {
     await usuari.click(screen.getByRole('button', { name: 'En curs (3)' }));
     expect(files()).toHaveLength(3);
     await usuari.click(screen.getByRole('button', { name: 'Completats (1)' }));
-    expect(files().map(textsDeFila).map((f) => f[0])).toEqual(['Joan Serranúm. 40']);
+    expect(files().map(textsDeFila).map((f) => f[0])).toEqual(['Joan Serranúm. 40Esborrar els vots']);
   });
 
   it('avisa quan el filtre no té cap soci', async () => {
@@ -190,6 +209,93 @@ describe('TandaResultats', () => {
     expect(screen.getByRole('progressbar', { name: 'Completats' })).toHaveAttribute('aria-valuenow', '67');
   });
 
+  describe('esborrar tots els vots d\'un soci', () => {
+    const TANDA_OBERTA = { ...TANDA, tanca: stamp(new Date('2099-01-01T20:00:00')) };
+    const TANDA_TANCADA = { ...TANDA, tanca: stamp(new Date('2020-01-01T20:00:00')) };
+    const botoDe = (nom) => screen.getByRole('button', { name: `Esborrar tots els vots de ${nom}` });
+    let confirma;
+
+    beforeEach(() => {
+      confirma = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    });
+
+    it('només ofereix el botó a les files amb document de vot', async () => {
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await screen.findByRole('table');
+      expect(screen.getAllByRole('button', { name: /^Esborrar tots els vots de/ })).toHaveLength(4);
+      expect(botoDe('Anna Puig')).toBeInTheDocument();
+      expect(botoDe('Núm. 77')).toBeInTheDocument();
+      expect(botoDe('Rosa Mas')).toBeInTheDocument();
+      expect(botoDe('Joan Serra')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Pere Vila/ })).not.toBeInTheDocument();
+    });
+
+    it('si cancel·la la confirmació no esborra res', async () => {
+      const usuari = userEvent.setup();
+      confirma.mockReturnValue(false);
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      expect(confirma).toHaveBeenCalledTimes(1);
+      expect(deleteDoc).not.toHaveBeenCalled();
+    });
+
+    it('en confirmar esborra el document tandes/{id}/vots/{numeroSoci}', async () => {
+      const usuari = userEvent.setup();
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      await vi.waitFor(() => expect(deleteDoc).toHaveBeenCalledTimes(1));
+      expect(deleteDoc).toHaveBeenCalledWith('tandes/t1/vots/12');
+    });
+
+    it('la confirmació inclou el nom, el recompte i que el soci podrà tornar a votar si la tanda és oberta', async () => {
+      const usuari = userEvent.setup();
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      expect(confirma).toHaveBeenCalledWith(
+        'Segur que vols esborrar tots els vots de Anna Puig (2 de 3)? Aquesta acció no es pot desfer. El soci podrà tornar a votar.'
+      );
+    });
+
+    it('si la tanda és tancada avisa que el resultat final canviarà', async () => {
+      const usuari = userEvent.setup();
+      await renderitzaIEmet({ tanda: TANDA_TANCADA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Joan Serra' }));
+      expect(confirma).toHaveBeenCalledWith(
+        'Segur que vols esborrar tots els vots de Joan Serra (3 de 3)? Aquesta acció no es pot desfer. El resultat final de la tanda canviarà.'
+      );
+    });
+
+    it('si falla l\'esborrat mostra l\'error dins la pàgina i el botó torna a estar actiu', async () => {
+      const usuari = userEvent.setup();
+      deleteDoc.mockRejectedValue(new Error('permission-denied'));
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('No s\'han pogut esborrar els vots de Anna Puig. Torna-ho a provar.');
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(botoDe('Anna Puig')).toBeEnabled();
+    });
+
+    it('el botó queda deshabilitat mentre s\'esborra', async () => {
+      const usuari = userEvent.setup();
+      let resol;
+      deleteDoc.mockReturnValue(new Promise((r) => { resol = r; }));
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      expect(botoDe('Anna Puig')).toBeDisabled();
+      await act(async () => { resol(); });
+      expect(botoDe('Anna Puig')).toBeEnabled();
+    });
+
+    it('en arribar el snapshot sense el vot, el soci passa a «Sense començar»', async () => {
+      await renderitzaIEmet({ tanda: TANDA_OBERTA });
+      await screen.findByRole('table');
+      emet('tandes/t1/vots', snapVots(VOTS.filter((v) => v.id !== '12')));
+      const fila = files().find((f) => f.textContent.includes('Anna Puig'));
+      expect(fila).toHaveTextContent('Sense començar (0/3)');
+      expect(within(fila).queryByRole('button')).not.toBeInTheDocument();
+    });
+  });
+
   describe('propostes retirades de la tanda', () => {
     const ambPropostes = (propostes) => getDocs.mockImplementation(
       (ruta) => Promise.resolve(docs({ socis: SOCIS, propostes }[ruta]))
@@ -204,7 +310,7 @@ describe('TandaResultats', () => {
       await renderitzaIEmet();
       await screen.findByRole('table');
       const capcalera = within(screen.getByRole('table')).getAllByRole('row')[0];
-      expect(within(capcalera).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Soci', 'Estat', 'Stalker', 'Solaris']);
+      expect(within(capcalera).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Soci', 'Estat', 'Solaris', 'Stalker']);
       // Anna (p1 + p2) i Joan queden completats; Pere, pendent; Rosa (inactiva), en curs 1/2.
       expect(screen.getByText('2 de 3 han votat · 2 han completat · 1 pendents')).toBeInTheDocument();
       expect(files().map(textsDeFila).map((f) => f[1])).toEqual(

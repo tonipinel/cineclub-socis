@@ -36,6 +36,23 @@ export function resumirResultats(votsDocs, propostesIds) {
   return { participants: votsDocs.length, perProposta };
 }
 
+export const percentatgeLikes = ({ likes, dislikes }) => (
+  likes + dislikes === 0 ? null : Math.round((likes / (likes + dislikes)) * 100)
+);
+
+// De millor a pitjor: % de 👍 (el mostrat) descendent, més vots totals primer, ordre de la tanda;
+// les propostes sense cap vot (sense %) al final, entre elles per l'ordre de la tanda.
+export const ordenarPropostesPerResultat = (propostesIds, perProposta) => (
+  propostesIds
+    .map((id, posicio) => ({ id, posicio, ...perProposta[id] }))
+    .sort((a, b) => (
+      (percentatgeLikes(b) ?? -1) - (percentatgeLikes(a) ?? -1)
+      || (b.likes + b.dislikes) - (a.likes + a.dislikes)
+      || a.posicio - b.posicio
+    ))
+    .map(({ id }) => id)
+);
+
 const ORDRE_ESTAT = { 'en-curs': 0, 'sense-comencar': 1, completat: 2 };
 
 const potVotar = (soci) => Boolean(soci.numeroSoci && soci.tokenCarnet && estaActiu(soci));

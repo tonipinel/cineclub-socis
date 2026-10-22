@@ -267,6 +267,9 @@
 .tanda-resultats__marca {
   @apply block text-xs italic text-black/50;
 }
+.tanda-resultats__esborrar {
+  @apply mt-1 cursor-pointer border-0 bg-transparent p-0 font-body text-xs font-semibold text-red-700 underline hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-60;
+}
 .badge--completat {
   @apply border-green-600 text-green-700;
 }
