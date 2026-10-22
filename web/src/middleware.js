@@ -7,6 +7,10 @@ const ERROR_HTML = '<!doctype html><html lang="ca"><head><meta charset="utf-8"><
   + '<body style="font-family:sans-serif;text-align:center;padding:80px 16px"><h1>Error temporal</h1>'
   + '<p>Torna-ho a provar d\'aquí a uns minuts.</p></body></html>';
 
+// Astro (trailingSlash: 'always') només casa les pàgines amb barra final, però el cartell de Hugo és
+// /programacio/<any>/<slug>/cartell.html: s'hi arriba reescrivint a la ruta amb barra.
+const CARTELL = /^\/programacio\/[^/]+\/[^/]+\/cartell\.html$/;
+
 const redirect301 = (desti) => new Response(null, { status: 301, headers: { Location: desti } });
 
 // Els `aliases` de Hugo són tots sota /programacio/: només allà un 404 pot ser un alias d'una
@@ -25,7 +29,7 @@ async function aliasDe(pathname) {
 export const onRequest = async (context, next) => {
   let response;
   try {
-    response = await next();
+    response = await (CARTELL.test(context.url.pathname) ? next(`${context.url.pathname}/`) : next());
     if (response.status === 404) {
       const desti = await aliasDe(context.url.pathname);
       if (desti) response = redirect301(desti);

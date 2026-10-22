@@ -134,10 +134,10 @@ describe('pàgina de sessió', () => {
     expect(html).toContain('<div class="session-body prose-ca"><p>Text.</p>');
   });
 
-  it('no pinta el banner del cartell mentre CARTELL_ACTIU sigui fals', async () => {
+  it('pinta per defecte el banner del cartell, com Hugo', async () => {
     const html = await render(completa);
-    expect(html).not.toContain('session-cartell-banner');
-    expect(html).not.toContain('cartell.html');
+    expect(html).toContain('session-cartell-banner');
+    expect(html).toContain('href="/programacio/2026/pig/cartell.html" target="_blank" rel="noopener"');
   });
 
   it('renderitza el cos en Markdown i les sessions relacionades', async () => {

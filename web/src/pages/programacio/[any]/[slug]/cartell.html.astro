@@ -1,0 +1,14 @@
+---
+import SessioCartell from '../../../../components/SessioCartell.astro';
+import { paginaPerSlug } from '../../../../lib/pagines.js';
+import { sessionsPubliques, trobaSessio } from '../../../../lib/sessions.js';
+
+// /programacio/<any>/<slug>/cartell.html (cartell imprimible, com el `CARTELL` de Hugo). Les sessions
+// inexistents o no publicades donen el 404 de la web. No és al sitemap ni a cap llistat.
+const { any, slug } = Astro.params;
+const sessions = /^\d{4}$/.test(any ?? '') ? await sessionsPubliques() : [];
+const sessio = trobaSessio(sessions, any, slug);
+if (!sessio) return Astro.rewrite('/404');
+const portada = await paginaPerSlug('portada');
+---
+<SessioCartell sessio={sessio} logo={portada?.imatges?.['hero-logo.png']} />

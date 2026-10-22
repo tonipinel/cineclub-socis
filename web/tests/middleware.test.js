@@ -34,6 +34,21 @@ describe('middleware', () => {
     }
   });
 
+  it('serveix /programacio/<any>/<slug>/cartell.html (sense barra final) reescrivint a la ruta del cartell', async () => {
+    const { onRequest } = await carrega(true);
+    const next = vi.fn(ok);
+    await onRequest(context('/programacio/2026/pig/cartell.html'), next);
+    expect(next).toHaveBeenCalledWith('/programacio/2026/pig/cartell.html/');
+    const altres = vi.fn(ok);
+    await onRequest(context('/programacio/2026/pig/'), altres);
+    await onRequest(context('/programacio/2026/pig/cartell.html/'), altres);
+    await onRequest(context('/cartell.html'), altres);
+    for (const cami of ['/programacio/2026/pig/cartell.html.map', '/programacio/2026/pig/Cartell.html', '/programacio/2026/cartell.html', '/programacio/2026/a/b/cartell.html', '//']) {
+      await onRequest(context(cami), altres);
+    }
+    expect(altres.mock.calls.every((crida) => crida.length === 0)).toBe(true);
+  });
+
   it('afegeix X-Robots-Tag: noindex quan INDEXABLE és fals', async () => {
     const { onRequest } = await carrega(false);
     const res = await onRequest(context(), ok);

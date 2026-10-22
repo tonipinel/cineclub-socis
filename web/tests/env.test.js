@@ -10,20 +10,20 @@ describe('env', () => {
   beforeEach(() => vi.unstubAllEnvs());
   afterEach(() => vi.unstubAllEnvs());
 
-  it('per defecte no s\'indexa, no hi ha cartell actiu i la URL és la provisional', async () => {
+  it('per defecte no s\'indexa, el cartell és actiu (com a Hugo) i la URL és la provisional', async () => {
     const env = await carrega({ PUBLIC_INDEXABLE: '', PUBLIC_CARTELL_ACTIU: '', PUBLIC_SITE_URL: '' });
     expect(env.INDEXABLE).toBe(false);
-    expect(env.CARTELL_ACTIU).toBe(false);
+    expect(env.CARTELL_ACTIU).toBe(true);
     expect(env.SITE_URL).toBe('https://cineclub-web.web.app');
   });
 
-  it('només "true" activa INDEXABLE i CARTELL_ACTIU', async () => {
-    const env = await carrega({ PUBLIC_INDEXABLE: 'true', PUBLIC_CARTELL_ACTIU: 'true' });
+  it('només "true" activa INDEXABLE i només "false" desactiva CARTELL_ACTIU', async () => {
+    const env = await carrega({ PUBLIC_INDEXABLE: 'true', PUBLIC_CARTELL_ACTIU: 'false' });
     expect(env.INDEXABLE).toBe(true);
-    expect(env.CARTELL_ACTIU).toBe(true);
+    expect(env.CARTELL_ACTIU).toBe(false);
     const altre = await carrega({ PUBLIC_INDEXABLE: '1', PUBLIC_CARTELL_ACTIU: 'yes' });
     expect(altre.INDEXABLE).toBe(false);
-    expect(altre.CARTELL_ACTIU).toBe(false);
+    expect(altre.CARTELL_ACTIU).toBe(true);
   });
 
   it('SITE_URL treu la barra final', async () => {

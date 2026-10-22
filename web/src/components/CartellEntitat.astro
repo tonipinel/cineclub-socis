@@ -1,0 +1,11 @@
+---
+import { entitatPerNom } from '../lib/entitats.js';
+
+// Traducció de partials/cartell-entity-logo.html: logo si l'entitat en té, si no el nom en text.
+// L'Ajuntament porta al cartell el logo horitzontal.
+const { nom, logoClass, entityClass } = Astro.props;
+const logo = nom === 'Ajuntament de Roda de Berà'
+  ? '/images/entitats/ajuntament-roda-de-bera-horitzontal.png'
+  : entitatPerNom(nom)?.logo;
+---
+{logo ? <img class={logoClass} src={logo} alt={nom} /> : <span class={entityClass}>{nom}</span>}

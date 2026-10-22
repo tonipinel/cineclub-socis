@@ -1,0 +1,131 @@
+---
+import '../styles/main.css';
+import '../styles/cartell-print.css';
+import CartellEntitat from './CartellEntitat.astro';
+import site from '../data/site.json';
+import { dataCaCartellHtml } from '../lib/format.js';
+import { resizedUrl } from '../lib/images.js';
+import { titolSessio } from '../lib/sessio-camps.js';
+
+// Traducció de layouts/programacio/single.cartell.html. `logo`: URL del `hero-logo.png` de la portada.
+const { sessio, logo } = Astro.props;
+const p = sessio.publica ?? {};
+const CINECLUB = 'Cineclub Roda de Berà';
+const AJUNTAMENT = 'Ajuntament de Roda de Berà';
+const titol = titolSessio(sessio);
+const gratis = p.preu === 0;
+const ambPreu = typeof p.preu === 'number' && Number.isFinite(p.preu) && p.preu > 0;
+const xarxa = p.seccio === 'xarxa';
+
+const VERSIONS = {
+  vo: ['Versió original', p.idioma ? `en ${p.idioma}` : ''],
+  vose: ['Versió original subtitulada'],
+  vosc: ['Versió original subtitulada', 'en català'],
+  'doblada-cat': ['Doblada al català'],
+  'doblada-cast': ['Doblada al castellà'],
+};
+const [linia1, linia2] = VERSIONS[p.versioTipus] ?? [];
+
+const llista = (valor) => (Array.isArray(valor) ? valor : []);
+const sense = (noms) => llista(noms).filter((nom) => nom !== CINECLUB);
+const ambAjuntament = (noms) => (noms.includes(AJUNTAMENT) ? noms : [...noms, AJUNTAMENT]);
+const organitzador = p.organitza && p.organitza !== 'cineclub' && p.organitza !== CINECLUB ? [p.organitza] : [];
+const collaboradors = ambAjuntament([...organitzador, ...sense(p.participa), ...sense(p.collabora)]);
+const participen = sense(p.participa);
+const collaboren = ambAjuntament(sense(p.collabora));
+
+// Sense `sinopsiCartell`, la secció «Sinopsi» del cos sense enllaços (partials/cartell-synopsis-fallback.html).
+function sinopsiDelCos(cos) {
+  const [, despres] = typeof cos === 'string' ? cos.split('## Sinopsi') : [];
+  if (despres === undefined) return '';
+  return despres.split('\n## ')[0].replace(/^[\n ]+|[\n ]+$/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+}
+
+const galeria = llista(p.galeria).slice(0, 4);
+const forats = Array.from({ length: 42 });
+---
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartell: {titol} ({site.title})</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body class="cartell-page">
+<button type="button" class="cartell-print-btn" onclick="window.print()">Imprimeix / Desa PDF</button>
+<div class="cartell">
+  <header class="cartell__header">
+    <div class={`cartell__price${gratis ? ' cartell__price--free' : ''}`}>
+      {gratis && <span class="cartell__price-line cartell__price-line--free">Entrada gratuïta</span>}
+      {ambPreu && (
+        <Fragment>
+          <span class="cartell__price-line">Soci/a: <strong>Gratuït</strong></span>
+          <span class="cartell__price-line">No soci/a: <strong>{p.preu}€</strong></span>
+        </Fragment>
+      )}
+      <span class="cartell__web-url">www.CINECLUBRODADEBERA.CAT</span>
+    </div>
+
+    {logo && <img class="cartell__logo" src={resizedUrl(logo, 600)} alt={site.title} />}
+
+    <div class="cartell__version-collab">
+      {linia1 && (
+        <span class="cartell__version-badge">{linia1.toUpperCase()}{linia2 && <Fragment><br />{linia2.toUpperCase()}</Fragment>}</span>
+      )}
+
+      {!xarxa && (
+        <div class="cartell__collab">
+          <span class="cartell__collab-label">Amb la col·laboració de:</span>
+          <div class="cartell__collab-logos">
+            {collaboradors.map((nom) => <CartellEntitat nom={nom} logoClass="cartell__collab-logo" entityClass="cartell__collab-entity" />)}
+          </div>
+        </div>
+      )}
+    </div>
+  </header>
+  <div class="cartell__body">
+    <div class="cartell__synopsis">
+      {p.sinopsiCartell ? <p set:html={p.sinopsiCartell}></p> : <p>{sinopsiDelCos(p.cos)}</p>}
+    </div>
+    {p.cartell && <img class="cartell__poster" src={resizedUrl(p.cartell, 1400)} alt={p.titolOriginal || titol} />}
+  </div>
+  {galeria.length > 0 && (
+    <div class="cartell__filmstrip">
+      <div class="cartell__filmstrip-perf">{forats.map(() => <span class="cartell__filmstrip-hole"></span>)}</div>
+      <div class="cartell__filmstrip-track">
+        {galeria.map((imatge) => <img class="cartell__filmstrip-image" src={resizedUrl(imatge, 400)} alt="" />)}
+      </div>
+      <div class="cartell__filmstrip-perf">{forats.map(() => <span class="cartell__filmstrip-hole"></span>)}</div>
+    </div>
+  )}
+  {xarxa && (
+    <div class="cartell__collab-strip">
+      {organitzador.map((nom) => (
+        <div class="cartell__collab-strip-item">
+          <span class="cartell__collab-strip-label">Organitza</span>
+          <CartellEntitat nom={nom} logoClass="cartell__collab-strip-logo" entityClass="cartell__collab-strip-entity" />
+        </div>
+      ))}
+      {participen.length > 0 && (
+        <div class="cartell__collab-strip-group">
+          <span class="cartell__collab-strip-label">Participen</span>
+          {participen.map((nom) => <CartellEntitat nom={nom} logoClass="cartell__collab-strip-logo" entityClass="cartell__collab-strip-entity" />)}
+        </div>
+      )}
+      <div class="cartell__collab-strip-group">
+        <span class="cartell__collab-strip-label">Col·laboren</span>
+        {collaboren.map((nom) => <CartellEntitat nom={nom} logoClass="cartell__collab-strip-logo" entityClass="cartell__collab-strip-entity" />)}
+      </div>
+    </div>
+  )}
+  <footer class="cartell__footer">
+    <Fragment set:html={dataCaCartellHtml(sessio.data, sessio.hora)} />
+    <span class="cartell__venue">{site.venueName}</span>
+  </footer>
+</div>
+</body>
+</html>

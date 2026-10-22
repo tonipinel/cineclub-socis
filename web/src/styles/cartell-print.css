@@ -1,0 +1,20 @@
+@media print {
+  .cartell-print-btn {
+    display: none;
+  }
+  .cartell-page {
+    background: none;
+  }
+  .cartell {
+    margin: 0;
+    box-shadow: none;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
