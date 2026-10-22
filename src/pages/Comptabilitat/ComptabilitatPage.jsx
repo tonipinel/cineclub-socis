@@ -154,7 +154,7 @@ export default function ComptabilitatPage() {
         </div>
       </div>
 
-      <div className="comptabilitat__taula-wrap">
+      <div className="scroll-horitzontal comptabilitat__taula-wrap" role="region" tabIndex={0} aria-label="Taula de moviments">
         <table className="comptabilitat__taula">
           <thead>
             <tr>

@@ -45,6 +45,20 @@ describe('PropostesPendents', () => {
     expect(screen.queryByRole('link', { name: 'Distribuïdores' })).not.toBeInTheDocument();
   });
 
+  it('posa la taula dins d\'un contenidor amb scroll horitzontal propi perquè la pàgina no desbordi en mòbil', async () => {
+    render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
+    const taula = (await screen.findByText('Amélie')).closest('table');
+    expect(taula.parentElement).toHaveClass('scroll-horitzontal');
+  });
+
+  it('el contenidor de la taula es pot desplaçar amb el teclat', async () => {
+    render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
+    await screen.findByText('Amélie');
+    const regio = screen.getByRole('region', { name: 'Taula de propostes' });
+    expect(regio).toHaveAttribute('tabindex', '0');
+    expect(regio).toContainElement(screen.getByRole('table'));
+  });
+
   it('mostra un missatge si no hi ha cap proposta', async () => {
     mockColleccions({ propostes: [] });
     render(<MemoryRouter><PropostesPendents /></MemoryRouter>);

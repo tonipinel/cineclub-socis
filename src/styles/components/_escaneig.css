@@ -5,6 +5,12 @@ body.escaneig-body {
   @apply mx-auto flex h-dvh w-full flex-col;
   padding-bottom: 120px;
 }
+/* La pantalla d'escaneig i el seu log no hereten el partir paraules global del body. */
+.escaneig,
+.escaneig__sense-sessio,
+.escaneig-log {
+  overflow-wrap: normal;
+}
 .escaneig__contingut {
   @apply flex min-h-0 flex-1 flex-col items-stretch justify-center gap-3 overflow-y-auto bg-cover bg-center p-4;
   max-height: calc(100dvh - 90px);

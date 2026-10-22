@@ -365,7 +365,7 @@ export default function DashboardPage() {
           </div>
 
           {pestanyaEvolucio === 'real' && (
-            <div className="dashboard__previsio-taula-wrap">
+            <div className="scroll-horitzontal dashboard__previsio-taula-wrap" role="region" tabIndex={0} aria-label="Evolució real">
               <table className="dashboard__previsio-taula">
                 <thead>
                   <tr>
@@ -402,7 +402,7 @@ export default function DashboardPage() {
                 {' '}només dels socis a qui els venç realment la quota aquell mes, descartant els que
                 {' '}tenen un cost per sessió superior a {formatEuros(LLINDAR_COST_SESSIO_RENOVACIO)}
               </p>
-              <div className="dashboard__previsio-taula-wrap">
+              <div className="scroll-horitzontal dashboard__previsio-taula-wrap" role="region" tabIndex={0} aria-label="Taula de previsió">
                 <table className="dashboard__previsio-taula">
                   <thead>
                     <tr>

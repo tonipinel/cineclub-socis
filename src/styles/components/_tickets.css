@@ -40,6 +40,15 @@
 .tickets-graella {
   @apply grid grid-cols-3 gap-0;
 }
+/* En mòbil els tres tiquets no hi caben (cadascun necessita el logo de 28 mm, el QR de 18 mm i
+   els marges, ~56 mm): la graella manté aquesta amplada mínima i fa scroll dins el seu
+   contenidor en lloc d'encavalcar-los. Només en pantalla i per sota de `md`: a ≥768 px i a
+   l'imprimir no canvia res. */
+@media screen and (max-width: 767px) {
+  .tickets-graella {
+    min-width: 168mm;
+  }
+}
 .tickets-graella__tiquet {
   @apply relative flex flex-col items-center gap-1.5 bg-white p-3 text-center;
   border: 0.2mm dashed #bf9000;

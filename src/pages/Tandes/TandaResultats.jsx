@@ -176,7 +176,7 @@ export default function TandaResultats() {
       {visibles.length === 0 ? (
         <p>Cap soci en aquest estat.</p>
       ) : (
-        <div className="tanda-resultats__taula-wrap">
+        <div className="scroll-horitzontal tanda-resultats__taula-wrap" role="region" tabIndex={0} aria-label="Vots per soci">
           <table className="tanda-resultats__taula">
             <thead>
               <tr>

@@ -13,6 +13,10 @@
 .dashboard__numeros > .comptabilitat__formula-terme {
   @apply md:flex-1;
 }
+/* En mòbil cada suma de tresoreria ocupa una fila sencera. */
+.dashboard__numeros > .comptabilitat__formula-fila {
+  @apply basis-full md:basis-0;
+}
 .dashboard__pastilla {
   @apply mr-1.5 inline-block h-2.5 w-2.5 align-middle;
 }
@@ -62,7 +66,7 @@
   @apply p-6 font-body text-black;
 }
 .dashboard__previsio-taula-wrap {
-  @apply mt-2 overflow-x-auto;
+  @apply mt-2;
 }
 .dashboard__previsio-taula {
   @apply w-full min-w-[560px] border-collapse text-left font-body text-sm text-black;

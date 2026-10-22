@@ -187,7 +187,7 @@ export default function SolicitudsPendents() {
                 <span className="solicituds-pendents__data">{formatDataHora(s.timestamp)}</span>
                 <div className="solicituds-pendents__detall">
                   {CAMPS_DETALL.filter(([camp]) => s[camp]).map(([camp, etiqueta]) => (
-                    <span key={camp}><strong>{etiqueta}:</strong> {s[camp]}</span>
+                    <span key={camp} className="solicituds-pendents__camp"><strong>{etiqueta}:</strong> {s[camp]}</span>
                   ))}
                 </div>
               </div>

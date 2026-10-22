@@ -10,6 +10,9 @@
 .propostes-pendents__titol {
   @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
+.propostes-pendents__taula-wrap {
+  @apply -mx-6 md:mx-0;
+}
 .propostes-pendents__taula {
   @apply w-full border-collapse text-left text-sm;
 }
@@ -72,10 +75,10 @@
   @apply flex aspect-[2/3] items-center justify-center bg-black/10 p-4 text-center font-display text-xl font-bold;
 }
 .proposta-fitxa__dades {
-  @apply flex flex-1 flex-col gap-6;
+  @apply flex min-w-0 flex-1 flex-col gap-6;
 }
 .proposta-fitxa__gestio {
-  @apply m-0 grid grid-cols-[auto_1fr] content-start gap-x-4 gap-y-2 border-t-2 border-dashed border-black/30 pt-6 text-sm;
+  @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] content-start gap-x-4 gap-y-2 border-t-2 border-dashed border-black/30 pt-6 text-sm;
 }
 .proposta-fitxa__comentari {
   @apply italic;
@@ -106,7 +109,7 @@
   @apply -mt-2 mb-2 font-body text-sm italic text-black/70;
 }
 .proposta-form__accions {
-  @apply mt-2 flex items-center gap-3;
+  @apply mt-2 flex flex-wrap items-center gap-3;
 }
 .propostes-nova {
   @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
@@ -120,7 +123,7 @@
   @apply mx-auto max-w-3xl p-6;
 }
 .distribuidores-list__capcalera {
-  @apply mb-4 flex items-start justify-between gap-2 border-b border-black/10 pb-4;
+  @apply mb-4 flex flex-wrap items-start justify-between gap-2 border-b border-black/10 pb-4;
 }
 .distribuidores-list__tornar {
   @apply text-sm font-semibold text-gold-dark no-underline hover:underline;
@@ -191,7 +194,7 @@
   @apply m-0 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
 }
 .tanda-form__accions {
-  @apply mt-2 flex items-center gap-3;
+  @apply mt-2 flex flex-wrap items-center gap-3;
 }
 
 .tanda-resultats {
@@ -234,7 +237,7 @@
   @apply w-12 text-right font-semibold text-gold-dark;
 }
 .tanda-resultats__taula-wrap {
-  @apply -mx-6 overflow-x-auto md:mx-0;
+  @apply -mx-6 md:mx-0;
 }
 .tanda-resultats__taula {
   @apply w-full border-collapse text-left text-sm;
@@ -295,7 +298,7 @@
   @apply rounded-full bg-black px-3 py-0.5 font-body text-xs font-semibold normal-case tracking-normal text-white;
 }
 .gestio-interna__dades {
-  @apply m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm;
+  @apply m-0 mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm;
 }
 .gestio-interna__contacte {
   @apply mt-1 block text-black/70;

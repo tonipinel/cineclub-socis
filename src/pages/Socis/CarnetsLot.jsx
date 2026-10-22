@@ -52,7 +52,7 @@ export default function CarnetsLot() {
       {socis.length === 0 ? (
         <p>No s'ha seleccionat cap soci.</p>
       ) : (
-        <div className="carnets-lot">
+        <div className="carnets-lot scroll-horitzontal" role="region" tabIndex={0} aria-label="Carnets per imprimir">
           {socis.map((soci) => (
             <CarnetCard key={soci.id} soci={soci} />
           ))}

@@ -125,53 +125,55 @@ export default function TicketsLotPage() {
 
       {error && <p className="form__error">{error}</p>}
 
-      <div className="tickets-graella">
-        {tiquets.map(({ codi, usat }) => {
-          const anuladIndividual = codisAnulats.includes(codi);
-          const anulat = lot.anulat || anuladIndividual;
+      <div className="scroll-horitzontal" role="region" tabIndex={0} aria-label="Tiquets per imprimir">
+        <div className="tickets-graella">
+          {tiquets.map(({ codi, usat }) => {
+            const anuladIndividual = codisAnulats.includes(codi);
+            const anulat = lot.anulat || anuladIndividual;
 
-          return (
-            <div
-              key={codi}
-              className={`tickets-graella__tiquet ${anulat ? 'tickets-graella__tiquet--anulat' : ''} ${usat ? 'tickets-graella__tiquet--usat' : ''}`}
-            >
-              {!usat && anuladIndividual && !lot.anulat && (
-                <button
-                  type="button"
-                  className="tickets-graella__anular-flotant"
-                  onClick={() => handleReactivarTiquet(codi)}
-                >
-                  Reactivar
-                </button>
-              )}
-              {!anulat && (
-                <button
-                  type="button"
-                  className="tickets-graella__anular-flotant"
-                  onClick={() => handleAnularTiquet(codi)}
-                >
-                  Anul·lar
-                </button>
-              )}
-              <p className="tickets-graella__titol">APORTACIÓ ({lot.preu}€)</p>
-              <div className="tickets-graella__fila">
-                <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
-                {urlsPerCodi[codi] && (
-                  <img className="tickets-graella__qr" src={urlsPerCodi[codi]} alt={`Codi QR ${codi}`} />
+            return (
+              <div
+                key={codi}
+                className={`tickets-graella__tiquet ${anulat ? 'tickets-graella__tiquet--anulat' : ''} ${usat ? 'tickets-graella__tiquet--usat' : ''}`}
+              >
+                {!usat && anuladIndividual && !lot.anulat && (
+                  <button
+                    type="button"
+                    className="tickets-graella__anular-flotant"
+                    onClick={() => handleReactivarTiquet(codi)}
+                  >
+                    Reactivar
+                  </button>
+                )}
+                {!anulat && (
+                  <button
+                    type="button"
+                    className="tickets-graella__anular-flotant"
+                    onClick={() => handleAnularTiquet(codi)}
+                  >
+                    Anul·lar
+                  </button>
+                )}
+                <p className="tickets-graella__titol">APORTACIÓ ({lot.preu}€)</p>
+                <div className="tickets-graella__fila">
+                  <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
+                  {urlsPerCodi[codi] && (
+                    <img className="tickets-graella__qr" src={urlsPerCodi[codi]} alt={`Codi QR ${codi}`} />
+                  )}
+                </div>
+                <p className="tickets-graella__codi">{codi}</p>
+                <p className="tickets-graella__text">
+                  Si et fas soci/a abans de la propera sessió et descomptarem
+                  l'import d'aquesta aportació de la quota
+                </p>
+                {usat && <p className="tickets-graella__estat">Usat</p>}
+                {!usat && anuladIndividual && !lot.anulat && (
+                  <p className="tickets-graella__estat">Anul·lat</p>
                 )}
               </div>
-              <p className="tickets-graella__codi">{codi}</p>
-              <p className="tickets-graella__text">
-                Si et fas soci/a abans de la propera sessió et descomptarem
-                l'import d'aquesta aportació de la quota
-              </p>
-              {usat && <p className="tickets-graella__estat">Usat</p>}
-              {!usat && anuladIndividual && !lot.anulat && (
-                <p className="tickets-graella__estat">Anul·lat</p>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

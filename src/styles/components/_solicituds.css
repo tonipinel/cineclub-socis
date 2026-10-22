@@ -23,7 +23,7 @@
   @apply flex items-center gap-2;
 }
 .solicituds-pendents__info {
-  @apply flex flex-col gap-1;
+  @apply flex min-w-0 flex-col gap-1;
 }
 .solicituds-pendents__nom {
   @apply font-body text-base font-semibold text-black;
@@ -33,6 +33,9 @@
 }
 .solicituds-pendents__detall {
   @apply flex flex-wrap gap-x-4 gap-y-1 font-body text-sm text-black/70;
+}
+.solicituds-pendents__camp {
+  @apply min-w-0;
 }
 .solicituds-pendents__desfer {
   @apply mb-4 flex flex-wrap items-center gap-3 rounded border border-green-600 bg-green-50 px-3 py-2 font-body text-sm text-green-800;

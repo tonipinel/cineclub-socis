@@ -5,7 +5,7 @@
   @apply self-start font-body text-sm text-black/70 print:hidden;
 }
 .carnet-wrapper {
-  @apply flex flex-col items-center gap-3 p-4;
+  @apply flex flex-col items-center gap-3 px-0 py-4 sm:p-4;
 }
 .carnet-wrapper__accio {
   @apply print:hidden;
@@ -65,6 +65,14 @@
   margin-top: 0;
   white-space: nowrap;
 }
+/* El carnet té la mida física (88,9 mm) i en un mòbil estret no hi cap: a la pantalla es mostra
+   reduït; a l'imprimir manté la mida real. */
+@media screen and (max-width: 359px) {
+  .carnet-wrapper .carnet,
+  .soci-form-pagina__carnet .carnet {
+    zoom: 0.8;
+  }
+}
 .carnet__avis-token {
   @apply font-body text-sm text-red-700;
 }
@@ -96,7 +104,7 @@
   @apply font-body text-sm text-black/70;
 }
 .carnets-lot {
-  @apply justify-center;
+  @apply max-w-full justify-center-safe print:max-w-none;
   display: grid;
   grid-template-columns: repeat(3, 88.9mm);
   gap: 0;

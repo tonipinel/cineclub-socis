@@ -1,0 +1,7 @@
+/* Contingut que no pot ser més estret que la pantalla (taules, fulls d'impressió): fa scroll
+   horitzontal dins seu perquè la pàgina mai no sigui més ampla que la finestra (si ho fos, la
+   capçalera quedaria descuadrada en mòbil). A l'imprimir no retalla res.
+   Sense `max-width`: els contenidors de taula s'estenen fins a les vores amb marges negatius. */
+.scroll-horitzontal {
+  @apply overflow-x-auto print:overflow-visible;
+}

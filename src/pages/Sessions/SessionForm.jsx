@@ -464,7 +464,7 @@ export default function SessionForm() {
                 {movimentsOrdenats.map((moviment) => (
                   <li key={moviment.id} className="session-form__moviment-fila">
                     <span className="session-form__hora">{formatData(moviment.data)}</span>
-                    <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
+                    <Link className="enllac session-form__moviment-concepte" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
                       {moviment.concepte}
                     </Link>
                     <span className={`badge badge--${moviment.tipus}`}>

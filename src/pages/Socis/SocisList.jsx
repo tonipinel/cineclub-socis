@@ -144,7 +144,7 @@ export default function SocisList() {
           </select>
         </div>
       </div>
-      <div className="socis-list__taula-wrap">
+      <div className="scroll-horitzontal socis-list__taula-wrap" role="region" tabIndex={0} aria-label="Taula de socis">
         <table className="socis-list__taula">
           <thead>
             <tr>

@@ -74,7 +74,7 @@
   @apply mb-4 border-b border-black/10 pb-4;
 }
 .session-form__titol {
-  @apply flex items-center gap-2 font-display text-4xl font-bold uppercase tracking-wide text-black;
+  @apply flex min-w-0 items-center gap-2 wrap-anywhere font-display text-4xl font-bold uppercase tracking-wide text-black;
 }
 .session-form__estrella {
   @apply h-12 w-12 shrink-0 text-gold;
@@ -145,8 +145,18 @@
 .session-form__fila {
   @apply flex items-center justify-between gap-2 border-b border-black/10 py-1;
 }
+.session-form__fila > :first-child {
+  @apply min-w-0;
+}
+/* En mòbil el concepte va a una segona línia sencera: data, tipus i import no hi caben al costat. */
 .session-form__moviment-fila {
-  @apply grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 border-b border-black/10 py-2;
+  @apply grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-black/10 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto];
+}
+.session-form__moviment-fila > .badge {
+  @apply justify-self-start sm:justify-self-auto;
+}
+.session-form__moviment-concepte {
+  @apply col-span-full row-start-2 sm:col-auto sm:row-start-auto;
 }
 .session-form__moviment-total {
   @apply text-right font-semibold;

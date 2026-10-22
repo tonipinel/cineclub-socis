@@ -23,7 +23,7 @@
   @apply w-full md:w-auto;
 }
 .socis-list__taula-wrap {
-  @apply -mx-6 overflow-x-auto md:mx-0;
+  @apply -mx-6 md:mx-0;
 }
 .socis-list__taula {
   @apply w-full min-w-[720px] border-collapse text-left;
@@ -154,6 +154,10 @@
 }
 .soci-form__fila {
   @apply flex items-center justify-between gap-2 border-b border-black/10 py-1;
+}
+/* El text de l'esquerra (títols, noms) es parteix abans que empènyer la data fora de la pantalla. */
+.soci-form__fila > :first-child {
+  @apply min-w-0;
 }
 .soci-form__llegenda {
   @apply flex flex-wrap justify-center gap-4 font-body text-xs text-black/70;

@@ -50,35 +50,37 @@ function GestioPropostes() {
     <>
       {propostes.length === 0 && <p>Encara no hi ha cap proposta.</p>}
       {propostes.length > 0 && (
-        <table className="propostes-pendents__taula">
-          <thead>
-            <tr>
-              <th>Proposta</th>
-              <th>Distribuïdora</th>
-              <th>Preu</th>
-              <th>Estat</th>
-            </tr>
-          </thead>
-          <tbody>
-            {files.map(({ proposta: p, distribuidora, efectives }) => (
-              <tr key={p.id}>
-                <td>
-                  <Link className="enllac" to={ROUTES.PROPOSTES_EDITAR.replace(':id', p.id)}>{p.titol}</Link>
-                </td>
-                <td>{distribuidora?.nom ?? '—'}</td>
-                <td className="propostes-pendents__preu">
-                  {efectives.preu === null ? '—' : formatEuros(efectives.preu)}
-                  {efectives.preuPerDefecte && (
-                    <span className="propostes-pendents__per-defecte" title="Preu per defecte de la distribuïdora"> *</span>
-                  )}
-                </td>
-                <td>
-                  <span className={`badge ${CLASSE_ESTAT[p.estat] ?? ''}`}>{ETIQUETES_ESTAT[p.estat] ?? p.estat}</span>
-                </td>
+        <div className="scroll-horitzontal propostes-pendents__taula-wrap" role="region" tabIndex={0} aria-label="Taula de propostes">
+          <table className="propostes-pendents__taula">
+            <thead>
+              <tr>
+                <th>Proposta</th>
+                <th>Distribuïdora</th>
+                <th>Preu</th>
+                <th>Estat</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {files.map(({ proposta: p, distribuidora, efectives }) => (
+                <tr key={p.id}>
+                  <td>
+                    <Link className="enllac" to={ROUTES.PROPOSTES_EDITAR.replace(':id', p.id)}>{p.titol}</Link>
+                  </td>
+                  <td>{distribuidora?.nom ?? '—'}</td>
+                  <td className="propostes-pendents__preu">
+                    {efectives.preu === null ? '—' : formatEuros(efectives.preu)}
+                    {efectives.preuPerDefecte && (
+                      <span className="propostes-pendents__per-defecte" title="Preu per defecte de la distribuïdora"> *</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`badge ${CLASSE_ESTAT[p.estat] ?? ''}`}>{ETIQUETES_ESTAT[p.estat] ?? p.estat}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {files.some((fila) => fila.efectives.preuPerDefecte) && (
         <p className="propostes-pendents__nota">* Preu per defecte de la distribuïdora.</p>
