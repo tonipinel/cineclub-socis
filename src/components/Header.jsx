@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { useAuth } from '../auth/useAuth';
-import { useIdentitatPublica } from '../auth/useIdentitatPublica';
 import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
+import { GRUPS_ADMIN, grupActiu } from '../lib/menuAdmin';
 
+const [GRUP_SOCIS, GRUP_PROPOSTES] = GRUPS_ADMIN;
+
+// Els grups (amb `elements`) enllacen al seu primer element i tenen submenú.
 const ENLLACOS_ADMIN = [
-  [ROUTES.SOCIS, 'Socis', 'socis'],
-  [ROUTES.SOLICITUDS, "Sol·licituds", 'solicituds'],
-  [ROUTES.PROPOSTES_PENDENTS, 'Propostes', 'propostes'],
-  [ROUTES.SESSIONS, 'Sessions', 'sessions'],
-  [ROUTES.TICKETS, 'Tiquets', 'tiquets'],
-  [ROUTES.ESCANEIG, 'Escaneig', 'escaneig'],
-  [ROUTES.COMPTABILITAT, 'Comptabilitat', 'comptabilitat'],
-  [ROUTES.CONFIGURACIO, 'Configuració', 'configuracio'],
+  GRUP_SOCIS,
+  GRUP_PROPOSTES,
+  { to: ROUTES.SESSIONS, etiqueta: 'Sessions', icona: 'sessions' },
+  { to: ROUTES.ESCANEIG, etiqueta: 'Escaneig', icona: 'escaneig' },
+  { to: ROUTES.COMPTABILITAT, etiqueta: 'Comptabilitat', icona: 'comptabilitat' },
+  { to: ROUTES.CONFIGURACIO, etiqueta: 'Configuració', icona: 'configuracio' },
 ];
 
 const ENLLACOS_TAQUILLA = [
-  [ROUTES.ESCANEIG, 'Escaneig', 'escaneig'],
+  { to: ROUTES.ESCANEIG, etiqueta: 'Escaneig', icona: 'escaneig' },
 ];
 
 // Quan ningú ha iniciat sessió, aquesta app es mostra com una secció més del
@@ -42,13 +43,6 @@ const ICONES = {
       <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
     </>
   ),
-  solicituds: (
-    <>
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M9 3v4h6V3" />
-      <path d="M9 12h6M9 16h6" />
-    </>
-  ),
   propostes: (
     <>
       <path d="M3 8h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8Z" />
@@ -59,12 +53,6 @@ const ICONES = {
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 9h18M8 5v4M8 15v4M16 5v4M16 15v4" />
-    </>
-  ),
-  tiquets: (
-    <>
-      <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4Z" />
-      <path d="M10 6.5v11" strokeDasharray="2 2" />
     </>
   ),
   escaneig: (
@@ -129,14 +117,28 @@ function EnllacPublic({ item, className, classNameActiva, onClick }) {
   );
 }
 
+function Badge({ valor }) {
+  return valor > 0 ? <span className="site-header__badge" aria-hidden="true">{valor}</span> : null;
+}
+
 export default function Header() {
   const { user, role, signOut } = useAuth();
-  const { identitat: identitatPublica } = useIdentitatPublica();
+  const { pathname } = useLocation();
   const [menuObert, setMenuObert] = useState(false);
   const [comptadorSolicituds, setComptadorSolicituds] = useState(0);
   const [comptadorPropostes, setComptadorPropostes] = useState(0);
   const enllacos = role === ROLE_ADMIN ? ENLLACOS_ADMIN : role === ROLE_TAQUILLA ? ENLLACOS_TAQUILLA : [];
   const comptadors = { solicituds: comptadorSolicituds, propostes: comptadorPropostes };
+  const grupDeLaRuta = role === ROLE_ADMIN ? grupActiu(pathname) : null;
+  const tancarMenu = () => setMenuObert(false);
+
+  const classeSubenllac = ({ isActive }) => `site-header__sublink${isActive ? ' site-header__sublink--actiu' : ''}`;
+  const subenllacos = (grup) => grup.elements.map((element) => (
+    <NavLink key={element.to} to={element.to} aria-label={element.etiqueta} className={classeSubenllac} onClick={tancarMenu}>
+      {element.etiqueta}
+      <Badge valor={comptadors[element.comptador]} />
+    </NavLink>
+  ));
 
   useEffect(() => {
     if (!menuObert) return undefined;
@@ -167,9 +169,6 @@ export default function Header() {
               <img className="capcalera-publica__logo" src="/logo-marca.png" alt="" />
               <span className="capcalera-publica__marca-text">Cineclub Roda de Berà</span>
             </Link>
-          )}
-          {identitatPublica && (
-            <span className="capcalera-publica__salutacio">Hola, {identitatPublica.nomPublic}!</span>
           )}
           <nav className="capcalera-publica__nav">
             {ENLLACOS_PUBLICS.map((item) => (
@@ -222,56 +221,84 @@ export default function Header() {
   }
 
   return (
-    <header className="site-header">
-      <div className="site-header__marca">
-        {role === ROLE_ADMIN ? (
-          <Link to={ROUTES.DASHBOARD}>
+    <header className={`site-header${grupDeLaRuta ? ' site-header--amb-submenu' : ''}`}>
+      <div className="site-header__barra">
+        <div className="site-header__marca">
+          {role === ROLE_ADMIN ? (
+            <Link to={ROUTES.DASHBOARD}>
+              <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+            </Link>
+          ) : (
             <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
-          </Link>
-        ) : (
-          <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+          )}
+        </div>
+        {enllacos.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="site-header__hamburguesa"
+              aria-label={menuObert ? 'Tancar el menú' : 'Obrir el menú'}
+              aria-expanded={menuObert}
+              onClick={() => setMenuObert((v) => !v)}
+            >
+              ☰
+            </button>
+            <div
+              className={`site-header__overlay ${menuObert ? 'site-header__overlay--visible' : ''}`}
+              onClick={tancarMenu}
+              aria-hidden="true"
+            />
+            <nav className={`site-header__nav ${menuObert ? 'site-header__nav--obert' : ''}`}>
+              {enllacos.map((enllac) => {
+                if (!enllac.elements) {
+                  return (
+                    <NavLink
+                      key={enllac.to}
+                      to={enllac.to}
+                      aria-label={enllac.etiqueta}
+                      className={({ isActive }) => `site-header__link${isActive ? ' site-header__link--actiu' : ''}`}
+                      onClick={tancarMenu}
+                    >
+                      <Icona nom={enllac.icona} />
+                      {enllac.etiqueta}
+                    </NavLink>
+                  );
+                }
+                const actiu = grupDeLaRuta?.id === enllac.id;
+                return (
+                  <div key={enllac.id} className="site-header__grup">
+                    <NavLink
+                      to={enllac.elements[0].to}
+                      aria-label={enllac.etiqueta}
+                      className={`site-header__link${actiu ? ' site-header__link--actiu' : ''}`}
+                      onClick={tancarMenu}
+                    >
+                      <Icona nom={enllac.icona} />
+                      {enllac.etiqueta}
+                      <Badge valor={enllac.elements.reduce((suma, e) => suma + (comptadors[e.comptador] ?? 0), 0)} />
+                    </NavLink>
+                    <div className="site-header__subgrup">{subenllacos(enllac)}</div>
+                  </div>
+                );
+              })}
+              <button
+                className="site-header__link site-header__link--sortir"
+                type="button"
+                onClick={() => { tancarMenu(); signOut(); }}
+              >
+                <Icona nom="sortir" />
+                Sortir
+              </button>
+            </nav>
+          </>
         )}
       </div>
-      {enllacos.length > 0 && (
+      {grupDeLaRuta && (
         <>
-          <button
-            type="button"
-            className="site-header__hamburguesa"
-            aria-label={menuObert ? 'Tancar el menú' : 'Obrir el menú'}
-            aria-expanded={menuObert}
-            onClick={() => setMenuObert((v) => !v)}
-          >
-            ☰
-          </button>
-          <div
-            className={`site-header__overlay ${menuObert ? 'site-header__overlay--visible' : ''}`}
-            onClick={() => setMenuObert(false)}
-            aria-hidden="true"
-          />
-          <nav className={`site-header__nav ${menuObert ? 'site-header__nav--obert' : ''}`}>
-            {enllacos.map(([to, etiqueta, icona]) => (
-              <NavLink
-                key={to}
-                to={to}
-                aria-label={etiqueta}
-                className={({ isActive }) => `site-header__link${isActive ? ' site-header__link--actiu' : ''}`}
-                onClick={() => setMenuObert(false)}
-              >
-                <Icona nom={icona} />
-                {etiqueta}
-                {comptadors[icona] > 0 && (
-                  <span className="site-header__badge" aria-hidden="true">{comptadors[icona]}</span>
-                )}
-              </NavLink>
-            ))}
-            <button
-              className="site-header__link"
-              type="button"
-              onClick={() => { setMenuObert(false); signOut(); }}
-            >
-              <Icona nom="sortir" />
-              Sortir
-            </button>
+          <div className="site-header__separador" aria-hidden="true" />
+          <div className="site-header__fons-submenu" aria-hidden="true" />
+          <nav className="site-header__submenu" aria-label="Submenú">
+            {subenllacos(grupDeLaRuta)}
           </nav>
         </>
       )}

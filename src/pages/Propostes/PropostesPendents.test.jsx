@@ -3,7 +3,6 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
-vi.mock('./PropostesPublic', () => ({ default: () => <div>Pantalla pública incrustada</div> }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_, nom) => nom),
   getDocs: vi.fn(),
@@ -40,10 +39,10 @@ describe('PropostesPendents', () => {
     expect(screen.getByRole('link', { name: /nova proposta/i })).toHaveAttribute('href', '/propostes/pendents/nova');
   });
 
-  it('té un enllaç al llistat de distribuïdores', async () => {
+  it('no duplica l\'enllaç a distribuïdores (ja és al submenú de la capçalera)', async () => {
     render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
     await screen.findByText('Amélie');
-    expect(screen.getByRole('link', { name: 'Distribuïdores' })).toHaveAttribute('href', '/distribuidores');
+    expect(screen.queryByRole('link', { name: 'Distribuïdores' })).not.toBeInTheDocument();
   });
 
   it('mostra un missatge si no hi ha cap proposta', async () => {
@@ -109,12 +108,12 @@ describe('PropostesPendents', () => {
   });
 });
 
-describe('pestanya «Vista pública» amb REDIRIGIR_PROPOSTES a false', () => {
-  it('incrusta la pantalla pública', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
+describe('sense vista pública', () => {
+  it('no té pestanyes i mostra directament la gestió sota la capçalera', async () => {
     render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
-    await userEvent.click(screen.getByRole('tab', { name: 'Vista pública' }));
-    expect(screen.getByText('Pantalla pública incrustada')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /vista pública de les propostes/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Amélie' })).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByText(/vista pública/i)).not.toBeInTheDocument();
   });
 });

@@ -29,6 +29,9 @@ import PropostaForm from './pages/Propostes/PropostaForm';
 import PropostesNova from './pages/Propostes/PropostesNova';
 import DistribuidoresList from './pages/Distribuidores/DistribuidoresList';
 import DistribuidoraForm from './pages/Distribuidores/DistribuidoraForm';
+import TandesList from './pages/Tandes/TandesList';
+import TandaForm from './pages/Tandes/TandaForm';
+import TandaResultats from './pages/Tandes/TandaResultats';
 
 export default function App() {
   return (
@@ -285,6 +288,46 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <PropostaForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TANDES}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TandesList />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TANDES_NOVA}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TandaForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TANDES_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TandaForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.TANDES_RESULTATS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <TandaResultats />
               </RequireRole>
             </RequireAuth>
           }

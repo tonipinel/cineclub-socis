@@ -7,7 +7,6 @@ import { formatEuros } from '../../lib/moviments';
 import Carregant from '../../components/Carregant';
 import { dadesEfectives, INTERNA_BUIDA } from '../../components/GestioInternaProposta';
 import BotoAfegir from '../../components/BotoAfegir';
-import PropostesPublic from './PropostesPublic';
 
 const CLASSE_ESTAT = {
   pendent: 'badge--pendent', aprovada: 'badge--al-dia', rebutjada: 'badge--vencut', programada: 'badge--nou-registre',
@@ -16,11 +15,6 @@ const CLASSE_ESTAT = {
 const ETIQUETES_ESTAT = {
   pendent: 'Pendent', aprovada: 'Aprovada', rebutjada: 'Rebutjada', programada: 'Programada',
 };
-
-const PESTANYES = [
-  ['gestio', 'Gestió'],
-  ['public', 'Vista pública'],
-];
 
 // Les dades internes i les distribuïdores són informatives: si no es poden
 // llegir, el llistat es mostra igualment, només amb el títol i l'estat.
@@ -94,38 +88,15 @@ function GestioPropostes() {
 }
 
 export default function PropostesPendents() {
-  const [pestanya, setPestanya] = useState('gestio');
-
   return (
     <div className="propostes-pendents">
       <div className="propostes-pendents__capcalera">
         <h1 className="propostes-pendents__titol">Propostes de programació</h1>
         <div className="propostes-pendents__accions">
-          <Link className="enllac" to={ROUTES.DISTRIBUIDORES}>Distribuïdores</Link>
           <BotoAfegir to={ROUTES.PROPOSTES_NOVA} etiqueta="Nova proposta" />
         </div>
       </div>
-      <div className="propostes-pendents__pestanyes" role="tablist">
-        {PESTANYES.map(([valor, etiqueta]) => (
-          <button
-            key={valor}
-            type="button"
-            role="tab"
-            aria-selected={pestanya === valor}
-            className={`propostes-pendents__pestanya${pestanya === valor ? ' propostes-pendents__pestanya--activa' : ''}`}
-            onClick={() => setPestanya(valor)}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </div>
-      {pestanya === 'gestio' ? <GestioPropostes /> : ROUTES.REDIRIGIR_PROPOSTES ? (
-        <p>
-          <a className="enllac" href={ROUTES.URL_PROPOSTES_PUBLIQUES} target="_blank" rel="noopener noreferrer">
-            Obre la vista pública de les propostes
-          </a>
-        </p>
-      ) : <PropostesPublic />}
+      <GestioPropostes />
     </div>
   );
 }

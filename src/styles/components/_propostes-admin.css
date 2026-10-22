@@ -34,15 +34,6 @@
 .propostes-pendents__item {
   @apply flex items-center justify-between gap-2 border-b border-black/10 py-2;
 }
-.propostes-pendents__pestanyes {
-  @apply mb-4 flex gap-1 border-b border-black/10;
-}
-.propostes-pendents__pestanya {
-  @apply -mb-px cursor-pointer border-0 border-b-2 border-transparent bg-transparent px-3 py-2 font-body text-sm font-semibold text-black/60 hover:text-black;
-}
-.propostes-pendents__pestanya--activa {
-  @apply border-gold text-black;
-}
 .proposta-fitxa__hero {
   @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-4 text-center text-white;
   background-image: url('/cinema-pattern.jpg');
@@ -156,6 +147,134 @@
 }
 .distribuidora-form__titol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+
+/* Tandes de votació */
+.tandes-list {
+  @apply mx-auto max-w-3xl p-6;
+}
+.tandes-list__capcalera {
+  @apply mb-4 flex items-center justify-between gap-2 border-b border-black/10 pb-4;
+}
+.tandes-list__titol {
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
+}
+.tandes-list__tornar {
+  @apply text-sm font-semibold text-gold-dark no-underline hover:underline;
+}
+.tandes-list__avis {
+  @apply mb-4 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
+}
+.tandes-list__llista {
+  @apply m-0 flex list-none flex-col p-0;
+}
+.tandes-list__item {
+  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm;
+}
+.tandes-list__nom {
+  @apply text-base font-semibold;
+}
+.tandes-list__tanca {
+  @apply flex-1 text-black/70;
+}
+.tanda-form {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.tanda-form__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.tanda-form__propostes {
+  @apply mb-4 flex flex-col gap-2 border-0 p-0;
+}
+.tanda-form__avis {
+  @apply m-0 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
+}
+.tanda-form__accions {
+  @apply mt-2 flex items-center gap-3;
+}
+
+.tanda-resultats {
+  @apply mx-auto max-w-5xl p-6;
+}
+.tanda-resultats__participants {
+  @apply mb-2 text-sm font-semibold text-black/70;
+}
+.tanda-resultats__etiqueta-barra {
+  @apply mb-1 text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.tanda-resultats__error {
+  @apply mb-4 rounded border border-red-600 bg-red-50 p-3 text-sm text-red-700;
+}
+.tanda-resultats__barra-wrap {
+  @apply mb-6 flex items-center gap-3;
+}
+.tanda-resultats__barra {
+  @apply h-3 flex-1 overflow-hidden rounded-full bg-black/10;
+}
+.tanda-resultats__barra-omplerta {
+  @apply h-full bg-gold;
+}
+.tanda-resultats__filtres {
+  @apply mb-3 flex flex-wrap gap-2;
+}
+.tanda-resultats__filtre {
+  @apply cursor-pointer rounded-full border border-black/20 bg-white px-3 py-1 font-body text-sm font-semibold text-black aria-pressed:border-black aria-pressed:bg-black aria-pressed:text-white;
+}
+.tanda-resultats__llista {
+  @apply m-0 mb-8 flex list-none flex-col p-0;
+}
+.tanda-resultats__proposta {
+  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm;
+}
+.tanda-resultats__proposta-titol {
+  @apply flex-1 text-base font-semibold;
+}
+.tanda-resultats__percentatge {
+  @apply w-12 text-right font-semibold text-gold-dark;
+}
+.tanda-resultats__taula-wrap {
+  @apply -mx-6 overflow-x-auto md:mx-0;
+}
+.tanda-resultats__taula {
+  @apply w-full border-collapse text-left text-sm;
+}
+.tanda-resultats__taula th,
+.tanda-resultats__taula td {
+  @apply whitespace-nowrap border-b border-black/10 px-2 py-2 text-center;
+}
+.tanda-resultats__taula th:first-child,
+.tanda-resultats__taula td:first-child {
+  @apply sticky left-0 z-10 bg-inherit text-left;
+}
+.tanda-resultats__taula tbody th {
+  @apply font-normal;
+}
+.tanda-resultats__taula tr {
+  @apply bg-white;
+}
+.tanda-resultats__taula tbody tr:nth-child(even) {
+  @apply bg-neutral-100;
+}
+.tanda-resultats__proposta-columna {
+  @apply max-w-28 truncate;
+}
+.tanda-resultats__soci-nom {
+  @apply block font-semibold;
+}
+.tanda-resultats__soci-numero {
+  @apply block text-xs text-black/60;
+}
+.tanda-resultats__marca {
+  @apply block text-xs italic text-black/50;
+}
+.badge--completat {
+  @apply border-green-600 text-green-700;
+}
+.badge--en-curs {
+  @apply border-amber-600 text-amber-700;
+}
+.badge--sense-comencar {
+  @apply border-black/40 text-black/60;
 }
 
 /* Gestió interna d'una proposta (privada) */

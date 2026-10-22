@@ -2,25 +2,33 @@ body.menu-obert-body {
   @apply overflow-hidden;
 }
 .site-header {
-  @apply sticky top-0 z-30 flex items-center justify-between gap-4 bg-black px-4 py-3 text-white sm:px-6 print:hidden;
+  @apply sticky top-0 z-30 bg-black text-white lg:grid lg:grid-cols-[auto_1fr] lg:items-center lg:gap-x-6 lg:px-6 lg:pb-3 lg:pt-3 print:hidden;
+}
+/* A escriptori la barra es dissol a la graella del header (logo | contingut) perquè
+   el nav i el submenú comparteixin columna i quedin alineats. */
+.site-header--amb-submenu {
+  @apply lg:pb-0;
+}
+.site-header__barra {
+  @apply flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:contents;
 }
 .site-header__marca {
   @apply flex items-center gap-2;
 }
 .site-header__logo {
-  @apply h-8 w-8 object-contain md:h-12 md:w-16;
+  @apply h-8 w-8 object-contain lg:h-12 lg:w-16;
 }
 .site-header__hamburguesa {
-  @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white md:hidden;
+  @apply cursor-pointer border-0 bg-transparent p-1 text-2xl leading-none text-white lg:hidden;
 }
 .site-header__overlay {
-  @apply pointer-events-none fixed inset-0 z-20 bg-black/60 opacity-0 transition-opacity duration-300 ease-in-out md:hidden;
+  @apply pointer-events-none fixed inset-0 z-20 bg-black/60 opacity-0 transition-opacity duration-300 ease-in-out lg:hidden;
 }
 .site-header__overlay--visible {
   @apply pointer-events-auto opacity-100;
 }
 .site-header__nav {
-  @apply invisible fixed inset-y-0 right-0 z-20 flex w-4/5 max-w-xs translate-x-full flex-col gap-0 divide-y divide-white/10 overflow-y-auto bg-black py-2 shadow-2xl md:visible md:static md:z-auto md:w-auto md:max-w-none md:flex md:translate-x-0 md:flex-row md:items-center md:gap-4 md:divide-y-0 md:overflow-visible md:bg-transparent md:p-0 md:shadow-none md:transition-none;
+  @apply invisible fixed inset-y-0 right-0 z-20 flex w-4/5 max-w-xs translate-x-full flex-col gap-0 divide-y divide-white/10 overflow-y-auto bg-black py-2 shadow-2xl lg:visible lg:static lg:z-auto lg:w-auto lg:max-w-none lg:flex lg:translate-x-0 lg:flex-row lg:items-center lg:gap-4 lg:divide-y-0 lg:overflow-visible lg:bg-transparent lg:p-0 lg:shadow-none lg:transition-none;
   transition: transform 300ms ease-in-out, visibility 0s linear 300ms;
 }
 .site-header__nav--obert {
@@ -28,13 +36,37 @@ body.menu-obert-body {
   transition: transform 300ms ease-in-out, visibility 0s linear 0s;
 }
 .site-header__link {
-  @apply flex cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-4 font-body text-base font-semibold text-white hover:text-gold md:gap-2 md:p-0 md:text-sm;
+  @apply flex cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-4 font-body text-base font-semibold text-white hover:text-gold lg:gap-2 lg:p-0 lg:text-sm;
 }
 .site-header__link--actiu {
   @apply text-gold;
 }
+.site-header__grup {
+  @apply flex flex-col;
+}
+.site-header__subgrup {
+  @apply flex flex-col lg:hidden;
+}
+.site-header__sublink {
+  @apply flex items-center gap-2 py-3 pl-12 pr-4 font-body text-sm font-semibold text-white/70 hover:text-gold lg:p-0;
+}
+.site-header__sublink--actiu {
+  @apply text-gold;
+}
+.site-header__separador {
+  @apply hidden lg:col-start-1 lg:col-span-2 lg:row-start-2 lg:mt-3 lg:-mx-6 lg:block lg:border-t lg:border-white/30;
+}
+.site-header__fons-submenu {
+  @apply hidden lg:col-start-1 lg:col-span-2 lg:row-start-3 lg:-mx-6 lg:block lg:self-stretch lg:bg-neutral-800;
+}
+.site-header__submenu {
+  @apply hidden items-center gap-6 lg:col-start-2 lg:row-start-3 lg:flex lg:py-2;
+}
+.site-header__link--sortir {
+  @apply lg:ml-auto;
+}
 .site-header__icona {
-  @apply h-5 w-5 shrink-0 md:h-4 md:w-4;
+  @apply h-5 w-5 shrink-0 lg:h-4 lg:w-4;
 }
 .site-header__badge {
   @apply flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 font-body text-xs font-bold text-black;
@@ -47,16 +79,16 @@ body.menu-obert-body {
   @apply sticky top-0 z-30 bg-black text-white print:hidden;
 }
 .capcalera-publica__interior {
-  @apply mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6;
+  @apply mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-3 py-3 min-[360px]:gap-4 min-[360px]:px-4 sm:flex-wrap sm:px-6;
 }
 .capcalera-publica__marca {
-  @apply flex items-center gap-3 no-underline;
+  @apply flex items-center gap-2 no-underline min-[360px]:gap-3;
 }
 .capcalera-publica__logo {
   @apply h-10 w-auto invert;
 }
 .capcalera-publica__marca-text {
-  @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
+  @apply whitespace-nowrap font-display text-base font-bold uppercase tracking-wide text-gold min-[360px]:text-lg sm:text-xl;
 }
 .capcalera-publica__nav {
   @apply hidden gap-x-6 gap-y-1 sm:flex;
@@ -66,9 +98,6 @@ body.menu-obert-body {
 }
 .capcalera-publica__link--activa {
   @apply text-gold;
-}
-.capcalera-publica__salutacio {
-  @apply font-body text-xs text-white/60;
 }
 .capcalera-publica__hamburguesa {
   @apply flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-white sm:hidden;
