@@ -36,6 +36,8 @@ export const onRequest = async (context, next) => {
   }
   const headers = new Headers(response.headers);
   if (response.status !== 200 || !headers.has('Cache-Control')) headers.set('Cache-Control', cacheControlFor(response.status));
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Content-Security-Policy', "frame-ancestors 'self'");
   if (!INDEXABLE) headers.set('X-Robots-Tag', 'noindex');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 };

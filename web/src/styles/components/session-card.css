@@ -1,11 +1,11 @@
 .session-card {
-  @apply flex flex-col overflow-hidden rounded-none border-[6px] border-black bg-black shadow-sm transition hover:shadow-md;
+  @apply flex flex-col overflow-hidden rounded-none border-[6px] border-black bg-black shadow-sm-v3 transition-v3 hover:shadow-md-v3;
 }
 .session-card__link {
-  @apply flex flex-1 flex-col border-2 border-dashed border-white text-inherit no-underline transition hover:border-gold;
+  @apply flex flex-1 flex-col border-2 border-dashed border-white text-inherit no-underline transition-v3 hover:border-gold;
 }
 .session-card__image {
-  @apply aspect-[2/3] w-full object-cover transition duration-300;
+  @apply aspect-[2/3] w-full object-cover transition-v3 duration-300;
 }
 .session-card__link:hover .session-card__image {
   @apply opacity-90;
@@ -30,7 +30,7 @@
   padding: 0.1rem 0.5rem;
 }
 .session-card__title {
-  @apply font-display font-bold uppercase tracking-wide text-white transition;
+  @apply font-display font-bold uppercase tracking-wide text-white transition-v3;
   font-size: 2.5rem;
   line-height: 1.15;
 }
@@ -41,10 +41,12 @@
   @apply text-gold;
 }
 .session-card__subtitle {
-  @apply text-sm normal-case tracking-normal text-white/70;
+  @apply text-sm normal-case tracking-normal;
+  color: rgb(255 255 255 / 0.7);
 }
 .session-card__badge {
-  @apply inline-block w-fit rounded-full bg-gold/10 px-2 py-0.5 text-xs font-semibold text-gold-dark;
+  @apply inline-block w-fit rounded-full-v3 px-2 py-0.5 text-xs font-semibold text-gold-dark;
+  background-color: rgb(191 144 0 / 0.1);
 }
 .section-badge {
   @apply inline-block w-fit border border-dashed px-2 py-0.5 font-display text-xs font-bold uppercase tracking-wide;
@@ -69,10 +71,11 @@
   @apply mx-auto max-w-3xl p-6 py-12;
 }
 .calendar__subscribe {
-  @apply mb-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-gold-dark bg-gold/10 px-6 py-4 text-center sm:flex-row sm:text-left;
+  @apply mb-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-gold-dark px-6 py-4 text-center sm:flex-row sm:text-left;
+  background-color: rgb(191 144 0 / 0.1);
 }
 .calendar__subscribe .icon {
-  @apply h-8 w-8 flex-shrink-0 text-gold-dark;
+  @apply h-8 w-8 shrink-0 text-gold-dark;
 }
 .calendar__subscribe-text {
   @apply flex flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2;
@@ -84,17 +87,20 @@
   @apply font-body text-sm text-black;
 }
 .calendar__subscribe-button {
-  @apply flex-shrink-0 rounded-full bg-gold-dark px-5 py-2 font-display text-sm font-bold uppercase text-white no-underline transition hover:bg-black;
+  @apply shrink-0 rounded-full-v3 bg-gold-dark px-5 py-2 font-display text-sm font-bold uppercase text-white no-underline transition-v3 hover:bg-black;
 }
-.calendar__list {
-  @apply divide-y divide-dashed divide-black/20;
+.calendar__list > :not([hidden]) ~ :not([hidden]) {
+  border-top-width: 1px;
+  border-bottom-width: 0;
+  border-style: dashed;
+  border-color: rgb(0 0 0 / 0.2);
 }
 .calendar__item {
   @apply py-3;
 }
 .calendar__link,
 .calendar__row {
-  @apply flex flex-col gap-1 no-underline transition sm:flex-row sm:items-center sm:justify-between sm:gap-4;
+  @apply flex flex-col gap-1 no-underline transition-v3 sm:flex-row sm:items-center sm:justify-between sm:gap-4;
 }
 .calendar__link {
   @apply text-inherit;
@@ -103,10 +109,10 @@
   @apply text-gold-dark;
 }
 .calendar__date {
-  @apply flex-shrink-0 text-sm;
+  @apply shrink-0 text-sm;
 }
 .calendar__title {
-  @apply font-display font-semibold uppercase tracking-wide text-black transition;
+  @apply font-display font-semibold uppercase tracking-wide text-black transition-v3;
 }
 .calendar__title--pending {
   @apply italic tracking-normal text-gray-500;
@@ -131,7 +137,7 @@
   text-shadow: 2px 2px 0 black;
 }
 .section-filter__btn {
-  @apply relative cursor-pointer border border-dashed bg-transparent px-3 py-1 font-display font-bold uppercase tracking-wide transition;
+  @apply relative cursor-pointer border border-dashed bg-transparent px-3 py-1 font-display font-bold uppercase tracking-wide transition-v3;
   border-color: var(--filter-color, #000);
   color: var(--filter-color, #000);
   font-size: 2rem;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
-  dataCa, dataCaCurta, dataCaCartell, dataCaHtml, dataCaCurtaHtml, dataCaCartellHtml, dataIso, urlize,
+  dataCa, dataCaCurta, dataCaCartell, dataCaHtml, dataCaCurtaHtml, dataCaCartellHtml, dataIso, urlize, horaNormal,
 } from '../src/lib/format.js';
 
 const dates = JSON.parse(readFileSync(new URL('./fixtures/hugo-dates.json', import.meta.url), 'utf8'));
@@ -57,5 +57,14 @@ describe('dates en català (literals de Hugo, tres variants)', () => {
     expect(dataCa('2026-10-08', '19:00')).toEqual({ principal: "Dijous 8 d'octubre", resta: '2026 - 19:00h' });
     expect(dataCaCurta('2026-10-08', '19:00')).toEqual({ principal: "Dijous 8 d'octubre", resta: '19:00h' });
     expect(dataCaCartell('2026-10-08', '19:00')).toEqual({ data: "Dijous 8 d'octubre", hora: 'a les 19:00h' });
+  });
+});
+
+describe('horaNormal', () => {
+  it('omple amb zero i rebutja el que no és una hora', () => {
+    expect(horaNormal('9:30')).toBe('09:30');
+    expect(horaNormal('19:00')).toBe('19:00');
+    expect(horaNormal(' 9:05 ')).toBe('09:05');
+    for (const dolent of ['24:00', '10:60', '930', '', null, undefined, 9, '9:3']) expect(horaNormal(dolent)).toBeNull();
   });
 });

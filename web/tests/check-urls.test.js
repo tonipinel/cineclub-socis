@@ -9,6 +9,14 @@ import {
   pathDe,
   llegeixAliases,
   aplicaPermet,
+  llegeixSitemapLastmod,
+  comparaLastmod,
+  llegeixFeed,
+  comparaFeeds,
+  llegeixSitemapBrut,
+  comparaSitemapBrut,
+  estatDe,
+  demanaSegur,
 } from '../scripts/check-urls-lib.mjs';
 
 // HTML minificat com el de Hugo (atributs sense cometes) i HTML com el d'Astro (amb cometes).
@@ -152,5 +160,212 @@ describe('aplicaPermet', () => {
     const r = aplicaPermet([{ path: '/altra/', camp: 'title', hugo: 'a', nova: 'b' }], permet);
     expect(r.conegudes).toEqual([]);
     expect(r.inesperades).toHaveLength(1);
+  });
+});
+
+describe('llegeixSitemapLastmod / comparaLastmod', () => {
+  const hugoXml = '<urlset><url><loc>https://cineclubrodadebera.cat/</loc><lastmod>2026-08-20T00:00:00+00:00</lastmod></url>'
+    + '<url><loc>https://cineclubrodadebera.cat/generes/%C3%A8poca/</loc><lastmod>2026-08-06T19:00:00+02:00</lastmod></url>'
+    + '<url><loc>https://cineclubrodadebera.cat/privacitat/</loc></url></urlset>';
+
+  it('llegeix el lastmod de cada camí (null si no en té)', () => {
+    expect([...llegeixSitemapLastmod(hugoXml)]).toEqual([
+      ['/', '2026-08-20T00:00:00+00:00'],
+      ['/generes/època/', '2026-08-06T19:00:00+02:00'],
+      ['/privacitat/', null],
+    ]);
+  });
+
+  it('no troba diferències quan els lastmod són el mateix instant (tot i escriure\'s diferent)', () => {
+    const nou = '<urlset><url><loc>https://x.cat/</loc><lastmod>2026-08-20T02:00:00+02:00</lastmod></url>'
+      + '<url><loc>https://x.cat/generes/%C3%A8poca/</loc><lastmod>2026-08-06T19:00:00+02:00</lastmod></url>'
+      + '<url><loc>https://x.cat/privacitat/</loc></url></urlset>';
+    expect(comparaLastmod(llegeixSitemapLastmod(hugoXml), llegeixSitemapLastmod(nou))).toEqual([]);
+  });
+
+  it('detecta un lastmod diferent, que falta o que sobra', () => {
+    const nou = '<urlset><url><loc>https://x.cat/</loc><lastmod>2026-08-21T00:00:00+00:00</lastmod></url>'
+      + '<url><loc>https://x.cat/generes/%C3%A8poca/</loc></url>'
+      + '<url><loc>https://x.cat/privacitat/</loc><lastmod>2026-01-01</lastmod></url></urlset>';
+    expect(comparaLastmod(llegeixSitemapLastmod(hugoXml), llegeixSitemapLastmod(nou))).toEqual([
+      { path: '/', camp: 'lastmod', hugo: '2026-08-20T00:00:00+00:00', nova: '2026-08-21T00:00:00+00:00' },
+      { path: '/generes/època/', camp: 'lastmod', hugo: '2026-08-06T19:00:00+02:00', nova: null },
+      { path: '/privacitat/', camp: 'lastmod', hugo: null, nova: '2026-01-01' },
+    ]);
+  });
+
+  it('una URL que no és al sitemap nou no es compara (ja surt com a diferència de sitemap)', () => {
+    expect(comparaLastmod(llegeixSitemapLastmod(hugoXml), new Map())).toEqual([]);
+  });
+});
+
+describe('comparaPagines: JSON-LD d\'esdeveniment com a superconjunt', () => {
+  const ldHugo = (obj) => `<link rel=canonical href=https://cineclubrodadebera.cat/p/><script type=application/ld+json>${JSON.stringify(obj)}</script>`;
+  const ldNova = (obj) => `<link rel="canonical" href="https://cineclub-web.web.app/p/"><script type="application/ld+json">${JSON.stringify(obj)}</script>`;
+  const event = {
+    '@context': 'https://schema.org', '@type': 'ScreeningEvent', name: 'Pig', startDate: '2026-06-25T19:00:00+02:00',
+    offers: { '@type': 'Offer', price: '5', url: 'https://cineclubrodadebera.cat/programacio/2026/pig/' },
+    workPresented: { '@type': 'Movie', name: 'Pig' },
+  };
+  const jsonld = (hugo, nova) => comparaPagines(ldHugo(hugo), ldNova(nova)).filter((d) => d.camp === 'jsonld');
+  const enriquit = {
+    ...event,
+    description: 'Un text',
+    image: ['https://x/poster.jpg'],
+    eventStatus: 'https://schema.org/EventScheduled',
+    offers: { ...event.offers, url: 'https://cineclub-web.web.app/programacio/2026/pig/', availability: 'https://schema.org/InStock' },
+  };
+
+  it('accepta claus addicionals (també dins d\'objectes imbricats) i l\'origen diferent', () => {
+    expect(jsonld(event, enriquit)).toEqual([]);
+  });
+
+  it('falla si falta una clau de Hugo', () => {
+    const { startDate, ...sense } = enriquit;
+    expect(jsonld(event, sense)).toHaveLength(1);
+  });
+
+  it('falla si falta una clau imbricada de Hugo', () => {
+    const { price, ...ofertaSensePreu } = enriquit.offers;
+    expect(jsonld(event, { ...enriquit, offers: ofertaSensePreu })).toHaveLength(1);
+  });
+
+  it('falla si una clau de Hugo canvia de valor', () => {
+    expect(jsonld(event, { ...enriquit, name: 'Porc' })).toHaveLength(1);
+    expect(jsonld(event, { ...enriquit, offers: { ...enriquit.offers, price: '6' } })).toHaveLength(1);
+    expect(jsonld(event, { ...enriquit, workPresented: { '@type': 'Movie', name: 'Altre' } })).toHaveLength(1);
+  });
+
+  it('falla si el nombre de blocs JSON-LD no coincideix', () => {
+    const dosBlocs = (h) => `${h}<script type="application/ld+json">{"@type":"BreadcrumbList"}</script>`;
+    expect(comparaPagines(ldHugo(event), dosBlocs(ldNova(enriquit))).map((d) => d.camp)).toContain('jsonld');
+  });
+
+  it('els altres tipus (BreadcrumbList, Organization...) continuen sent estrictament iguals', () => {
+    const breadcrumb = { '@type': 'BreadcrumbList', itemListElement: [{ position: 1 }] };
+    expect(jsonld(breadcrumb, breadcrumb)).toEqual([]);
+    expect(jsonld(breadcrumb, { ...breadcrumb, extra: 1 })).toHaveLength(1);
+    const org = { '@type': 'Organization', name: 'Cineclub' };
+    expect(jsonld(org, { ...org, description: 'afegit' })).toHaveLength(1);
+  });
+
+  it('un Event (no ScreeningEvent) també és superconjunt, i un bloc amb JSON trencat no', () => {
+    expect(jsonld({ '@type': 'Event', name: 'X' }, { '@type': 'Event', name: 'X', image: ['a'] })).toEqual([]);
+    expect(comparaPagines('<script type=application/ld+json>{trencat</script>', '<script type="application/ld+json">{trencat</script>')).toEqual([]);
+  });
+
+  it('un valor de Hugo que és una llista continua sent estrictament igual', () => {
+    expect(jsonld({ '@type': 'Event', sameAs: ['a', 'b'] }, { '@type': 'Event', sameAs: ['a', 'b', 'c'] })).toHaveLength(1);
+  });
+});
+
+describe('llegeixFeed / comparaFeeds', () => {
+  const feed = (titol, items) => `<?xml version="1.0"?><rss version="2.0"><channel><title>${titol}</title><link>https://cineclubrodadebera.cat/x/</link>`
+    + `<description>Recent content</description>${items.map(([t, l]) => `<item><title>${t}</title><link>${l}</link><guid>${l}</guid><description>&lt;p&gt;x&lt;/p&gt;</description></item>`).join('')}</channel></rss>`;
+
+  it('llegeix el títol del canal i els títols i camins dels elements (desescapant)', () => {
+    const f = llegeixFeed(feed('Secrets &amp; Lies on X', [['Secrets &amp; Lies', 'https://x.cat/programacio/2026/s/'], ['B', 'https://x.cat/a/%C3%A8/']]));
+    expect(f).toEqual({ titol: 'Secrets & Lies on X', items: [{ titol: 'Secrets & Lies', cami: '/programacio/2026/s/' }, { titol: 'B', cami: '/a/è/' }] });
+  });
+
+  it('no troba diferències entre feeds equivalents (orígens diferents)', () => {
+    const items = [['A', 'https://cineclubrodadebera.cat/a/'], ['B', 'https://cineclubrodadebera.cat/b/']];
+    expect(comparaFeeds(feed('T', items), feed('T', items.map(([t, l]) => [t, l.replace('cineclubrodadebera.cat', 'localhost:4400')])))).toEqual([]);
+  });
+
+  it('detecta un títol de canal diferent', () => {
+    const [d] = comparaFeeds(feed('T', []), feed('U', []));
+    expect(d).toEqual({ camp: 'feed-canal', hugo: 'T', nova: 'U' });
+  });
+
+  it('detecta elements que falten, sobren, canvien de títol o d\'ordre', () => {
+    const base = [['A', 'https://x.cat/a/'], ['B', 'https://x.cat/b/']];
+    expect(comparaFeeds(feed('T', base), feed('T', base.slice(0, 1))).map((d) => d.camp)).toEqual(['feed-elements']);
+    expect(comparaFeeds(feed('T', base), feed('T', [...base, ['C', 'https://x.cat/c/']])).map((d) => d.camp)).toEqual(['feed-elements']);
+    expect(comparaFeeds(feed('T', base), feed('T', [['A', 'https://x.cat/a/'], ['Bé', 'https://x.cat/b/']])).map((d) => d.camp)).toEqual(['feed-elements']);
+    expect(comparaFeeds(feed('T', base), feed('T', [...base].reverse())).map((d) => d.camp)).toEqual(['feed-elements']);
+  });
+});
+
+describe('aplicaPermet: entrades obsoletes', () => {
+  const permet = [
+    { path: '/a/', estat: 404, motiu: 'm1' },
+    { path: '/b/', camps: ['title'], motiu: 'm2' },
+  ];
+
+  it('una entrada que no justifica cap diferència és obsoleta', () => {
+    const r = aplicaPermet([{ path: '/a/', camp: 'status', hugo: 200, nova: 404 }], permet);
+    expect(r.obsoletes).toEqual([permet[1]]);
+  });
+
+  it('sense diferències totes les entrades són obsoletes; amb una llista buida no n\'hi ha', () => {
+    expect(aplicaPermet([], permet).obsoletes).toEqual(permet);
+    expect(aplicaPermet([], []).obsoletes).toEqual([]);
+  });
+
+  it('una entrada que només coincideix en el camí però no en l\'estat/camp continua obsoleta', () => {
+    const r = aplicaPermet([{ path: '/a/', camp: 'status', hugo: 200, nova: 500 }, { path: '/b/', camp: 'description', hugo: 'a', nova: 'b' }], permet);
+    expect(r.obsoletes).toEqual(permet);
+  });
+});
+
+describe('diferencies-conegudes.json', () => {
+  it('registra /propostes/ (nova a la web, absent de Hugo) com a diferència coneguda de sitemap, amb motiu', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { permesos } = JSON.parse(readFileSync(new URL('../scripts/diferencies-conegudes.json', import.meta.url), 'utf8'));
+    const r = aplicaPermet([
+      { path: '/propostes/', camp: 'sitemap', hugo: 'no hi és', nova: 'hi és' },
+      { path: '/propostes-altres/', camp: 'sitemap', hugo: 'no hi és', nova: 'hi és' },
+    ], permesos);
+    expect(r.conegudes).toHaveLength(1);
+    expect(r.conegudes[0].path).toBe('/propostes/');
+    expect(r.conegudes[0].motiu).toMatch(/Pàgina nova/);
+    expect(r.inesperades.map((d) => d.path)).toEqual(['/propostes-altres/']);
+  });
+});
+
+const sitemapDe = (...locs) => `<urlset>${locs.map((l) => `<url><loc>${l}</loc></url>`).join('')}</urlset>`;
+
+describe('llegeixSitemapBrut / comparaSitemapBrut', () => {
+  it('llegeix els camins sense decodificar', () => {
+    expect(llegeixSitemapBrut(sitemapDe('https://x.cat/directors/az%C3%BAa/', 'https://x.cat/a/')))
+      .toEqual(['/directors/az%C3%BAa/', '/a/']);
+  });
+  it('no troba diferències si la codificació és idèntica', () => {
+    const xml = sitemapDe('https://x.cat/directors/az%C3%BAa/');
+    expect(comparaSitemapBrut(xml, sitemapDe('https://nou.web/directors/az%C3%BAa/'))).toEqual([]);
+  });
+  it('detecta el mateix camí escrit diferent (accent sense codificar, hexadecimal en minúscula, NFD)', () => {
+    const hugoXml = sitemapDe('https://x.cat/directors/az%C3%BAa/', 'https://x.cat/b/');
+    expect(comparaSitemapBrut(hugoXml, sitemapDe('https://n.web/directors/azúa/', 'https://n.web/b/')))
+      .toEqual([{ path: '/directors/az%C3%BAa/', camp: 'sitemap-codificacio', hugo: '/directors/az%C3%BAa/', nova: '/directors/azúa/' }]);
+    expect(comparaSitemapBrut(hugoXml, sitemapDe('https://n.web/directors/az%c3%baa/', 'https://n.web/b/'))).toHaveLength(1);
+    expect(comparaSitemapBrut(hugoXml, sitemapDe('https://n.web/directors/azu%CC%81a/', 'https://n.web/b/'))).toHaveLength(1);
+  });
+  it('un camí que falta en un dels dos no es compta aquí (ja és una diferència de sitemap)', () => {
+    expect(comparaSitemapBrut(sitemapDe('https://x.cat/a/'), sitemapDe('https://n.web/b/'))).toEqual([]);
+  });
+});
+
+describe('connexió fallida', () => {
+  it('demanaSegur torna la resposta quan fetch va bé', async () => {
+    const res = new Response('x', { status: 200 });
+    expect(await demanaSegur(async () => res, 'http://x')).toBe(res);
+  });
+  it('demanaSegur converteix un error de xarxa en una resposta d\'estat 0, sense llançar', async () => {
+    const cau = async () => { throw new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } }); };
+    const res = await demanaSegur(cau, 'http://x');
+    expect(res.status).toBe(0);
+    expect(res.error).toBe('ECONNREFUSED');
+    expect(res.headers.get('location')).toBeNull();
+    expect(await res.text()).toBe('');
+  });
+  it('estatDe mostra l\'estat o l\'error de connexió', () => {
+    expect(estatDe({ status: 404 })).toBe(404);
+    expect(estatDe({ status: 0, error: 'ECONNREFUSED' })).toBe('error de connexió: ECONNREFUSED');
+  });
+  it('l\'error de connexió no coincideix amb cap entrada de permesos per estat', () => {
+    const d = [{ path: '/a/', camp: 'status', hugo: 200, nova: estatDe({ status: 0, error: 'x' }) }];
+    expect(aplicaPermet(d, [{ path: '/a/', estat: 404, motiu: 'm' }]).inesperades).toEqual(d);
   });
 });

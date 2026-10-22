@@ -3,14 +3,16 @@ import '../styles/main.css';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import site from '../data/site.json';
-import { SITE_URL } from '../lib/env.js';
+import { INDEXABLE, SITE_URL } from '../lib/env.js';
 
-// titol: absent a la portada. canonical i imatgeOg: URLs absolutes.
+// titol: absent a la portada. canonical i imatgeOg: URLs absolutes. noindex: pàgines que no
+// s'han d'indexar mai (el 404).
 const {
   titol,
   descripcio = site.tagline,
   imatgeOg = `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
   canonical = new URL(Astro.url.pathname, SITE_URL).href,
+  noindex = false,
 } = Astro.props;
 const titolPagina = titol ? `${titol} · ${site.title}` : site.title;
 const titolSocial = titol || site.title;
@@ -23,6 +25,10 @@ const titolSocial = titol || site.title;
   <title>{titolPagina}</title>
   <meta name="description" content={descripcio}>
   <link rel="canonical" href={canonical}>
+  {noindex && <meta name="robots" content="noindex,follow">}
+  {INDEXABLE && !noindex && <meta name="robots" content="index,follow,max-image-preview:large">}
+  <meta property="og:site_name" content={site.title}>
+  <meta property="og:locale" content="ca_ES">
   <meta property="og:type" content="website">
   <meta property="og:title" content={titolSocial}>
   <meta property="og:description" content={descripcio}>
@@ -40,6 +46,7 @@ const titolSocial = titol || site.title;
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <slot name="head" />
+  <script type="module" src="/js/salutacio.js"></script>
 </head>
 <body class="site-body">
   <SiteHeader pathname={Astro.url.pathname} />

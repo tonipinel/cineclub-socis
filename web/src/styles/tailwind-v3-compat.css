@@ -1,0 +1,85 @@
+/*
+  Compatibilitat amb Tailwind 3: torna els valors que Tailwind 4 ha canviat, perquè la web es vegi
+  exactament igual que abans de migrar (comprovat amb `scripts/visual-snapshot.mjs`).
+*/
+
+/* v4 només aplica `hover:` als dispositius amb ratolí; v3 també en tocar la pantalla. */
+@custom-variant hover (&:hover);
+
+/* Colors de la paleta de v3 (v4 els defineix en oklch, amb tons lleugerament diferents) i punts de tall. */
+@theme {
+  --color-gray-200: #e5e7eb;
+  --color-gray-500: #6b7280;
+  --color-gray-700: #374151;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-600: #525252;
+  --color-neutral-800: #262626;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+
+  /*
+    Punts de tall en px, com v3 (v4 els posa en rem: amb una lletra del navegador de 20 px, `sm:` passaria
+    de 640 a 800 px). Les media queries escrites a mà fan servir `theme(--breakpoint-sm)`.
+  */
+  --breakpoint-sm: 640px;
+  --breakpoint-lg: 1024px;
+}
+
+@layer base {
+  /* v4 fa servir `currentColor` com a color de vora per defecte; v3, gray-200. */
+  *,
+  ::after,
+  ::before {
+    border-color: #e5e7eb;
+  }
+  /* v3 no reinicia la vora del fons dels diàlegs (v4 hi posa `border: 0 solid`). */
+  ::backdrop {
+    border-style: none;
+  }
+
+  /* v4 deixa el cursor per defecte als botons. */
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+  :disabled {
+    cursor: default;
+  }
+}
+
+/*
+  Utilitats amb el resultat exacte de v3. Tenen nom propi (`-v3`) perquè sobreescriure les de v4 amb
+  el mateix nom depèn de l'ordre en què Tailwind les emet.
+*/
+
+/* `rounded-full`: v4 usa `calc(infinity * 1px)`. */
+@utility rounded-full-v3 {
+  border-radius: 9999px;
+}
+
+/*
+  `transition` i `transition-transform`: v4 hi afegeix outline-color, translate, scale, rotate, display…
+  La llista va en una variable perquè Lightning CSS (al build) no hi afegeixi `-webkit-backdrop-filter`.
+*/
+@utility transition-v3 {
+  --transicio-v3: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: var(--transicio-v3);
+  transition-timing-function: var(--tw-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  transition-duration: var(--tw-duration, 150ms);
+}
+@utility transition-transform-v3 {
+  transition-property: transform;
+  transition-timing-function: var(--tw-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  transition-duration: var(--tw-duration, 150ms);
+}
+
+/* `shadow-sm`, `shadow-md`, `shadow-lg`: v3 hi posa dues capes buides (ring) davant; v4, quatre. */
+@utility shadow-sm-v3 {
+  box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+@utility shadow-md-v3 {
+  box-shadow: 0 0 #0000, 0 0 #0000, 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+@utility shadow-lg-v3 {
+  box-shadow: 0 0 #0000, 0 0 #0000, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}

@@ -25,6 +25,15 @@ describe('middleware', () => {
     vi.restoreAllMocks();
   });
 
+  it('afegeix nosniff i frame-ancestors a totes les respostes (200, 404, 500)', async () => {
+    const { onRequest } = await carrega(true);
+    const trencat = () => Promise.reject(new Error('caiguda'));
+    for (const res of [await onRequest(context(), ok), await onRequest(context('/x'), no404), await onRequest(context(), trencat)]) {
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(res.headers.get('Content-Security-Policy')).toBe("frame-ancestors 'self'");
+    }
+  });
+
   it('afegeix X-Robots-Tag: noindex quan INDEXABLE és fals', async () => {
     const { onRequest } = await carrega(false);
     const res = await onRequest(context(), ok);
@@ -43,6 +52,12 @@ describe('middleware', () => {
     expect((await onRequest(context(), ok)).headers.get('Cache-Control')).toBe(CACHE_OK);
     const res = await onRequest(context('/no/'), () => Promise.resolve(new Response('x', { status: 404 })));
     expect(res.headers.get('Cache-Control')).toBe(CACHE_NOT_FOUND);
+  });
+
+  it('una resposta 200 que ja porta Cache-Control el conserva', async () => {
+    const { onRequest } = await carrega(true);
+    const res = await onRequest(context(), () => Promise.resolve(new Response('x', { status: 200, headers: { 'Cache-Control': 'public, max-age=5' } })));
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=5');
   });
 
   it('si next() llança, respon 500 sense caché i amb «Error temporal»', async () => {

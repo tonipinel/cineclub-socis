@@ -1,5 +1,5 @@
 .signup-form {
-  @apply mx-auto mt-6 flex w-full max-w-lg flex-col gap-4 rounded border-2 border-dashed border-gold bg-black p-6 text-left shadow-lg;
+  @apply mx-auto mt-6 flex w-full max-w-lg flex-col gap-4 rounded-sm border-2 border-dashed border-gold bg-black p-6 text-left shadow-lg-v3;
 }
 .signup-form__field {
   @apply flex flex-col gap-1;
@@ -8,13 +8,14 @@
   @apply text-left font-body text-sm font-semibold text-white;
 }
 .signup-form__input {
-  @apply rounded border border-black/20 bg-white px-3 py-2 font-body text-base text-black;
+  @apply rounded-sm border bg-white px-3 py-2 font-body text-base text-black;
+  border-color: rgb(0 0 0 / 0.2);
 }
 .signup-form__input--error {
   @apply border-2 border-red-500;
 }
 input[type="checkbox"].signup-form__input--error {
-  @apply outline outline-2 outline-red-500;
+  @apply outline-solid outline-2 outline-red-500;
 }
 .signup-form__checkbox {
   @apply flex items-start gap-2 text-left font-body text-sm text-white;
@@ -29,5 +30,5 @@ input[type="checkbox"].signup-form__input--error {
   @apply hidden;
 }
 .signup-form__confirmacio {
-  @apply mx-auto mt-6 w-full max-w-lg rounded border-2 border-dashed border-gold bg-black p-6 text-left font-body text-lg text-white shadow-lg;
+  @apply mx-auto mt-6 w-full max-w-lg rounded-sm border-2 border-dashed border-gold bg-black p-6 text-left font-body text-lg text-white shadow-lg-v3;
 }

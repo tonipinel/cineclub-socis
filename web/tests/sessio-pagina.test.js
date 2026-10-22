@@ -72,6 +72,14 @@ describe('pàgina de sessió', () => {
     expect(html).toMatch(/<span class="section-badge section-badge--hero" data-seccio="cartellera" style="background-color: #bf9000;">Cartellera<\/span>/);
   });
 
+  it('escapa la distribuïdora desconeguda i conserva els <br> dels textos fixos', async () => {
+    const maliciosa = { ...completa, publica: { ...completa.publica, suportDistribucio: '<img src=x onerror=alert(1)> & Cia' } };
+    const html = await render(maliciosa);
+    expect(html).not.toContain('<img src=x onerror');
+    expect(html).toContain('Distribució i cessió de drets: &lt;img src=x onerror=alert(1)&gt; &amp; Cia');
+    expect(html).toContain('Aportació requerida<br>(Gratuït per a socis/es)');
+  });
+
   it('mostra Gratuït o l\'aportació segons el preu', async () => {
     expect(await render(completa)).toContain('<span class="info-item__price">5€</span>');
     const gratis = await render(minima);
@@ -157,7 +165,24 @@ describe('pàgina de sessió', () => {
 
   it('emet el JSON-LD de l\'esdeveniment i de les molles de pa amb l\'ordre de Hugo', async () => {
     const html = await render(completa);
-    expect(html).toContain('<script type="application/ld+json">{"@context":"https://schema.org","@type":"ScreeningEvent","location":{"@type":"Place","address":"Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)","name":"Teatre del Casino Municipal de Roda de Berà"},"name":"Pig","offers":{"@type":"Offer","price":"5","priceCurrency":"EUR","url":"https://cineclub-web.web.app/programacio/2026/pig/"},"startDate":"2026-06-25T19:00:00+02:00","workPresented":{"@type":"Movie","name":"Pig"}}</script>');
+    const bloc = html.match(/<script type="application\/ld\+json">(\{"@context":"https:\/\/schema.org","@type":"ScreeningEvent".*?)<\/script>/)[1];
+    // Les claus de Hugo, amb els mateixos valors, i els camps recomanats per Google al damunt.
+    expect(JSON.parse(bloc)).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'ScreeningEvent',
+      description: 'En Rob és un xef d’alta cuina.',
+      endDate: '2026-06-25T20:32:00+02:00',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      eventStatus: 'https://schema.org/EventScheduled',
+      image: [`${STORAGE}poster.jpg?alt=media`, `${STORAGE}gallery-1.jpg?alt=media`],
+      inLanguage: 'en',
+      location: { '@type': 'Place', address: 'Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)', name: 'Teatre del Casino Municipal de Roda de Berà' },
+      name: 'Pig',
+      offers: { '@type': 'Offer', availability: 'https://schema.org/InStock', price: '5', priceCurrency: 'EUR', url: 'https://cineclub-web.web.app/programacio/2026/pig/' },
+      organizer: { '@type': 'Organization', name: 'Cineclub Roda de Berà', url: 'https://cineclub-web.web.app/' },
+      startDate: '2026-06-25T19:00:00+02:00',
+      workPresented: { '@type': 'Movie', name: 'Pig' },
+    });
     expect(html).toContain('"itemListElement":[{"@type":"ListItem","item":"https://cineclub-web.web.app/","name":"Inici","position":1},{"@type":"ListItem","item":"https://cineclub-web.web.app/programacio/","name":"Programació","position":2},{"@type":"ListItem","item":"https://cineclub-web.web.app/programacio/2026/pig/","name":"Pig","position":3}]');
   });
 });

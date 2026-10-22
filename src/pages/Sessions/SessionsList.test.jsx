@@ -77,4 +77,21 @@ describe('SessionsList', () => {
     expect(screen.getAllByText(/^Rendibilitat:/)).toHaveLength(1);
     expect(screen.getByRole('link', { name: /Carretera a Gusen/ })).toHaveAttribute('href', '/sessions/e1');
   });
+
+  it('només senseControl === true amaga les estadístiques: "false", "true" (text) o 1 no compten', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: 'a', data: () => ({ titol: 'Text', data: '2026-03-05', activa: false, senseControl: 'true' }) },
+          { id: 'b', data: () => ({ titol: 'Numero', data: '2026-03-06', activa: false, senseControl: 1 }) },
+          { id: 'c', data: () => ({ titol: 'Fals', data: '2026-03-07', activa: false, senseControl: false }) },
+        ],
+      });
+      return () => {};
+    });
+    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(await screen.findByText('Text')).toBeInTheDocument();
+    expect(screen.queryByText('Sessió especial · sense control')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^Socis:/)).toHaveLength(3);
+  });
 });

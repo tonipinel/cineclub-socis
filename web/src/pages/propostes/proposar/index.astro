@@ -1,0 +1,9 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import IllaProposar from '../../../components/propostes/IllaProposar.jsx';
+---
+<BaseLayout titol="Proposa una pel·lícula" noindex>
+  <div class="propostes-app">
+    <IllaProposar client:only="react" />
+  </div>
+</BaseLayout>

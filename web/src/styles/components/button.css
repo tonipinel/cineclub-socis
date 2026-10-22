@@ -1,5 +1,5 @@
 .btn {
-  @apply inline-block rounded-full bg-gold px-6 py-3 font-display font-bold text-black no-underline transition hover:bg-gold-dark hover:text-white;
+  @apply inline-block rounded-full-v3 bg-gold px-6 py-3 font-display font-bold text-black no-underline transition-v3 hover:bg-gold-dark hover:text-white;
   font-size: 1.25rem;
 }
 .btn--outline {

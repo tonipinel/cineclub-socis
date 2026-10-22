@@ -15,10 +15,16 @@
   @apply mb-4;
 }
 .prose-ca ul {
-  @apply mb-4 list-disc space-y-1 pl-5;
+  @apply mb-4 list-disc pl-5;
+}
+.prose-ca ul > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.25rem;
 }
 .prose-ca ol {
-  @apply mb-4 list-decimal space-y-1 pl-5;
+  @apply mb-4 list-decimal pl-5;
+}
+.prose-ca ol > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.25rem;
 }
 .prose-ca a:not(.btn) {
   @apply text-gold-dark underline hover:text-gold;

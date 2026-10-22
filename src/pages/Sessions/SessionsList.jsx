@@ -69,7 +69,7 @@ export default function SessionsList() {
                     {s.activa && <EstrellaActiva className="sessions-list__estrella" />}
                   </div>
                   <div className="sessions-list__resum">
-                    {s.senseControl ? (
+                    {s.senseControl === true ? (
                       <span className="badge badge--especial">Sessió especial · sense control</span>
                     ) : (
                       <>

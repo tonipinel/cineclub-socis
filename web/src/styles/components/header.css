@@ -17,7 +17,8 @@
   @apply hidden gap-x-6 gap-y-1 sm:flex;
 }
 .site-header__link {
-  @apply text-sm font-semibold uppercase tracking-wide text-white/70 no-underline hover:text-gold;
+  @apply text-sm font-semibold uppercase tracking-wide no-underline hover:text-gold;
+  color: rgb(255 255 255 / 0.7);
 }
 .site-header__link--active {
   @apply text-gold;
@@ -32,13 +33,14 @@
   @apply visible;
 }
 .mobile-menu__backdrop {
-  @apply absolute inset-0 bg-black/70 opacity-0 transition-opacity duration-300;
+  @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+  background-color: rgb(0 0 0 / 0.7);
 }
 .mobile-menu[data-open="true"] .mobile-menu__backdrop {
   @apply opacity-100;
 }
 .mobile-menu__panel {
-  @apply absolute right-0 top-0 flex h-full w-4/5 max-w-xs flex-col gap-1 border-l-2 border-dashed border-white bg-black p-6 pt-16 transition-transform duration-300;
+  @apply absolute right-0 top-0 flex h-full w-4/5 max-w-xs flex-col gap-1 border-l-2 border-dashed border-white bg-black p-6 pt-16 transition-transform-v3 duration-300;
   transform: translateX(100%);
 }
 .mobile-menu[data-open="true"] .mobile-menu__panel {
@@ -48,7 +50,9 @@
   @apply absolute right-4 top-4 flex h-10 w-10 items-center justify-center border-0 bg-transparent p-0 text-white;
 }
 .mobile-menu__link {
-  @apply border-b border-dashed border-white/20 py-3 text-lg font-semibold uppercase tracking-wide text-white/80 no-underline hover:text-gold;
+  @apply border-b border-dashed py-3 text-lg font-semibold uppercase tracking-wide no-underline hover:text-gold;
+  border-color: rgb(255 255 255 / 0.2);
+  color: rgb(255 255 255 / 0.8);
 }
 .mobile-menu__link--active {
   @apply text-gold;

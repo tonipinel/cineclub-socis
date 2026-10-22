@@ -28,3 +28,10 @@ describe('App', () => {
     expect(screen.getByText('Cineclub Roda de Berà')).toBeInTheDocument();
   });
 });
+
+describe('App amb REDIRIGIR_PROPOSTES a false', () => {
+  it('manté la pantalla pública a /', () => {
+    render(<App />);
+    expect(screen.queryByText(/han canviat d'adreça/)).not.toBeInTheDocument();
+  });
+});

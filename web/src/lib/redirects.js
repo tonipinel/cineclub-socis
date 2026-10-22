@@ -1,4 +1,4 @@
-import { urlSessio } from './sessio-camps.js';
+import { urlSessio, urlSessioCodificada } from './sessio-camps.js';
 
 // Ruta comparable: decodificada, en NFC (Hugo en pot tenir en NFD) i amb barra final.
 const normalitza = (ruta) => {
@@ -20,7 +20,7 @@ export function redireccioPer(pathname, sessions) {
     if (sessio.publicada === false) continue;
     const desti = urlSessio(sessio);
     if (normalitza(desti) === buscat) continue;
-    if ((sessio.publica?.aliases ?? []).some((alias) => normalitza(alias) === buscat)) return encodeURI(desti);
+    if ((sessio.publica?.aliases ?? []).some((alias) => normalitza(alias) === buscat)) return urlSessioCodificada(sessio);
   }
   return null;
 }

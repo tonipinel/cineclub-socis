@@ -8,7 +8,7 @@
   "type": "commonjs",
   "scripts": {
     "lint": "eslint .",
-    "deploy": "firebase deploy --only functions"
+    "deploy": "firebase deploy --only functions:default"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

@@ -164,3 +164,16 @@ describe('pàgina d\'un terme', () => {
     expect((await terme(TermeDirectors, 'directors', 'alauda')).status).toBe(404);
   });
 });
+
+describe('terme amb forma impossible: 404 abans de llegir Firestore', () => {
+  const dolents = ['a'.repeat(201), 'a\u0000b', 'a\nb', ''];
+  it.each([['directors', TermeDirectors], ['generes', TermeGeneres], ['interprets', TermeInterprets]])('%s', async (taxonomia, Ruta) => {
+    const lectures = vi.fn();
+    globalThis.__dbFals = { collection: () => { lectures(); return { get: async () => ({ docs: [] }) }; } };
+    for (const slug of dolents) {
+      const { status } = await terme(Ruta, taxonomia, slug);
+      expect(status, JSON.stringify(slug)).toBe(404);
+    }
+    expect(lectures).not.toHaveBeenCalled();
+  });
+});

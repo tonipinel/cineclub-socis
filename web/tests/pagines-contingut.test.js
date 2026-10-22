@@ -169,6 +169,13 @@ describe('/fes-te-socia/', () => {
   const pagina = () => renderitza(FesTeSocia, '/fes-te-socia/');
   const url = (nom) => `/api/img.webp?w=700&amp;u=${encodeURIComponent(`${ST}${nom}.jpg?alt=media`)}`;
 
+  it('la descripció prefereix `description` al hook', async () => {
+    ambDb({ ...pagines, 'fes-te-socia': { ...pagines['fes-te-socia'], dades: { ...pagines['fes-te-socia'].dades, description: 'Descripció pròpia.' } } });
+    const { html } = await pagina();
+    expect(html).toContain('<meta name="description" content="Descripció pròpia.">');
+    expect(html).toContain('<p class="page-hero__hook">No és només veure una pel·lícula.</p>');
+  });
+
   it('té el títol, la descripció (hook), el menú actiu i el botó d\'inscripció', async () => {
     const { status, html } = await pagina();
     expect(status).toBe(200);

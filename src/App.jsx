@@ -21,6 +21,7 @@ import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
 import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ConfiguracioPage from './pages/Configuracio/ConfiguracioPage';
+import RedireccioPropostes from './pages/Propostes/RedireccioPropostes';
 import PropostesPublic from './pages/Propostes/PropostesPublic';
 import ProposarPellicula from './pages/Propostes/ProposarPellicula';
 import PropostesPendents from './pages/Propostes/PropostesPendents';
@@ -34,9 +35,9 @@ export default function App() {
     <BrowserRouter>
       <Header />
       <Routes>
-        <Route path={ROUTES.INICI} element={<PropostesPublic />} />
-        <Route path={ROUTES.PROPOSTES} element={<PropostesPublic />} />
-        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={<ProposarPellicula />} />
+        <Route path={ROUTES.INICI} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <PropostesPublic />} />
+        <Route path={ROUTES.PROPOSTES} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <PropostesPublic />} />
+        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <ProposarPellicula />} />
         <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
         <Route
           path={ROUTES.SOCIS}

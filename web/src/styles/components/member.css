@@ -1,5 +1,6 @@
 .page-hero__hook {
-  @apply mt-2 max-w-xl text-base text-white/80 sm:text-lg;
+  @apply mt-2 max-w-xl text-base sm:text-lg;
+  color: rgb(255 255 255 / 0.8);
 }
 .page-hero .btn {
   @apply mt-4;
@@ -24,7 +25,7 @@
   @apply sm:flex-row-reverse;
 }
 .member-block__image {
-  @apply mx-auto w-full max-w-sm flex-shrink-0 object-cover sm:mx-0 sm:w-2/5;
+  @apply mx-auto w-full max-w-sm shrink-0 object-cover sm:mx-0 sm:w-2/5;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
 }
 .member-block__body {
@@ -35,7 +36,7 @@
   font-size: 2rem;
   line-height: 2.2rem;
 }
-@media (min-width: 640px) {
+@media (width >= theme(--breakpoint-sm)) {
   .member-block-wrapper .member-block__body h2,
   .member-signup-wrapper .member-signup__body h2 {
     font-size: 3rem;
@@ -61,7 +62,7 @@
   @apply mx-auto flex max-w-[1000px] flex-col items-center gap-8 p-6 py-12 sm:flex-row;
 }
 .member-signup__image {
-  @apply mx-auto w-full max-w-sm flex-shrink-0 object-cover sm:mx-0 sm:w-2/5;
+  @apply mx-auto w-full max-w-sm shrink-0 object-cover sm:mx-0 sm:w-2/5;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
 }
 .member-signup__body {
@@ -78,7 +79,7 @@
   opacity: 1;
 }
 .floating-cta {
-  @apply inline-flex items-center gap-3 rounded-full bg-gold px-8 py-4 font-display text-lg font-bold text-black no-underline shadow-lg transition hover:bg-gold-dark hover:text-white;
+  @apply inline-flex items-center gap-3 rounded-full-v3 bg-gold px-8 py-4 font-display text-lg font-bold text-black no-underline shadow-lg-v3 transition-v3 hover:bg-gold-dark hover:text-white;
 }
 .floating-cta .icon {
   @apply h-6 w-6;

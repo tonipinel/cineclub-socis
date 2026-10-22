@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cacheControlFor, CACHE_OK, CACHE_REDIRECT, CACHE_NOT_FOUND, CACHE_ERROR, CACHE_AVUI } from '../src/lib/cache.js';
+import { cacheControlFor, CACHE_OK, CACHE_REDIRECT, CACHE_NOT_FOUND, CACHE_ERROR, CACHE_AVUI, CACHE_CLIENT } from '../src/lib/cache.js';
 
 describe('cacheControlFor', () => {
   it('fixa els valors exactes de les capçaleres', () => {
@@ -20,6 +20,10 @@ describe('cacheControlFor', () => {
     expect(cacheControlFor(404)).toBe(CACHE_NOT_FOUND);
     expect(cacheControlFor(500)).toBe(CACHE_ERROR);
     expect(cacheControlFor(503)).toBe(CACHE_ERROR);
+  });
+  it('els 4xx que no són 404 tenen una cache curta, no la de les pàgines bones', () => {
+    for (const estat of [400, 403, 410, 429]) expect(cacheControlFor(estat)).toBe(CACHE_CLIENT);
+    expect(CACHE_CLIENT).toBe('public, max-age=60, s-maxage=60');
   });
   it('404, 301 i 500 donen tres valors diferents', () => {
     expect(new Set([cacheControlFor(404), cacheControlFor(301), cacheControlFor(500)]).size).toBe(3);

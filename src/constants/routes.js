@@ -28,3 +28,10 @@ export const CONFIGURACIO = '/configuracio';
 export const DISTRIBUIDORES = '/distribuidores';
 export const DISTRIBUIDORES_NOVA = '/distribuidores/nova';
 export const DISTRIBUIDORES_EDITAR = '/distribuidores/:id';
+
+// Al tall (quan cineclubrodadebera.cat serveixi la web nova) es posa a true i
+// es desplega l'administració: / i /propostes passen a la web pública.
+// NO desplegar-ho a true abans del canvi de DNS: aquesta URL encara serveix Hugo.
+export const REDIRIGIR_PROPOSTES = false;
+export const URL_PROPOSTES_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/';
+export const URL_PROPOSTES_PROPOSAR_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/proposar/';

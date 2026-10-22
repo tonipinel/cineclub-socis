@@ -40,6 +40,52 @@ describe('resizeRequest', () => {
   });
 });
 
+describe('resizeRequest: ample i adreça estrictes', () => {
+  const amb = (w) => resizeRequest(new URLSearchParams({ u: SRC, w }));
+  it('l\'ample ha de ser només xifres', () => {
+    for (const w of [' 400', '400 ', '0x190', '4e2', '400.0', '+400', '-400', '0400', '']) expect(amb(w)).toBe(null);
+    expect(amb('400')).toEqual({ url: SRC, width: 400 });
+  });
+  it('només accepta l\'adreça canònica: `?alt=media`, sense `token`, fragment ni altres paràmetres', () => {
+    const origen = `${STORAGE_PREFIX}sessions%2Fpig%2Fposter.jpg`;
+    expect(resizeRequest(params(`${origen}?alt=media&token=t-1`, 400))).toBe(null);
+    expect(resizeRequest(params(`${origen}?alt=media&evil=1`, 400))).toBe(null);
+    expect(resizeRequest(params(`${origen}?alt=media#frag`, 400))).toBe(null);
+    expect(resizeRequest(params(`${origen}?evil=1`, 400))).toBe(null);
+    expect(resizeRequest(params(origen, 400))).toBe(null);
+    expect(resizeRequest(params(`${origen}?alt=media`, 400)).url).toBe(`${origen}?alt=media`);
+  });
+  it('els paràmetres de la petició són exactament `w` i `u`, sense extres ni repetits', () => {
+    const base = () => new URLSearchParams({ u: SRC, w: '400' });
+    expect(resizeRequest(base())).toEqual({ url: SRC, width: 400 });
+    const extra = base();
+    extra.set('v', '1');
+    expect(resizeRequest(extra)).toBe(null);
+    const repetit = base();
+    repetit.append('w', '400');
+    expect(resizeRequest(repetit)).toBe(null);
+    const repetitU = base();
+    repetitU.append('u', SRC);
+    expect(resizeRequest(repetitU)).toBe(null);
+  });
+});
+
+describe('toWebp: límits i formats', () => {
+  it('limita la concurrència de sharp a un fil', async () => {
+    const petita = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).png().toBuffer();
+    await toWebp(petita, 160);
+    expect(sharp.concurrency()).toBe(1);
+  });
+  it('rebutja una imatge que passa del límit de píxels', async () => {
+    const gran = await sharp({ create: { width: 6500, height: 6500, channels: 3, background: '#000' } }).png({ compressionLevel: 9 }).toBuffer();
+    await expect(toWebp(gran, 400)).rejects.toThrow();
+  });
+  it('rebutja un SVG encara que arribi com a ràster', async () => {
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>');
+    await expect(toWebp(svg, 400)).rejects.toThrow(/format/i);
+  });
+});
+
 describe('toWebp', () => {
   const jpeg = (width, height) => sharp({ create: { width, height, channels: 3, background: '#c00' } }).jpeg().toBuffer();
   it('redueix a l\'ample mantenint la proporció', async () => {
@@ -112,6 +158,12 @@ describe('GET /api/img.webp', () => {
   });
   it('redirigeix a l\'original quan no es pot redimensionar', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('xarxa'); });
+    const res = await crida(SRC);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe(SRC);
+  });
+  it('un SVG servit com a imatge no es processa: redirigeix a l\'original', async () => {
+    vi.stubGlobal('fetch', async () => new Response('<svg xmlns="http://www.w3.org/2000/svg"/>', { headers: { 'content-type': 'image/png' } }));
     const res = await crida(SRC);
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe(SRC);

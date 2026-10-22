@@ -3,8 +3,10 @@ import Icon from './Icon.astro';
 import site from '../data/site.json';
 import menu from '../data/menu.json';
 
-// Equivalent a IsMenuCurrent de Hugo: l'entrada és activa només a la seva pròpia pàgina.
+// Equivalent a IsMenuCurrent de Hugo: l'entrada és activa només a la seva pròpia pàgina. Excepció:
+// «Propostes» també ho és a /propostes/proposar/.
 const { pathname = Astro.url.pathname } = Astro.props;
+const esActiu = (url) => (url === '/propostes/' ? pathname.startsWith(url) : url === pathname);
 ---
 <header class="site-header">
   <div class="site-header__inner">
@@ -14,7 +16,7 @@ const { pathname = Astro.url.pathname } = Astro.props;
     </a>
     <nav class="site-header__nav">
       {menu.map((item) => (
-        <a class={`site-header__link${item.url === pathname ? ' site-header__link--active' : ''}`} href={item.url}>{item.name}</a>
+        <a class={`site-header__link${esActiu(item.url) ? ' site-header__link--active' : ''}`} href={item.url}>{item.name}</a>
       ))}
     </nav>
     <button type="button" class="site-header__menu-toggle" aria-label="Obrir menú" aria-expanded="false" aria-controls="mobile-menu" data-menu-toggle>
@@ -30,7 +32,7 @@ const { pathname = Astro.url.pathname } = Astro.props;
       <Icon name="x-mark" />
     </button>
     {menu.map((item) => (
-      <a class={`mobile-menu__link${item.url === pathname ? ' mobile-menu__link--active' : ''}`} href={item.url}>{item.name}</a>
+      <a class={`mobile-menu__link${esActiu(item.url) ? ' mobile-menu__link--active' : ''}`} href={item.url}>{item.name}</a>
     ))}
   </nav>
 </div>

@@ -7,9 +7,12 @@ export const RESIZE_WIDTHS = [160, 200, 300, 400, 500, 600, 700, 800, 1400];
 const esRedimensionable = (src) => typeof src === 'string' && src.startsWith(STORAGE_PREFIX)
   && !/\.gif$/i.test(src.split('?')[0]);
 
+// L'endpoint només accepta l'adreça canònica (`?alt=media`, sense `token`: els fitxers són públics).
+const canonica = (src) => `${src.split(/[?#]/)[0]}?alt=media`;
+
 export const resizedUrl = (src, width) => (
   esRedimensionable(src) && RESIZE_WIDTHS.includes(width)
-    ? `/api/img.webp?w=${width}&u=${encodeURIComponent(src)}`
+    ? `/api/img.webp?w=${width}&u=${encodeURIComponent(canonica(src))}`
     : src
 );
 

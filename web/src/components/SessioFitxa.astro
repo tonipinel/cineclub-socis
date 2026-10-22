@@ -4,6 +4,7 @@ import InfoItem from './InfoItem.astro';
 import { resizedUrl } from '../lib/images.js';
 import { distribuidoraPerNom } from '../lib/entitats.js';
 import { titolSessio, urlTerme } from '../lib/sessio-camps.js';
+import { escapaHtml } from '../lib/xml.js';
 
 // Traducció del bloc `session-fitxa` de layouts/programacio/single.html (cartell: miniatura a 400
 // d'ample i, al modal, 1400).
@@ -42,7 +43,7 @@ const camps = [
         </dialog>
         {p.suportDistribucio && (distribuidora
           ? <InfoItem logo={distribuidora.logo} href={distribuidora.url} external={true} />
-          : <InfoItem icon="film" caption={`Distribució i cessió de drets: ${p.suportDistribucio}`} />)}
+          : <InfoItem icon="film" caption={`Distribució i cessió de drets: ${escapaHtml(p.suportDistribucio)}`} />)}
       </div>
     )}
     <dl class="session-fitxa__details">

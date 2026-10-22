@@ -29,7 +29,9 @@ const ENLLACOS_TAQUILLA = [
 const ENLLACOS_PUBLICS = [
   { etiqueta: 'Inici', href: `${ROUTES.MARCA_URL}/` },
   { etiqueta: 'Programació', href: `${ROUTES.MARCA_URL}/programacio/` },
-  { etiqueta: 'Propostes', to: ROUTES.INICI },
+  ROUTES.REDIRIGIR_PROPOSTES
+    ? { etiqueta: 'Propostes', href: ROUTES.URL_PROPOSTES_PUBLIQUES }
+    : { etiqueta: 'Propostes', to: ROUTES.INICI },
   { etiqueta: 'Fes-te soci/a', href: `${ROUTES.MARCA_URL}/fes-te-socia/` },
 ];
 
@@ -155,10 +157,17 @@ export default function Header() {
     return (
       <header className="capcalera-publica">
         <div className="capcalera-publica__interior">
-          <Link className="capcalera-publica__marca" to={ROUTES.INICI} aria-label="Cineclub Roda de Berà">
-            <img className="capcalera-publica__logo" src="/logo-marca.png" alt="" />
-            <span className="capcalera-publica__marca-text">Cineclub Roda de Berà</span>
-          </Link>
+          {ROUTES.REDIRIGIR_PROPOSTES ? (
+            <a className="capcalera-publica__marca" href={`${ROUTES.MARCA_URL}/`} aria-label="Cineclub Roda de Berà">
+              <img className="capcalera-publica__logo" src="/logo-marca.png" alt="" />
+              <span className="capcalera-publica__marca-text">Cineclub Roda de Berà</span>
+            </a>
+          ) : (
+            <Link className="capcalera-publica__marca" to={ROUTES.INICI} aria-label="Cineclub Roda de Berà">
+              <img className="capcalera-publica__logo" src="/logo-marca.png" alt="" />
+              <span className="capcalera-publica__marca-text">Cineclub Roda de Berà</span>
+            </Link>
+          )}
           {identitatPublica && (
             <span className="capcalera-publica__salutacio">Hola, {identitatPublica.nomPublic}!</span>
           )}

@@ -11,6 +11,7 @@ export const web = onRequest(
     memory: '512MiB',
     timeoutSeconds: 60,
     maxInstances: 10,
+    serviceAccount: 'web-publica@cineclub-socis.iam.gserviceaccount.com',
   },
   (req, res) => compress(req, res, () => handler(req, res)),
 );

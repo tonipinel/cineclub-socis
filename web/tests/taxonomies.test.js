@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { termesDe, trobaTerme } from '../src/lib/taxonomies.js';
+import { paramTermeValid, termesDe, trobaTerme } from '../src/lib/taxonomies.js';
 
 const termesHugo = JSON.parse(readFileSync(new URL('./fixtures/hugo-termes.json', import.meta.url), 'utf8'));
 
@@ -28,6 +28,42 @@ describe('termesDe', () => {
   it('tolera camps absents', () => {
     expect(termesDe([sessio('2026-01-01', true, {})], 'interprets')).toEqual([]);
     expect(termesDe([sessio('2026-01-01', true, undefined)], 'interprets')).toEqual([]);
+  });
+});
+
+describe('termesDe: dades dolentes i grafies', () => {
+  const publica = (directors, data = '2026-01-01', hora) => ({ data, hora, publicada: true, publica: { directors } });
+
+  it('ignora els noms que no són text i les llistes que no són llista, sense llançar', () => {
+    const sessions = [publica(['Bo', 42, null, {}, ['x'], true]), publica('Mike Leigh'), publica({ 0: 'Mike' })];
+    expect(termesDe(sessions, 'directors').map((t) => t.nom)).toEqual(['Bo']);
+  });
+
+  it('salta els noms que fan un slug buit', () => {
+    const sessions = [publica(['', '   ', '!!!', '¿?', 'Real'])];
+    expect(termesDe(sessions, 'directors').map((t) => t.nom)).toEqual(['Real']);
+  });
+
+  it('les grafies NFC i NFD d\'un mateix nom són un sol terme (en NFC)', () => {
+    const nfc = 'Alauda Ruiz de Azúa';
+    const nfd = nfc.normalize('NFD');
+    expect(nfd).not.toBe(nfc);
+    const res = termesDe([publica([nfd], '2026-02-01'), publica([nfc], '2026-03-01')], 'directors');
+    expect(res).toHaveLength(1);
+    expect(res[0].nom).toBe(nfc);
+    expect(res[0].slug).toBe(nfc.toLowerCase().replace(/ /g, '-'));
+    expect(res[0].sessions).toHaveLength(2);
+  });
+
+  it('una sessió que repeteix el nom en dues grafies compta una sola vegada', () => {
+    const nfc = 'Azúa';
+    const res = termesDe([publica([nfc, nfc.normalize('NFD')])], 'directors');
+    expect(res[0].sessions).toHaveLength(1);
+  });
+
+  it('l\'hora `9:30` ordena abans que `10:00` i la grafia és la de la sessió més antiga', () => {
+    const res = termesDe([publica(['Zeta'], '2026-01-01', '10:00'), publica(['ZETA'], '2026-01-01', '9:30')], 'directors');
+    expect(res[0].nom).toBe('ZETA');
   });
 });
 
@@ -99,5 +135,12 @@ describe('trobaTerme', () => {
     expect(trobaTerme(termes, 'alauda')).toBeNull();
     expect(trobaTerme(termes, '')).toBeNull();
     expect(trobaTerme(termes, undefined)).toBeNull();
+  });
+});
+
+describe('paramTermeValid', () => {
+  it('accepta text normal (amb accents i espais) i rebutja formes impossibles', () => {
+    for (const bo of ['mike-leigh', 'azúa', 'a'.repeat(200), 'dos paraules']) expect(paramTermeValid(bo)).toBe(true);
+    for (const dolent of ['', 'a'.repeat(201), 'a\tb', 'a\u0000', 'a\u0085', undefined, null, 3]) expect(paramTermeValid(dolent)).toBe(false);
   });
 });

@@ -30,6 +30,14 @@ function creaIds() {
   };
 }
 
+// Només es renderitzen com a enllaç els destins segurs: http, https, mailto, tel, relatius `/…`
+// (no `//host`) i `#…`. La resta (`javascript:`, `data:`...) es queda com a text pla.
+// Es treuen els espais i controls abans de comprovar-ho, perquè no es pugui disfressar l'esquema.
+const esHrefSegur = (href) => {
+  const net = String(href ?? '').replace(/[\u0000-\u0020\u007F-\u009F]/g, '');
+  return /^(https?:|mailto:|tel:)/i.test(net) || (net.startsWith('/') && !net.startsWith('//')) || net.startsWith('#');
+};
+
 const escapaAtribut = (valor) => valor.replace(/&(?!amp;)/g, '&amp;').replace(/"/g, '&quot;');
 
 // Equivalent al `typographer` de goldmark (substitucions per defecte de Hugo). Només toca el text:
@@ -94,9 +102,11 @@ export function renderMarkdown(origen) {
         const prefix = icona ? `<span class="prose-heading__icon">${iconaSvg(icona)}</span> ` : '';
         return `<h${depth} id="${id}">${prefix}${contingut}</h${depth}>`;
       },
-      link({ href, text, tokens }) {
-        // Autoenllaç `www.x.cat` sense protocol: Hugo (`linkifyProtocol`) el fa https, marked http.
-        if (/^http:\/\/www\./.test(href) && text === href.slice('http://'.length)) href = `https://${text}`;
+      link({ href, text, tokens, raw }) {
+        if (!esHrefSegur(href)) return this.parser.parseInline(tokens);
+        // Autoenllaç `www.x.cat` sense protocol (el text brut és el mateix text): Hugo
+        // (`linkifyProtocol`) el fa https, marked http. Un enllaç explícit `[..](http://..)` es respecta.
+        if (raw === text && /^http:\/\/www\./.test(href) && text === href.slice('http://'.length)) href = `https://${text}`;
         const extern = href.startsWith('http') ? ' target="_blank" rel="noopener"' : '';
         return `<a href="${escapaAtribut(href)}"${extern}>${this.parser.parseInline(tokens)}</a>`;
       },
@@ -117,6 +127,7 @@ export function renderMarkdownInline(origen) {
 // línia, s'eliminen les etiquetes i els blancs consecutius es redueixen al primer. Les entitats
 // (`&rsquo;`) no es desfan.
 export function textPla(html) {
+  if (!/[<>]/.test(html)) return html;
   const net = html.replace(/\r|\n|<\/p>|<br>|<br \/>/g, (m) => (m === '\r' || m === '\n' ? ' ' : '\n'));
   let sortida = '';
   let dinsEtiqueta = false;

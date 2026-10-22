@@ -30,3 +30,10 @@ describe('images', () => {
     expect(srcsetOf('https://exemple.cat/a.jpg', [400])).toBeUndefined();
   });
 });
+
+describe('resizedUrl: adreça canònica', () => {
+  it('treu el token i qualsevol altre paràmetre perquè l\'endpoint l\'accepti', () => {
+    const amb = `${STORAGE_PREFIX}sessions%2Fpig%2Fposter.jpg?alt=media&token=abc&x=1#f`;
+    expect(resizedUrl(amb, 400)).toBe(resizedUrl(FOTO, 400));
+  });
+});

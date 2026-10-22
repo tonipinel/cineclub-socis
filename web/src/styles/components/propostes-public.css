@@ -1,0 +1,108 @@
+/*
+  Regles de la resta de CSS de l'administració (_public.css, _header.css, _button.css, _forms.css i
+  _carregant.css) que fan servir les pantalles públiques de propostes: només les classes que fan servir
+  els components de `components/propostes/` i les pàgines /propostes/ i /propostes/proposar/. Les regles
+  són les originals; els canvis per al context de la web estan marcats amb «Web:».
+*/
+
+/*
+  Web: `tailwind-v3-compat.css` fa que `hover:` s'apliqui també en tocar la pantalla (com v3); aquí cal
+  el comportament de v4 que veu l'administració (només amb ratolí). Per això aquestes regles fan servir
+  `hover-real:` en lloc de `hover:`.
+*/
+@custom-variant hover-real {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/*
+  Web: a l'administració la pàgina és sobre el fons blanc del navegador; a la web el `body` porta el patró
+  fosc de cinema, així que les illes de propostes porten el seu propi fons blanc (a més, és l'arrel dels
+  estils de `.btn`, vegeu més avall).
+*/
+.propostes-app {
+  @apply flex-1 bg-white;
+}
+/*
+  Web: mateixa pila de reserva que l'administració (el `@theme` de la web només té `sans-serif`);
+  sense això, glifs que Inter no té (p. ex. «←» de «Tornar») es dibuixen amb una altra tipografia.
+*/
+.propostes-app {
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+/*
+  Web: a les pàgines curtes (proposar sense identitat, llista buida) el peu ha de quedar a baix de tot
+  i no deixar veure el patró del `body` per sota. Només afecta les pàgines amb aquestes illes.
+*/
+body:has(.propostes-app) {
+  @apply flex min-h-screen flex-col;
+}
+body:has(.propostes-app) > main {
+  @apply flex flex-1 flex-col;
+}
+
+/* Lector del carnet (_public.css). */
+.lector-carnet {
+  @apply flex flex-col items-center gap-3;
+}
+.lector-carnet__camera {
+  @apply w-full max-w-xs;
+}
+.lector-carnet__video {
+  @apply w-full rounded bg-black;
+}
+.lector-carnet__estat {
+  @apply mt-2 font-body text-sm text-black/70;
+}
+
+/* Salutació de la capçalera quan el soci està identificat (_header.css). */
+.capcalera-publica__salutacio {
+  @apply font-body text-xs text-white/60;
+}
+
+/* Pantalla de càrrega (_carregant.css). */
+.carregant {
+  @apply flex min-h-screen w-full items-center justify-center;
+}
+.carregant__gif {
+  @apply h-24 w-24;
+}
+
+/* Camps i errors de formulari, enllaç (_forms.css). */
+.form__field {
+  @apply mb-4 flex flex-col gap-1;
+}
+.form__label {
+  @apply font-body text-sm font-semibold text-black;
+}
+.form__input {
+  @apply rounded border border-black/20 px-3 py-2 font-body text-base;
+}
+.form__error {
+  @apply font-body text-sm text-red-600;
+}
+.enllac {
+  @apply text-gold-dark transition hover-real:underline;
+}
+
+/*
+  Botó (_button.css). Web: `.btn` ja existeix a button.css de la web amb un altre aspecte (lletra de
+  1.25rem, sense estats de desactivat, `:hover` també en tocar la pantalla), així que aquesta còpia només
+  s'aplica dins l'illa de React (`<div class="propostes-app">`) perquè no canviï els botons de la resta de
+  la web. `:where()` manté l'especificitat de `.btn` (0,1,0), com a l'administració, perquè
+  `.propostes-public__proposar-boto` (propostes.css, que va després) pugui sobreescriure'l. Afegeix
+  `font-size: inherit` per anul·lar la mida de la web i, sense ratolí, torna als colors de repòs perquè no
+  es quedi enganxat l'estat `:hover` de button.css de la web.
+*/
+:where(.propostes-app) .btn {
+  @apply inline-block cursor-pointer rounded-full border-0 bg-gold px-6 py-3 font-display font-bold text-black transition hover-real:bg-gold-dark hover-real:text-white disabled:cursor-not-allowed disabled:opacity-60;
+  font-size: inherit;
+}
+@media (hover: none) {
+  :where(.propostes-app) .btn:hover {
+    @apply bg-gold text-black;
+  }
+}

@@ -29,13 +29,14 @@
   line-height: 1.1;
   text-shadow: 2px 2px 2px black;
 }
-@media (min-width: 640px) {
+@media (width >= theme(--breakpoint-sm)) {
   .session-hero__title {
     font-size: 5rem;
   }
 }
 .session-hero__subtitle {
-  @apply text-base normal-case tracking-normal text-white/70 sm:text-lg;
+  @apply text-base normal-case tracking-normal sm:text-lg;
+  color: rgb(255 255 255 / 0.7);
 }
 .session-gallery-wrapper {
   @apply w-full bg-black;
@@ -54,11 +55,13 @@
   display: none;
 }
 .session-gallery__image {
-  @apply aspect-video w-full flex-shrink-0 snap-center object-cover;
+  @apply aspect-video w-full shrink-0 snap-center object-cover;
 }
 .session-gallery__prev,
 .session-gallery__next {
-  @apply absolute top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center bg-black/60 text-xl text-white transition hover:bg-gold hover:text-black sm:flex;
+  @apply absolute top-1/2 z-10 hidden h-10 w-10 items-center justify-center text-xl text-white transition-v3 hover:bg-gold hover:text-black sm:flex;
+  transform: translateY(-50%);
+  background-color: rgb(0 0 0 / 0.6);
 }
 .session-gallery__prev {
   @apply left-2;
@@ -75,16 +78,18 @@
   color: #000;
 }
 .session-gallery__dots {
-  @apply absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-2;
+  @apply absolute bottom-3 left-1/2 z-10 flex gap-2;
+  transform: translateX(-50%);
 }
 .session-gallery__dot {
-  @apply h-2 w-2 rounded-full bg-white/40 transition;
+  @apply h-2 w-2 rounded-full-v3 transition-v3;
+  background-color: rgb(255 255 255 / 0.4);
 }
 .session-gallery__dot--active {
   @apply bg-gold;
 }
 .session-trailer {
-  @apply mx-4 mt-8 max-w-3xl border-2 border-b-0 border-dashed border-white bg-black p-6 shadow-lg sm:mx-auto;
+  @apply mx-4 mt-8 max-w-3xl border-2 border-b-0 border-dashed border-white bg-black p-6 shadow-lg-v3 sm:mx-auto;
 }
 .session-trailer__frame {
   @apply relative aspect-video w-full overflow-hidden;
@@ -125,7 +130,7 @@
   @apply text-sm font-medium text-black;
 }
 .collab-strip__logo {
-  @apply h-20 w-auto object-contain transition sm:h-24;
+  @apply h-20 w-auto object-contain transition-v3 sm:h-24;
 }
 .collab-strip__link:hover .collab-strip__logo {
   @apply opacity-80;
@@ -146,7 +151,8 @@
   @apply sm:hidden;
 }
 .session-fitxa-wrapper {
-  @apply w-full border-b-[6px] border-dashed border-black bg-white/90;
+  @apply w-full border-b-[6px] border-dashed border-black;
+  background-color: rgb(255 255 255 / 0.9);
   border-top: 4px dashed #ffffff;
 }
 .session-fitxa {
@@ -154,26 +160,27 @@
   padding: 2.5rem 2.5rem 2.25rem;
 }
 .session-fitxa__poster-col {
-  @apply mx-auto flex w-40 flex-shrink-0 flex-col items-center gap-4 self-start sm:mx-0 sm:w-48 sm:items-start;
+  @apply mx-auto flex w-40 shrink-0 flex-col items-center gap-4 self-start sm:mx-0 sm:w-48 sm:items-start;
 }
 .session-fitxa__poster-button {
   @apply block w-full cursor-zoom-in border-0 bg-transparent p-0;
 }
 .session-fitxa__poster {
-  @apply w-full object-cover transition hover:opacity-90;
+  @apply w-full object-cover transition-v3 hover:opacity-90;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
 }
 .poster-modal {
   @apply relative m-auto max-h-[90vh] max-w-[95vw] border-0 bg-transparent p-0;
 }
 .poster-modal::backdrop {
-  @apply bg-black/90;
+  background-color: rgb(0 0 0 / 0.9);
 }
 .poster-modal__image {
   @apply block max-h-[90vh] max-w-[95vw] object-contain;
 }
 .poster-modal__close {
-  @apply absolute right-4 top-4 flex h-10 w-10 items-center justify-center bg-black/70 text-2xl text-white transition hover:bg-gold hover:text-black;
+  @apply absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-2xl text-white transition-v3 hover:bg-gold hover:text-black;
+  background-color: rgb(0 0 0 / 0.7);
 }
 .poster-modal__close .icon {
   color: #fff;
@@ -194,7 +201,7 @@
   @apply px-6 pt-4 font-display text-sm font-bold uppercase tracking-wide text-gold-dark;
 }
 .session-body {
-  @apply mx-4 mb-8 max-w-3xl border-2 border-t-0 border-dashed border-black bg-white p-6 shadow-lg sm:mx-auto;
+  @apply mx-4 mb-8 max-w-3xl border-2 border-t-0 border-dashed border-black bg-white p-6 shadow-lg-v3 sm:mx-auto;
 }
 .session-cartell-banner-wrapper {
   @apply w-full border-b-[6px] border-dashed border-black bg-gold;
@@ -203,16 +210,16 @@
   @apply mx-auto flex max-w-[1000px] flex-col items-center gap-4 px-6 py-6 text-center sm:flex-row sm:justify-between sm:text-left;
 }
 .session-cartell-banner__button {
-  @apply inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-black px-6 py-3 font-display font-bold uppercase text-white no-underline transition hover:bg-neutral-800;
+  @apply inline-flex shrink-0 items-center gap-2 rounded-full-v3 bg-black px-6 py-3 font-display font-bold uppercase text-white no-underline transition-v3 hover:bg-neutral-800;
 }
 .session-cartell-banner__button .icon {
-  @apply h-6 w-6 flex-shrink-0 text-white;
+  @apply h-6 w-6 shrink-0 text-white;
 }
 .session-cartell-banner__message {
   @apply flex items-center gap-4;
 }
 .session-cartell-banner__message .icon {
-  @apply w-auto flex-shrink-0 text-black;
+  @apply w-auto shrink-0 text-black;
   height: 5rem;
 }
 .session-cartell-banner__text {
@@ -267,7 +274,7 @@
   @apply text-xs text-gray-700;
 }
 .info-item__link {
-  @apply flex flex-col items-center gap-2 transition;
+  @apply flex flex-col items-center gap-2 transition-v3;
 }
 .info-item__link .info-item__caption {
   @apply text-gold-dark underline;

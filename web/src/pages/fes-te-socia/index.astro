@@ -19,7 +19,7 @@ const imatges = pagina.imatges ?? {};
 const imatge = (nom) => (nom && imatges[nom] ? resizedUrl(imatges[nom], 700) : '');
 const imatgeSocia = imatge(dades.signup_image);
 ---
-<BaseLayout titol={pagina.titol} descripcio={dades.hook || undefined}>
+<BaseLayout titol={pagina.titol} descripcio={dades.description || dades.hook || undefined}>
   <section class="page-hero">
     <h1 class="page-hero__title">{pagina.titol}</h1>
     {dades.hook && <p class="page-hero__hook">{dades.hook}</p>}

@@ -18,20 +18,25 @@
   @apply flex flex-wrap justify-center gap-4 text-sm;
 }
 .site-footer__link {
-  @apply text-white/70 no-underline hover:text-gold;
+  @apply no-underline hover:text-gold;
+  color: rgb(255 255 255 / 0.7);
 }
 .site-footer__social {
   @apply flex gap-4;
 }
 .site-footer__icon {
-  @apply flex h-9 w-9 items-center justify-center rounded-full border border-white/30 text-white transition hover:border-gold hover:text-gold;
+  @apply flex h-9 w-9 items-center justify-center rounded-full-v3 border text-white transition-v3 hover:border-gold hover:text-gold;
+  border-color: rgb(255 255 255 / 0.3);
 }
 .site-footer__icon svg {
   @apply h-4 w-4;
 }
 .site-footer__atribucio {
-  @apply mx-auto max-w-6xl px-4 pb-6 text-center text-xs text-white/50;
+  @apply mx-auto max-w-6xl px-4 pb-6 text-center text-xs;
+  color: rgb(255 255 255 / 0.5);
 }
 .site-footer__copyright {
-  @apply border-t border-white/10 py-4 text-center text-xs text-white/50;
+  @apply border-t py-4 text-center text-xs;
+  border-color: rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.5);
 }

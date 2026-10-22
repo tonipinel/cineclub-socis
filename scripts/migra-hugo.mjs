@@ -8,10 +8,34 @@
 // Credencials: GOOGLE_APPLICATION_CREDENTIALS o la clau cineclub-socis-firebase-adminsdk-*.json de l'arrel.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import matter from 'gray-matter';
+
+const ARREL = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+const US = 'Ús: node scripts/migra-hugo.mjs [--contingut <dir content de Hugo>] [--apply [--omet-noves]]';
+
+// Opcions de la línia d'ordres. Una opció desconeguda (p. ex. `--omet-nova`) o un valor que falta
+// llança: mai no s'ha d'aplicar una migració amb una errada d'escriptura que n'ha canviat el sentit.
+export function llegirOpcions(argv, dirContingutPerDefecte = join(homedir(), 'sites/cineclub/content')) {
+  const opcions = { apply: false, ometNoves: false, dirContingut: dirContingutPerDefecte };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--apply') opcions.apply = true;
+    else if (arg === '--omet-noves') opcions.ometNoves = true;
+    else if (arg === '--contingut') {
+      const valor = argv[i + 1];
+      if (!valor || valor.startsWith('--')) throw new Error('Falta el valor de --contingut <dir>');
+      opcions.dirContingut = valor;
+      i += 1;
+    } else {
+      throw new Error(`Opció desconeguda: ${arg}`);
+    }
+  }
+  return opcions;
+}
 
 export const BUCKET = 'cineclub-socis.firebasestorage.app';
 export const URL_WEB = 'https://cineclubrodadebera.cat';
@@ -405,7 +429,7 @@ export function informe({ apply, hugo, sessions, emparellament, accions, pagines
 // ---------------------------------------------------------------- Execució
 
 export async function executar({
-  apply = false, ometNoves = false, db, bucket, dirContingut, mapa = {}, dirBackups = 'backups', avui = new Date(), log = console.log,
+  apply = false, ometNoves = false, db, bucket, dirContingut, mapa = {}, dirBackups = join(ARREL, 'backups'), avui = new Date(), log = console.log,
 }) {
   if (apply) comprovarCopia(dirBackups, avui);
 
@@ -430,7 +454,10 @@ export async function executar({
       throw new Error(`Hi ha ${dubtoses.length} sessions dubtoses sense resoldre (${dubtoses.map((d) => d.hugo.slug).join(', ')}). Resol-les a scripts/migracio-mapa.json amb l'id de la sessió o "nova".`);
     }
     await aplicar(accions, { db, bucket, log });
-    log('Migració aplicada.');
+    const omeses = accions.filter((a) => a.omesa).length;
+    log(ometNoves
+      ? `Migració aplicada, SENSE crear ${omeses} sessions noves (--omet-noves). Torna a executar sense l'opció per crear-les.`
+      : 'Migració aplicada.');
   }
   return { hugo, pagines, emparellament, accions };
 }
@@ -440,16 +467,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { getFirestore } = await import('firebase-admin/firestore');
   const { getStorage } = await import('firebase-admin/storage');
 
-  const apply = process.argv.includes('--apply');
-  const ometNoves = process.argv.includes('--omet-noves');
-  const i = process.argv.indexOf('--contingut');
-  const dirContingut = i > -1 ? process.argv[i + 1] : join(homedir(), 'sites/cineclub/content');
+  let opcions;
+  try {
+    opcions = llegirOpcions(process.argv.slice(2));
+  } catch (err) {
+    console.error(`${err.message}\n${US}`);
+    process.exit(2);
+  }
+  const { apply, ometNoves, dirContingut } = opcions;
   const mapa = JSON.parse(readFileSync(new URL('./migracio-mapa.json', import.meta.url), 'utf8'));
 
   let credential = applicationDefault();
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    const key = readdirSync('.').find((f) => /^cineclub-socis-firebase-adminsdk-.*\.json$/.test(f));
-    if (key) credential = cert(JSON.parse(readFileSync(key, 'utf8')));
+    const key = readdirSync(ARREL).find((f) => /^cineclub-socis-firebase-adminsdk-.*\.json$/.test(f));
+    if (key) credential = cert(JSON.parse(readFileSync(join(ARREL, key), 'utf8')));
   }
   const app = initializeApp({ credential, storageBucket: BUCKET });
 

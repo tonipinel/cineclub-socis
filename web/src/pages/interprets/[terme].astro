@@ -1,10 +1,11 @@
 ---
 import TaxonomiaTerme from '../../components/TaxonomiaTerme.astro';
 import { sessionsPubliques } from '../../lib/sessions.js';
-import { termesDe, trobaTerme } from '../../lib/taxonomies.js';
+import { paramTermeValid, termesDe, trobaTerme } from '../../lib/taxonomies.js';
 
 // /interprets/<terme>/: el segment arriba decodificat, tant si el navegador va demanar la forma amb
 // accents com la percent-encoded. Un terme sense cap sessió publicada no existeix: 404.
+if (!paramTermeValid(Astro.params.terme)) return Astro.rewrite('/404');
 const terme = trobaTerme(termesDe(await sessionsPubliques(), 'interprets'), Astro.params.terme);
 if (!terme) return Astro.rewrite('/404');
 ---

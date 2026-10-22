@@ -2,7 +2,7 @@
   @apply m-0 bg-neutral-300 p-0;
 }
 .cartell-print-btn {
-  @apply font-display fixed right-4 top-4 z-50 rounded bg-gold px-4 py-2 font-semibold uppercase text-white shadow-lg;
+  @apply font-display fixed right-4 top-4 z-50 rounded-sm bg-gold px-4 py-2 font-semibold uppercase text-white shadow-lg-v3;
 }
 .cartell-print-btn:hover {
   @apply bg-gold-dark;
@@ -37,7 +37,7 @@
   padding-top: 18mm;
 }
 .cartell__logo {
-  @apply h-auto flex-shrink-0;
+  @apply h-auto shrink-0;
   width: 66mm;
   margin-top: -4mm;
   position: relative;
@@ -103,7 +103,7 @@
   padding: 0 2mm;
 }
 .cartell__filmstrip-hole {
-  @apply flex-shrink-0 bg-white;
+  @apply shrink-0 bg-white;
   width: 2.2mm;
   height: 2.2mm;
   border-radius: 0.6mm;
@@ -118,7 +118,7 @@
   border-radius: 1.5mm;
 }
 .cartell__collab-strip {
-  @apply flex flex-shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-2 bg-white;
+  @apply flex shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-2 bg-white;
   padding: 3mm 8mm;
 }
 .cartell__collab-strip-item,

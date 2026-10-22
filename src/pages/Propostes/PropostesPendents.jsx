@@ -119,7 +119,13 @@ export default function PropostesPendents() {
           </button>
         ))}
       </div>
-      {pestanya === 'gestio' ? <GestioPropostes /> : <PropostesPublic />}
+      {pestanya === 'gestio' ? <GestioPropostes /> : ROUTES.REDIRIGIR_PROPOSTES ? (
+        <p>
+          <a className="enllac" href={ROUTES.URL_PROPOSTES_PUBLIQUES} target="_blank" rel="noopener noreferrer">
+            Obre la vista pública de les propostes
+          </a>
+        </p>
+      ) : <PropostesPublic />}
     </div>
   );
 }

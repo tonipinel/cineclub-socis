@@ -4,8 +4,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import {
-  llegirSessionsHugo, llegirPaginesHugo, emparellar, pla, executar, urlStorage, BUCKET,
+  llegirSessionsHugo, llegirPaginesHugo, emparellar, pla, executar, urlStorage, llegirOpcions, BUCKET,
 } from './migra-hugo.mjs';
 
 const CONTINGUT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/migra-hugo/content');
@@ -401,6 +402,7 @@ describe('executar', () => {
 
     expect(primera.accions.filter((a) => a.tipus === 'crear sessio').map((a) => a.slug).sort()).toEqual(['carretera-a-gusen', 'una-altra']);
     expect(linies.join('\n')).toMatch(/crear sessio carretera-a-gusen: .*\(omesa\)/);
+    expect(linies.at(-1)).toMatch(/SENSE crear 2 sessions noves \(--omet-noves\)/);
     expect(db.escriptures.filter((e) => e.nom === 'sessions' && e.op === 'create')).toEqual([]);
     expect(db.escriptures.filter((e) => e.nom === 'sessions' && e.op === 'update').map((e) => e.id).sort()).toEqual(['abelles1', 'porc1']);
     expect(Object.keys(db.dades.pagines)).toHaveLength(5);
@@ -419,6 +421,12 @@ describe('executar', () => {
     expect(tercera.accions).toEqual([]);
   });
 
+  it('el missatge final sense --omet-noves no parla d\'omissions', async () => {
+    const linies = [];
+    await executar({ apply: true, db: firestoreFals(sessionsInicials()), bucket: bucketFals(), dirContingut: CONTINGUT, mapa, dirBackups: dirBackupsAmbManifest(), avui: AVUI, log: (l) => linies.push(l) });
+    expect(linies.at(-1)).toBe('Migració aplicada.');
+  });
+
   it('no sobreescriu les imatges que ja són a Storage', async () => {
     const db = firestoreFals(sessionsInicials());
     const bucket = bucketFals(['web/sessions/pig/poster.jpg']);
@@ -426,5 +434,35 @@ describe('executar', () => {
     expect(bucket.fitxers.get('web/sessions/pig/poster.jpg')).toEqual({ antic: true });
     expect(bucket.fitxers.get('web/sessions/20000-especies-de-abejas/poster.jpg').opcions)
       .toMatchObject({ contentType: 'image/jpeg', preconditionOpts: { ifGenerationMatch: 0 } });
+  });
+});
+
+describe('llegirOpcions', () => {
+  it('sense arguments és un informe', () => {
+    expect(llegirOpcions([], '/c')).toEqual({ apply: false, ometNoves: false, dirContingut: '/c' });
+  });
+  it('reconeix --apply, --omet-noves i --contingut', () => {
+    expect(llegirOpcions(['--apply', '--omet-noves', '--contingut', '/x'], '/c')).toEqual({ apply: true, ometNoves: true, dirContingut: '/x' });
+  });
+  it('una opció desconeguda (la errada de --omet-noves) llança, mai no s\'aplica', () => {
+    for (const dolent of ['--omet-nova', '--omet-noves=1', '--apply-tot', '--ometnoves', 'apply']) {
+      expect(() => llegirOpcions(['--apply', dolent], '/c'), dolent).toThrow(/desconeguda/);
+    }
+  });
+  it('--contingut sense valor llança', () => {
+    expect(() => llegirOpcions(['--contingut'], '/c')).toThrow(/--contingut/);
+    expect(() => llegirOpcions(['--contingut', '--apply'], '/c')).toThrow(/--contingut/);
+  });
+  it('des de la línia d\'ordres, una opció desconeguda imprimeix l\'ús i surt amb error', () => {
+    const arxiu = join(dirname(fileURLToPath(import.meta.url)), 'migra-hugo.mjs');
+    const r = spawnSync(process.execPath, [arxiu, '--omet-nova'], {
+      encoding: 'utf8',
+      cwd: tmpdir(),
+      // Per seguretat: mai no pot arribar a cap Firestore real, ni amb una regressió
+      env: { ...process.env, GOOGLE_APPLICATION_CREDENTIALS: '/nonexistent', FIRESTORE_EMULATOR_HOST: '127.0.0.1:1' },
+    });
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/desconeguda: --omet-nova/);
+    expect(r.stderr).toMatch(/Ús: node scripts\/migra-hugo\.mjs/);
   });
 });

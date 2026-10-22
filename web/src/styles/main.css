@@ -1,3 +1,7 @@
+@import "tailwindcss" source(none);
+@source "../**/*.{astro,js}";
+@import "./tailwind-v3-compat.css";
+
 @import "./components/layout.css";
 @import "./components/header.css";
 @import "./components/footer.css";
@@ -11,7 +15,12 @@
 @import "./components/faq.css";
 @import "./components/prose.css";
 @import "./components/cartell.css";
+@import "./components/propostes-public.css";
+@import "./components/propostes.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --color-gold: #BF9000;
+  --color-gold-dark: #7F6000;
+  --font-display: Oswald, sans-serif;
+  --font-body: Inter, sans-serif;
+}

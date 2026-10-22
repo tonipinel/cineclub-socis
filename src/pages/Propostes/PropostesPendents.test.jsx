@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
+vi.mock('./PropostesPublic', () => ({ default: () => <div>Pantalla pública incrustada</div> }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_, nom) => nom),
   getDocs: vi.fn(),
@@ -105,5 +106,15 @@ describe('PropostesPendents', () => {
       render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
       expect(await screen.findByRole('link', { name: 'Amélie' })).toBeInTheDocument();
     });
+  });
+});
+
+describe('pestanya «Vista pública» amb REDIRIGIR_PROPOSTES a false', () => {
+  it('incrusta la pantalla pública', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
+    await userEvent.click(screen.getByRole('tab', { name: 'Vista pública' }));
+    expect(screen.getByText('Pantalla pública incrustada')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /vista pública de les propostes/i })).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   sessionsPubliques,
   sessioPerSlug,
@@ -112,6 +112,17 @@ describe('sessionsPubliques', () => {
     expect(() => llista.forEach((s) => dataIso(s.data, s.hora))).not.toThrow();
   });
 
+  it('normalitza l\'hora a HH:MM perquè `9:30` ordeni abans de `10:00`', async () => {
+    const db = dbFals([
+      sessio('deu', '2026-05-07', '10:00', {}),
+      sessio('nou', '2026-05-07', '9:30', {}),
+      sessio('fora-rang', '2026-05-07', '25:00', {}),
+    ]);
+    const llista = await sessionsPubliques(db);
+    expect(ids(llista)).toEqual(['fora-rang', 'nou', 'deu']);
+    expect(llista.map((s) => s.hora)).toEqual(['00:00', '09:30', '10:00']);
+  });
+
   it('conserva l\'id del document i les dades', async () => {
     const [s] = await sessionsPubliques(dbFals([pig]));
     expect(s.id).toBe('pig');
@@ -213,5 +224,16 @@ describe('sessionsRelacionades (related-sessions.html)', () => {
     const copia = [...totes];
     expect(ids(sessionsRelacionades(abejas, [...totes].reverse()))).toEqual(ids(sessionsRelacionades(abejas, totes)));
     expect(totes).toEqual(copia);
+  });
+});
+
+describe('sessionsPubliques: memòria', () => {
+  it('no torna a llegir Firestore dins del TTL i no memoritza les errades', async () => {
+    const get = vi.fn().mockRejectedValueOnce(new Error('caiguda')).mockResolvedValue({ docs: [] });
+    const db = { collection: () => ({ get }) };
+    await expect(sessionsPubliques(db)).rejects.toThrow();
+    await sessionsPubliques(db);
+    await sessionsPubliques(db);
+    expect(get).toHaveBeenCalledTimes(2);
   });
 });

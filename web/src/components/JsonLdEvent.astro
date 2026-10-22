@@ -1,22 +1,11 @@
 ---
-import site from '../data/site.json';
 import { SITE_URL } from '../lib/env.js';
-import { dataIso } from '../lib/format.js';
-import { titolSessio, urlSessio } from '../lib/sessio-camps.js';
+import { eventJsonLd } from '../lib/jsonld-event.js';
 import { jsonLd } from '../lib/jsonld.js';
 
-// Traducció de partials/jsonld-screening-event.html. Les claus van en l'ordre alfabètic que
-// emet el `jsonify` de Hugo.
+// Traducció de partials/jsonld-screening-event.html més els camps recomanats per Google
+// (vegeu lib/jsonld-event.js).
 const { sessio } = Astro.props;
-const titol = titolSessio(sessio);
-const json = jsonLd({
-  '@context': 'https://schema.org',
-  '@type': 'ScreeningEvent',
-  location: { '@type': 'Place', address: site.venueAddress, name: site.venueName },
-  name: titol,
-  offers: { '@type': 'Offer', price: String(sessio.publica?.preu), priceCurrency: 'EUR', url: new URL(urlSessio(sessio), SITE_URL).href },
-  startDate: dataIso(sessio.data, sessio.hora),
-  workPresented: { '@type': 'Movie', name: sessio.publica?.titolOriginal || titol },
-});
+const json = jsonLd(eventJsonLd(sessio, SITE_URL));
 ---
 <script type="application/ld+json" set:html={json}></script>

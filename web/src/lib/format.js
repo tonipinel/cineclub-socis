@@ -11,6 +11,14 @@ export function urlize(text) {
     .replace(/[^\p{L}\p{N}\p{M}.\-_]/gu, '');
 }
 
+// Hora `H:MM` o `HH:MM` com a `HH:MM` (amb zero a l'esquerra, perquè l'ordre per text sigui l'horari);
+// qualsevol altra cosa o una hora fora de rang, null.
+export function horaNormal(hora) {
+  const m = typeof hora === 'string' ? /^(\d{1,2}):(\d{2})$/.exec(hora.trim()) : null;
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
 // `data` és 'AAAA-MM-DD' (s'ignora qualsevol part horària posterior).
 function parteix(data) {
   const [any, mes, dia] = data.slice(0, 10).split('-').map(Number);
@@ -81,4 +89,15 @@ export function dataIso(data, hora = '00:00') {
   const abs = Math.abs(ofset);
   const pad = (n) => String(n).padStart(2, '0');
   return `${data.slice(0, 10)}T${pad(h)}:${pad(min)}:00${signe}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+// `dataIso` de l'inici més `minuts`, també amb l'ofset d'Europe/Madrid d'aquell instant
+// (la sessió pot acabar l'endemà o després d'un canvi d'hora).
+export function dataIsoMesMinuts(data, hora, minuts) {
+  const instant = new Date(Date.parse(dataIso(data, hora)) + minuts * 60000);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(instant).map((p) => [p.type, p.value]));
+  return dataIso(`${parts.year}-${parts.month}-${parts.day}`, `${parts.hour}:${parts.minute}`);
 }

@@ -1,5 +1,6 @@
 .page {
-  @apply m-0 rounded-none border-b-2 border-dashed border-black bg-white/80 pt-4 px-8 pb-[0.4rem];
+  @apply m-0 rounded-none border-b-2 border-dashed border-black pt-4 px-8 pb-[0.4rem];
+  background-color: rgb(255 255 255 / 0.8);
 }
 .page__title {
   @apply font-display text-3xl font-bold uppercase tracking-tight text-black;
@@ -16,13 +17,15 @@
   text-shadow: 2px 2px 2px black;
 }
 .page-body {
-  @apply mx-4 my-8 max-w-3xl border-2 border-dashed border-black bg-white p-6 shadow-lg sm:mx-auto;
+  @apply mx-4 my-8 max-w-3xl border-2 border-dashed border-black bg-white p-6 shadow-lg-v3 sm:mx-auto;
 }
 .taxonomy-grid-wrapper {
   @apply mx-auto max-w-[1280px];
 }
-.taxonomy-list {
-  @apply divide-y divide-black/10;
+.taxonomy-list > :not([hidden]) ~ :not([hidden]) {
+  border-top-width: 1px;
+  border-bottom-width: 0;
+  border-color: rgb(0 0 0 / 0.1);
 }
 .taxonomy-list__item {
   @apply flex items-center justify-between gap-4 py-3;

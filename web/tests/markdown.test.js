@@ -40,6 +40,21 @@ describe('renderMarkdown', () => {
     expect(renderMarkdown('Mira www.aepd.es.'))
       .toBe('<p>Mira <a href="https://www.aepd.es" target="_blank" rel="noopener">www.aepd.es</a>.</p>\n');
     expect(renderMarkdown('[web](http://www.aepd.es)')).toContain('href="http://www.aepd.es"');
+    // Enllaç explícit amb el mateix text que l'adreça: es respecta el `http://`.
+    expect(renderMarkdown('[www.foo.cat](http://www.foo.cat)')).toContain('href="http://www.foo.cat"');
+    expect(renderMarkdown('[www.foo.cat](https://www.foo.cat)')).toContain('href="https://www.foo.cat"');
+  });
+
+  it('només renderitza com a enllaç els destins segurs; la resta queda com a text', () => {
+    for (const bo of ['https://x.cat/', 'http://x.cat/', 'mailto:a@x.cat', 'tel:+34977000000', '/a/', '#ancora']) {
+      expect(renderMarkdown(`[t](${bo})`), bo).toContain(`<a href="${bo}"`);
+    }
+    for (const dolent of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,x', 'vbscript:x', '//evil.cat/x', 'foo/bar', 'java%0Ascript:x']) {
+      const html = renderMarkdown(`[text](${dolent})`);
+      expect(html, dolent).not.toContain('<a');
+      expect(html, dolent).toContain('text');
+    }
+    expect(renderMarkdown('[text](<java\tscript:alert(1)>)')).not.toContain('<a');
   });
 
   it('obre en pestanya nova només els enllaços externs', () => {
@@ -88,6 +103,10 @@ describe('renderMarkdownInline (markdownify de Hugo)', () => {
 });
 
 describe('textPla (plainify de Hugo)', () => {
+  it('sense `<` ni `>` retorna el text intacte (blancs i salts inclosos)', () => {
+    expect(textPla('a  b\n\nc\r\nd')).toBe('a  b\n\nc\r\nd');
+    expect(textPla('')).toBe('');
+  });
   it('treu les etiquetes, separa paràgrafs amb salt de línia i col·lapsa els espais', () => {
     expect(textPla('<p>A</p>\n<p>B</p>\n')).toBe('A\nB\n');
     expect(textPla('<p>Llista:</p>\n<ul>\n<li>U</li>\n<li>Dos</li>\n</ul>\n')).toBe('Llista:\nU Dos ');

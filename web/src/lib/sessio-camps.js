@@ -10,6 +10,9 @@ export const titolSessio = (sessio) => sessio.publica?.titol || sessio.titol;
 
 export const urlSessio = (sessio) => `/programacio/${anyDe(sessio)}/${sessio.slug}/`;
 
+// Camí amb el slug codificat (només ASCII), com el de Hugo al sitemap i el dels 301 dels aliases.
+export const urlSessioCodificada = (sessio) => urlSessio(sessio).split('/').map(encodeURIComponent).join('/');
+
 // `/directors/alauda-ruiz-de-azúa/`, amb els accents codificats com fa Hugo.
 export const urlTerme = (taxonomia, nom) => `/${taxonomia}/${encodeURIComponent(urlize(nom))}/`;
 
