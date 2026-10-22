@@ -122,11 +122,15 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
     const { html } = await renderitza('/propostes/votar/', { PUBLIC_SITE_URL: 'https://cineclubrodadebera.cat' });
     expect(meta(html, 'property', 'og:title')).toBe('Vota les propostes · Cineclub Roda de Berà');
     expect(meta(html, 'property', 'og:description')).toBe('Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·lícules proposades per les persones sòcies.');
-    expect(meta(html, 'property', 'og:image')).toBe('https://cineclubrodadebera.cat/images/entitats/cineclub-roda-de-bera.png');
+    expect(meta(html, 'property', 'og:image')).toBe('https://cineclubrodadebera.cat/propostes/votar/og.jpg');
+    expect(meta(html, 'property', 'og:image:type')).toBe('image/jpeg');
+    expect(meta(html, 'property', 'og:image:width')).toBe('1200');
+    expect(meta(html, 'property', 'og:image:height')).toBe('630');
+    expect(meta(html, 'name', 'twitter:image')).toBe('https://cineclubrodadebera.cat/propostes/votar/og.jpg');
     expect(meta(html, 'property', 'og:url')).toBe('https://cineclubrodadebera.cat/propostes/votar/');
     expect(meta(html, 'property', 'og:type')).toBe('website');
     expect(meta(html, 'property', 'og:locale')).toBe('ca_ES');
-    for (const nom of ['og:title', 'og:description', 'og:image', 'og:url', 'og:type', 'og:locale']) {
+    for (const nom of ['og:title', 'og:description', 'og:image', 'og:image:type', 'og:image:width', 'og:image:height', 'og:url', 'og:type', 'og:locale']) {
       expect(html.match(new RegExp(`property="${nom}"`, 'g'))).toHaveLength(1);
     }
     expect(existsSync(new URL('../public/images/entitats/cineclub-roda-de-bera.png', import.meta.url))).toBe(true);
@@ -146,6 +150,8 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
   it('no canvia el <head> de /propostes/ ni de /propostes/proposar/ (títol social = títol)', async () => {
     const propostes = (await renderitza('/propostes/')).html;
     expect(meta(propostes, 'property', 'og:title')).toBe('Propostes de programació');
+    expect(meta(propostes, 'property', 'og:image')).toBe('https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png');
+    expect(propostes).not.toContain('og:image:width');
     expect(propostes).toContain('<meta name="twitter:card" content="summary_large_image">');
     const proposar = (await renderitza('/propostes/proposar/')).html;
     expect(meta(proposar, 'property', 'og:title')).toBe('Proposa una pel·lícula');

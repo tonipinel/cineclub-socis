@@ -132,6 +132,16 @@ describe('fetchImage', () => {
     expect(await fetchImage(SRC, resposta(gran(), { ...jpeg, 'content-length': '10' }))).toBe(null);
     expect((await fetchImage(SRC, resposta(flux([tros, tros]), jpeg))).length).toBe(2 * 1024 * 1024);
   });
+  it('accepta un límit de mida i un temps màxim propis', async () => {
+    const tros = new Uint8Array(1024 * 1024);
+    expect(await fetchImage(SRC, resposta(flux([tros, tros, tros]), jpeg), { maxBytes: 2 * 1024 * 1024 })).toBe(null);
+    expect(await fetchImage(SRC, resposta('x', { ...jpeg, 'content-length': '3000000' }), { maxBytes: 2 * 1024 * 1024 })).toBe(null);
+    expect((await fetchImage(SRC, resposta(flux([tros, tros]), jpeg), { maxBytes: 2 * 1024 * 1024 })).length).toBe(2 * 1024 * 1024);
+    let opcions;
+    await fetchImage(SRC, async (url, o) => { opcions = o; return new Response('x', { headers: jpeg }); }, { timeoutMs: 1 });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(opcions.signal.aborted).toBe(true);
+  });
   it('no segueix les redireccions i té temps màxim', async () => {
     let opcions;
     await fetchImage(SRC, async (url, o) => { opcions = o; return new Response('x', { headers: jpeg }); });

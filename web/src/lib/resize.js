@@ -3,8 +3,8 @@ import { STORAGE_PREFIX, RESIZE_WIDTHS } from './images.js';
 
 const MAX_BYTES = 40 * 1024 * 1024;
 // Límit de píxels d'entrada (25 MP): una bomba de descompressió petita en bytes no omple la memòria.
-const MAX_PIXELS = 25 * 1000 * 1000;
-const FORMATS_PERMESOS = ['jpeg', 'png', 'webp', 'gif', 'avif'];
+export const MAX_PIXELS = 25 * 1000 * 1000;
+export const FORMATS_PERMESOS = ['jpeg', 'png', 'webp', 'gif', 'avif'];
 // Només ràster: l'SVG pot portar scripts i sharp no el necessita.
 const TIPUS_PERMESOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 
@@ -78,13 +78,13 @@ export const toWebp = async (buffer, width) => {
 };
 
 // Llegeix el cos tallant en passar del límit, perquè un content-length absent o fals no ompli la memòria.
-async function llegirAmbLimit(res) {
+async function llegirAmbLimit(res, maxBytes) {
   if (!res.body) return null;
   const trossos = [];
   let total = 0;
   for await (const tros of res.body) {
     total += tros.length;
-    if (total > MAX_BYTES) {
+    if (total > maxBytes) {
       await res.body.cancel?.().catch(() => {});
       return null;
     }
@@ -93,12 +93,12 @@ async function llegirAmbLimit(res) {
   return Buffer.concat(trossos);
 }
 
-export const fetchImage = async (url, fetchFn = fetch) => {
-  const res = await fetchFn(url, { signal: AbortSignal.timeout(10000), redirect: 'error' });
+export const fetchImage = async (url, fetchFn = fetch, { timeoutMs = 10000, maxBytes = MAX_BYTES } = {}) => {
+  const res = await fetchFn(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
   if (!res.ok) return null;
   const tipus = String(res.headers.get('content-type')).split(';')[0].trim().toLowerCase();
   if (!TIPUS_PERMESOS.includes(tipus)) return null;
   const declarat = res.headers.get('content-length');
-  if (declarat !== null && !(Number(declarat) <= MAX_BYTES)) return null;
-  return llegirAmbLimit(res);
+  if (declarat !== null && !(Number(declarat) <= maxBytes)) return null;
+  return llegirAmbLimit(res, maxBytes);
 };
