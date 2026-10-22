@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src",
+    "sync-calendar": "node scripts/sync-calendar.mjs",
     "test": "vitest run",
     "deploy": "vite build && firebase deploy --only hosting:cineclub-socis,firestore:rules,storage",
     "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --config vitest.rules.config.js\""
@@ -36,6 +37,7 @@
     "exceljs": "4.4.0",
     "firebase-admin": "14.3.0",
     "globals": "17.11.0",
+    "googleapis": "^144.0.0",
     "gray-matter": "4.0.3",
     "jsdom": "30.0.1",
     "tailwindcss": "4.3.3",
