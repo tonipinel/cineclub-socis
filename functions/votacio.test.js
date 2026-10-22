@@ -16,6 +16,14 @@ describe('propostesEfectives', () => {
   });
 });
 
+describe('propostesEfectives amb programades', () => {
+  it('compta com a efectives les aprovades i les programades', () => {
+    const tanda = { propostes: ['a', 'b', 'c'] };
+    const propostesPerId = { a: { estat: 'aprovada' }, b: { estat: 'programada' }, c: { estat: 'pendent' } };
+    expect(propostesEfectives(tanda, propostesPerId)).toEqual(['a', 'b']);
+  });
+});
+
 describe('estaTancada', () => {
   const tanca = new Date('2026-11-01T12:00:00Z');
   const timestamp = { toDate: () => tanca };

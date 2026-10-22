@@ -4,8 +4,10 @@ function error(codi, missatge) {
   return Object.assign(new Error(missatge), { codi });
 }
 
+const ESTATS_EFECTIUS = ['aprovada', 'programada'];
+
 function propostesEfectives(tanda, propostesPerId) {
-  return tanda.propostes.filter((id) => propostesPerId[id]?.estat === 'aprovada');
+  return tanda.propostes.filter((id) => ESTATS_EFECTIUS.includes(propostesPerId[id]?.estat));
 }
 
 function estaTancada(tanda, ara) {

@@ -208,6 +208,24 @@ describe('gestionarEstat', () => {
   });
 });
 
+describe('propostes programades després de tancar la tanda', () => {
+  const escenariProgramada = () => escenari({
+    'propostes/p2': { estat: 'programada' },
+    'tandes/t1': { nom: 'Tanda 1', propostes: ['p1', 'p2', 'p3'], tanca: timestamp(ahir), creada: timestamp(new Date('2026-10-01')) },
+    'tandes/t1/vots/7': vot({ p1: 'like', p2: 'like', p3: 'dislike' }),
+  });
+
+  it('gestionarEstat conserva la programada entre les efectives', async () => {
+    const estat = await gestionarEstat(escenariProgramada(), { token: 'tok' }, ara);
+    expect(estat.tanda.propostes).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  it('gestionarRanking inclou la programada', async () => {
+    const { files } = await gestionarRanking(escenariProgramada(), { token: 'tok', tandaId: 't1' }, ara);
+    expect(files.map((f) => f.propostaId).sort()).toEqual(['p1', 'p2', 'p3']);
+  });
+});
+
 describe('gestionarVot', () => {
   const dades = { token: 'tok', tandaId: 't1', propostaId: 'p1', valor: 'like' };
 
