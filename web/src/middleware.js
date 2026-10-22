@@ -1,6 +1,9 @@
 import { cacheControlFor } from './lib/cache.js';
 import { INDEXABLE } from './lib/env.js';
-import { redireccioPer } from './lib/redirects.js';
+import { SLUGS_PAGINES, paginaPerSlug } from './lib/pagines.js';
+import {
+  IMATGE_ANTIGA, imatgeAntigaPer, imatgePaginaPer, redireccioPer, rutaImatgePagina,
+} from './lib/redirects.js';
 import { sessionsPubliques } from './lib/sessions.js';
 
 const ERROR_HTML = '<!doctype html><html lang="ca"><head><meta charset="utf-8"><title>Error temporal | Cineclub Roda de Berà</title></head>'
@@ -11,27 +14,35 @@ const ERROR_HTML = '<!doctype html><html lang="ca"><head><meta charset="utf-8"><
 // /programacio/<any>/<slug>/cartell.html: s'hi arriba reescrivint a la ruta amb barra.
 const CARTELL = /^\/programacio\/[^/]+\/[^/]+\/cartell\.html$/;
 
+// Qualsevol altre camí d'imatge que doni 404 és un 404 sense cap lectura.
+const IMATGE = /\.(?:jpg|jpeg|png|webp)$/;
+
 const redirect301 = (desti) => new Response(null, { status: 301, headers: { Location: desti } });
 
-// Els `aliases` de Hugo són tots sota /programacio/: només allà un 404 pot ser un alias d'una
-// sessió publicada i només llavors es llegeix Firestore (mai per a /404 ni per a la resta de
-// 404). Si la lectura falla es manté el 404.
-async function aliasDe(pathname) {
-  if (!pathname.startsWith('/programacio/')) return null;
+// Un 404 pot ser una URL antiga de Hugo: un `alias` d'una sessió publicada (tots sota /programacio/), una
+// imatge d'una sessió (/programacio/<any>/<slug>/<fitxer>) o una imatge d'una pàgina (/<fitxer> de la
+// portada, /<slug>/<fitxer>). Només llavors es llegeix Firestore, i les rutes que ja responen (estàtics de
+// web/public, endpoints, pàgines) no hi arriben mai. Si la lectura falla es manté el 404.
+async function destiDe404(pathname) {
   try {
-    return redireccioPer(pathname, await sessionsPubliques());
+    if (IMATGE_ANTIGA.test(pathname)) return imatgeAntigaPer(pathname, await sessionsPubliques());
+    const imatgePagina = rutaImatgePagina(pathname, SLUGS_PAGINES);
+    if (imatgePagina) return imatgePaginaPer(await paginaPerSlug(imatgePagina.slug), imatgePagina.fitxer);
+    if (IMATGE.test(pathname)) return null;
+    if (pathname.startsWith('/programacio/')) return redireccioPer(pathname, await sessionsPubliques());
   } catch (err) {
-    console.error('error en comprovar l\'alias', pathname, err);
-    return null;
+    console.error('error en comprovar la redirecció', pathname, err);
   }
+  return null;
 }
 
 export const onRequest = async (context, next) => {
+  const { pathname } = context.url;
   let response;
   try {
-    response = await (CARTELL.test(context.url.pathname) ? next(`${context.url.pathname}/`) : next());
+    response = await (CARTELL.test(pathname) ? next(`${pathname}/`) : next());
     if (response.status === 404) {
-      const desti = await aliasDe(context.url.pathname);
+      const desti = await destiDe404(pathname);
       if (desti) response = redirect301(desti);
     }
   } catch (err) {

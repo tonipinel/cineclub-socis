@@ -94,4 +94,34 @@ describe('SessionsList', () => {
     expect(screen.queryByText('Sessió especial · sense control')).not.toBeInTheDocument();
     expect(screen.getAllByText(/^Socis:/)).toHaveLength(3);
   });
+
+  describe('imatge de cada sessió', () => {
+    const ambSessio = (dades) => onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({ docs: [{ id: '1', data: () => ({ titol: 'Pig', data: '2026-06-25', activa: false, ...dades }) }] });
+      return () => {};
+    });
+    const imatge = (container) => container.querySelector('.sessions-list__imatge');
+
+    it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', () => {
+      for (const imatgeUrl of ['https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', '']) {
+        ambSessio({ imatgeUrl, publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
+        const { container, unmount } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+        expect(imatge(container)).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
+        unmount();
+      }
+    });
+
+    it('sense publica fa servir imatgeUrl', () => {
+      ambSessio({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg' });
+      const { container } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+      expect(imatge(container)).toHaveAttribute('src', 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
+    });
+
+    it('sense cap imatge no pinta cap <img>', () => {
+      ambSessio({});
+      const { container } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+      expect(screen.getByText('Pig')).toBeInTheDocument();
+      expect(imatge(container)).toBeNull();
+    });
+  });
 });

@@ -14,6 +14,7 @@ import {
 import { assistenciaPerSessio } from '../../lib/escaneig';
 import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/moviments';
 import { avui, formatData } from '../../lib/data';
+import { imatgeDeSessio } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
@@ -403,8 +404,8 @@ export default function SociForm() {
             <div className="soci-form__cartells">
               {sessionsPeriodeActual.map((s) => (
                 <Link key={s.id} className="soci-form__cartell" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
-                  {s.imatgeUrl ? (
-                    <img className="soci-form__cartell-imatge" src={s.imatgeUrl} alt={s.titol} />
+                  {imatgeDeSessio(s) ? (
+                    <img className="soci-form__cartell-imatge" src={imatgeDeSessio(s)} alt={s.titol} />
                   ) : (
                     <div className="soci-form__cartell-placeholder">{s.titol}</div>
                   )}

@@ -1,0 +1,4 @@
+{
+  "descripcio": "Imatges del build de Hugo que la web nova no serveix a propòsit (cada entrada: { path | patro, motiu }; `patro` és una regex sobre el camí decodificat). check-imatges avisa de les entrades que ja no coincideixen amb cap fallada.",
+  "permesos": []
+}

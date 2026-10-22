@@ -13,7 +13,7 @@ import {
   resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
 } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
-import { sessionsAmbControl } from '../../lib/sessions';
+import { imatgeDeSessio, sessionsAmbControl } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
@@ -30,7 +30,7 @@ const CAMPS_FORMULARI = [
   ['data', 'Data', 'date'],
   ['hora', "Hora d'inici", 'time'],
   ['urlProgramacio', 'URL de programació', 'text'],
-  ['imatgeUrl', 'URL de la imatge', 'text'],
+  ['imatgeUrl', 'URL de la imatge de reserva (si no hi ha cartell públic)', 'text'],
 ];
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -276,6 +276,8 @@ export default function SessionForm() {
     })}`
     : '';
 
+  const imatge = imatgeDeSessio({ ...dades, publica: original.publica });
+
   return (
     <form className="session-form" onSubmit={handleSubmit}>
       <div className="session-form__seccio session-form__seccio--blanc">
@@ -303,14 +305,14 @@ export default function SessionForm() {
           </div>
 
           <div className="session-form__graella">
-            {editant && !desbloquejat && dades.imatgeUrl && (
+            {editant && !desbloquejat && imatge && (
               <div className="session-form__columna">
                 {dades.urlProgramacio ? (
                   <a className="session-form__imatge-enllac" href={dades.urlProgramacio} target="_blank" rel="noopener noreferrer">
-                    <img className="session-form__imatge" src={dades.imatgeUrl} alt={dades.titol} />
+                    <img className="session-form__imatge" src={imatge} alt={dades.titol} />
                   </a>
                 ) : (
-                  <img className="session-form__imatge" src={dades.imatgeUrl} alt={dades.titol} />
+                  <img className="session-form__imatge" src={imatge} alt={dades.titol} />
                 )}
               </div>
             )}

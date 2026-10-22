@@ -832,3 +832,45 @@ describe('SessionForm — pàgina pública', () => {
     expect(dades.imatgeUrl).toBe(dades.publica.cartell);
   });
 });
+
+describe('SessionForm — imatge de la fitxa', () => {
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  const carrega = async (dades) => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'Pig', data: '2026-06-25', activa: false, ...dades }) });
+    renderEnEdicio();
+    await screen.findByDisplayValue('Pig');
+  };
+
+  it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', async () => {
+    await carrega({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
+    expect(screen.getByRole('img', { name: 'Pig' })).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
+  });
+
+  it('amb imatgeUrl buida també mostra el cartell', async () => {
+    await carrega({ imatgeUrl: '', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
+    expect(screen.getByRole('img', { name: 'Pig' })).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
+  });
+
+  it('sense publica fa servir imatgeUrl', async () => {
+    await carrega({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg' });
+    expect(screen.getByRole('img', { name: 'Pig' })).toHaveAttribute('src', 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
+  });
+
+  it('sense cap imatge no pinta cap <img>', async () => {
+    await carrega({});
+    expect(screen.queryByRole('img', { name: 'Pig' })).not.toBeInTheDocument();
+  });
+
+  it('el camp imatgeUrl s\'edita com a imatge de reserva', async () => {
+    const user = userEvent.setup();
+    await carrega({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
+    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('URL de la imatge de reserva (si no hi ha cartell públic)')).toHaveValue('https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
+  });
+});
+

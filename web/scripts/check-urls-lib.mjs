@@ -2,7 +2,7 @@
 // Funcionen igual amb l'HTML minificat de Hugo (atributs sense cometes) que amb el d'Astro.
 
 const ENTITATS = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', mldr: '…' };
-const decodificaEntitats = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (tot, nom) => {
+export const decodificaEntitats = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (tot, nom) => {
   if (nom[0] === '#') {
     const codi = nom[1].toLowerCase() === 'x' ? parseInt(nom.slice(2), 16) : parseInt(nom.slice(1), 10);
     return String.fromCodePoint(codi);
@@ -18,7 +18,7 @@ const atributs = (text) => Object.fromEntries([...text.matchAll(ATRIBUT)].map(([
   valor === undefined ? '' : decodificaEntitats(valor.replace(/^["']|["']$/g, '')),
 ]));
 
-const etiquetes = (html, nom) => [...html.matchAll(ETIQUETA(nom))].map(([, attrs]) => atributs(attrs));
+export const etiquetes = (html, nom) => [...html.matchAll(ETIQUETA(nom))].map(([, attrs]) => atributs(attrs));
 const espais = (text) => text.replace(/\s+/g, ' ').trim();
 
 export const extreuTitol = (html) => {

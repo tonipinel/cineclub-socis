@@ -1194,4 +1194,37 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       expect(onSnapshot.mock.calls[2][1]).toEqual({ includeMetadataChanges: true });
     });
   });
+
+  describe('fons amb la imatge de la sessió activa', () => {
+    const ambSessio = (dades) => onSnapshot.mockImplementationOnce((...args) => {
+      args.at(-1)({ docs: [{ id: SESSIO_ACTIVA.id, data: () => ({ ...SESSIO_ACTIVA, ...dades }) }] });
+      return () => {};
+    });
+    const fons = (container) => container.querySelector('.escaneig__contingut').style.backgroundImage;
+
+    it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', async () => {
+      for (const imatgeUrl of ['https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', '']) {
+        ambSessio({ imatgeUrl, publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
+        const { container, unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+        await screen.findByRole('button', { name: 'Escanejar' });
+        expect(fons(container)).toContain('https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
+        expect(fons(container)).not.toContain('poster_hu');
+        unmount();
+      }
+    });
+
+    it('sense publica fa servir imatgeUrl', async () => {
+      ambSessio({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg' });
+      const { container } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await screen.findByRole('button', { name: 'Escanejar' });
+      expect(fons(container)).toContain('https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
+    });
+
+    it('sense cap imatge no posa fons', async () => {
+      ambSessio({});
+      const { container } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await screen.findByRole('button', { name: 'Escanejar' });
+      expect(fons(container)).toBe('');
+    });
+  });
 });

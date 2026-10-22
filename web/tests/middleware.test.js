@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Les sessions (Firestore) es substitueixen per un mock: el middleware només les llegeix quan una
 // petició acaba en 404, per comprovar si és un alias de Hugo.
-const { sessionsMock } = vi.hoisted(() => ({ sessionsMock: vi.fn() }));
+const { sessionsMock, paginaMock } = vi.hoisted(() => ({ sessionsMock: vi.fn(), paginaMock: vi.fn() }));
 vi.mock('../src/lib/sessions.js', () => ({ sessionsPubliques: sessionsMock }));
+vi.mock('../src/lib/pagines.js', async (importOriginal) => ({ ...(await importOriginal()), paginaPerSlug: paginaMock }));
 
 const carrega = async (indexable) => {
   vi.resetModules();
@@ -19,6 +20,8 @@ describe('middleware', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     sessionsMock.mockReset();
     sessionsMock.mockResolvedValue([]);
+    paginaMock.mockReset();
+    paginaMock.mockResolvedValue(null);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -131,4 +134,126 @@ describe('middleware', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('imatges antigues de Hugo', () => {
+    const STORAGE = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/web%2Fsessions%2Fpig%2F';
+    const pig = {
+      id: 'pig', slug: 'pig', data: '2026-06-25', hora: '19:00', publicada: true,
+      publica: { aliases: ['/programacio/25-de-juny-pig/'], cartell: `${STORAGE}poster.jpg?alt=media`, galeria: [`${STORAGE}gallery-1.jpg?alt=media`] },
+    };
+    beforeEach(() => { sessionsMock.mockResolvedValue([pig]); });
+
+    it('redirigeix amb 301 (URL absoluta de Storage, cache de redirecció) les que donen 404', async () => {
+      const { onRequest } = await carrega(true);
+      const { CACHE_REDIRECT } = await import('../src/lib/cache.js');
+      for (const [cami, desti] of [
+        ['/programacio/2026/pig/poster.jpg', pig.publica.cartell],
+        ['/programacio/2026/pig/poster_hu123.jpg', pig.publica.cartell],
+        ['/programacio/2026/pig/gallery-1.jpg', pig.publica.galeria[0]],
+        ['/programacio/2026/pig/gallery-1_hu_da72240e6782de3b.jpg', pig.publica.galeria[0]],
+      ]) {
+        const res = await onRequest(context(cami), no404);
+        expect(res.status, cami).toBe(301);
+        expect(res.headers.get('Location')).toBe(desti);
+        expect(res.headers.get('Cache-Control')).toBe(CACHE_REDIRECT);
+      }
+    });
+
+    it('una imatge que no correspon a cap sessió publicada dona el 404 de la web', async () => {
+      const { onRequest } = await carrega(true);
+      for (const cami of ['/programacio/2026/altra/poster.jpg', '/programacio/2026/pig/gallery-9.jpg', '/programacio/2026/pig/poster.JPG']) {
+        const next = vi.fn(no404);
+        const res = await onRequest(context(cami), next);
+        expect(res.status, cami).toBe(404);
+        expect(next).toHaveBeenCalledWith();
+      }
+    });
+
+    it('fa una sola lectura de sessions per a una imatge que dona 404', async () => {
+      const { onRequest } = await carrega(true);
+      await onRequest(context('/programacio/2026/pig/gallery-9.jpg'), no404);
+      expect(sessionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('si Firestore falla, la imatge dona 404', async () => {
+      sessionsMock.mockRejectedValue(new Error('caigut'));
+      const { onRequest } = await carrega(true);
+      const res = await onRequest(context('/programacio/2026/pig/poster.jpg'), no404);
+      expect(res.status).toBe(404);
+    });
+
+    it('no afecta la pàgina de la sessió, el cartell.html ni els aliases', async () => {
+      const { onRequest } = await carrega(true);
+      const pagina = vi.fn(ok);
+      expect((await onRequest(context('/programacio/2026/pig/'), pagina)).status).toBe(200);
+      expect(pagina).toHaveBeenCalledWith();
+      const cartell = vi.fn(ok);
+      expect((await onRequest(context('/programacio/2026/pig/cartell.html'), cartell)).status).toBe(200);
+      expect(cartell).toHaveBeenCalledWith('/programacio/2026/pig/cartell.html/');
+      const alias = await onRequest(context('/programacio/25-de-juny-pig/'), no404);
+      expect(alias.status).toBe(301);
+      expect(alias.headers.get('Location')).toBe('/programacio/2026/pig/');
+      expect(sessionsMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('imatges antigues de les pàgines de Hugo', () => {
+    const portada = { slug: 'portada', imatges: { 'hero-logo.png': 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fpagines%2Fhero-logo.png?alt=media' } };
+    const socia = { slug: 'fes-te-socia', imatges: { 'foto-public.jpg': 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fpagines%2Ffoto-public.jpg?alt=media' } };
+    beforeEach(() => {
+      paginaMock.mockImplementation(async (slug) => ({ portada, 'fes-te-socia': socia })[slug] ?? null);
+    });
+
+    it('redirigeix /<fitxer> (portada) i /<slug>/<fitxer>, també les variants _hu, a la URL absoluta de Storage', async () => {
+      const { onRequest } = await carrega(true);
+      for (const [cami, desti] of [
+        ['/hero-logo.png', portada.imatges['hero-logo.png']],
+        ['/hero-logo_hu_4e5f1684bcb60cc8.png', portada.imatges['hero-logo.png']],
+        ['/fes-te-socia/foto-public.jpg', socia.imatges['foto-public.jpg']],
+        ['/fes-te-socia/foto-public_hu_1621aec05e5e09b6.jpg', socia.imatges['foto-public.jpg']],
+      ]) {
+        const res = await onRequest(context(cami), no404);
+        expect(res.status, cami).toBe(301);
+        expect(res.headers.get('Location')).toBe(desti);
+      }
+      expect(paginaMock.mock.calls.map(([slug]) => slug)).toEqual(['portada', 'portada', 'fes-te-socia', 'fes-te-socia']);
+    });
+
+    it('un nom que no és al mapa, una pàgina inexistent o una lectura fallida donen 404', async () => {
+      const { onRequest } = await carrega(true);
+      for (const cami of ['/hero.png', '/hero-logo.png.png', '/logo.png', '/no-hi-es/foto-public.jpg', '/privacitat/foto-public.jpg', '/hero-logo.PNG']) {
+        expect((await onRequest(context(cami), no404)).status, cami).toBe(404);
+      }
+      paginaMock.mockRejectedValue(new Error('caigut'));
+      expect((await onRequest(context('/hero-logo.png'), no404)).status).toBe(404);
+      expect(sessionsMock).not.toHaveBeenCalled();
+    });
+
+    it('un slug que no és de cap pàgina (inventat o amb caràcters estranys) dona 404 sense llegir res ni escriure al log', async () => {
+      const { onRequest } = await carrega(true);
+      for (const cami of ['/slug-inventat/foto.jpg', '/__x__/a.png', '/x%2F..%2Fy/a.png', '/api/foto.jpg', '/programacio/x.jpg', '/programacio/abcd/pig/poster.jpg', '/programacio/2026/pig/a/b.jpg']) {
+        expect((await onRequest(context(cami), no404)).status, cami).toBe(404);
+      }
+      expect(paginaMock).not.toHaveBeenCalled();
+      expect(sessionsMock).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('una imatge de sessió només llegeix les sessions (memoritzades), mai les pàgines', async () => {
+      const { onRequest } = await carrega(true);
+      await onRequest(context('/programacio/2026/pig/poster.jpg'), no404);
+      expect(sessionsMock).toHaveBeenCalledTimes(1);
+      expect(paginaMock).not.toHaveBeenCalled();
+    });
+
+    it('les rutes que ja responen (estàtics de web/public, /api/img.webp, pàgines) no passen pel redirector', async () => {
+      const { onRequest } = await carrega(true);
+      for (const cami of ['/apple-touch-icon.png', '/logo-footer.png', '/images/logo.png', '/images/entitats/ateneu-rodenc.jpg', '/api/img.webp', '/fes-te-socia/', '/hero-logo.png']) {
+        const res = await onRequest(context(cami), ok);
+        expect(res.status, cami).toBe(200);
+      }
+      expect(paginaMock).not.toHaveBeenCalled();
+    });
+  });
 });
+

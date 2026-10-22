@@ -18,6 +18,7 @@ export function creaMemo({ ttl = TTL_MS, ara = Date.now } = {}) {
       if (!entrades) perBase.set(db, (entrades = new Map()));
       const existent = entrades.get(clau);
       if (existent && existent.expira > ara()) return existent.promesa;
+      for (const [k, e] of entrades) if (e.expira <= ara()) entrades.delete(k);
       const promesa = Promise.resolve().then(llegeix);
       const entrada = { promesa, expira: ara() + ttl };
       entrades.set(clau, entrada);
@@ -25,6 +26,9 @@ export function creaMemo({ ttl = TTL_MS, ara = Date.now } = {}) {
         if (entrades.get(clau) === entrada) entrades.delete(clau);
       });
       return promesa;
+    },
+    mida(db) {
+      return perBase.get(db)?.size ?? 0;
     },
     reinicia() {
       perBase = new WeakMap();

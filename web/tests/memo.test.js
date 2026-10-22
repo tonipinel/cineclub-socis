@@ -50,4 +50,14 @@ describe('creaMemo', () => {
     memo.reinicia();
     expect(await memo.obte(db, 'k', async () => 2)).toBe(2);
   });
+
+  it('en desar una entrada nova purga les caducades (no creix sense límit)', async () => {
+    const { rellotge, memo } = nou();
+    const db = {};
+    for (let i = 0; i < 50; i++) await memo.obte(db, `k${i}`, async () => i);
+    expect(memo.mida(db)).toBe(50);
+    rellotge.t = 60000;
+    await memo.obte(db, 'nova', async () => 'x');
+    expect(memo.mida(db)).toBe(1);
+  });
 });

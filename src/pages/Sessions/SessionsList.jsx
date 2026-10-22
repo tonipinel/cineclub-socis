@@ -5,6 +5,7 @@ import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
 import { rendibilitatPerSessio, formatEuros } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
+import { imatgeDeSessio } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import EstrellaActiva from '../../components/EstrellaActiva';
@@ -59,7 +60,7 @@ export default function SessionsList() {
           return (
             <li key={s.id} className="sessions-list__targeta">
               <Link className="sessions-list__enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
-                {s.imatgeUrl && <img className="sessions-list__imatge" src={s.imatgeUrl} alt="" />}
+                {imatgeDeSessio(s) && <img className="sessions-list__imatge" src={imatgeDeSessio(s)} alt="" />}
                 <div className={`sessions-list__info ${s.activa ? 'sessions-list__info--activa' : ''}`}>
                   <div className="sessions-list__capcalera-targeta">
                     <div className="sessions-list__nom-data">

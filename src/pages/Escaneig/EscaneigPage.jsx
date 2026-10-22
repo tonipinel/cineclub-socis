@@ -16,6 +16,7 @@ import {
   ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
+import { imatgeDeSessio } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
 import EstrellaActiva from '../../components/EstrellaActiva';
 
@@ -744,8 +745,9 @@ export default function EscaneigPage() {
 
   const sessioPerMostrar = mockup ? (sessioActiva ?? MOCKUP_SESSIO) : sessioActiva;
 
-  const fonsContingut = sessioPerMostrar.imatgeUrl
-    ? `linear-gradient(rgb(0 0 0 / 44%), rgb(255 255 255 / 84%)), url(${sessioPerMostrar.imatgeUrl})`
+  const imatgeFons = imatgeDeSessio(sessioPerMostrar);
+  const fonsContingut = imatgeFons
+    ? `linear-gradient(rgb(0 0 0 / 44%), rgb(255 255 255 / 84%)), url(${imatgeFons})`
     : undefined;
 
   return (

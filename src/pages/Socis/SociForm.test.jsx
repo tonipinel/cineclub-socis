@@ -292,6 +292,28 @@ describe('SociForm — assistència a sessions', () => {
     expect(screen.getAllByText('Pig')).toHaveLength(2);
   });
 
+  it('el cartell de la sessió assistida surt de publica.cartell abans que d\'imatgeUrl', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-01-01' }),
+    });
+    getDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 's1', data: () => ({ titol: 'Pig', data: '2026-06-25', imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } }) },
+          { id: 's2', data: () => ({ titol: 'Jane Eyre', data: '2026-08-06', imatgeUrl: '', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media&2' } }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }] })
+      .mockResolvedValueOnce({ docs: [] });
+    render(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(await screen.findByRole('img', { name: 'Pig' })).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
+    expect(screen.getByRole('img', { name: 'Jane Eyre' })).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media&2');
+  });
+
   it('no mostra les seccions d\'assistència si el soci no té número de soci', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
     render(
