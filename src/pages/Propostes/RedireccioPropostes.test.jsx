@@ -17,7 +17,7 @@ afterEach(() => Object.defineProperty(window, 'location', { configurable: true, 
 describe('RedireccioPropostes', () => {
   it.each([
     ['/', '#abc123', 'https://cineclubrodadebera.cat/propostes/#abc123'],
-    ['/propostes', '#top', 'https://cineclubrodadebera.cat/propostes/#top'],
+    ['/propostes', '#top', 'https://cineclubrodadebera.cat/propostes/#recents'],
     ['/', '', 'https://cineclubrodadebera.cat/propostes/'],
     ['/propostes/proposar', '', 'https://cineclubrodadebera.cat/propostes/proposar/'],
   ])('%s %s redirigeix a %s i mostra l\'enllaç', (ruta, hash, desti) => {

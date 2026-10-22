@@ -5,6 +5,9 @@ import {
 } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
+import {
+  afegirAlias, camiPublic, ERROR_DESCRIPCIO, formulariAPublica, marcarActualitzada, netejarPublica, publicaAFormulari, urlPublica, validarPublicable,
+} from '../../lib/sessioPublica';
 import { resumAccessLog, entradesPerFranjaHorariaFixa } from '../../lib/escaneig';
 import {
   resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
@@ -16,6 +19,7 @@ import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
 import EstrellaActiva from '../../components/EstrellaActiva';
+import PaginaPublicaSessio from './PaginaPublicaSessio';
 
 const CAMPS_INICIALS = {
   titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '',
@@ -48,6 +52,12 @@ function IconaActiva() {
   );
 }
 
+const MISSATGE_ALIAS = "Això trencarà l'URL anterior; s'afegirà com a alias perquè continuï funcionant.";
+
+const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+const sessionsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
 function hora(entrada) {
   const data = entrada.timestamp?.toDate?.();
   return data ? data.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -75,6 +85,12 @@ export default function SessionForm() {
   const { id } = useParams();
   const editant = Boolean(id);
   const [dades, setDades] = useState(CAMPS_INICIALS);
+  const [original, setOriginal] = useState({});
+  const [publicaForm, setPublicaForm] = useState(() => publicaAFormulari(undefined));
+  const [publicaInicial, setPublicaInicial] = useState(publicaForm);
+  const [publicaOberta, setPublicaOberta] = useState(false);
+  const [altresSessions, setAltresSessions] = useState([]);
+  const [errorsPublica, setErrorsPublica] = useState({});
   const [carregant, setCarregant] = useState(editant);
   const [error, setError] = useState(null);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
@@ -89,7 +105,12 @@ export default function SessionForm() {
   useEffect(() => {
     if (!editant) return;
     getDoc(doc(db, 'sessions', id)).then((snap) => {
-      setDades({ ...CAMPS_INICIALS, ...snap.data() });
+      const { publica, ...sessio } = snap.data();
+      const form = publicaAFormulari(publica);
+      setOriginal(snap.data());
+      setDades({ ...CAMPS_INICIALS, ...sessio });
+      setPublicaForm(form);
+      setPublicaInicial(form);
       setCarregant(false);
     });
   }, [id, editant]);
@@ -142,6 +163,11 @@ export default function SessionForm() {
     });
   }, [editant]);
 
+  useEffect(() => {
+    if (!publicaOberta) return;
+    getDocs(collection(db, 'sessions')).then((snap) => setAltresSessions(sessionsDe(snap)));
+  }, [publicaOberta]);
+
   const handleChange = (camp) => (e) => {
     setDades((d) => ({ ...d, [camp]: e.target.value }));
   };
@@ -149,14 +175,50 @@ export default function SessionForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setErrorsPublica({});
+    const publicaCanviada = !igual(publicaForm, publicaInicial);
+    const conversio = formulariAPublica(publicaForm);
+    // La fitxa pública desada sense tocar no bloqueja res (p. ex. una descripció llarga migrada de Hugo).
+    const errors = publicaCanviada ? conversio.errors : {};
+    let publica = publicaCanviada ? netejarPublica({ ...original.publica, ...conversio.publica }) : original.publica;
+    const nou = { ...dades };
+    const publicaPerPrimerCop = nou.publicada && !original.publicada;
+    if (publicaPerPrimerCop && conversio.avisos.descripcio) errors.descripcio = ERROR_DESCRIPCIO;
+    if (nou.publicada) {
+      const altres = sessionsDe(await getDocs(collection(db, 'sessions')));
+      const validacio = validarPublicable({ ...nou, id, publica: publica ?? {} }, altres);
+      if (!validacio.valid) errors.publicar = validacio.errors;
+    }
+    if (Object.keys(errors).length > 0) {
+      setErrorsPublica(errors);
+      setPublicaOberta(true);
+      setError('Revisa la pàgina pública: hi ha errors.');
+      return;
+    }
+    const camiAntic = original.publicada ? camiPublic(original.data, original.slug) : '';
+    const camiCanviat = camiPublic(nou.data, nou.slug) !== camiPublic(original.data, original.slug);
+    let aliasNou = false;
+    if (nou.publicada && (publicaPerPrimerCop || camiCanviat)) nou.urlProgramacio = urlPublica(nou.data, nou.slug);
+    if (camiAntic && camiCanviat) {
+      if (!window.confirm(MISSATGE_ALIAS)) return;
+      aliasNou = true;
+      publica = { ...netejarPublica(publica), aliases: afegirAlias(publica?.aliases, camiAntic) };
+    }
+    if (publicaCanviada || aliasNou) {
+      publica = marcarActualitzada(publica, new Date());
+      nou.publica = publica;
+      if (publica.cartell && publica.cartell !== original.publica?.cartell) nou.imatgeUrl = publica.cartell;
+    }
     try {
       // El camp `activa` és exclusiu de "Marcar com a activa" (handleMarcarActiva):
       // un "Desar" normal mai l'ha de sobreescriure amb l'estat local, que pot
       // haver quedat desactualitzat si s'ha activat una altra sessió mentre
       // aquest formulari estava obert.
-      const { activa: _activaActual, ...dadesADesar } = dades;
+      const { activa: _activaActual, ...dadesADesar } = nou;
       if (editant) {
-        await updateDoc(doc(db, 'sessions', id), dadesADesar);
+        const abans = { ...CAMPS_INICIALS, ...original };
+        const canvis = Object.fromEntries(Object.entries(dadesADesar).filter(([camp, valor]) => !igual(valor, abans[camp])));
+        await updateDoc(doc(db, 'sessions', id), canvis);
       } else {
         await addDoc(collection(db, 'sessions'), { ...dadesADesar, activa: false });
       }
@@ -224,14 +286,19 @@ export default function SessionForm() {
               {editant ? dades.titol : 'Nova sessió'}
             </h1>
             {editant && !dades.activa && !dades.senseControl && (
-              <button
-                type="button"
-                className="btn-icona"
-                aria-label="Marcar com a activa"
-                onClick={handleMarcarActiva}
-              >
-                <IconaActiva />
-              </button>
+              <span className="session-form__activar">
+                {!dades.data && <span className="session-form__activar-motiu" id="motiu-activar">Cal una data per poder-la activar.</span>}
+                <button
+                  type="button"
+                  className="btn-icona"
+                  aria-label="Marcar com a activa"
+                  aria-describedby={dades.data ? undefined : 'motiu-activar'}
+                  disabled={!dades.data}
+                  onClick={handleMarcarActiva}
+                >
+                  <IconaActiva />
+                </button>
+              </span>
             )}
           </div>
 
@@ -270,11 +337,27 @@ export default function SessionForm() {
                   </div>
                 ))}
 
-              {error && <p className="form__error">{error}</p>}
-
-              {desbloquejat && <button className="btn" type="submit">Desar</button>}
+              {!desbloquejat && error && <p className="form__error" role="alert">{error}</p>}
             </div>
           </div>
+
+          {desbloquejat && (
+            <>
+              <PaginaPublicaSessio
+                obert={publicaOberta}
+                onToggle={() => setPublicaOberta((o) => !o)}
+                form={publicaForm}
+                onCanvi={(camp, valor) => setPublicaForm((f) => ({ ...f, [camp]: valor }))}
+                sessio={{ ...dades, id }}
+                onCanviSessio={(camp, valor) => setDades((d) => ({ ...d, [camp]: valor }))}
+                altresSessions={altresSessions}
+                errors={errorsPublica}
+                urlPagina={original.publicada ? urlPublica(original.data, original.slug) : ''}
+              />
+              {error && <p className="form__error" role="alert">{error}</p>}
+              <button className="btn session-form__desar" type="submit">Desar</button>
+            </>
+          )}
         </div>
       </div>
 

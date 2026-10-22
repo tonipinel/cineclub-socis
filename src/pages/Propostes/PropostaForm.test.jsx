@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('../../lib/pellicules', () => ({ cercarPellicules: vi.fn(), assignarPellicula: vi.fn() }));
@@ -13,10 +13,13 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn().mockResolvedValue(undefined),
   deleteDoc: vi.fn().mockResolvedValue(undefined),
   setDoc: vi.fn().mockResolvedValue(undefined),
+  query: vi.fn((c) => c),
+  where: vi.fn(),
+  runTransaction: vi.fn(),
 }));
 
 import {
-  deleteDoc, getDoc, getDocs, setDoc, updateDoc,
+  collection, deleteDoc, doc, getDoc, getDocs, runTransaction, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { assignarPellicula, cercarPellicules } from '../../lib/pellicules';
 import PropostaForm from './PropostaForm';
@@ -34,12 +37,17 @@ async function obrirEdicio(user) {
   await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
 }
 
+function UbicacioProva() {
+  return <p>Edició de sessió a {useLocation().pathname}</p>;
+}
+
 function renderFormulari() {
   return render(
     <MemoryRouter initialEntries={['/propostes/pendents/p1']}>
       <Routes>
         <Route path="/propostes/pendents/:id" element={<PropostaForm />} />
         <Route path="/propostes/pendents" element={<p>Llistat de propostes</p>} />
+        <Route path="/sessions/:id" element={<UbicacioProva />} />
       </Routes>
     </MemoryRouter>
   );
@@ -54,6 +62,7 @@ describe('PropostaForm', () => {
     cercarPellicules.mockReset().mockResolvedValue([]);
     assignarPellicula.mockReset();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -288,12 +297,11 @@ describe('PropostaForm', () => {
       { id: 'd1', nom: 'Atalante', web: '', contacte: '', correu: '' },
     ];
 
-    // L'ordre de getDocs segueix el dels efectes: socis, vots, distribuïdores.
+    // L'ordre de getDocs segueix el dels efectes: socis, distribuïdores.
     function mockCarrega({ proposta, interna }) {
       getDoc.mockResolvedValueOnce({ data: () => proposta }).mockResolvedValueOnce({ data: () => interna });
       getDocs
         .mockResolvedValueOnce({ docs: SOCIS.map((s) => ({ id: s.id, data: () => s })) })
-        .mockResolvedValueOnce({ docs: [] })
         .mockResolvedValueOnce({ docs: DISTRIBUIDORES.map((d) => ({ id: d.id, data: () => d })) });
     }
 
@@ -409,5 +417,152 @@ describe('PropostaForm', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByText('Llistat de propostes');
     expect(updateDoc.mock.calls[0][1]).toMatchObject({ comentari: '' });
+  });
+
+  describe('Programar sessió', () => {
+    let tx;
+    const PROPOSTA = {
+      titol: 'Amélie', titolLocal: 'Amèlie', numeroSoci: 7, estat: 'aprovada', any: '2001', directors: ['Jean-Pierre Jeunet'], sinopsi: 'Una noia a París.',
+      distribuidora: 'Secreta SL', preu: 500,
+    };
+    const INTERNA = { preu: 500, condicions: 'secret', distribuidoraId: 'd1' };
+
+    // `estatTx` i `sessioTx`: l'estat de la proposta i si la sessió existeix DINS de la transacció.
+    function preparar({ sessionsExistents = [], estatTx = 'aprovada', sessioTx = false, proposta = PROPOSTA } = {}) {
+      runTransaction.mockReset();
+      where.mockClear();
+      getDoc.mockImplementation(async (ref) => ({ data: () => (ref.path === 'propostes/p1' ? proposta : INTERNA) }));
+      collection.mockImplementation((_db, ...path) => ({ path: path.join('/') }));
+      doc.mockImplementation((_db, ...path) => ({ path: path.join('/'), id: path[path.length - 1] }));
+      getDocs.mockImplementation(async (ref) => {
+        if (ref.path === 'socis') return { docs: SOCIS.map((s) => ({ id: s.id, data: () => s })) };
+        if (ref.path === 'sessions') return { docs: sessionsExistents.map((x) => ({ id: x.id, data: () => x })) };
+        return { docs: [] };
+      });
+      tx = {
+        get: vi.fn(async (ref) => (ref.path === 'propostes/p1'
+          ? { data: () => ({ estat: estatTx }) }
+          : { exists: () => sessioTx })),
+        set: vi.fn(),
+        update: vi.fn(),
+      };
+      runTransaction.mockImplementation(async (_db, fn) => fn(tx));
+    }
+
+    async function programar(user) {
+      await user.click(await screen.findByRole('button', { name: 'Programar sessió' }));
+    }
+
+    function senseEscripturesFora() {
+      expect(updateDoc).not.toHaveBeenCalled();
+      expect(setDoc).not.toHaveBeenCalled();
+    }
+
+    it('no llegeix ni mostra el recompte de vots antic (propostes/*/vots)', async () => {
+      preparar();
+      renderFormulari();
+      await screen.findByRole('heading', { name: 'Amélie' });
+      expect(collection.mock.calls.some((c) => c.includes('vots'))).toBe(false);
+      expect(screen.queryByText('Vots')).not.toBeInTheDocument();
+    });
+
+    it('només mostra el botó en propostes aprovades', async () => {
+      preparar({ proposta: { ...PROPOSTA, estat: 'pendent' } });
+      renderFormulari();
+      await screen.findByRole('heading', { name: 'Amélie' });
+      expect(screen.queryByRole('button', { name: 'Programar sessió' })).not.toBeInTheDocument();
+    });
+
+    it('crea la sessió amb id determinista i passa la proposta a programada dins la transacció', async () => {
+      preparar();
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
+      expect(tx.set).toHaveBeenCalledTimes(1);
+      const [ref, sessio] = tx.set.mock.calls[0];
+      expect(ref.path).toBe('sessions/proposta-p1');
+      expect(sessio).toMatchObject({ titol: 'Amèlie', propostaId: 'p1', publicada: false, data: '', slug: '' });
+      expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
+      expect(runTransaction).toHaveBeenCalledTimes(1);
+      senseEscripturesFora();
+    });
+
+    it('la sessió no conté cap dada interna de la proposta', async () => {
+      preparar();
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      await screen.findByText(/Edició de sessió/);
+      const text = JSON.stringify(tx.set.mock.calls[0][1]);
+      expect(text).not.toMatch(/Secreta|secret|500|preu|condicions|distribuidor/);
+    });
+
+    it('si ja hi ha una sessió amb aquest propostaId, hi navega i només passa la proposta a programada', async () => {
+      preparar({ sessionsExistents: [{ id: 'sX', propostaId: 'p1' }], sessioTx: true });
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(await screen.findByText('Edició de sessió a /sessions/sX')).toBeInTheDocument();
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
+      expect(window.alert).toHaveBeenCalledTimes(1);
+      senseEscripturesFora();
+    });
+
+    it('cursa: si dins la transacció la sessió ja existeix, no la sobreescriu i hi navega', async () => {
+      preparar({ sessioTx: true });
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(tx.set).not.toHaveBeenCalled();
+    });
+
+    it('si la proposta ja no és aprovada i no hi ha sessió, no escriu res i mostra l\'error', async () => {
+      preparar({ estatTx: 'programada' });
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Aquesta proposta ja no és aprovada.');
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+    });
+
+    it('si cancel·les la confirmació no fa res', async () => {
+      preparar();
+      window.confirm.mockReturnValue(false);
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(runTransaction).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+    });
+
+    it('si la transacció falla mostra l\'error i no navega', async () => {
+      preparar();
+      runTransaction.mockRejectedValue(new Error('boom'));
+      const user = userEvent.setup();
+      renderFormulari();
+      await programar(user);
+      expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut programar la sessió");
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      senseEscripturesFora();
+    });
+
+    it('un doble clic fa una sola transacció', async () => {
+      preparar();
+      runTransaction.mockImplementation(async (_db, fn) => {
+        await new Promise((r) => setTimeout(r, 30));
+        return fn(tx);
+      });
+      const user = userEvent.setup();
+      renderFormulari();
+      await user.dblClick(await screen.findByRole('button', { name: 'Programar sessió' }));
+      await screen.findByText(/Edició de sessió/);
+      expect(runTransaction).toHaveBeenCalledTimes(1);
+    });
   });
 });

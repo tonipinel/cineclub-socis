@@ -299,34 +299,29 @@ describe('firestore.rules — propostes', () => {
   });
 });
 
-describe('firestore.rules — propostes/{id}/vots', () => {
-  it('permet a un visitant no autenticat votar amb el token del carnet que correspon al numeroSoci', async () => {
-    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'socisPublic/tok-abc123'), { numeroSoci: 7, nomPublic: 'Anna V.' });
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(anonDb, 'propostes/1/vots/7'), { timestamp: new Date(), token: 'tok-abc123' }));
-    await assertSucceeds(getDoc(doc(anonDb, 'propostes/1/vots/7')));
+describe('firestore.rules — propostes/{id}/vots (sistema antic, tancat)', () => {
+  const VOT_ANTIC = { timestamp: new Date(), token: 'tok-abc123' };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'socisPublic/tok-abc123'), { numeroSoci: 7, nomPublic: 'Anna V.' });
+      await setDoc(doc(ctx.firestore(), 'propostes/1/vots/7'), VOT_ANTIC);
+    });
   });
 
-  it('impedeix votar sense un token vàlid', async () => {
+  it('impedeix a un visitant llegir, votar (amb token vàlid) i desvotar', async () => {
     const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(anonDb, 'propostes/1/vots/7'), { timestamp: new Date() }));
-    await assertFails(setDoc(doc(anonDb, 'propostes/1/vots/7'), { timestamp: new Date(), token: 'inexistent' }));
+    await assertFails(getDoc(doc(anonDb, 'propostes/1/vots/7')));
+    await assertFails(setDoc(doc(anonDb, 'propostes/1/vots/7'), VOT_ANTIC));
+    await assertFails(setDoc(doc(anonDb, 'propostes/1/vots/8'), VOT_ANTIC));
+    await assertFails(deleteDoc(doc(anonDb, 'propostes/1/vots/7')));
   });
 
-  it('impedeix votar en nom d\'un altre soci amb un token que no li correspon', async () => {
+  it('impedeix també a un admin llegir i escriure (només l\'Admin SDK de l\'script d\'esborrat hi accedeix)', async () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'socisPublic/tok-abc123'), { numeroSoci: 7, nomPublic: 'Anna V.' });
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(anonDb, 'propostes/1/vots/8'), { timestamp: new Date(), token: 'tok-abc123' }));
-  });
-
-  it('permet a un visitant no autenticat desvotar (esborrar el seu vot)', async () => {
-    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'socisPublic/tok-abc123'), { numeroSoci: 7, nomPublic: 'Anna V.' });
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await setDoc(doc(anonDb, 'propostes/1/vots/7'), { timestamp: new Date(), token: 'tok-abc123' });
-    await assertSucceeds(deleteDoc(doc(anonDb, 'propostes/1/vots/7')));
+    await assertFails(getDoc(doc(adminDb, 'propostes/1/vots/7')));
+    await assertFails(setDoc(doc(adminDb, 'propostes/1/vots/9'), VOT_ANTIC));
+    await assertFails(deleteDoc(doc(adminDb, 'propostes/1/vots/7')));
   });
 });
 

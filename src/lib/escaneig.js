@@ -109,7 +109,7 @@ export function resumDashboardTiquets(lots, entradesAccessLog, sessions, avui = 
 
   const dataAvui = avui.toLocaleDateString('sv-SE');
   const ultimaSessio = sessionsAmbControl(sessions)
-    .filter((s) => (s.data ?? '') <= dataAvui)
+    .filter((s) => s.data && s.data <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   const gastatsUltimaSessio = ultimaSessio
     ? entradesAccessLog.filter((e) => (

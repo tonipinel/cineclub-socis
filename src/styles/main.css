@@ -7,13 +7,13 @@
 @import "./components/_solicituds.css";
 @import "./components/_carnet.css";
 @import "./components/_sessions.css";
+@import "./components/_pagina-publica.css";
 @import "./components/_tickets.css";
 @import "./components/_escaneig.css";
 @import "./components/_comptabilitat.css";
 @import "./components/_dashboard.css";
 @import "./components/_carregant.css";
 @import "./components/_configuracio.css";
-@import "./components/_public.css";
 @import "./components/_propostes.css";
 @import "./components/_propostes-admin.css";
 

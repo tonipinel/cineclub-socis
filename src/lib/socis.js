@@ -64,7 +64,7 @@ export function resumDashboardSocis(socisTots, sessions, entradesAccessLog, avui
 
   const dataAvui = dataISO(avui);
   const sessionsPassades = sessionsAmbControl(sessions)
-    .filter((s) => (s.data ?? '') <= dataAvui)
+    .filter((s) => s.data && s.data <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
     .slice(0, 5);
 

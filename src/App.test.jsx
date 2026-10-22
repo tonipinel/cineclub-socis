@@ -5,9 +5,6 @@ vi.mock('./firebase/firebase', () => ({ auth: {}, db: {} }));
 vi.mock('./auth/useAuth', () => ({
   useAuth: () => ({ user: null, role: null, loading: false, signIn: vi.fn(), signOut: vi.fn() }),
 }));
-vi.mock('./auth/useIdentitatPublica', () => ({
-  useIdentitatPublica: () => ({ identitat: null, setIdentitat: vi.fn() }),
-}));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
@@ -26,12 +23,5 @@ describe('App', () => {
   it('mostra la marca del cineclub', () => {
     render(<App />);
     expect(screen.getByText('Cineclub Roda de Berà')).toBeInTheDocument();
-  });
-});
-
-describe('App amb REDIRIGIR_PROPOSTES a false', () => {
-  it('manté la pantalla pública a /', () => {
-    render(<App />);
-    expect(screen.queryByText(/han canviat d'adreça/)).not.toBeInTheDocument();
   });
 });

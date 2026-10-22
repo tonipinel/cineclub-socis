@@ -509,7 +509,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
   });
 
   it('desa correctament un moviment de "Gestió pel·lícules" amb sessió vinculada', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
@@ -570,7 +570,7 @@ describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => 
   });
 
   it('desa un traspàs sense sessionId encara que se n\'hagués triat una abans', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     const user = userEvent.setup();
     addDoc.mockClear();
     render(
@@ -623,7 +623,7 @@ describe('MovimentForm — preomplenat via paràmetres d\'URL', () => {
 
 describe('MovimentForm — preselecció de sessió des de la URL', () => {
   it('preselecciona la sessió quan arriba amb el paràmetre sessionId', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou?sessionId=s1']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
@@ -634,7 +634,7 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
   });
 
   it('bloqueja el selector de sessió quan ve preseleccionada per URL', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou?sessionId=s1']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
@@ -645,7 +645,7 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
   });
 
   it('no bloqueja el selector de sessió quan s\'obre el formulari sense sessió a la URL', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     render(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
@@ -836,7 +836,7 @@ describe('MovimentForm — sessions especials sense control', () => {
   it('no ofereix les sessions senseControl al selector de sessió', async () => {
     getDocs.mockResolvedValueOnce({
       docs: [
-        { id: 's1', data: () => ({ titol: 'The Artist' }) },
+        { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) },
         { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', senseControl: true }) },
       ],
     });

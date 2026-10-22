@@ -141,6 +141,13 @@ describe('resumDashboardSocis', () => {
     expect(resumDashboardSocis(socis, sessions, entrades, avui).assistenciaMitjana).toBe(100);
   });
 
+  it('assistenciaMitjana ignora les sessions sense data (esborranys)', () => {
+    const socis = [{ numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' }];
+    const sessions = [{ id: 's1', data: '2026-08-01' }, { id: 'sBorrador', data: '' }];
+    const entrades = [{ tipus: 'soci', numeroSoci: 1, sessionId: 's1' }];
+    expect(resumDashboardSocis(socis, sessions, entrades, avui).assistenciaMitjana).toBe(100);
+  });
+
   it('assistenciaMitjana fa la mitjana entre socis i ignora sessions futures', () => {
     const socis = [
       { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-08-01' },

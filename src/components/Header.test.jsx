@@ -47,7 +47,7 @@ describe('Header', () => {
     expect(screen.getByRole('img', { name: 'Cineclub Roda de Berà' })).toBeInTheDocument();
   });
 
-  it('no mostra cap enllaç de navegació interna quan no hi ha usuari', () => {
+  it('no mostra cap enllaç d\'administració quan no hi ha usuari', () => {
     mockUseAuth.mockReturnValue({ user: null, role: null, signOut: vi.fn() });
     render(<MemoryRouter><Header /></MemoryRouter>);
     expect(screen.queryByText('Socis')).not.toBeInTheDocument();
@@ -55,42 +55,26 @@ describe('Header', () => {
     expect(screen.queryByText('Sortir')).not.toBeInTheDocument();
   });
 
-  describe('capçalera pública (sense usuari), idèntica a la del lloc principal', () => {
+  describe('capçalera pública (sense usuari), mínima', () => {
     beforeEach(() => {
       mockUseAuth.mockReturnValue({ user: null, role: null, signOut: vi.fn() });
     });
 
-    it('mostra la marca (logo + nom) enllaçant a l\'inici de l\'app', () => {
+    it('mostra la marca (logo + nom) enllaçant a la web pública', () => {
       render(<MemoryRouter><Header /></MemoryRouter>);
-      expect(screen.getByText('Cineclub Roda de Berà')).toBeInTheDocument();
       const marca = screen.getByText('Cineclub Roda de Berà').closest('a');
-      expect(marca).toHaveAttribute('href', '/');
+      expect(marca).toHaveAttribute('href', 'https://cineclubrodadebera.cat/');
     });
 
-    it('mostra Inici, Programació, Propostes i Fes-te soci/a en aquest ordre, amb Propostes com a única interna i activa', () => {
+    it('només té un enllaç «Accedir» a /accedir, sense menú ni hamburguesa', () => {
       const { container } = render(<MemoryRouter><Header /></MemoryRouter>);
-      const nav = within(container.querySelector('.capcalera-publica__nav'));
-      const enllacos = nav.getAllByRole('link');
-      expect(enllacos.map((a) => a.textContent)).toEqual(['Inici', 'Programació', 'Propostes', 'Fes-te soci/a']);
-      expect(nav.getByRole('link', { name: 'Inici' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/');
-      expect(nav.getByRole('link', { name: 'Programació' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/');
-      expect(nav.getByRole('link', { name: 'Fes-te soci/a' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/fes-te-socia/');
-      const propostes = nav.getByRole('link', { name: 'Propostes' });
-      expect(propostes).toHaveAttribute('href', '/');
-      expect(propostes).toHaveClass('capcalera-publica__link--activa');
-    });
-
-    it('el menú mòbil s\'obre i es tanca, i inclou els mateixos 4 enllaços', async () => {
-      const user = userEvent.setup();
-      render(<MemoryRouter><Header /></MemoryRouter>);
-      const botoMenu = screen.getByRole('button', { name: 'Obrir menú' });
-      expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
-      await user.click(botoMenu);
-      expect(botoMenu).toHaveAttribute('aria-expanded', 'true');
-      expect(screen.getByRole('button', { name: 'Tancar menú' })).toBeInTheDocument();
-      expect(screen.getAllByRole('link', { name: 'Fes-te soci/a' }).length).toBe(2);
-      await user.click(screen.getByRole('button', { name: 'Tancar menú' }));
-      expect(botoMenu).toHaveAttribute('aria-expanded', 'false');
+      const enllacos = within(container.querySelector('.capcalera-publica')).getAllByRole('link');
+      expect(enllacos.map((a) => a.textContent)).toEqual(['Cineclub Roda de Berà', 'Accedir']);
+      expect(screen.getByRole('link', { name: 'Accedir' })).toHaveAttribute('href', '/accedir');
+      expect(screen.queryByText('Propostes')).not.toBeInTheDocument();
+      expect(screen.queryByText('Fes-te soci/a')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(container.querySelector('.capcalera-publica__nav')).toBeNull();
     });
   });
 

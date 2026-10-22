@@ -87,15 +87,11 @@ service cloud.firestore {
       allow read: if resource.data.estat != 'pendent' || isAdmin();
       allow update, delete: if isAdmin();
 
-      // El vot inclou el token del carnet perquè `create` pugui comprovar,
-      // via `socisPublic`, que aquest token pertany realment al numeroSoci
-      // del document (evita que qualsevol pugui votar en nom d'un altre
-      // soci sense haver-ne escanejat mai el carnet).
+      // Sistema antic de votació (retirat): tancat per a tothom. Els vots
+      // actuals són a `tandes/{id}/vots`. Els documents que queden els
+      // esborra `scripts/esborra-vots-antics.mjs` amb l'Admin SDK.
       match /vots/{numeroSoci} {
-        allow read: if true;
-        allow create: if request.resource.data.keys().hasAll(['timestamp', 'token'])
-          && get(/databases/$(database)/documents/socisPublic/$(request.resource.data.token)).data.numeroSoci == int(numeroSoci);
-        allow delete: if true;
+        allow read, write: if false;
       }
     }
 

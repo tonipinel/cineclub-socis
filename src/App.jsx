@@ -22,8 +22,6 @@ import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ConfiguracioPage from './pages/Configuracio/ConfiguracioPage';
 import RedireccioPropostes from './pages/Propostes/RedireccioPropostes';
-import PropostesPublic from './pages/Propostes/PropostesPublic';
-import ProposarPellicula from './pages/Propostes/ProposarPellicula';
 import PropostesPendents from './pages/Propostes/PropostesPendents';
 import PropostaForm from './pages/Propostes/PropostaForm';
 import PropostesNova from './pages/Propostes/PropostesNova';
@@ -33,14 +31,21 @@ import TandesList from './pages/Tandes/TandesList';
 import TandaForm from './pages/Tandes/TandaForm';
 import TandaResultats from './pages/Tandes/TandaResultats';
 
+// Els enllaços antics de la votació eren /#<id>: amb hash van a la web pública;
+// sense hash, / porta al login (que ja envia l'admin al dashboard).
+function Inici() {
+  const hash = window.location.hash;
+  return hash.length > 1 ? <RedireccioPropostes /> : <Navigate to={ROUTES.ACCEDIR} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Header />
       <Routes>
-        <Route path={ROUTES.INICI} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <PropostesPublic />} />
-        <Route path={ROUTES.PROPOSTES} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <PropostesPublic />} />
-        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={ROUTES.REDIRIGIR_PROPOSTES ? <RedireccioPropostes /> : <ProposarPellicula />} />
+        <Route path={ROUTES.INICI} element={<Inici />} />
+        <Route path={ROUTES.PROPOSTES} element={<RedireccioPropostes />} />
+        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={<RedireccioPropostes />} />
         <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
         <Route
           path={ROUTES.SOCIS}

@@ -105,7 +105,7 @@ export default function MovimentForm() {
 
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
-      setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+      setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))).filter((s) => s.data));
     });
   }, []);
 

@@ -33,9 +33,5 @@ export const TANDES_NOVA = '/tandes/nova';
 export const TANDES_EDITAR = '/tandes/:id';
 export const TANDES_RESULTATS = '/tandes/:id/resultats';
 
-// Al tall (quan cineclubrodadebera.cat serveixi la web nova) es posa a true i
-// es desplega l'administració: / i /propostes passen a la web pública.
-// NO desplegar-ho a true abans del canvi de DNS: aquesta URL encara serveix Hugo.
-export const REDIRIGIR_PROPOSTES = false;
 export const URL_PROPOSTES_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/';
 export const URL_PROPOSTES_PROPOSAR_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/proposar/';

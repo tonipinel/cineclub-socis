@@ -119,7 +119,7 @@ describe('ComptabilitatPage', () => {
   });
 
   it('filtra per sessió', async () => {
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist' }) }] });
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     const user = userEvent.setup();
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     await screen.findByRole('option', { name: 'The Artist' });
@@ -156,12 +156,24 @@ describe('ComptabilitatPage — sessions especials sense control', () => {
   it('no ofereix les sessions senseControl al filtre per sessió', async () => {
     getDocs.mockResolvedValueOnce({
       docs: [
-        { id: 's1', data: () => ({ titol: 'The Artist' }) },
+        { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) },
         { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', senseControl: true }) },
       ],
     });
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     await screen.findByRole('option', { name: 'The Artist' });
     expect(screen.queryByRole('option', { name: 'Carretera a Gusen' })).not.toBeInTheDocument();
+  });
+
+  it('no ofereix les sessions sense data (esborranys) al filtre per sessió', async () => {
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) },
+        { id: 'd1', data: () => ({ titol: 'Esborrany sense data', data: '' }) },
+      ],
+    });
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    await screen.findByRole('option', { name: 'The Artist' });
+    expect(screen.queryByRole('option', { name: 'Esborrany sense data' })).not.toBeInTheDocument();
   });
 });

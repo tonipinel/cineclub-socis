@@ -251,6 +251,12 @@ describe('resumPerSessio', () => {
 });
 
 describe('resumDashboardTiquets', () => {
+  it('no considera última sessió una sessió sense data (esborrany)', () => {
+    const entrades = [{ tipus: 'generic', sessionId: 'sBorrador' }];
+    const sessions = [{ id: 'sBorrador', data: '' }];
+    expect(resumDashboardTiquets([], entrades, sessions).gastatsUltimaSessio).toBe(0);
+  });
+
   it('retorna 0 disponibles si no hi ha lots', () => {
     expect(resumDashboardTiquets([], [], [])).toEqual({ disponibles: 0, usats: 0, gastatsUltimaSessio: 0 });
   });

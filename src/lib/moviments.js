@@ -368,7 +368,7 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
   const ingressosAportacionsPerMes = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / MESOS_REFERENCIA;
   const costPellicula = pellicules.reduce((max, m) => Math.max(max, Number(m.total) || 0), 0);
 
-  const sessionsPassades = sessionsAmbControl(sessions).filter((s) => (s.data ?? '') <= dataAvui);
+  const sessionsPassades = sessionsAmbControl(sessions).filter((s) => s.data && s.data <= dataAvui);
   const entradesPerNumero = agruparEntradesPerNumero(accessLog);
   const sociesActius = socis.filter((s) => estaActiu(s) && s.numeroSoci && s.ultimPagament);
 

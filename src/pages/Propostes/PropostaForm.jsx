@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc,
+  collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
 import { formatData } from '../../lib/data';
+import { construirSessioDesDeProposta } from '../../lib/sessioPublica';
 import { assignarPellicula } from '../../lib/pellicules';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
@@ -18,6 +19,8 @@ import { GestioInternaCamps, GestioInternaVista, INTERNA_BUIDA } from '../../com
 const CLASSE_ESTAT = {
   pendent: 'badge--pendent', aprovada: 'badge--al-dia', rebutjada: 'badge--vencut', programada: 'badge--nou-registre',
 };
+
+const ERROR_NO_APROVADA = 'Aquesta proposta ja no és aprovada.';
 
 const IDIOMES_SINOPSI = { es: 'castellà', en: 'anglès' };
 
@@ -35,10 +38,10 @@ export default function PropostaForm() {
   const [etiquetaSociTriat, setEtiquetaSociTriat] = useState('');
   const [error, setError] = useState(null);
   const [editant, setEditant] = useState(false);
-  const [vots, setVots] = useState(null);
   const [sinopsiCarregada, setSinopsiCarregada] = useState('');
   const [interna, setInterna] = useState(INTERNA_BUIDA);
   const [distribuidores, setDistribuidores] = useState([]);
+  const [programant, setProgramant] = useState(false);
   const navigate = useNavigate();
 
   const carregar = useCallback(() => {
@@ -59,17 +62,6 @@ export default function PropostaForm() {
   }, [id]);
 
   useEffect(() => { carregar(); }, [carregar]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const snap = await getDocs(collection(db, 'propostes', id, 'vots'));
-        setVots(snap.docs.length);
-      } catch {
-        // El recompte de vots és informatiu: sense ell la fitxa es veu igual.
-      }
-    })();
-  }, [id]);
 
   // Les dades internes (preu, condicions, distribuïdora) viuen en un document
   // apart i admin-only; si no es poden llegir, la fitxa es mostra igualment.
@@ -163,6 +155,36 @@ export default function PropostaForm() {
     }
   };
 
+  // Crea la sessió (sense publicar ni data) i passa la proposta a «programada»
+  // dins d'una transacció amb id determinista, perquè dos admins alhora no
+  // puguin crear-ne dues. Si la proposta ja té sessió, només hi navega.
+  const handleProgramar = async () => {
+    if (programant) return;
+    if (!window.confirm(`Vols programar una sessió amb "${dades.titol}"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».`)) return;
+    setError(null);
+    setProgramant(true);
+    try {
+      const trobades = await getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id)));
+      const sessioId = trobades.docs[0]?.id ?? `proposta-${id}`;
+      const propostaRef = doc(db, 'propostes', id);
+      const sessioRef = doc(db, 'sessions', sessioId);
+      const { sessio } = construirSessioDesDeProposta(dades, { propostaId: id, avui: new Date() });
+      const existia = await runTransaction(db, async (tx) => {
+        const estat = (await tx.get(propostaRef)).data()?.estat;
+        const existeix = (await tx.get(sessioRef)).exists();
+        if (!existeix && estat !== 'aprovada') throw new Error(ERROR_NO_APROVADA);
+        if (!existeix) tx.set(sessioRef, sessio);
+        if (estat === 'aprovada') tx.update(propostaRef, { estat: 'programada' });
+        return existeix;
+      });
+      if (existia) window.alert('Aquesta proposta ja té una sessió: s\'obre per editar-la.');
+      navigate(ROUTES.SESSIONS_EDITAR.replace(':id', sessioId));
+    } catch (e) {
+      setError(e.message === ERROR_NO_APROVADA ? ERROR_NO_APROVADA : "No s'ha pogut programar la sessió. Torna-ho a provar.");
+      setProgramant(false);
+    }
+  };
+
   const handleEliminar = async () => {
     const confirmat = window.confirm(
       `Segur que vols eliminar definitivament la proposta "${dades.titol}"? Aquesta acció no es pot desfer.`
@@ -220,12 +242,6 @@ export default function PropostaForm() {
                     {ESTATS.find(([valor]) => valor === dades.estat)?.[1] ?? dades.estat}
                   </span>
                 </dd>
-                {vots !== null && (
-                  <>
-                    <dt className="fitxa-pellicula__etiqueta">Vots</dt>
-                    <dd className="fitxa-pellicula__valor">{vots}</dd>
-                  </>
-                )}
                 {dades.comentari && (
                   <>
                     <dt className="fitxa-pellicula__etiqueta">Comentari del soci</dt>
@@ -241,7 +257,12 @@ export default function PropostaForm() {
                   </>
                 )}
               </dl>
-              {error && <p className="form__error">{error}</p>}
+              {error && <p className="form__error" role="alert">{error}</p>}
+              {dades.estat === 'aprovada' && (
+                <button className="btn proposta-fitxa__programar" type="button" disabled={programant} onClick={handleProgramar}>
+                  Programar sessió
+                </button>
+              )}
               {dades.tmdbId && (
                 <button className="btn btn--outline proposta-fitxa__actualitzar" type="button" onClick={handleActualitzarTmdb}>
                   Actualitzar fitxa des de TMDB

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../firebase/firebase', () => ({ db: {} }));
+vi.mock('../../firebase/firebase', () => ({ db: {}, storage: { app: { options: { storageBucket: 'bucket-prova' } } } }));
+vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn() }));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'nova' }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
@@ -108,6 +109,17 @@ describe('SessionForm — marcar activa', () => {
     expect(batchUpdate).toHaveBeenCalledWith(refAltraActiva, { activa: false });
     expect(batchCommit).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
+  });
+
+  it('no deixa activar una sessió sense data (esborrany creat des d\'una proposta)', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'Pig', data: '', slug: '', activa: false }),
+    });
+    getDocs.mockResolvedValue({ docs: [] });
+    renderEnEdicio();
+    const boto = await screen.findByRole('button', { name: 'Marcar com a activa' });
+    expect(boto).toBeDisabled();
+    expect(screen.getByText('Cal una data per poder-la activar.')).toBeInTheDocument();
   });
 });
 
@@ -560,5 +572,263 @@ describe('SessionForm — sessions especials sense control', () => {
     const filaSocis = resumAssistencia.getByText('Socis').closest('.session-form__estadistica-fila');
     // 1 soci ara vs 1 soci a la sessió normal anterior: diferència 0.
     expect(await within(filaSocis).findByText('0')).toBeInTheDocument();
+  });
+});
+
+describe('SessionForm — pàgina pública', () => {
+  const ARA = new Date('2026-10-22T10:00:00Z');
+  const GESTIO = {
+    titol: 'Pig', data: '2026-10-08', hora: '19:00', activa: true, senseControl: false, propostaId: 'p1',
+    urlProgramacio: '', imatgeUrl: '',
+  };
+
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    updateDoc.mockClear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(ARA);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  function carregar(sessio) {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(sessio) });
+    const user = userEvent.setup();
+    renderEnEdicio();
+    return user;
+  }
+
+  async function obrir(user) {
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Pàgina pública' }));
+  }
+
+  const desat = async () => {
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    return updateDoc.mock.calls[0][1];
+  };
+
+  it('publicar sense slug, data ni títol dona errors i no desa', async () => {
+    const user = carregar({ ...GESTIO, titol: '', data: '' });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const alerta = await screen.findByRole('alert', { name: 'No es pot publicar' });
+    expect(alerta).toHaveTextContent('Cal un slug.');
+    expect(alerta).toHaveTextContent('Cal una data vàlida.');
+    expect(alerta).toHaveTextContent('Cal un títol.');
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('publicar amb tot correcte desa publicada, slug, urlProgramacio i la publica neta amb actualitzatEl', async () => {
+    const user = carregar({ ...GESTIO, slug: '', publicada: false, publica: { titol: 'Pig', directors: ['Michael Sarnoski'], seccio: 'cartellera' } });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Fer servir «pig»' }));
+    await user.type(screen.getByLabelText('Guió'), 'Michael Sarnoski');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const dades = await desat();
+    expect(dades.publicada).toBe(true);
+    expect(dades.slug).toBe('pig');
+    expect(dades.urlProgramacio).toBe('https://cineclubrodadebera.cat/programacio/2026/pig/');
+    expect(dades.publica).toEqual({
+      titol: 'Pig', seccio: 'cartellera', guio: 'Michael Sarnoski', actualitzatEl: '2026-10-22',
+      directors: ['Michael Sarnoski'], interprets: [], generes: [], participa: [], collabora: [], aliases: [],
+    });
+    expect(screen.queryByRole('alert', { name: 'No es pot publicar' })).not.toBeInTheDocument();
+  });
+
+  it('el slug repetit el mateix any no deixa publicar', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'sessions'
+      ? { docs: [{ id: 'altra', data: () => ({ slug: 'pig', data: '2026-03-01' }) }] }
+      : { docs: [] }));
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByRole('alert', { name: 'No es pot publicar' }))
+      .toHaveTextContent('Ja hi ha una altra sessió amb aquest slug el mateix any.');
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('l\'avís de cartell absent no impedeix publicar', async () => {
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    expect(screen.getByText(/La sessió no té cartell/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect((await desat()).publicada).toBe(true);
+  });
+
+  it('desar sense canvis públics no toca publica ni actualitzatEl ni cap camp de gestió', async () => {
+    const publica = { titol: 'Pig', actualitzatEl: '2026-01-01', directors: [], interprets: [], generes: [], participa: [], collabora: [], aliases: [] };
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false, publica });
+    await obrir(user);
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const dades = await desat();
+    expect(dades).not.toHaveProperty('publica');
+    for (const camp of ['activa', 'senseControl', 'propostaId', 'hora', 'data', 'titol', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl']) {
+      expect(dades).not.toHaveProperty(camp);
+    }
+  });
+
+  it('una sessió sense publica es desa sense crear-ne una de buida', async () => {
+    const user = carregar({ ...GESTIO });
+    await obrir(user);
+    await user.clear(screen.getByLabelText('Hora d\'inici'));
+    await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toEqual({ hora: '20:00' });
+  });
+
+  it('el preu 0 es desa com a 0, el buit no es desa i el text dona error', async () => {
+    const user = carregar({ ...GESTIO, publica: { titol: 'Pig', preu: 5 } });
+    await obrir(user);
+    const preu = screen.getByLabelText("Preu d'entrada (€)");
+    await user.clear(preu);
+    await user.type(preu, 'gratis');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText('El preu ha de ser un número igual o superior a 0.')).toBeInTheDocument();
+    expect(updateDoc).not.toHaveBeenCalled();
+
+    await user.clear(preu);
+    await user.type(preu, '0');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect((await desat()).publica.preu).toBe(0);
+  });
+
+  it('el preu buit no es desa', async () => {
+    const user = carregar({ ...GESTIO, publica: { titol: 'Pig', preu: 5 } });
+    await obrir(user);
+    await user.clear(screen.getByLabelText("Preu d'entrada (€)"));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toHaveProperty('publica');
+    expect(updateDoc.mock.calls[0][1].publica).not.toHaveProperty('preu');
+  });
+
+  it('canviar el slug d\'una sessió publicada demana confirmació i afegeix l\'URL antiga als aliases', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', aliases: ['/programacio/25-de-juny-pig/'] } });
+    await obrir(user);
+    await user.clear(screen.getByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-2026');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(confirm).toHaveBeenCalledWith("Això trencarà l'URL anterior; s'afegirà com a alias perquè continuï funcionant.");
+    expect(updateDoc).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const dades = await desat();
+    expect(dades.slug).toBe('pig-2026');
+    expect(dades.urlProgramacio).toBe('https://cineclubrodadebera.cat/programacio/2026/pig-2026/');
+    expect(dades.publica.aliases).toEqual(['/programacio/25-de-juny-pig/', '/programacio/2026/pig/']);
+    expect(dades.publica.actualitzatEl).toBe('2026-10-22');
+  });
+
+  it('enllaça a la pàgina pública només si la sessió desada està publicada', async () => {
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    expect(screen.queryByRole('link', { name: /Veure la pàgina pública/ })).not.toBeInTheDocument();
+  });
+
+  it('l\'enllaç a la pàgina pública apunta a la URL desada', async () => {
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true });
+    await obrir(user);
+    await user.type(screen.getByLabelText('Slug'), '-nou');
+    expect(screen.getByRole('link', { name: /Veure la pàgina pública/ }))
+      .toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/2026/pig/');
+  });
+
+  it('desar una sessió publicada sense tocar res públic no envia urlProgramacio, publica ni actualitzatEl', async () => {
+    const user = carregar({
+      ...GESTIO, slug: 'pig', publicada: true, urlProgramacio: 'https://cineclubrodadebera.cat/programacio/pig-de-hugo/',
+      publica: { titol: 'Pig', actualitzatEl: '2026-01-01' },
+    });
+    await obrir(user);
+    await user.clear(screen.getByLabelText('Hora d\'inici'));
+    await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toEqual({ hora: '20:00' });
+  });
+
+  it('una descripció llarga ja desada no impedeix desar altres canvis', async () => {
+    const llarga = 'a'.repeat(200);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', descripcio: llarga } });
+    await obrir(user);
+    expect(screen.getByText(/passa de 160 caràcters/)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Hora d\'inici'));
+    await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toEqual({ hora: '20:00' });
+  });
+
+  it('editar la descripció d\'una sessió publicada a més de 160 caràcters avisa però desa', async () => {
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } });
+    await obrir(user);
+    await user.type(screen.getByLabelText('Descripció (SEO)'), 'a'.repeat(161));
+    expect(screen.getByText(/passa de 160 caràcters/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect((await desat()).publica.descripcio).toBe('a'.repeat(161));
+  });
+
+  it('publicar per primer cop amb una descripció de més de 160 caràcters no desa', async () => {
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false, publica: { titol: 'Pig' } });
+    await obrir(user);
+    await user.type(screen.getByLabelText('Descripció (SEO)'), 'a'.repeat(161));
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByText('La descripció no pot passar de 160 caràcters.')).toBeInTheDocument();
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('un error a la fitxa pública sense tocar no bloqueja el desat', async () => {
+    const user = carregar({ ...GESTIO, publica: { titol: 'Pig', durada: '92 min' } });
+    await obrir(user);
+    await user.clear(screen.getByLabelText('Hora d\'inici'));
+    await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toEqual({ hora: '20:00' });
+  });
+
+  it('no escriu els valors per defecte dels camps que la sessió no tenia', async () => {
+    const user = carregar({ titol: 'Pig', data: '2026-10-08', activa: false });
+    await obrir(user);
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig 2');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await desat()).toEqual({ titol: 'Pig 2' });
+  });
+
+  it('despublicar i canviar el slug alhora també afegeix l\'URL antiga als aliases', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } });
+    await obrir(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.clear(screen.getByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-nou');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const dades = await desat();
+    expect(dades.publicada).toBe(false);
+    expect(dades.publica.aliases).toEqual(['/programacio/2026/pig/']);
+    expect(dades).not.toHaveProperty('urlProgramacio');
+  });
+
+  it('un cartell nou es desa també com a imatgeUrl de la sessió', async () => {
+    const { uploadBytes } = await import('firebase/storage');
+    uploadBytes.mockResolvedValue({});
+    const user = carregar({ ...GESTIO, slug: 'pig', publica: { titol: 'Pig' } });
+    await obrir(user);
+    await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+    await screen.findByRole('img', { name: 'Cartell' });
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const dades = await desat();
+    expect(dades.publica.cartell).toMatch(/^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/bucket-prova\/o\/web%2Fsessions%2Fpig%2Fposter-\d+\.jpg\?alt=media$/);
+    expect(dades.imatgeUrl).toBe(dades.publica.cartell);
   });
 });

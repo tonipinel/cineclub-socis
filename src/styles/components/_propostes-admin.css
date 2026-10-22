@@ -89,7 +89,8 @@
 .proposta-fitxa__avis {
   @apply rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
 }
-.proposta-fitxa__actualitzar {
+.proposta-fitxa__actualitzar,
+.proposta-fitxa__programar {
   @apply self-start;
 }
 .proposta-form {
