@@ -38,7 +38,7 @@ describe('IdentitatPublicaProvider', () => {
     expect(screen.getByTestId('nom')).toHaveTextContent('Anna');
   });
 
-  it('setIdentitat(x) la persisteix i dispara identitat-canviada', () => {
+  it('setIdentitat(x) la persisteix', () => {
     renderitzar();
     const oient = vi.fn();
     window.addEventListener('identitat-canviada', oient);
@@ -47,10 +47,11 @@ describe('IdentitatPublicaProvider', () => {
 
     expect(screen.getByTestId('nom')).toHaveTextContent('Anna');
     expect(llegirIdentitat()).toEqual(identitat);
-    expect(oient).toHaveBeenCalledTimes(1);
+    // Ja no s'avisa fora de React: cap consumidor l'escoltava.
+    expect(oient).not.toHaveBeenCalled();
   });
 
-  it('setIdentitat(null) l\'esborra i dispara identitat-canviada', () => {
+  it('setIdentitat(null) l\'esborra', () => {
     sessionStorage.setItem(CLAU_IDENTITAT, JSON.stringify(identitat));
     renderitzar();
     const oient = vi.fn();
@@ -60,7 +61,7 @@ describe('IdentitatPublicaProvider', () => {
 
     expect(screen.getByTestId('nom')).toHaveTextContent('anònim');
     expect(sessionStorage.getItem(CLAU_IDENTITAT)).toBeNull();
-    expect(oient).toHaveBeenCalledTimes(1);
+    expect(oient).not.toHaveBeenCalled();
   });
 
   it('setIdentitat accepta un actualitzador funcional resolt contra el valor actual', () => {

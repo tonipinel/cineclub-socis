@@ -9,7 +9,9 @@ const URL_IMATGES_TMDB = 'https://image.tmdb.org/t/p';
 // Fitxa que veu un soci per decidir si vol veure la pel·lícula: què és (any,
 // durada, gèneres), el tràiler, de què va, qui la recomana i per què, i qui
 // hi participa.
-export default function FitxaPublica({ proposta }) {
+// `titolRef` deixa que qui la fa servir hi mogui el focus; `senseProposant` amaga «Proposada per»
+// quan el contenidor ja ho diu (el detall públic).
+export default function FitxaPublica({ proposta, titolRef, senseProposant = false }) {
   const imatges = proposta.imatges ?? [];
   const [obertaIndex, setObertaIndex] = useState(null);
 
@@ -30,13 +32,18 @@ export default function FitxaPublica({ proposta }) {
   return (
     <div className="fitxa-publica">
       <header className="fitxa-publica__hero">
-        <h2 className="fitxa-publica__titol">{proposta.titol}</h2>
+        <h2 className="fitxa-publica__titol" ref={titolRef} tabIndex={titolRef ? -1 : undefined}>{proposta.titol}</h2>
         <TitolLocal proposta={proposta} className="fitxa-publica__titol-local" />
         {resum && <p className="fitxa-publica__resum">{resum}</p>}
         {proposta.generes?.length > 0 && (
           <ul className="fitxa-publica__generes">
             {proposta.generes.map((g) => <li key={g} className="fitxa-publica__genere">{g}</li>)}
           </ul>
+        )}
+        {proposta.nomProposant && !senseProposant && (
+          <p className="fitxa-publica__proposant">
+            Proposada per <strong className="fitxa-publica__proposant-nom">{proposta.nomProposant}</strong>
+          </p>
         )}
         {proposta.lema && <p className="fitxa-publica__lema">{proposta.lema}</p>}
       </header>

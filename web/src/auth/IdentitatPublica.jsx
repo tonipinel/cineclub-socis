@@ -10,7 +10,7 @@ export function IdentitatPublicaProvider({ children }) {
   // renderitzat), perquè dues crides seguides encadenin.
   const actual = useRef(identitat);
 
-  // Persisteix a sessionStorage i avisa la capçalera (fora de React) perquè actualitzi la salutació.
+  // Persisteix a sessionStorage.
   // Accepta un valor o un actualitzador `(anterior) => nou`.
   const setIdentitat = useCallback((valorONou) => {
     const nova = typeof valorONou === 'function' ? valorONou(actual.current) : valorONou;
@@ -18,7 +18,6 @@ export function IdentitatPublicaProvider({ children }) {
     setIdentitatEstat(nova);
     if (nova) desarIdentitat(nova);
     else esborrarIdentitat();
-    window.dispatchEvent(new CustomEvent('identitat-canviada'));
   }, []);
 
   return (

@@ -6,16 +6,18 @@ import site from '../data/site.json';
 import { INDEXABLE, SITE_URL } from '../lib/env.js';
 
 // titol: absent a la portada. canonical i imatgeOg: URLs absolutes. noindex: pàgines que no
-// s'han d'indexar mai (el 404).
+// s'han d'indexar mai (el 404). titolSocial: el títol d'og:title i twitter:title si ha de ser un altre que
+// `titol` (p. ex. amb el nom del Cineclub, per a la previsualització de WhatsApp).
 const {
   titol,
   descripcio = site.tagline,
   imatgeOg = `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
   canonical = new URL(Astro.url.pathname, SITE_URL).href,
   noindex = false,
+  titolSocial: titolSocialProp,
 } = Astro.props;
 const titolPagina = titol ? `${titol} · ${site.title}` : site.title;
-const titolSocial = titol || site.title;
+const titolSocial = titolSocialProp || titol || site.title;
 ---
 <!DOCTYPE html>
 <html lang="ca">
@@ -46,7 +48,6 @@ const titolSocial = titol || site.title;
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <slot name="head" />
-  <script type="module" src="/js/salutacio.js"></script>
 </head>
 <body class="site-body">
   <SiteHeader pathname={Astro.url.pathname} />

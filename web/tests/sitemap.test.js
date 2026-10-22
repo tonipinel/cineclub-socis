@@ -65,6 +65,13 @@ describe('urlsSitemap', () => {
     expect(new Set(urls).size).toBe(urls.length);
   });
 
+  it('no hi llista les pàgines que no s\'indexen (/propostes/votar/, /propostes/proposar/)', async () => {
+    const urls = await urlsSitemap(db);
+    expect(urls).toContain('/propostes/');
+    expect(urls).not.toContain('/propostes/votar/');
+    expect(urls).not.toContain('/propostes/proposar/');
+  });
+
   it('exclou les sessions no publicades (o sense data vàlida) i els termes que només elles aporten', async () => {
     const urls = (await urlsSitemap(db)).join('\n');
     for (const intrus of ['oculta', 'ocult', 'sense-data', 'trencat']) expect(urls).not.toContain(intrus);

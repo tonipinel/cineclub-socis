@@ -58,11 +58,6 @@ body:has(.propostes-app) > main {
   @apply mt-2 font-body text-sm text-black/70;
 }
 
-/* Salutació de la capçalera quan el soci està identificat (_header.css). */
-.capcalera-publica__salutacio {
-  @apply font-body text-xs text-white/60;
-}
-
 /* Pantalla de càrrega (_carregant.css). */
 .carregant {
   @apply flex min-h-screen w-full items-center justify-center;

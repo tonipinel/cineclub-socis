@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import IllaVotar from '../../../components/propostes/IllaVotar.jsx';
+
+// Pàgina per compartir per WhatsApp: no s'indexa ni és al sitemap, però porta Open Graph (el títol
+// social amb el nom del Cineclub i la imatge per defecte del layout, que ja és absoluta).
+const descripcio = "Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·lícules proposades per les persones sòcies.";
+---
+<BaseLayout
+  titol="Vota les propostes"
+  titolSocial="Vota les propostes · Cineclub Roda de Berà"
+  descripcio={descripcio}
+  noindex
+>
+  <!-- Inter 700, com a /propostes/: el `<b>` de «Proposada per» de la fitxa. -->
+  <link slot="head" href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
+  <div class="propostes-app">
+    <IllaVotar client:only="react" />
+  </div>
+</BaseLayout>

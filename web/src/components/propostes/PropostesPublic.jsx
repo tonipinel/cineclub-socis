@@ -1,33 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  collection, doc, getDoc, getDocs, query, serverTimestamp, addDoc, setDoc, deleteDoc, where,
-} from 'firebase/firestore';
-import { db } from '../../firebase/client.js';
+import { useEffect, useState } from 'react';
 import { useIdentitatPublica } from '../../auth/useIdentitatPublica.js';
 import { formatData } from '../../lib/propostes/data.js';
-import { ordenarPerVots, ordenarPerData } from '../../lib/propostes/propostes.js';
+import { ordenarPerData } from '../../lib/propostes/propostes.js';
+import { useEstatVotacio } from './useEstatVotacio.js';
 import LectorCarnet from './LectorCarnet.jsx';
 import Carregant from './Carregant.jsx';
 import FitxaPublica from './FitxaPublica.jsx';
 import CartellPelicula from './CartellPelicula.jsx';
 import TitolLocal from './TitolLocal.jsx';
-
-function IconaPolze({ omplert, className }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill={omplert ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3Zm0 0 4.5-7.5a1.5 1.5 0 0 1 2.7.9L13.5 9H19a2 2 0 0 1 1.9 2.7l-2.3 6.5A2 2 0 0 1 16.7 20H7" />
-    </svg>
-  );
-}
+import IconaPolze from './IconaPolze.jsx';
+import VotacioTanda from './VotacioTanda.jsx';
+import FalladaCarrega from './FalladaCarrega.jsx';
+import AvisPrivacitat from './AvisPrivacitat.jsx';
+import RankingTancat from './RankingTancat.jsx';
+import IdentitatLinia from './IdentitatLinia.jsx';
 
 function IconaPlay({ className }) {
   return (
@@ -49,22 +35,23 @@ function IconaPlay({ className }) {
 
 function AccionsVot({ proposta, onVotar, ambText, senseTrailer }) {
   const classeAccio = `proposta-carta__accio ${ambText ? 'proposta-carta__accio--ample' : ''}`;
+  const ambTrailer = proposta.trailerUrl && !senseTrailer;
+  if (!onVotar && !ambTrailer) return null;
   return (
     <div className="proposta-carta__footer">
-      <div className="proposta-carta__vot-bloc">
-        <button
-          type="button"
-          className={`${classeAccio} ${proposta.heVotat ? 'proposta-carta__accio--activa' : ''}`}
-          onClick={onVotar}
-          aria-label={proposta.heVotat ? 'Has votat, treure el vot' : 'Votar'}
-          aria-pressed={proposta.heVotat}
-        >
-          <IconaPolze className="proposta-carta__accio-icona" omplert={proposta.heVotat} />
-          {ambText && <span>{proposta.heVotat ? 'Has votat' : 'Votar'}</span>}
-        </button>
-        <span className="proposta-carta__vots">{proposta.vots}</span>
-      </div>
-      {proposta.trailerUrl && !senseTrailer && (
+      {onVotar && (
+        <div className="proposta-carta__vot-bloc">
+          <button type="button" className={classeAccio} onClick={() => onVotar('like')} aria-label="M'agrada">
+            <IconaPolze className="proposta-carta__accio-icona" />
+            {ambText && <span>M&apos;agrada</span>}
+          </button>
+          <button type="button" className={classeAccio} onClick={() => onVotar('dislike')} aria-label="No m'agrada">
+            <IconaPolze className="proposta-carta__accio-icona proposta-carta__accio-icona--avall" />
+            {ambText && <span>No m&apos;agrada</span>}
+          </button>
+        </div>
+      )}
+      {ambTrailer && (
         <a
           className={classeAccio}
           href={proposta.trailerUrl}
@@ -80,75 +67,28 @@ function AccionsVot({ proposta, onVotar, ambText, senseTrailer }) {
   );
 }
 
-// L'únic hash de la URL fa doble servei: '#top'/'#recents' selecciona la
-// vista, qualsevol altre valor és l'id d'una proposta oberta. Centralitzat
-// aquí perquè els dos useState inicials i el listener de hashchange llegeixin
-// sempre el mateix criteri.
+// El hash de la URL és l'id de la proposta oberta. '#recents' (i l'antic '#top') no n'obren cap.
 function llegirHash() {
   const hash = window.location.hash.slice(1);
-  if (hash === 'top') return { vista: 'vots', obertaId: null };
-  if (hash === 'recents' || hash === '') return { vista: 'data', obertaId: null };
-  return { vista: null, obertaId: hash };
+  return hash === '' || hash === 'recents' || hash === 'top' ? null : hash;
 }
 
 export default function PropostesPublic() {
   const { identitat, setIdentitat } = useIdentitatPublica();
-  const [propostes, setPropostes] = useState(null);
-  const [error, setError] = useState(null);
-  const [info, setInfo] = useState(null);
+  const token = identitat?.token;
+  const {
+    propostes, propostesPerId, tandaPublica, estat, error, setError, votPendentRef,
+    recarregarEstat, tornarAProvar, tandaEstat, votacio, tandaTancada, carregant, carregaFallida,
+  } = useEstatVotacio({ identitat, setIdentitat });
   const [propostaPendent, setPropostaPendent] = useState(null);
   const [volProposar, setVolProposar] = useState(false);
-  const [propostaObertaId, setPropostaObertaId] = useState(() => llegirHash().obertaId);
-  const [vistaOrdre, setVistaOrdre] = useState(() => llegirHash().vista ?? 'data');
-  const identitatRevisadaRef = useRef(null);
+  const [propostaObertaId, setPropostaObertaId] = useState(llegirHash);
 
   useEffect(() => {
-    const handler = () => {
-      const { vista, obertaId } = llegirHash();
-      if (vista) {
-        setVistaOrdre(vista);
-        setPropostaObertaId(null);
-      } else {
-        setPropostaObertaId(obertaId);
-      }
-    };
+    const handler = () => setPropostaObertaId(llegirHash());
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
   }, []);
-
-  const canviarVista = (nova) => {
-    window.location.hash = nova === 'vots' ? 'top' : 'recents';
-  };
-
-  useEffect(() => {
-    getDocs(query(collection(db, 'propostes'), where('estat', '==', 'aprovada'))).then((snap) => {
-      const base = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      return Promise.all(base.map((p) => (
-        getDocs(collection(db, 'propostes', p.id, 'vots')).then((votsSnap) => ({
-          ...p, vots: votsSnap.docs.length, heVotat: false,
-        }))
-      )));
-    }).then((ambVots) => setPropostes(ambVots));
-  }, []);
-
-  // Si la identitat ja es coneixia (compartida entre pàgines) quan aquest
-  // component es munta, el carregament de dalt sempre parteix de heVotat:
-  // false — cal revisar-ho de nou aquí, un cop per identitat, perquè la
-  // llista i el botó de votar mostrin l'estat real des del primer moment
-  // (sense esperar a un escaneig nou que no arribarà).
-  useEffect(() => {
-    if (!identitat || !propostes) return undefined;
-    if (identitatRevisadaRef.current === identitat.numeroSoci) return undefined;
-    identitatRevisadaRef.current = identitat.numeroSoci;
-    let actiu = true;
-    Promise.all(propostes.map(async (p) => {
-      const votSnap = await getDoc(doc(db, 'propostes', p.id, 'vots', String(identitat.numeroSoci)));
-      return { ...p, heVotat: votSnap.exists() };
-    })).then((actualitzades) => {
-      if (actiu) setPropostes(actualitzades);
-    });
-    return () => { actiu = false; };
-  }, [identitat, propostes]);
 
   useEffect(() => {
     if (!propostaObertaId) return undefined;
@@ -156,64 +96,16 @@ export default function PropostesPublic() {
     return () => document.body.classList.remove('proposta-detall-obert-body');
   }, [propostaObertaId]);
 
-  const alternarVot = async (proposta, identitatUsada) => {
+  const handleVotarClick = (proposta, valor) => {
     setError(null);
-    const votRef = doc(db, 'propostes', proposta.id, 'vots', String(identitatUsada.numeroSoci));
-    const nouHeVotat = !proposta.heVotat;
-    try {
-      if (proposta.heVotat) {
-        await deleteDoc(votRef);
-        await addDoc(collection(db, 'propostesActivitat'), {
-          tipus: 'desvot', propostaId: proposta.id, numeroSoci: identitatUsada.numeroSoci, timestamp: serverTimestamp(),
-        });
-      } else {
-        await setDoc(votRef, { timestamp: serverTimestamp(), token: identitatUsada.token });
-        await addDoc(collection(db, 'propostesActivitat'), {
-          tipus: 'vot', propostaId: proposta.id, numeroSoci: identitatUsada.numeroSoci, timestamp: serverTimestamp(),
-        });
-      }
-      setPropostes((actual) => actual.map((p) => (
-        p.id === proposta.id ? { ...p, heVotat: nouHeVotat, vots: p.vots + (nouHeVotat ? 1 : -1) } : p
-      )));
-    } catch {
-      setError("No s'ha pogut registrar el vot. Torna-ho a provar.");
-    }
+    setPropostaPendent({ proposta, valor });
   };
 
-  const handleVotarClick = (proposta) => {
-    setInfo(null);
-    if (identitat) {
-      if (proposta.heVotat && !window.confirm('Ja havies votat aquesta pel·lícula. Vols retirar el teu vot?')) return;
-      alternarVot(proposta, identitat);
-    } else {
-      setPropostaPendent(proposta);
-    }
-  };
-
-  const handleIdentificat = async (nova) => {
+  const handleIdentificat = (nova) => {
+    setError(null);
+    if (propostaPendent) votPendentRef.current = { propostaId: propostaPendent.proposta.id, valor: propostaPendent.valor };
+    setPropostaPendent(null);
     setIdentitat(nova);
-    setError(null);
-    setInfo(null);
-    let llistaActual = propostes;
-    if (propostes) {
-      const actualitzades = await Promise.all(propostes.map(async (p) => {
-        const votSnap = await getDoc(doc(db, 'propostes', p.id, 'vots', String(nova.numeroSoci)));
-        return { ...p, heVotat: votSnap.exists() };
-      }));
-      llistaActual = actualitzades;
-      setPropostes(llistaActual);
-    }
-    if (propostaPendent) {
-      const propostaReal = llistaActual?.find((p) => p.id === propostaPendent.id) ?? propostaPendent;
-      if (propostaReal.heVotat) {
-        setInfo(
-          `Ja havies votat "${propostaReal.titol}". Si vols, pots aprofitar per votar altres propostes.`
-        );
-      } else {
-        await alternarVot(propostaReal, nova);
-      }
-      setPropostaPendent(null);
-    }
     if (volProposar) {
       setVolProposar(false);
       window.location.assign('/propostes/proposar/');
@@ -228,8 +120,25 @@ export default function PropostesPublic() {
     }
   };
 
-  const propostaOberta = propostes?.find((p) => p.id === propostaObertaId) ?? null;
-  const propostesMostrades = propostes && (vistaOrdre === 'vots' ? ordenarPerVots(propostes) : ordenarPerData(propostes));
+  const visitantAmbTanda = !identitat && !!tandaPublica;
+
+  // Mode votació immersiu: res més que la fitxa (sense hero ni capçalera de la llista), també mentre
+  // es carrega l'estat d'un soci identificat, perquè no parpellegi.
+  const immersiu = !!identitat && (carregant || (votacio && !carregaFallida));
+
+  // En mode votació la fitxa oberta no es pinta (taparia la votació, sense botons de vot): es tanca i es neteja el hash.
+  const propostaOberta = !immersiu && propostaObertaId ? propostesPerId[propostaObertaId] ?? null : null;
+  useEffect(() => {
+    if (!immersiu || carregant || !propostaObertaId) return;
+    history.replaceState(null, '', `${window.location.pathname}${window.location.search}#recents`);
+    setPropostaObertaId(null);
+  }, [immersiu, carregant, propostaObertaId]);
+  const propostesMostrades = propostes && ordenarPerData(
+    visitantAmbTanda
+      ? propostes.filter((p) => tandaPublica.propostes.includes(p.id))
+      : propostes.filter((p) => p.estat === 'aprovada')
+  );
+  const votarDetall = visitantAmbTanda && propostaOberta && tandaPublica.propostes.includes(propostaOberta.id);
 
   const obrirProposta = (id) => {
     // eslint-disable-next-line react-hooks/immutability -- pushes a shareable/history-friendly URL, mirrors the hashchange listener above
@@ -237,110 +146,81 @@ export default function PropostesPublic() {
   };
 
   const tancarProposta = () => {
-    const hashVista = vistaOrdre === 'vots' ? '#top' : '#recents';
-    history.pushState(null, '', window.location.pathname + window.location.search + hashVista);
+    history.pushState(null, '', `${window.location.pathname}${window.location.search}#recents`);
     setPropostaObertaId(null);
   };
 
   return (
     <>
-      <section className="propostes-hero">
-        <h1 className="propostes-hero__title">Propostes</h1>
-        <div className="propostes-hero__hook">
-          <p>
-            Descobreix les pel·lícules proposades per les persones sòcies, vota les que vols veure
-            i afegeix-ne de noves. (Cal tenir el carnet)
-          </p>
-        </div>
-      </section>
-
-      <div className="propostes-public">
-        <header className="propostes-public__capcalera">
-          <div className="propostes-public__capcalera-fila">
-            <span className="propostes-public__marca">Propostes de programació</span>
-            <button
-              type="button"
-              className="btn propostes-public__proposar-boto"
-              onClick={handleProposarClick}
-              aria-label="Proposar pel·lícula"
-            >
-              +
-            </button>
+      {!immersiu && (
+        <section className="propostes-hero">
+          <h1 className="propostes-hero__title">Propostes</h1>
+          <div className="propostes-hero__hook">
+            <p>
+              Descobreix les pel·lícules proposades per les persones sòcies, dona&apos;ls el teu 👍 o 👎
+              quan hi hagi una tanda oberta i afegeix-ne de noves. (Cal tenir el carnet)
+            </p>
           </div>
-        </header>
+        </section>
+      )}
 
-        <div className="propostes-public__ordre" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={vistaOrdre === 'data'}
-            className={`propostes-public__ordre-boto ${vistaOrdre === 'data' ? 'propostes-public__ordre-boto--activa' : ''}`}
-            onClick={() => canviarVista('data')}
-          >
-            Més recents
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={vistaOrdre === 'vots'}
-            className={`propostes-public__ordre-boto ${vistaOrdre === 'vots' ? 'propostes-public__ordre-boto--activa' : ''}`}
-            onClick={() => canviarVista('vots')}
-          >
-            Més votades
-          </button>
-        </div>
+      <div className={`propostes-public ${immersiu ? 'propostes-public--immersiu' : ''}`}>
+        {!immersiu && (
+          <header className="propostes-public__capcalera">
+            <div className="propostes-public__capcalera-fila">
+              <span className="propostes-public__marca">Propostes de programació</span>
+              <button
+                type="button"
+                className="btn propostes-public__proposar-boto"
+                onClick={handleProposarClick}
+                aria-label="Proposar pel·lícula"
+              >
+                +
+              </button>
+            </div>
+          </header>
+        )}
+
+        {identitat && !immersiu && !carregaFallida && (
+          <IdentitatLinia identitat={identitat} setIdentitat={setIdentitat} sola />
+        )}
 
         {error && <p className="form__error">{error}</p>}
-        {info && <p className="propostes-public__info">{info}</p>}
 
-        {propostes === null && <Carregant />}
+        {carregant && <Carregant />}
 
-        {propostes !== null && (
+        {carregaFallida && (
+          <FalladaCarrega onTornarAProvar={tornarAProvar} onSortir={identitat ? () => setIdentitat(null) : undefined} />
+        )}
+
+        {!carregant && !carregaFallida && votacio && (
+          <VotacioTanda
+            key={`${token}-${estat.versio}`}
+            identitat={identitat}
+            tanda={tandaEstat}
+            propostesPerId={propostesPerId}
+            estat={estat.dades}
+            setIdentitat={setIdentitat}
+            onError={setError}
+            onRecarregar={recarregarEstat}
+          />
+        )}
+
+        {!carregant && !carregaFallida && !votacio && tandaTancada && (
+          <RankingTancat
+            token={token}
+            tandaId={tandaTancada.id}
+            propostesPerId={propostesPerId}
+            valors={estat?.dades?.valors}
+            onError={setError}
+          />
+        )}
+
+        {!carregant && !carregaFallida && !votacio && (
           propostesMostrades.length === 0 ? (
             <p className="propostes-public__buit">
               Encara no hi ha cap proposta aprovada. Sigues el primer a proposar-ne una!
             </p>
-          ) : vistaOrdre === 'vots' ? (
-            <ol className="propostes-public__top">
-              {propostesMostrades.map((p, index) => (
-                <li key={p.id} className="proposta-top__fila">
-                  <button type="button" className="proposta-top__titol-linia" onClick={() => obrirProposta(p.id)}>
-                    <span className="proposta-top__posicio">{index + 1}</span>
-                    <span className="proposta-top__titols">
-                      <span className="proposta-top__titol">{p.titol}</span>
-                      <TitolLocal proposta={p} className="proposta-top__titol-local" />
-                    </span>
-                  </button>
-                  <button type="button" className="proposta-top__data-linia" onClick={() => obrirProposta(p.id)}>
-                    {p.timestamp?.toDate && (
-                      <span className="proposta-top__data">{formatData(p.timestamp.toDate())}</span>
-                    )}
-                    {p.nomProposant && <span className="proposta-top__autor">Proposada per {p.nomProposant}</span>}
-                  </button>
-                  <button
-                    type="button"
-                    className={`proposta-top__vot ${p.heVotat ? 'proposta-top__vot--activa' : ''}`}
-                    onClick={() => handleVotarClick(p)}
-                    aria-label={p.heVotat ? 'Has votat, treure el vot' : 'Votar'}
-                    aria-pressed={p.heVotat}
-                  >
-                    <IconaPolze className="proposta-top__vot-icona" omplert={p.heVotat} />
-                    <span className="proposta-top__vot-num">{p.vots}</span>
-                  </button>
-                  <button type="button" className="proposta-top__detall" onClick={() => obrirProposta(p.id)}>
-                    {p.sinopsi && <p className="proposta-top__sinopsi">{p.sinopsi}</p>}
-                  </button>
-                  <button
-                    type="button"
-                    className="proposta-top__imatge-boto"
-                    onClick={() => obrirProposta(p.id)}
-                    aria-label={`Obrir ${p.titol}`}
-                  >
-                    <CartellPelicula proposta={p} className="proposta-top__imatge" />
-                  </button>
-                </li>
-              ))}
-            </ol>
           ) : (
             <ul className="propostes-public__llista">
               {propostesMostrades.map((p) => (
@@ -362,11 +242,15 @@ export default function PropostesPublic() {
                       {p.sinopsi && <p className="proposta-carta__sinopsi">{p.sinopsi}</p>}
                     </div>
                   </button>
-                  <AccionsVot proposta={p} onVotar={() => handleVotarClick(p)} />
+                  <AccionsVot proposta={p} onVotar={visitantAmbTanda ? (valor) => handleVotarClick(p, valor) : undefined} />
                 </li>
               ))}
             </ul>
           )
+        )}
+
+        {!carregant && !carregaFallida && (votacio || visitantAmbTanda) && (
+          <AvisPrivacitat />
         )}
 
         {propostaOberta && (
@@ -393,11 +277,18 @@ export default function PropostesPublic() {
               </button>
             </div>
             <div className="proposta-detall__scroll">
-              <FitxaPublica proposta={propostaOberta} />
+              <FitxaPublica proposta={propostaOberta} senseProposant />
             </div>
-            <div className="proposta-detall__footer">
-              <AccionsVot proposta={propostaOberta} onVotar={() => handleVotarClick(propostaOberta)} ambText senseTrailer />
-            </div>
+            {votarDetall && (
+              <div className="proposta-detall__footer">
+                <AccionsVot
+                  proposta={propostaOberta}
+                  onVotar={(valor) => handleVotarClick(propostaOberta, valor)}
+                  ambText
+                  senseTrailer
+                />
+              </div>
+            )}
           </div>
         )}
 

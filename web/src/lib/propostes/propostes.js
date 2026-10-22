@@ -9,10 +9,6 @@ export function calcularNomPublic(soci) {
   return `${soci.nom} ${cognoms.charAt(0).toUpperCase()}.`;
 }
 
-export function ordenarPerVots(propostes) {
-  return [...propostes].sort((a, b) => (b.vots ?? 0) - (a.vots ?? 0));
-}
-
 function millisTimestamp(proposta) {
   return typeof proposta.timestamp?.toDate === 'function' ? proposta.timestamp.toDate().getTime() : 0;
 }

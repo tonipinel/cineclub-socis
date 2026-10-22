@@ -9,6 +9,9 @@
 .propostes-public {
   @apply mx-auto flex max-w-6xl flex-col gap-4 pb-10;
 }
+.propostes-public--immersiu {
+  @apply pt-4;
+}
 .propostes-public__capcalera {
   @apply sticky top-0 z-10 flex flex-col gap-2 bg-white pt-3;
 }
@@ -36,95 +39,11 @@
 .propostes-hero__hook {
   @apply mt-2 flex max-w-xl flex-col gap-2 font-body text-base text-white/80 sm:text-lg;
 }
-.propostes-public__ordre {
-  @apply flex gap-1 border-b border-black/10;
-}
-.propostes-public__ordre-boto {
-  @apply -mb-px cursor-pointer rounded-t-lg border border-b-0 border-transparent bg-black/5 px-4 py-2 font-body text-sm font-semibold text-black/50;
-}
-.propostes-public__ordre-boto--activa {
-  @apply border-black/10 bg-white text-black;
-}
 .propostes-public__buit {
   @apply px-4 font-body text-black/70;
 }
-.propostes-public__info {
-  @apply mx-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 font-body text-sm text-blue-900;
-}
 .propostes-public__llista {
   @apply grid list-none grid-cols-2 gap-3 p-0 px-4 sm:grid-cols-3 lg:grid-cols-4;
-}
-
-.propostes-public__top {
-  @apply flex list-none flex-col gap-0 p-0 px-4;
-}
-.proposta-top__fila {
-  @apply grid items-stretch gap-x-2 gap-y-1 border-b border-black/10 px-3 py-3 sm:gap-x-3;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas: "titol titol imatge" "data data imatge" "vot info imatge";
-}
-.proposta-top__fila:nth-child(even) {
-  @apply bg-black/5;
-}
-.proposta-top__fila:hover {
-  @apply bg-gold/10;
-}
-.proposta-top__titol-linia {
-  @apply flex cursor-pointer items-baseline gap-2 overflow-hidden border-0 bg-transparent p-0 text-left;
-  grid-area: titol;
-}
-.proposta-top__posicio {
-  @apply shrink-0 text-center font-display text-sm font-bold text-black/40 sm:text-lg;
-}
-.proposta-top__titols {
-  @apply flex min-w-0 flex-1 flex-col;
-}
-.proposta-top__titol-local {
-  @apply truncate font-body text-xs text-black/60;
-}
-.proposta-top__titol {
-  @apply min-w-0 flex-1 truncate font-display text-base font-bold text-black sm:text-lg;
-}
-.proposta-top__data-linia {
-  @apply flex cursor-pointer items-center gap-2 overflow-hidden border-0 bg-transparent p-0 text-left;
-  grid-area: data;
-}
-.proposta-top__vot {
-  @apply flex w-14 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 self-start rounded border-2 border-gold bg-transparent py-1 text-gold-dark transition hover-real:bg-gold hover-real:text-black sm:w-16;
-  grid-area: vot;
-}
-.proposta-top__vot--activa {
-  @apply border-gold bg-gold text-black;
-}
-.proposta-top__vot-icona {
-  @apply h-4 w-4;
-}
-.proposta-top__vot-num {
-  @apply font-body text-xs font-semibold;
-}
-.proposta-top__detall {
-  @apply flex min-w-0 cursor-pointer flex-col justify-center gap-0.5 overflow-hidden border-0 bg-transparent p-0 text-left;
-  grid-area: info;
-}
-.proposta-top__sinopsi {
-  @apply line-clamp-2 w-full font-body text-xs text-black/60;
-}
-.proposta-top__data {
-  @apply shrink-0 text-center font-body text-xs text-black/40;
-  width: calc(var(--spacing) * 17);
-}
-.proposta-top__autor {
-  @apply min-w-0 flex-1 truncate font-body text-xs text-black/50;
-}
-.proposta-top__imatge-boto {
-  @apply shrink-0 cursor-pointer self-stretch border-0 bg-transparent p-0;
-  grid-area: imatge;
-}
-.proposta-top__imatge {
-  @apply block h-full w-16 rounded object-cover sm:w-24;
-}
-.proposta-top__imatge.proposta-carta__cartell-placeholder {
-  @apply aspect-auto p-1 text-[8px] leading-tight;
 }
 
 .proposta-carta {
@@ -163,20 +82,17 @@
 .proposta-carta__vot-bloc {
   @apply flex items-center gap-2;
 }
-.proposta-carta__vots {
-  @apply font-body text-base font-semibold text-black;
-}
 .proposta-carta__accio {
   @apply flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded border-2 border-gold bg-transparent text-gold-dark transition hover-real:bg-gold hover-real:text-black;
 }
 .proposta-carta__accio--ample {
   @apply h-auto w-auto gap-1.5 whitespace-nowrap px-4 py-2.5 font-body text-sm font-semibold;
 }
-.proposta-carta__accio--activa {
-  @apply border-gold bg-gold text-black;
-}
 .proposta-carta__accio-icona {
   @apply h-5 w-5 flex-shrink-0;
+}
+.proposta-carta__accio-icona--avall {
+  @apply rotate-180;
 }
 
 body.proposta-detall-obert-body {
@@ -247,16 +163,9 @@ body.proposta-detall-obert-body {
 .proposta-detall__footer .proposta-carta__accio {
   @apply rounded-full border-gold bg-gold px-8 py-3 font-display text-lg sm:px-10 sm:py-4 sm:text-xl font-bold uppercase tracking-wide text-black shadow-lg hover-real:border-white hover-real:bg-white hover-real:text-black;
 }
-.proposta-detall__footer .proposta-carta__accio--activa {
-  @apply border-white bg-white text-black hover-real:border-gold hover-real:bg-gold;
-}
 .proposta-detall__footer .proposta-carta__accio-icona {
   @apply h-7 w-7;
 }
-.proposta-detall__footer .proposta-carta__vots {
-  @apply font-display text-2xl font-bold text-white;
-}
-
 .propostes-public__overlay {
   @apply fixed inset-0 z-40 flex items-end justify-center bg-black/60 sm:items-center sm:p-4;
 }
@@ -364,6 +273,12 @@ body.proposta-detall-obert-body {
 .fitxa-publica__genere {
   @apply rounded-full border border-white/50 px-3 py-0.5 text-xs uppercase tracking-wide text-white;
 }
+.fitxa-publica__proposant {
+  @apply m-0 text-sm text-white/90 sm:text-base;
+}
+.fitxa-publica__proposant-nom {
+  @apply font-bold text-gold;
+}
 .fitxa-publica__lema {
   @apply mt-1 max-w-xl text-base italic text-white/70;
 }
@@ -470,4 +385,294 @@ body.proposta-detall-obert-body {
 }
 .fitxa-publica__titol-local {
   @apply -mt-1 font-body text-base text-white/80 sm:text-lg;
+}
+
+/* Votació per tandes (hot or not) */
+
+/* Pàgina /propostes/votar/: pantalla d'entrada (escàner) i missatge de «sense votació». */
+.votar {
+  @apply mx-auto flex w-full max-w-md flex-col items-center gap-5 px-4 py-10 text-center sm:py-16;
+}
+.votar__titol {
+  @apply m-0 text-balance font-display text-2xl font-bold uppercase tracking-wide text-black sm:text-3xl;
+}
+.votar__text {
+  @apply m-0 font-body text-base text-black/70;
+}
+.votar__registre {
+  @apply m-0 font-body text-sm text-black/60;
+}
+.votar .propostes-public__ranking-boto {
+  @apply mx-0 self-center;
+}
+.propostes-public__privacitat {
+  @apply m-0 px-4 text-center font-body text-xs text-black/60;
+}
+.propostes-public__ranking {
+  @apply flex flex-col items-center gap-3;
+}
+.propostes-public__ranking .ranking-tanda {
+  @apply px-4;
+}
+.propostes-public__ranking-titol {
+  @apply m-0 px-4 font-display text-xl font-bold uppercase tracking-wide text-black;
+}
+.propostes-public__ranking-boto {
+  @apply mx-4 self-start;
+}
+.propostes-public__ranking-tancar {
+  @apply cursor-pointer border-0 bg-transparent font-body text-sm font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted;
+}
+.votacio {
+  @apply mx-auto flex w-full max-w-5xl flex-col gap-4 px-4;
+}
+.votacio__nav {
+  @apply flex items-center justify-between gap-3;
+}
+.votacio__enllac {
+  @apply cursor-pointer self-center border-0 bg-transparent font-body text-sm font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40;
+}
+.votacio__buit {
+  @apply m-0 font-body text-base text-black/70;
+}
+.propostes-public__fallada {
+  @apply flex flex-col items-center gap-3 py-8 text-center;
+}
+.propostes-public__fallada-accions {
+  @apply flex items-center gap-4;
+}
+/* Barra de progrés enganxada just sota la capçalera del web (sticky; alçada mesurada a VotacioTanda): sempre visible mentre es vota. */
+.votacio__capcalera {
+  @apply sticky top-[var(--alcada-capcalera,4rem)] z-10 -mx-4 flex flex-col gap-0.5 border-b border-black/10 bg-white px-4 py-2 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4;
+}
+.votacio__progres {
+  @apply min-w-0 flex-1;
+}
+.votacio__identitat {
+  @apply m-0 flex min-w-0 items-baseline gap-1 whitespace-nowrap font-body text-xs text-black/60 sm:shrink-0 sm:justify-end sm:text-sm;
+}
+.votacio__identitat--sola {
+  @apply mx-auto max-w-full justify-center px-4 py-1 sm:justify-center;
+}
+.votacio__tornar {
+  @apply self-start sm:shrink-0 sm:self-center;
+}
+.votacio__nom {
+  @apply min-w-0 truncate font-semibold text-black/80;
+}
+
+.barra-progres {
+  @apply flex flex-col gap-1;
+}
+.barra-progres__pista {
+  @apply h-2 w-full overflow-hidden rounded-full bg-black/10;
+}
+.barra-progres__ple {
+  @apply h-full rounded-full bg-gold transition-all;
+}
+.barra-progres__text {
+  @apply m-0 font-body text-sm font-semibold text-black/70;
+}
+/* Progrés complet: text en verd fosc i barra plena en verd. */
+.barra-progres--completa .barra-progres__ple {
+  @apply bg-green-600;
+}
+.barra-progres--completa .barra-progres__text {
+  @apply text-green-800;
+}
+
+.targeta-vot {
+  @apply w-full scroll-mt-[calc(var(--alcada-capcalera,4rem)+6.5rem)] border border-black/10 bg-white shadow-sm;
+}
+/* Barra de vot enganxada a baix: es pot llegir la fitxa i veure el tràiler sense tornar amunt per votar. */
+.targeta-vot__barra {
+  @apply sticky bottom-0 z-10 flex flex-col items-center gap-2 border-t border-black/10 bg-white/95 px-4 py-3 backdrop-blur;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+.targeta-vot__estat {
+  @apply m-0 font-body text-xs text-black/60;
+}
+.targeta-vot__accions {
+  @apply flex w-full max-w-md items-center justify-center gap-3;
+}
+.targeta-vot__boto {
+  @apply flex h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-gold bg-transparent px-3 text-gold-dark transition enabled:hover-real:bg-gold enabled:hover-real:text-black disabled:cursor-not-allowed disabled:opacity-40;
+}
+.targeta-vot__boto--activa {
+  @apply border-gold bg-gold text-black;
+}
+.targeta-vot__icona {
+  @apply h-7 w-7 shrink-0;
+}
+.targeta-vot__icona--avall {
+  @apply rotate-180;
+}
+.targeta-vot__etiqueta {
+  @apply whitespace-nowrap font-body text-xs font-semibold uppercase tracking-wide sm:text-sm;
+}
+
+.pantalla-final-vot {
+  @apply mx-auto flex w-full flex-col items-center gap-4 py-2 text-center;
+}
+.pantalla-final-vot__titol {
+  @apply m-0 scroll-mt-[calc(var(--alcada-capcalera,4rem)+4.5rem)] font-display text-lg font-bold uppercase tracking-wide text-black/70 outline-none;
+}
+/* Barra enganxada a baix (sempre visible): avís de tancament, enllaç per revisar i botó que tanca els vots. */
+.pantalla-final-vot__barra {
+  @apply sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 self-stretch border-t border-black/10 bg-white px-4 pt-2 sm:mx-0;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+.pantalla-final-vot__fila {
+  @apply flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4;
+}
+/* Mòbil: el botó a dalt i l'enllaç a sota (a escriptori, l'enllaç a l'esquerra del botó). */
+.pantalla-final-vot__accions {
+  @apply flex flex-col-reverse items-stretch gap-1 md:flex-row md:items-center md:gap-4;
+}
+.pantalla-final-vot__accions > * {
+  @apply md:whitespace-nowrap;
+}
+.pantalla-final-vot__error {
+  @apply m-0 text-center font-body text-sm font-semibold text-red-700;
+}
+.pantalla-final-vot__avis {
+  @apply m-0 border-l-4 border-gold bg-gold/10 px-3 py-1 text-left font-body text-xs font-semibold text-black/80 md:text-sm;
+}
+.pantalla-final-vot__boto {
+  @apply w-full cursor-pointer border-0 py-2 text-center text-base uppercase leading-snug tracking-wide disabled:cursor-wait disabled:opacity-60 md:w-auto md:px-5 md:text-base;
+}
+
+/* Resum: graella de cartells, cadascun un botó amb el polze del vot (tocar-lo porta a la fitxa per canviar-lo). */
+.resum-vots__recompte {
+  @apply m-0 font-body text-sm font-semibold text-black/60;
+}
+.resum-vots__recompte-text {
+  @apply sr-only;
+}
+.resum-vots {
+  @apply m-0 mx-auto grid w-full max-w-3xl list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 lg:grid-cols-4;
+}
+.resum-vots__element {
+  @apply m-0 p-0;
+}
+.resum-vots__cartell {
+  @apply relative block aspect-[2/3] w-full cursor-pointer overflow-hidden border-4 bg-black/5 p-0 transition-shadow hover:shadow-lg focus-visible:outline-solid focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-gold-dark;
+}
+.resum-vots__cartell--like {
+  @apply border-green-600;
+}
+.resum-vots__cartell--dislike {
+  @apply border-red-700;
+}
+.resum-vots__imatge {
+  @apply block h-full w-full object-cover;
+}
+.resum-vots__placeholder {
+  @apply flex h-full w-full items-center justify-center bg-gold/20 p-3 text-center;
+}
+.resum-vots__placeholder-titol {
+  @apply line-clamp-5 font-display text-base font-bold uppercase text-gold-dark;
+}
+.resum-vots__vot {
+  @apply absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md;
+}
+.resum-vots__cartell--like .resum-vots__vot {
+  @apply text-green-700;
+}
+.resum-vots__cartell--dislike .resum-vots__vot {
+  @apply text-red-700;
+}
+.resum-vots__icona {
+  @apply h-7 w-7;
+}
+.resum-vots__cartell--dislike .resum-vots__icona {
+  @apply rotate-180;
+}
+
+.ranking-tanda {
+  @apply mx-auto flex w-full max-w-3xl flex-col gap-4;
+}
+/* Agraïment per participar, a dalt del rànquing. */
+.ranking-tanda__agraiment {
+  @apply flex flex-col items-center gap-1 border-l-4 border-gold bg-gold/10 px-4 py-3 text-center;
+}
+.ranking-tanda__agraiment-titol {
+  @apply m-0 scroll-mt-[calc(var(--alcada-capcalera,4rem)+6rem)] font-display text-2xl font-bold uppercase tracking-wide text-black outline-none;
+}
+.ranking-tanda__agraiment-text {
+  @apply m-0 font-body text-sm text-black/70 sm:text-base;
+}
+.ranking-tanda__llista {
+  @apply m-0 flex list-none flex-col p-0;
+}
+/* Fila: cartell, posició, títol amb el consens (% i barra) i, a la dreta, el vot del soci. */
+.ranking-tanda__fila {
+  @apply grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-black/10 px-2 py-3 sm:gap-4 sm:px-3;
+}
+.ranking-tanda__fila:nth-child(even) {
+  @apply bg-black/5;
+}
+.ranking-tanda__cartell {
+  @apply block h-24 w-16 shrink-0 rounded object-cover shadow-md sm:h-[7.5rem] sm:w-20;
+}
+.ranking-tanda__cartell-placeholder {
+  @apply flex items-center justify-center bg-gold/20 text-2xl;
+}
+.ranking-tanda__posicio {
+  @apply w-7 text-center font-display text-xl font-bold text-black/40 sm:w-9 sm:text-2xl;
+}
+.ranking-tanda__posicio--podi {
+  @apply text-3xl sm:text-4xl;
+}
+.ranking-tanda__fila:nth-child(1) .ranking-tanda__posicio--podi {
+  @apply text-gold;
+}
+.ranking-tanda__fila:nth-child(2) .ranking-tanda__posicio--podi {
+  @apply text-gray-500;
+}
+.ranking-tanda__fila:nth-child(3) .ranking-tanda__posicio--podi {
+  @apply text-amber-700;
+}
+.ranking-tanda__info {
+  @apply flex min-w-0 flex-col gap-1;
+}
+.ranking-tanda__titol {
+  @apply line-clamp-2 font-display text-base font-bold leading-tight text-black sm:text-lg;
+}
+.ranking-tanda__titol-local {
+  @apply font-body text-xs text-black/60 sm:text-sm;
+}
+.ranking-tanda__consens {
+  @apply flex items-center gap-2;
+}
+.ranking-tanda__percentatge {
+  @apply shrink-0 font-display text-lg font-bold text-gold-dark;
+}
+.ranking-tanda__barra {
+  @apply h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/10;
+}
+.ranking-tanda__barra-ple {
+  @apply h-full rounded-full bg-green-600;
+}
+.ranking-tanda__poc {
+  @apply font-body text-sm italic text-black/50;
+}
+.ranking-tanda__vot {
+  @apply flex h-9 w-9 items-center justify-center rounded-full bg-white shadow;
+}
+.ranking-tanda__vot--like {
+  @apply text-green-700;
+}
+.ranking-tanda__vot--dislike {
+  @apply text-red-700;
+}
+.ranking-tanda__vot-text {
+  @apply sr-only;
+}
+.ranking-tanda__icona {
+  @apply h-5 w-5;
+}
+.ranking-tanda__vot--dislike .ranking-tanda__icona {
+  @apply rotate-180;
 }

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FitxaPublica from '../../src/components/propostes/FitxaPublica.jsx';
@@ -137,5 +138,49 @@ describe('FitxaPublica', () => {
   it('sense títol local, no mostra cap parèntesi', () => {
     render(<FitxaPublica proposta={PROPOSTA} />);
     expect(screen.queryByText(/^\(/)).not.toBeInTheDocument();
+  });
+
+  describe('qui ha fet la proposta', () => {
+    it('mostra sempre «Proposada per …» a la capçalera, també sense comentari', () => {
+      const { container, rerender } = render(<FitxaPublica proposta={PROPOSTA} />);
+      const linia = container.querySelector('.fitxa-publica__hero .fitxa-publica__proposant');
+      expect(linia).toHaveTextContent('Proposada per Isabel M.');
+      rerender(<FitxaPublica proposta={{ ...PROPOSTA, comentari: undefined }} />);
+      expect(container.querySelector('.fitxa-publica__hero .fitxa-publica__proposant')).toHaveTextContent('Proposada per Isabel M.');
+      expect(screen.queryByRole('blockquote')).not.toBeInTheDocument();
+    });
+
+    it('per a una proposta de l\'organització, mostra el nom de l\'associació', () => {
+      render(<FitxaPublica proposta={{ ...PROPOSTA, nomProposant: 'Organització Cineclub Roda de Berà' }} />);
+      expect(screen.getByText(/Proposada per/)).toHaveTextContent('Proposada per Organització Cineclub Roda de Berà');
+    });
+
+    it('sense nomProposant no mostra la línia', () => {
+      render(<FitxaPublica proposta={{ ...PROPOSTA, nomProposant: undefined }} />);
+      expect(screen.queryByText(/Proposada per/)).not.toBeInTheDocument();
+    });
+
+    it('amb senseProposant no mostra la línia (el detall ja ho diu a la seva capçalera)', () => {
+      render(<FitxaPublica proposta={PROPOSTA} senseProposant />);
+      expect(screen.queryByText(/Proposada per/)).not.toBeInTheDocument();
+    });
+
+    it('l\'atribució de la cita de la recomanació es manté', () => {
+      render(<FitxaPublica proposta={PROPOSTA} />);
+      expect(screen.getByText('— Isabel M.')).toBeInTheDocument();
+    });
+  });
+
+  it('amb titolRef, el títol és enfocable per programa (tabIndex -1) i el ref hi apunta', () => {
+    const titolRef = createRef();
+    render(<FitxaPublica proposta={PROPOSTA} titolRef={titolRef} />);
+    const titol = screen.getByRole('heading', { name: 'La Haine' });
+    expect(titolRef.current).toBe(titol);
+    expect(titol).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('sense titolRef, el títol no té tabindex', () => {
+    render(<FitxaPublica proposta={PROPOSTA} />);
+    expect(screen.getByRole('heading', { name: 'La Haine' })).not.toHaveAttribute('tabindex');
   });
 });

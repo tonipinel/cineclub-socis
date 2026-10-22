@@ -2,16 +2,16 @@
   @apply sticky top-0 z-20 bg-black text-white;
 }
 .site-header__inner {
-  @apply mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6;
+  @apply mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-3 py-3 min-[360px]:gap-4 min-[360px]:px-4 sm:flex-wrap sm:px-6;
 }
 .site-header__brand {
-  @apply flex items-center gap-3 no-underline;
+  @apply flex items-center gap-2 no-underline min-[360px]:gap-3;
 }
 .site-header__logo {
   @apply h-10 w-auto invert;
 }
 .site-header__brand-text {
-  @apply font-display text-lg font-bold uppercase tracking-wide text-gold sm:text-xl;
+  @apply whitespace-nowrap font-display text-base font-bold uppercase tracking-wide text-gold min-[360px]:text-lg sm:text-xl;
 }
 .site-header__nav {
   @apply hidden gap-x-6 gap-y-1 sm:flex;
