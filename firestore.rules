@@ -117,6 +117,21 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Tandes de votació (hot or not): el resultat és públic, però només
+    // l'admin les gestiona. Els vots individuals els escriuen les Cloud
+    // Functions amb l'Admin SDK (que no passa per aquestes regles), així que
+    // cap client hi pot escriure; només l'admin els pot llegir, per no
+    // revelar qui ha votat què.
+    match /tandes/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /vots/{n} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
     // Registre d'auditoria de propostes i vots: es pot crear sense
     // autenticar-se (mateix motiu que propostes), però només l'admin el pot
     // llegir, i mai es pot modificar ni esborrar (igual que accessLog).

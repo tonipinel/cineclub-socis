@@ -6,6 +6,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
+const { gestionarEstat, gestionarVot, gestionarRanking } = require('./votacio-handlers');
 
 initializeApp();
 
@@ -188,3 +189,18 @@ exports.assignarPellicula = onCall({ secrets: SECRETS }, async (request) => {
   if (!propostaId || !tmdbId) throw new HttpsError('invalid-argument', 'Falten dades.');
   return desarFitxa(propostaId, tmdbId);
 });
+
+function votacio(gestor) {
+  return onCall(async (request) => {
+    try {
+      return await gestor(getFirestore(), request.data ?? {}, new Date());
+    } catch (error) {
+      if (error.codi) throw new HttpsError(error.codi, error.message);
+      throw error;
+    }
+  });
+}
+
+exports.estatVotacio = votacio(gestionarEstat);
+exports.votarProposta = votacio(gestionarVot);
+exports.rankingTanda = votacio(gestionarRanking);
