@@ -2,11 +2,11 @@ body.escaneig-body {
   overflow: hidden;
 }
 .escaneig {
-  @apply mx-auto flex min-h-dvh w-full flex-col;
+  @apply mx-auto flex h-dvh w-full flex-col;
   padding-bottom: 120px;
 }
 .escaneig__contingut {
-  @apply flex flex-1 flex-col items-stretch justify-center gap-3 overflow-y-auto bg-cover bg-center p-4;
+  @apply flex min-h-0 flex-1 flex-col items-stretch justify-center gap-3 overflow-y-auto bg-cover bg-center p-4;
   max-height: calc(100dvh - 90px);
 }
 .escaneig__sense-sessio {
@@ -80,6 +80,9 @@ body.escaneig-body {
   @apply inline-flex items-center justify-center gap-2 uppercase;
   margin-top: 1rem;
 }
+.escaneig__footer-tancar:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
 .escaneig__boto-confirmar {
   @apply uppercase;
   margin-top: 1rem;
@@ -110,13 +113,31 @@ body.escaneig-body {
   @apply h-4 w-4;
 }
 .escaneig__avisos {
-  @apply fixed inset-x-0 top-0 z-20 flex flex-col;
+  @apply z-20 flex shrink-0 flex-col;
 }
 .escaneig__mockup-avis {
   @apply bg-black py-1 text-center font-body text-xs font-bold uppercase tracking-wide text-gold;
 }
 .escaneig__prova-avis {
   @apply bg-amber-500 py-1 text-center font-body text-xs font-bold uppercase tracking-wide text-black;
+}
+.escaneig__connexio-avis {
+  @apply bg-red-700 py-1 text-center font-body text-xs font-bold uppercase tracking-wide text-white;
+}
+.escaneig__fallit {
+  @apply flex items-center gap-2 bg-red-700 px-3 py-2 font-body text-sm font-semibold text-white;
+}
+.escaneig__fallit-text {
+  @apply flex-1;
+}
+.escaneig__fallit-tancar {
+  @apply flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-white/20 text-lg text-white;
+}
+.escaneig__pendents-avis {
+  @apply bg-amber-200 py-1 text-center font-body text-xs font-semibold tracking-wide text-black;
+}
+.escaneig__processant {
+  @apply rounded bg-black/80 py-2 text-center font-body text-sm font-semibold text-white;
 }
 .escaneig__missatge-prova {
   @apply rounded border border-amber-500 bg-amber-500/10 px-3 py-2 font-body text-sm font-semibold text-amber-500;
@@ -154,6 +175,9 @@ body.escaneig-body {
 }
 .escaneig-log__detall {
   @apply mt-1 truncate font-body text-xs text-black/50;
+}
+.escaneig-log__diagnostic {
+  @apply mt-1 font-mono text-xs text-black/40;
 }
 .escaneig-log__data {
   @apply text-black/60;

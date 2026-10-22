@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import {
+  act, render, screen, fireEvent,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('barcode-detector/polyfill', () => ({}));
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
-vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'staff-1' } }) }));
+const auth = vi.hoisted(() => ({ user: { uid: 'staff-1' } }));
+vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
 
 const SESSIO_ACTIVA = { id: 'sessio-1', titol: 'The Artist' };
 const LOT_TIQUETS = { numeroInicial: 1, quantitat: 150, preu: 5 };
@@ -19,7 +22,9 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'log-1' }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
   getDocs: vi.fn(),
-  onSnapshot: vi.fn((q, callback) => {
+  getDocsFromServer: vi.fn(),
+  onSnapshot: vi.fn((...args) => {
+    const callback = args.at(-1);
     // La primera crida des del component és la subscripció a la sessió activa.
     callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
     return () => {};
@@ -27,7 +32,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import {
-  addDoc, getDocs, onSnapshot, updateDoc, where,
+  addDoc, getDocs, getDocsFromServer, onSnapshot, updateDoc, where,
 } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 import { formatData } from '../../lib/data';
@@ -39,9 +44,11 @@ async function obrirCodiManual(user) {
 
 describe('EscaneigPage', () => {
   beforeEach(() => {
-    addDoc.mockClear();
+    addDoc.mockReset();
+    addDoc.mockResolvedValue({ id: 'log-1' });
     updateDoc.mockClear();
     getDocs.mockReset();
+    getDocsFromServer.mockReset();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     window.confirm.mockClear();
     window.location.hash = '';
@@ -160,20 +167,24 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
       motiu: 'soci-desactivat', codi: 'SOCI-7', metode: 'manual', numeroSoci: 7, detall: 'Mal comportament',
+      online: true, ms: expect.any(Number),
     });
   });
 
   it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => ({ numeroInicial: 1, quantitat: 150, anulat: true }) }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -188,21 +199,24 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
-      motiu: 'tiquet-anullat', codi: 'T-000047', codiTiquet: 'T-000047', metode: 'manual',
+      motiu: 'tiquet-anullat', codi: 'T-000047', codiTiquet: 'T-000047', metode: 'manual', online: true, ms: expect.any(Number),
     });
   });
 
   it('mostra un error si el tiquet no pertany a cap lot conegut, sense registrar-lo amb preu 0', async () => {
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -216,7 +230,7 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
-      motiu: 'tiquet-desconegut', codi: 'T-000999', codiTiquet: 'T-000999', metode: 'manual',
+      motiu: 'tiquet-desconegut', codi: 'T-000999', codiTiquet: 'T-000999', metode: 'manual', online: true, ms: expect.any(Number),
     });
   });
 
@@ -233,21 +247,25 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
       motiu: 'soci-no-trobat', codi: 'SOCI-999', metode: 'manual', detall: 'No hi ha cap soci amb el número 999',
+      online: true, ms: expect.any(Number),
     });
   });
 
   it('registra un tiquet genèric nou amb el preu del lot de tiquets', async () => {
-    getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -265,20 +283,23 @@ describe('EscaneigPage', () => {
 
   it('avisa si el tiquet genèric ja s\'ha escanejat i només el registra en confirmar', async () => {
     const dataEscaneigPrevi = new Date('2026-03-05T20:00:00');
-    getDocs.mockResolvedValueOnce({
+    getDocsFromServer.mockResolvedValueOnce({
       empty: false,
       docs: [{ data: () => ({ timestamp: { toDate: () => dataEscaneigPrevi } }) }],
     });
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -294,6 +315,7 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1',
       motiu: 'tiquet-ja-utilitzat', codi: 'T-000014', metode: 'manual', codiTiquet: 'T-000014',
+      online: true, ms: expect.any(Number), desdeCache: false,
     });
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
     expect(window.confirm).toHaveBeenCalledTimes(1);
@@ -303,20 +325,23 @@ describe('EscaneigPage', () => {
 
   it('no registra el codi repetit si es cancel·la la confirmació', async () => {
     window.confirm.mockReturnValueOnce(false);
-    getDocs.mockResolvedValueOnce({
+    getDocsFromServer.mockResolvedValueOnce({
       empty: false,
       docs: [{ data: () => ({ timestamp: null }) }],
     });
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -342,6 +367,7 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', motiu: 'codi-desconegut', codi: 'XYZ', metode: 'manual',
+      online: true, ms: expect.any(Number),
     });
   });
 
@@ -356,21 +382,25 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', motiu: 'excepcio', codi: 'SOCI-7', metode: 'manual', detall: 'offline',
+      online: true, ms: expect.any(Number),
     });
   });
 
   it('ignora un mateix codi reenviat dins la finestra de debounce, sense duplicar el registre', async () => {
-    getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
     onSnapshot
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
-      .mockImplementationOnce((q, callback) => {
+      .mockImplementationOnce((...args) => {
+        const callback = args.at(-1);
         callback({ docs: [] });
         return () => {};
       });
@@ -386,8 +416,10 @@ describe('EscaneigPage', () => {
     await user.type(inputNou, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     // El debounce ignora el segon enviament dins la finestra: no es torna a
-    // consultar Firestore ni es duplica el registre, però s'informa l'operador.
-    expect(addDoc).toHaveBeenCalledTimes(1);
+    // consultar Firestore ni es duplica el registre, però s'informa l'operador
+    // (i queda constància al log de diagnòstic).
+    expect(addDoc.mock.calls.filter(([col]) => col === 'accessLog')).toHaveLength(1);
+    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
   });
 
@@ -458,7 +490,8 @@ describe('EscaneigPage', () => {
 
   it('sense DEV, el fragment de mockup s\'ignora i cal una sessió real activa', async () => {
     vi.stubEnv('DEV', false);
-    onSnapshot.mockImplementationOnce((q, callback) => {
+    onSnapshot.mockImplementationOnce((...args) => {
+      const callback = args.at(-1);
       callback({ docs: [] });
       return () => {};
     });
@@ -538,17 +571,20 @@ describe('EscaneigPage', () => {
     });
 
     it('comprova un tiquet genèric sense registrar-lo', async () => {
-      getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+      getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
       onSnapshot
-        .mockImplementationOnce((q, callback) => {
+        .mockImplementationOnce((...args) => {
+          const callback = args.at(-1);
           callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
           return () => {};
         })
-        .mockImplementationOnce((q, callback) => {
+        .mockImplementationOnce((...args) => {
+          const callback = args.at(-1);
           callback({ docs: [{ data: () => LOT_TIQUETS }] });
           return () => {};
         })
-        .mockImplementationOnce((q, callback) => {
+        .mockImplementationOnce((...args) => {
+          const callback = args.at(-1);
           callback({ docs: [] });
           return () => {};
         });
@@ -617,7 +653,8 @@ describe('EscaneigPage', () => {
 
 describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carnet)', () => {
   beforeEach(() => {
-    addDoc.mockClear();
+    addDoc.mockReset();
+    addDoc.mockResolvedValue({ id: 'log-1' });
     updateDoc.mockClear();
     getDocs.mockReset();
     window.location.hash = '';
@@ -671,7 +708,8 @@ describe('EscaneigPage — sessions especials sense control', () => {
   });
 
   it('una sessió senseControl, encara que sigui activa, no es tria: es comporta com si no hi hagués sessió activa', async () => {
-    onSnapshot.mockImplementationOnce((q, callback) => {
+    onSnapshot.mockImplementationOnce((...args) => {
+      const callback = args.at(-1);
       callback({
         docs: [{ id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) }],
       });
@@ -683,7 +721,8 @@ describe('EscaneigPage — sessions especials sense control', () => {
   });
 
   it('si la consulta retorna una senseControl i una de normal, tria la normal', async () => {
-    onSnapshot.mockImplementationOnce((q, callback) => {
+    onSnapshot.mockImplementationOnce((...args) => {
+      const callback = args.at(-1);
       callback({
         docs: [
           { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) },
@@ -695,5 +734,464 @@ describe('EscaneigPage — sessions especials sense control', () => {
     render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
     expect(screen.queryByText(/No hi ha cap sessió activa/)).not.toBeInTheDocument();
+  });
+});
+
+describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
+  const SOCI_7 = () => ({
+    empty: false,
+    docs: [{
+      ref: { id: 'soci-7' },
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01', inicPeriode: '2026-01-15',
+      }),
+    }],
+  });
+
+  // Promesa controlable des del test (simula una escriptura que el servidor
+  // encara no ha confirmat).
+  function diferida() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  }
+
+  // Ordre de subscripcions del component: sessió activa, lots i accessLog.
+  function mockSubscripcions({ lots = [LOT_TIQUETS], accessLogDocs = [], lotsCarregats = true } = {}) {
+    let callbackLots;
+    onSnapshot
+      .mockImplementationOnce((...args) => {
+        args.at(-1)({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      })
+      .mockImplementationOnce((...args) => {
+        callbackLots = args.at(-1);
+        if (lotsCarregats) callbackLots({ docs: lots.map((l) => ({ data: () => l })) });
+        return () => {};
+      })
+      .mockImplementationOnce((...args) => {
+        args.at(-1)({ docs: accessLogDocs });
+        return () => {};
+      });
+    return { carregarLots: () => callbackLots({ docs: lots.map((l) => ({ data: () => l })) }) };
+  }
+
+  // Avança els temporitzadors falsos dins act perquè React apliqui els canvis d'estat.
+  const avancar = (ms) => act(() => vi.advanceTimersByTimeAsync(ms));
+
+  const escripturesAccessLog = () => addDoc.mock.calls.filter(([col]) => col === 'accessLog');
+  const registresLog = () => addDoc.mock.calls.filter(([col]) => col === 'escaneigErrors').map(([, d]) => d);
+
+  function enviarCodiManual(codi) {
+    fireEvent.change(screen.getByLabelText('Codi manual'), { target: { value: codi } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+  }
+
+  beforeEach(() => {
+    addDoc.mockReset();
+    addDoc.mockResolvedValue({ id: 'log-1' });
+    updateDoc.mockClear();
+    getDocs.mockReset();
+    getDocsFromServer.mockReset();
+    onSnapshot.mockClear();
+    auth.user = { uid: 'staff-1' };
+    window.location.hash = '';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('amb la càmera', () => {
+    const originalBarcodeDetector = window.BarcodeDetector;
+    const originalPlay = window.HTMLMediaElement?.prototype.play;
+    let codiDetectat;
+
+    beforeEach(() => {
+      codiDetectat = 'SOCI-7';
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) },
+      });
+      window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockImplementation(async () => [{ rawValue: codiDetectat }]);
+      });
+    });
+
+    afterEach(() => {
+      window.BarcodeDetector = originalBarcodeDetector;
+      window.HTMLMediaElement.prototype.play = originalPlay;
+    });
+
+    it('amb el primer intent encara pendent, les deteccions repetides s\'ignoren en silenci: una sola escriptura i cap «ja registrat»', async () => {
+      getDocs.mockResolvedValue(SOCI_7());
+      const escriptura = diferida();
+      addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await avancar(0);
+      // 5 deteccions del mateix QR mentre el servidor encara no ha confirmat.
+      await avancar(2000);
+
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(getDocs).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+      expect(screen.getByText('Comprovant el codi…')).toBeInTheDocument();
+
+      escriptura.resolve({ id: 'log-1' });
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+      expect(registresLog()).toEqual([]);
+    });
+
+    it('una detecció que acaba després del resultat del primer intent s\'ignora: ni «ja registrat», ni segon processament, ni log', async () => {
+      getDocs.mockResolvedValue(SOCI_7());
+      const lectura = diferida();
+      const escriptura = diferida();
+      addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+      const detectades = [];
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockImplementation(() => {
+          detectades.push(1);
+          if (detectades.length === 1) return Promise.resolve([{ rawValue: 'SOCI-7' }]);
+          if (detectades.length === 2) return lectura.promise;
+          return Promise.resolve([]);
+        });
+      });
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await avancar(0);
+      // 1a detecció (400 ms) inicia l'intent; la 2a (800 ms) queda en curs.
+      await avancar(800);
+      expect(detectades).toHaveLength(2);
+      // Mentre la 2a detecció no acaba, no se'n llança cap altra.
+      await avancar(1200);
+      expect(detectades).toHaveLength(2);
+
+      escriptura.resolve({ id: 'log-1' });
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+
+      lectura.resolve([{ rawValue: 'SOCI-7' }]);
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(getDocs).toHaveBeenCalledTimes(1);
+      expect(registresLog()).toEqual([]);
+    });
+
+    it('fa servir els lots carregats després d\'obrir la càmera (no una versió antiga de l\'estat)', async () => {
+      codiDetectat = 'T-000014';
+      getDocsFromServer.mockResolvedValue({ empty: true, docs: [] });
+      const { carregarLots } = mockSubscripcions({ lotsCarregats: false });
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await avancar(0);
+      act(() => carregarLots());
+      await avancar(400);
+
+      expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+    });
+  });
+
+  it('si el primer intent falla per una excepció, el reintent immediat es processa sense el fals «ja registrat»', async () => {
+    getDocs.mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(SOCI_7());
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+  });
+
+  it('si l\'escriptura falla, ho registra com a error-escriptura i el reintent es processa', async () => {
+    getDocs.mockResolvedValue(SOCI_7());
+    addDoc
+      .mockImplementationOnce(() => Promise.reject(new Error('permission-denied')))
+      .mockResolvedValue({ id: 'log-1' });
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({
+      motiu: 'error-escriptura', codi: 'SOCI-7', metode: 'manual', detall: 'permission-denied', online: true, ms: expect.any(Number),
+    })]);
+
+    await user.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(2);
+  });
+
+  it('el reescaneig d\'un codi ja registrat dins 3 s mostra l\'avís i queda al log com a debounce', async () => {
+    getDocs.mockResolvedValue(SOCI_7());
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+    expect(registresLog()).toEqual([expect.objectContaining({
+      motiu: 'debounce', codi: 'SOCI-7', metode: 'manual', resultatAnterior: 'registrat', ms: expect.any(Number),
+    })]);
+  });
+
+  it('si l\'escriptura no es confirma en 8 s, avisa, la deixa pendent i no la duplica en reescanejar', async () => {
+    getDocs.mockResolvedValue(SOCI_7());
+    const escriptura = diferida();
+    addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+
+    vi.useFakeTimers();
+    enviarCodiManual('SOCI-7');
+    await avancar(7900);
+    expect(screen.queryByText(/Sense connexió estable/)).not.toBeInTheDocument();
+    await avancar(200);
+
+    expect(screen.getByText(/Sense connexió estable/)).toBeInTheDocument();
+    expect(screen.getByText(/NO tornis a escanejar aquest codi/)).toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({
+      motiu: 'timeout-escriptura', codi: 'SOCI-7', metode: 'manual', ms: expect.any(Number),
+    })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    await avancar(0);
+    expect(screen.getByText("Aquest codi és pendent d'enviar-se; espera que torni la connexió.")).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+    expect(registresLog().at(-1)).toEqual(expect.objectContaining({ motiu: 'pendent-enviar', codi: 'SOCI-7' }));
+
+    // El servidor acaba confirmant l'escriptura original: el codi passa a registrat.
+    escriptura.resolve({ id: 'log-1' });
+    await avancar(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    await avancar(0);
+    expect(screen.getByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+  });
+
+  it('comprova al servidor si el tiquet ja s\'ha utilitzat; si no pot, ho diu i no el registra', async () => {
+    getDocsFromServer.mockRejectedValueOnce(new Error('Failed to get documents from server'));
+    mockSubscripcions();
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    expect(await screen.findByText("No es pot comprovar si aquest tiquet ja s'ha utilitzat (sense connexió). Reintenta quan hi hagi xarxa.")).toBeInTheDocument();
+    expect(getDocs).not.toHaveBeenCalled();
+    expect(escripturesAccessLog()).toHaveLength(0);
+    expect(screen.queryByText('Codi ja utilitzat')).not.toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({
+      motiu: 'sense-connexio', codi: 'T-000014', codiTiquet: 'T-000014', detall: 'Failed to get documents from server',
+    })]);
+  });
+
+  it('si la consulta de socis torna buida des de la caché, no diu que el soci no existeix', async () => {
+    getDocs.mockResolvedValueOnce({ empty: true, docs: [], metadata: { fromCache: true } });
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('SOCI-7');
+    expect(await screen.findByText('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.')).toBeInTheDocument();
+    expect(screen.queryByText(/No hi ha cap soci/)).not.toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({ motiu: 'sense-connexio', codi: 'SOCI-7', desdeCache: true })]);
+  });
+
+  it('si els lots encara no s\'han carregat, ho diu i ho deixa al log', async () => {
+    mockSubscripcions({ lotsCarregats: false });
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    expect(await screen.findByText('Encara carregant els lots de tiquets. Torna-ho a provar.')).toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({ motiu: 'lots-no-carregats', codi: 'T-000014' })]);
+  });
+
+  it('el registre de diagnòstic no peta si no hi ha usuari', async () => {
+    auth.user = undefined;
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('XYZ');
+    expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
+    expect(registresLog()).toEqual([expect.objectContaining({ motiu: 'codi-desconegut', escanejatPer: null })]);
+  });
+
+  it('«Comptar igualment» amb doble toc i xarxa lenta només crea una entrada i mostra «Registrant…»', async () => {
+    getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
+    mockSubscripcions();
+    const escriptura = diferida();
+    addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    const boto = await screen.findByRole('button', { name: 'Comptar igualment' });
+    fireEvent.click(boto);
+    fireEvent.click(boto);
+    expect(escripturesAccessLog()).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Registrant…' })).toBeDisabled();
+
+    await act(async () => { escriptura.resolve({ id: 'log-1' }); });
+    expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+  });
+
+  it('mentre «Comptar igualment» escriu, no es pot tornar a la càmera ni tancar (el resultat no cau sobre la persona següent)', async () => {
+    getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
+    mockSubscripcions();
+    const escriptura = diferida();
+    addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    fireEvent.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
+
+    expect(screen.getByRole('button', { name: 'Escanejar un altre' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "Tancar i tornar a l'inici" })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
+
+    await act(async () => { escriptura.resolve({ id: 'log-1' }); });
+    expect(await screen.findByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanejar un altre' })).toBeEnabled();
+  });
+
+  it('«Comptar igualment» respecta el mode prova activat després de veure l\'avís', async () => {
+    getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
+    mockSubscripcions();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    await screen.findByRole('button', { name: 'Comptar igualment' });
+    await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
+    await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
+    expect(await screen.findByText('Entrada genèrica (5€)')).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(0);
+  });
+
+  it('si una escriptura pendent acaba fallant, ho avisa de manera persistent i allibera el codi', async () => {
+    getDocs.mockResolvedValue(SOCI_7());
+    const escriptura = diferida();
+    addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+
+    vi.useFakeTimers();
+    enviarCodiManual('SOCI-7');
+    await avancar(8000);
+    expect(screen.getByText(/Sense connexió estable/)).toBeInTheDocument();
+
+    escriptura.reject(new Error('permission-denied'));
+    await avancar(0);
+    const avis = screen.getByRole('alert');
+    expect(avis).toHaveTextContent(/Una entrada no s'ha pogut enviar: SOCI-7 \(\d{2}:\d{2}\)\. Torna-la a escanejar\./);
+    expect(registresLog().at(-1)).toEqual(expect.objectContaining({ motiu: 'error-escriptura', codi: 'SOCI-7' }));
+
+    // No desapareix sol.
+    await avancar(60000);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    // El codi s'ha alliberat: es pot reescanejar i es registra de nou.
+    addDoc.mockResolvedValue({ id: 'log-2' });
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('SOCI-7');
+    await avancar(0);
+    expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.queryByText(/pendent d'enviar-se/)).not.toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: "Descartar l'avís d'entrada no enviada" }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('un soci pendent d\'enviar amb SOCI-N també es detecta si s\'escaneja pel carnet (CARNET-)', async () => {
+    const soci = {
+      ref: { id: 'soci-7' },
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01', inicPeriode: '2026-01-15', tokenCarnet: 'abc',
+      }),
+    };
+    getDocs.mockResolvedValue({ empty: false, docs: [soci] });
+    addDoc.mockImplementation((col) => (col === 'accessLog' ? new Promise(() => {}) : Promise.resolve({ id: 'e' })));
+    const user = userEvent.setup();
+    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+
+    vi.useFakeTimers();
+    enviarCodiManual('SOCI-7');
+    await avancar(8000);
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    enviarCodiManual('CARNET-abc');
+    await avancar(0);
+    expect(screen.getByText("Aquest codi és pendent d'enviar-se; espera que torni la connexió.")).toBeInTheDocument();
+    expect(escripturesAccessLog()).toHaveLength(1);
+  });
+
+  describe('indicador de connexió', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('mostra «Sense connexió» quan el dispositiu perd la xarxa i ho amaga quan torna', async () => {
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await screen.findByRole('button', { name: 'Escanejar' });
+      expect(screen.queryByText('Sense connexió')).not.toBeInTheDocument();
+
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      act(() => { window.dispatchEvent(new Event('offline')); });
+      expect(screen.getByText('Sense connexió')).toHaveAttribute('role', 'status');
+      expect(screen.getByText('Sense connexió')).toHaveAttribute('aria-live', 'polite');
+
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+      act(() => { window.dispatchEvent(new Event('online')); });
+      expect(screen.queryByText('Sense connexió')).not.toBeInTheDocument();
+    });
+
+    it('mostra quantes entrades de la sessió estan pendents d\'enviar al servidor', async () => {
+      const entrada = (pendent) => ({
+        data: () => ({ tipus: 'generic', preuAplicat: 5 }),
+        metadata: { hasPendingWrites: pendent },
+      });
+      mockSubscripcions({ accessLogDocs: [entrada(true), entrada(true), entrada(false)] });
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      expect(await screen.findByText("2 entrades pendents d'enviar")).toHaveAttribute('role', 'status');
+      // La subscripció a l'accessLog inclou els canvis de metadades.
+      expect(onSnapshot.mock.calls[2][1]).toEqual({ includeMetadataChanges: true });
+    });
   });
 });

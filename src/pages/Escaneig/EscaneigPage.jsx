@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
 import {
-  addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, getDocs, getDocsFromServer, onSnapshot, query, serverTimestamp, updateDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
@@ -20,6 +20,11 @@ import Carregant from '../../components/Carregant';
 import EstrellaActiva from '../../components/EstrellaActiva';
 
 const DEBOUNCE_MS = 3000;
+// Temps màxim que la pantalla espera el servidor (lectures i escriptures)
+// abans de donar un missatge: sense això, amb mala connexió la promesa de
+// Firestore no es resol i l'operador es queda sense resposta i reescaneja.
+const TEMPS_LIMIT_MS = 8000;
+const TEXT_ERROR_REGISTRE = "No s'ha pogut registrar l'entrada. Torna-ho a provar.";
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
 const ETIQUETES_ESTAT = {
@@ -72,6 +77,26 @@ const MOCKUPS = {
     },
   },
 };
+
+// Resol { valor } si la promesa acaba dins el temps límit o { esgotat: true }
+// si no; la promesa original segueix viva. Si falla abans, l'error es propaga.
+function ambTempsLimit(promesa) {
+  let temporitzador;
+  const limit = new Promise((resolve) => {
+    temporitzador = setTimeout(() => resolve({ esgotat: true }), TEMPS_LIMIT_MS);
+  });
+  return Promise.race([promesa.then((valor) => ({ valor })), limit])
+    .finally(() => clearTimeout(temporitzador));
+}
+
+// Identificador del build desplegat: el nom (amb hash) del bundle principal,
+// p. ex. "index-B4x9.js". En desenvolupament no n'hi ha i s'omet.
+function versioBuild() {
+  const src = document.querySelector('script[type="module"][src*="/assets/"]')?.getAttribute('src');
+  return src ? src.split('/').pop() : undefined;
+}
+
+const textError = (error) => String(error?.message ?? error);
 
 function IconaCamera() {
   return (
@@ -150,7 +175,21 @@ function IconaAlerta() {
 export default function EscaneigPage() {
   const { user } = useAuth();
   const videoRef = useRef(null);
-  const ultimCodiRef = useRef({ codi: null, moment: 0 });
+  // Últim codi processat i com va acabar: 'en-curs', 'registrat' (escriptura
+  // confirmada pel servidor) o 'pendent-enviar'. Només 'registrat' activa
+  // l'avís de "ja s'ha registrat fa un moment".
+  const ultimCodiRef = useRef({ codi: null, moment: 0, resultat: null });
+  // Codis amb l'entrada desada al dispositiu però encara no confirmada.
+  const codisPendentsRef = useRef(new Set());
+  // Un sol intent alhora: la càmera detecta el mateix QR cada 400 ms i, sense
+  // això, un segon intent sobreescrivia el resultat del primer.
+  const processantRef = useRef(false);
+  const [processant, setProcessant] = useState(false);
+  const [enLinia, setEnLinia] = useState(() => navigator.onLine);
+  const [pendentsEnviar, setPendentsEnviar] = useState(0);
+  // Entrades que es van donar per pendents d'enviar però que el servidor ha
+  // acabat rebutjant: l'operador ha de saber-ho encara que hagi passat a un altre.
+  const [enviamentsFallits, setEnviamentsFallits] = useState([]);
   const [sessioActiva, setSessioActiva] = useState(undefined);
   const [codiManual, setCodiManual] = useState('');
   const [hash, setHash] = useState(() => window.location.hash.slice(1));
@@ -161,11 +200,29 @@ export default function EscaneigPage() {
   const [modeProva, setModeProva] = useState(false);
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
+  // Valors actuals per a codi asíncron o callbacks creats abans (interval de
+  // la càmera, «Comptar igualment»): les closures veurien valors antics.
+  const missatgeRef = useRef(missatge);
+  const modeProvaRef = useRef(modeProva);
+  const sessioActivaRef = useRef(sessioActiva);
+  useEffect(() => { missatgeRef.current = missatge; }, [missatge]);
+  useEffect(() => { modeProvaRef.current = modeProva; }, [modeProva]);
+  useEffect(() => { sessioActivaRef.current = sessioActiva; }, [sessioActiva]);
 
   useEffect(() => {
     const handler = () => setHash(window.location.hash.slice(1));
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  useEffect(() => {
+    const actualitzar = () => setEnLinia(navigator.onLine);
+    window.addEventListener('online', actualitzar);
+    window.addEventListener('offline', actualitzar);
+    return () => {
+      window.removeEventListener('online', actualitzar);
+      window.removeEventListener('offline', actualitzar);
+    };
   }, []);
 
   useEffect(() => {
@@ -208,23 +265,25 @@ export default function EscaneigPage() {
   useEffect(() => {
     if (!sessioActiva) return;
     const q = query(collection(db, 'accessLog'), where('sessionId', '==', sessioActiva.id));
-    return onSnapshot(q, (snap) => {
+    return onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       setResum(resumAccessLog(snap.docs.map((d) => d.data())));
+      setPendentsEnviar(snap.docs.filter((d) => d.metadata?.hasPendingWrites).length);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessioActiva?.id]);
 
   const mostrarResultat = (nouMissatge) => {
+    missatgeRef.current = nouMissatge;
     setMissatge(nouMissatge);
   };
 
   const handleTornarAEscanejar = () => {
-    setMissatge(null);
+    mostrarResultat(null);
   };
 
   const handleTancar = () => {
     setModeEntrada('idle');
-    setMissatge(null);
+    mostrarResultat(null);
   };
 
   const handleEscanejar = () => {
@@ -234,32 +293,106 @@ export default function EscaneigPage() {
   // Registre de diagnòstic per poder investigar més tard per què un carnet o
   // tiquet concret no s'ha pogut llegir (p. ex. si sempre falla el mateix
   // carnet, probablement és un problema d'impressió, no de l'aplicació).
-  // Mai bloqueja el flux principal: si fallés aquesta escriptura, s'ignora.
+  // Mai bloqueja el flux principal: no s'espera i, si fallés, s'ignora.
+  // Afegeix l'estat de la xarxa i el build per poder diagnosticar-ho després.
   const registrarErrorEscaneig = async (motiu, dades) => {
-    if (modeProva) return;
+    if (modeProvaRef.current) return;
     try {
-      await addDoc(collection(db, 'escaneigErrors'), {
-        sessionId: sessioActiva?.id ?? null,
+      const registre = {
+        sessionId: sessioActivaRef.current?.id ?? null,
         timestamp: serverTimestamp(),
-        escanejatPer: user.uid,
+        escanejatPer: user?.uid ?? null,
         motiu,
         ...dades,
-      });
+        online: navigator.onLine,
+        versio: versioBuild(),
+      };
+      // Firestore no accepta camps undefined.
+      Object.keys(registre).forEach((k) => registre[k] === undefined && delete registre[k]);
+      await addDoc(collection(db, 'escaneigErrors'), registre);
     } catch {
       // No hi ha res més a fer si ni tan sols es pot desar l'error.
     }
   };
 
-  const registrarGeneric = async (codiTiquet, preuAplicat, metode) => {
-    if (modeProva) {
+  const marcarRegistrat = (codi) => {
+    ultimCodiRef.current = { codi, moment: Date.now(), resultat: 'registrat' };
+  };
+
+  // Desa una entrada a l'accessLog sense deixar la pantalla penjada. Retorna
+  // 'registrat' si el servidor la confirma dins el temps límit, o
+  // 'pendent-enviar' si no: l'SDK la manté a la cua i l'enviarà quan torni
+  // la xarxa (sempre que no es recarregui la pàgina, perquè la caché només
+  // és en memòria). Si l'escriptura falla, ho registra i llança l'error.
+  const desarEntrada = async (codi, metode, inici, dades, clau = codi) => {
+    const escriptura = addDoc(collection(db, 'accessLog'), dades);
+    let resultat;
+    try {
+      resultat = await ambTempsLimit(escriptura);
+    } catch (error) {
+      registrarErrorEscaneig('error-escriptura', {
+        codi, metode, ms: Date.now() - inici, detall: textError(error),
+      });
+      throw error;
+    }
+    if (!resultat.esgotat) {
+      marcarRegistrat(codi);
+      return 'registrat';
+    }
+    registrarErrorEscaneig('timeout-escriptura', { codi, metode, ms: Date.now() - inici });
+    codisPendentsRef.current.add(clau);
+    ultimCodiRef.current = { codi, moment: Date.now(), resultat: 'pendent-enviar' };
+    escriptura.then(() => {
+      codisPendentsRef.current.delete(clau);
+      if (ultimCodiRef.current.codi === codi) marcarRegistrat(codi);
+    }, (error) => {
+      codisPendentsRef.current.delete(clau);
+      if (ultimCodiRef.current.codi === codi) ultimCodiRef.current = { codi: null, moment: 0, resultat: null };
+      registrarErrorEscaneig('error-escriptura', {
+        codi, metode, ms: Date.now() - inici, detall: `Després del temps límit: ${textError(error)}`,
+      });
+      const hora = new Date().toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
+      setEnviamentsFallits((llista) => [...llista, { id: `${codi}-${Date.now()}`, codi, hora }]);
+    });
+    return 'pendent-enviar';
+  };
+
+  const avisPendent = (qui, extra = {}) => ({
+    tipus: 'avis',
+    text: "Sense connexió estable: l'entrada s'ha desat al dispositiu i s'enviarà quan torni la xarxa.",
+    detall: `${qui}. NO tornis a escanejar aquest codi ni recarreguis la pàgina.`,
+    ...extra,
+  });
+
+  const mostrarPendent = (codi, metode) => {
+    registrarErrorEscaneig('pendent-enviar', { codi, metode });
+    mostrarResultat({
+      tipus: 'avis',
+      text: "Aquest codi és pendent d'enviar-se; espera que torni la connexió.",
+      detall: "L'entrada ja està desada al dispositiu: no cal tornar-la a registrar.",
+    });
+  };
+
+  // Clau de pendents d'un soci: el número, perquè el mateix soci pot entrar
+  // amb SOCI-N o amb el QR del carnet (CARNET-token).
+  const clauSoci = (numeroSoci) => `soci:${numeroSoci}`;
+
+  const avisSenseConnexio = (text, dades) => {
+    registrarErrorEscaneig('sense-connexio', dades);
+    mostrarResultat({ tipus: 'error', text });
+  };
+
+  const registrarGeneric = async (codiTiquet, preuAplicat, metode, inici = Date.now()) => {
+    const sessio = sessioActivaRef.current;
+    if (modeProvaRef.current) {
       mostrarResultat({
-        tipus: 'ok', text: `Entrada genèrica (${preuAplicat}€)`, prova: true, sessioProva: sessioActiva.titol,
+        tipus: 'ok', text: `Entrada genèrica (${preuAplicat}€)`, prova: true, sessioProva: sessio.titol,
       });
       return;
     }
     try {
-      await addDoc(collection(db, 'accessLog'), {
-        sessionId: sessioActiva.id,
+      const resultat = await desarEntrada(codiTiquet, metode, inici, {
+        sessionId: sessio.id,
         timestamp: serverTimestamp(),
         escanejatPer: user.uid,
         tipus: 'generic',
@@ -267,24 +400,51 @@ export default function EscaneigPage() {
         preuAplicat,
         metode,
       });
-      mostrarResultat({ tipus: 'ok', text: `Entrada genèrica registrada (${preuAplicat}€)` });
+      mostrarResultat(resultat === 'registrat'
+        ? { tipus: 'ok', text: `Entrada genèrica registrada (${preuAplicat}€)` }
+        : avisPendent(`Entrada genèrica (${preuAplicat}€)`));
     } catch {
-      mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
+      mostrarResultat({ tipus: 'error', text: TEXT_ERROR_REGISTRE });
     }
   };
 
+  // Consulta de socis amb getDocs (no getDocsFromServer): la fitxa d'un soci
+  // treta de la caché és vàlida per deixar-lo entrar, però un resultat buit
+  // venint de la caché no vol dir que no existeixi, sinó que no s'ha pogut
+  // preguntar al servidor; aquest cas es tracta com a "sense connexió".
+  const consultarSoci = async (camp, valor) => {
+    const resultat = await ambTempsLimit(getDocs(query(collection(db, 'socis'), where(camp, '==', valor))));
+    if (resultat.esgotat) return { senseConnexio: true, detall: 'Temps límit de lectura esgotat' };
+    const snap = resultat.valor;
+    const desdeCache = snap.metadata?.fromCache;
+    if (snap.docs.length === 0 && desdeCache) {
+      return { senseConnexio: true, desdeCache, detall: 'Cap resultat a la caché local' };
+    }
+    return { sociDoc: snap.docs[0], desdeCache };
+  };
+
   const processarSociTrobat = async ({
-    sociDoc, missatgeNoTrobat, detallNoTrobat, metode, codi,
+    consulta, missatgeNoTrobat, detallNoTrobat, metode, codi, inici,
   }) => {
+    const { sociDoc, desdeCache } = consulta;
+    const diagnostic = { ms: Date.now() - inici, desdeCache };
+    if (consulta.senseConnexio) {
+      avisSenseConnexio('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.', {
+        codi, metode, ...diagnostic, detall: consulta.detall,
+      });
+      return;
+    }
     if (!sociDoc) {
-      registrarErrorEscaneig('soci-no-trobat', { codi, metode, detall: missatgeNoTrobat });
+      registrarErrorEscaneig('soci-no-trobat', {
+        codi, metode, detall: missatgeNoTrobat, ...diagnostic,
+      });
       mostrarResultat({ tipus: 'error', text: missatgeNoTrobat, detall: detallNoTrobat });
       return;
     }
     const soci = sociDoc.data();
     if (!estaActiu(soci)) {
       registrarErrorEscaneig('soci-desactivat', {
-        codi, metode, numeroSoci: soci.numeroSoci, detall: soci.motiuDesactivacio ?? null,
+        codi, metode, numeroSoci: soci.numeroSoci, detall: soci.motiuDesactivacio ?? null, ...diagnostic,
       });
       mostrarResultat({
         tipus: 'error',
@@ -306,40 +466,69 @@ export default function EscaneigPage() {
     const venciment = estat === ESTAT_AL_DIA
       ? { data: formatData(calcularVenciment(sociAmbInicPeriode)), dies: diesFinsVenciment(sociAmbInicPeriode) }
       : null;
-    if (modeProva) {
+    const sessio = sessioActivaRef.current;
+    if (modeProvaRef.current) {
       mostrarResultat({
-        tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment, prova: true, sessioProva: sessioActiva.titol,
+        tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment, prova: true, sessioProva: sessio.titol,
       });
       return;
     }
-    await addDoc(collection(db, 'accessLog'), {
-      sessionId: sessioActiva.id,
-      timestamp: serverTimestamp(),
-      escanejatPer: user.uid,
-      tipus: 'soci',
-      numeroSoci: soci.numeroSoci,
-      metode,
-    });
-    if (inicPeriodeNou !== soci.inicPeriode) {
-      await updateDoc(sociDoc.ref, { inicPeriode: inicPeriodeNou });
+    if (codisPendentsRef.current.has(clauSoci(soci.numeroSoci))) {
+      mostrarPendent(codi, metode);
+      return;
     }
-    mostrarResultat({ tipus: 'ok', text: `${soci.nom} ${soci.cognoms}`, estat, venciment });
+    const nom = `${soci.nom} ${soci.cognoms}`;
+    let resultat;
+    try {
+      resultat = await desarEntrada(codi, metode, inici, {
+        sessionId: sessio.id,
+        timestamp: serverTimestamp(),
+        escanejatPer: user.uid,
+        tipus: 'soci',
+        numeroSoci: soci.numeroSoci,
+        metode,
+      }, clauSoci(soci.numeroSoci));
+    } catch {
+      mostrarResultat({ tipus: 'error', text: TEXT_ERROR_REGISTRE, detall: nom });
+      return;
+    }
+    // L'entrada ja és desada: no s'espera la confirmació d'aquesta segona
+    // escriptura perquè, amb mala connexió, deixaria la pantalla penjada.
+    if (inicPeriodeNou !== soci.inicPeriode) {
+      updateDoc(sociDoc.ref, { inicPeriode: inicPeriodeNou }).catch((error) => {
+        registrarErrorEscaneig('error-escriptura', {
+          codi, metode, numeroSoci: soci.numeroSoci, detall: `inicPeriode: ${textError(error)}`,
+        });
+      });
+    }
+    mostrarResultat(resultat === 'registrat'
+      ? { tipus: 'ok', text: nom, estat, venciment }
+      : avisPendent(nom, { estat, venciment }));
   };
 
-  const processarCodi = async (codiOriginal, metode) => {
-    const codi = codiOriginal.trim();
-    const ara = Date.now();
-    if (ultimCodiRef.current.codi === codi && ara - ultimCodiRef.current.moment < DEBOUNCE_MS) {
+  const processarCodiUnic = async (codi, metode, inici) => {
+    const identificatAbans = identificarCodi(codi);
+    const clau = identificatAbans.tipus === 'soci' ? clauSoci(identificatAbans.numeroSoci) : codi;
+    if (codisPendentsRef.current.has(clau)) {
+      mostrarPendent(codi, metode);
+      return;
+    }
+    const anterior = ultimCodiRef.current;
+    if (anterior.codi === codi && anterior.resultat === 'registrat' && inici - anterior.moment < DEBOUNCE_MS) {
+      registrarErrorEscaneig('debounce', {
+        codi, metode, ms: inici - anterior.moment, resultatAnterior: anterior.resultat,
+      });
       mostrarResultat({ tipus: 'avis', text: "Aquest codi ja s'ha registrat fa un moment." });
       return;
     }
-    ultimCodiRef.current = { codi, moment: ara };
+    ultimCodiRef.current = { codi, moment: inici, resultat: 'en-curs' };
+    const ms = () => Date.now() - inici;
 
     try {
       const identificat = identificarCodi(codi);
 
       if (identificat.tipus === 'desconegut') {
-        registrarErrorEscaneig('codi-desconegut', { codi, metode });
+        registrarErrorEscaneig('codi-desconegut', { codi, metode, ms: ms() });
         mostrarResultat({
           tipus: 'error',
           text: `Codi no reconegut: ${codi}`,
@@ -349,36 +538,38 @@ export default function EscaneigPage() {
       }
 
       if (identificat.tipus === 'soci') {
-        const socisTrobats = await getDocs(
-          query(collection(db, 'socis'), where('numeroSoci', '==', identificat.numeroSoci))
-        );
         await processarSociTrobat({
-          sociDoc: socisTrobats.docs[0],
+          consulta: await consultarSoci('numeroSoci', identificat.numeroSoci),
           missatgeNoTrobat: `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
           detallNoTrobat: 'Comprova el número al carnet o al llistat de socis',
           metode,
           codi,
+          inici,
         });
         return;
       }
 
       if (identificat.tipus === 'carnet-token') {
-        const socisTrobats = await getDocs(
-          query(collection(db, 'socis'), where('tokenCarnet', '==', identificat.token))
-        );
         await processarSociTrobat({
-          sociDoc: socisTrobats.docs[0], missatgeNoTrobat: 'Aquest carnet no és vàlid.', metode, codi,
+          consulta: await consultarSoci('tokenCarnet', identificat.token),
+          missatgeNoTrobat: 'Aquest carnet no és vàlid.',
+          metode,
+          codi,
+          inici,
         });
         return;
       }
 
       if (!lotsCarregats) {
+        registrarErrorEscaneig('lots-no-carregats', { codi, metode, ms: ms() });
         mostrarResultat({ tipus: 'error', text: 'Encara carregant els lots de tiquets. Torna-ho a provar.' });
         return;
       }
 
       if (tiquetEstaAnulat(identificat.codiTiquet, lotsRef.current)) {
-        registrarErrorEscaneig('tiquet-anullat', { codi, metode, codiTiquet: identificat.codiTiquet });
+        registrarErrorEscaneig('tiquet-anullat', {
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(),
+        });
         mostrarResultat({
           tipus: 'error',
           text: `El codi ${identificat.codiTiquet} ha estat anul·lat.`,
@@ -389,7 +580,9 @@ export default function EscaneigPage() {
 
       const preuTiquet = preuDelTiquet(identificat.codiTiquet, lotsRef.current);
       if (preuTiquet === undefined) {
-        registrarErrorEscaneig('tiquet-desconegut', { codi, metode, codiTiquet: identificat.codiTiquet });
+        registrarErrorEscaneig('tiquet-desconegut', {
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(),
+        });
         mostrarResultat({
           tipus: 'error',
           text: `El codi ${identificat.codiTiquet} no pertany a cap lot de tiquets conegut.`,
@@ -397,19 +590,37 @@ export default function EscaneigPage() {
         return;
       }
 
-      const repetits = await getDocs(
-        query(
-          collection(db, 'accessLog'),
-          where('codiTiquet', '==', identificat.codiTiquet)
-        )
-      );
+      // Sempre al servidor: la caché local pot no tenir l'entrada (dóna un
+      // tiquet repetit per bo) o tenir-ne una de pendent (dóna un "ja
+      // utilitzat" per una entrada que encara no consta enlloc).
+      const textSenseConnexio = "No es pot comprovar si aquest tiquet ja s'ha utilitzat (sense connexió). Reintenta quan hi hagi xarxa.";
+      let consulta;
+      try {
+        consulta = await ambTempsLimit(getDocsFromServer(
+          query(collection(db, 'accessLog'), where('codiTiquet', '==', identificat.codiTiquet))
+        ));
+      } catch (error) {
+        avisSenseConnexio(textSenseConnexio, {
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), detall: textError(error),
+        });
+        return;
+      }
+      if (consulta.esgotat) {
+        avisSenseConnexio(textSenseConnexio, {
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), detall: 'Temps límit de lectura esgotat',
+        });
+        return;
+      }
+      const repetits = consulta.valor;
       if (!repetits.empty) {
         const timestampRepetit = repetits.docs[0].data().timestamp;
         const dataRepetit = typeof timestampRepetit?.toDate === 'function'
           ? formatDataHora(timestampRepetit)
           : null;
         const textBase = `El codi ${identificat.codiTiquet} ja s'ha escanejat`;
-        registrarErrorEscaneig('tiquet-ja-utilitzat', { codi, metode, codiTiquet: identificat.codiTiquet });
+        registrarErrorEscaneig('tiquet-ja-utilitzat', {
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), desdeCache: repetits.metadata?.fromCache ?? false,
+        });
         mostrarResultat({
           tipus: 'avis',
           text: 'Codi ja utilitzat',
@@ -417,16 +628,58 @@ export default function EscaneigPage() {
             ? `${textBase} (${dataRepetit}). Confirma si vols comptar-lo igualment.`
             : `${textBase}. Confirma si vols comptar-lo igualment.`,
           codiTiquet: identificat.codiTiquet,
-          onConfirmar: () => registrarGeneric(identificat.codiTiquet, preuTiquet, metode),
+          onConfirmar: () => ambUnSolIntent(() => registrarGeneric(identificat.codiTiquet, preuTiquet, metode)),
         });
         return;
       }
-      await registrarGeneric(identificat.codiTiquet, preuTiquet, metode);
+      await registrarGeneric(identificat.codiTiquet, preuTiquet, metode, inici);
     } catch (error) {
-      registrarErrorEscaneig('excepcio', { codi, metode, detall: String(error?.message ?? error) });
-      mostrarResultat({ tipus: 'error', text: "No s'ha pogut registrar l'entrada. Torna-ho a provar." });
+      registrarErrorEscaneig('excepcio', {
+        codi, metode, detall: textError(error), ms: ms(),
+      });
+      mostrarResultat({ tipus: 'error', text: TEXT_ERROR_REGISTRE });
     }
   };
+
+  // Un sol intent alhora (escaneig o «Comptar igualment»): si ja n'hi ha un
+  // en curs, el nou s'ignora en silenci; el resultat el donarà el primer.
+  const ambUnSolIntent = async (fn) => {
+    if (processantRef.current) return;
+    processantRef.current = true;
+    setProcessant(true);
+    try {
+      await fn();
+    } finally {
+      processantRef.current = false;
+      setProcessant(false);
+    }
+  };
+
+  const processarCodi = (codiOriginal, metode) => {
+    // Una lectura per QR amb un resultat a la pantalla és un fotograma
+    // endarrerit de l'escaneig anterior: s'ignora sense avís ni log.
+    if (metode === 'qr' && missatgeRef.current) return undefined;
+    const codi = codiOriginal.trim();
+    return ambUnSolIntent(async () => {
+      try {
+        await processarCodiUnic(codi, metode, Date.now());
+      } finally {
+        // Si l'intent no ha acabat registrat ni pendent, un reintent del mateix
+        // codi s'ha de processar de nou (sense el fals "ja s'ha registrat").
+        if (ultimCodiRef.current.codi === codi && ultimCodiRef.current.resultat === 'en-curs') {
+          ultimCodiRef.current = { codi: null, moment: 0, resultat: null };
+        }
+      }
+    });
+  };
+
+  // L'interval de la càmera es crea un cop i, sense aquesta referència,
+  // cridaria una versió antiga de processarCodi (amb lotsCarregats o
+  // modeProva desfasats).
+  const processarCodiRef = useRef(processarCodi);
+  useEffect(() => {
+    processarCodiRef.current = processarCodi;
+  });
 
   useEffect(() => {
     if (!sessioActiva || modeEntrada !== 'escanejant' || missatge || !('BarcodeDetector' in window)) return undefined;
@@ -447,13 +700,20 @@ export default function EscaneigPage() {
       mostrarResultat({ tipus: 'error', text: "No s'ha pogut accedir a la càmera. Utilitza el camp de text." });
     });
 
+    // Una sola detecció alhora, i cap resultat d'una detecció que acabi
+    // després d'aturar la càmera (ja hi ha un resultat a la pantalla).
+    let detectant = false;
     const interval = setInterval(async () => {
-      if (!videoRef.current?.srcObject) return;
+      if (detectant || !videoRef.current?.srcObject) return;
+      detectant = true;
       try {
         const barcodes = await detector.detect(videoRef.current);
-        if (barcodes[0]) processarCodi(barcodes[0].rawValue, 'qr');
+        if (!actiu || !barcodes[0]) return;
+        processarCodiRef.current(barcodes[0].rawValue, 'qr');
       } catch {
         // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
+      } finally {
+        detectant = false;
       }
     }, 400);
 
@@ -467,7 +727,7 @@ export default function EscaneigPage() {
 
   const handleCodiManual = (e) => {
     e.preventDefault();
-    if (!codiManual.trim()) return;
+    if (!codiManual.trim() || processantRef.current) return;
     processarCodi(codiManual.trim(), 'manual');
     setCodiManual('');
   };
@@ -490,16 +750,39 @@ export default function EscaneigPage() {
 
   return (
     <div className="escaneig">
-      {(mockup || modeProva) && (
+      {(mockup || modeProva || !enLinia || pendentsEnviar > 0 || enviamentsFallits.length > 0) && (
         <div className="escaneig__avisos">
           {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
           {modeProva && <p className="escaneig__prova-avis">Mode prova: no es desa res</p>}
+          {!enLinia && <p className="escaneig__connexio-avis" role="status" aria-live="polite">Sense connexió</p>}
+          {enviamentsFallits.map((f) => (
+            <div key={f.id} className="escaneig__fallit" role="alert">
+              <p className="escaneig__fallit-text">
+                {`Una entrada no s'ha pogut enviar: ${f.codi} (${f.hora}). Torna-la a escanejar.`}
+              </p>
+              <button
+                type="button"
+                className="escaneig__fallit-tancar"
+                aria-label="Descartar l'avís d'entrada no enviada"
+                onClick={() => setEnviamentsFallits((llista) => llista.filter((x) => x.id !== f.id))}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {pendentsEnviar > 0 && (
+            <p className="escaneig__pendents-avis" role="status" aria-live="polite">
+              {pendentsEnviar === 1 ? "1 entrada pendent d'enviar" : `${pendentsEnviar} entrades pendents d'enviar`}
+            </p>
+          )}
         </div>
       )}
       <div
         className="escaneig__contingut"
         style={{ backgroundImage: fonsContingut }}
       >
+        {!missatge && processant && <p className="escaneig__processant">Comprovant el codi…</p>}
+
         {!missatge && modeEntrada === 'idle' && (
           <>
             <button type="button" className="btn escaneig__boto-gran" onClick={handleEscanejar}>
@@ -572,16 +855,23 @@ export default function EscaneigPage() {
               <button
                 className="btn btn--blanc escaneig__boto-confirmar"
                 type="button"
+                disabled={processant}
                 onClick={() => {
+                  if (processantRef.current) return;
                   if (window.confirm(`Segur que vols comptar el codi ${missatge.codiTiquet} igualment?`)) {
                     missatge.onConfirmar();
                   }
                 }}
               >
-                Comptar igualment
+                {processant ? 'Registrant…' : 'Comptar igualment'}
               </button>
             )}
-            <button className="btn escaneig__boto-tornar" type="button" onClick={handleTornarAEscanejar}>
+            <button
+              className="btn escaneig__boto-tornar"
+              type="button"
+              disabled={processant}
+              onClick={handleTornarAEscanejar}
+            >
               <IconaCamera />
               Escanejar un altre
             </button>
@@ -614,6 +904,7 @@ export default function EscaneigPage() {
           <button
             type="button"
             className="escaneig__footer-tancar"
+            disabled={processant}
             onClick={handleTancar}
             aria-label="Tancar i tornar a l'inici"
           >

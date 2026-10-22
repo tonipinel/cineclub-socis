@@ -16,7 +16,25 @@ const MOTIU_ETIQUETES = {
   'tiquet-desconegut': 'Tiquet desconegut',
   'tiquet-ja-utilitzat': 'Tiquet ja utilitzat',
   excepcio: 'Error inesperat',
+  debounce: 'Reescaneig dins 3 s',
+  'lots-no-carregats': 'Lots encara no carregats',
+  'error-escriptura': "Error d'escriptura",
+  'timeout-escriptura': 'Escriptura sense confirmar (8 s)',
+  'sense-connexio': 'Sense connexió',
+  'pendent-enviar': "Codi pendent d'enviar",
 };
+
+// Camps afegits als registres a partir d'octubre de 2026; els antics no en
+// tenen i aleshores no es mostra res.
+function textDiagnostic(e) {
+  const parts = [];
+  if (e.online !== undefined) parts.push(e.online ? 'En línia' : 'Fora de línia');
+  if (e.ms !== undefined) parts.push(`${e.ms} ms`);
+  if (e.desdeCache) parts.push('des de la caché');
+  if (e.resultatAnterior) parts.push(`anterior: ${e.resultatAnterior}`);
+  if (e.versio) parts.push(e.versio);
+  return parts.join(' · ');
+}
 
 const METODE_ETIQUETES = { qr: 'QR', manual: 'Manual' };
 
@@ -66,6 +84,7 @@ export default function EscaneigLogPage() {
                 <span className="escaneig-log__sessio">{sessions[e.sessionId] ?? e.sessionId ?? '—'}</span>
               </div>
               {e.detall && <p className="escaneig-log__detall">{e.detall}</p>}
+              {textDiagnostic(e) && <p className="escaneig-log__diagnostic">{textDiagnostic(e)}</p>}
             </li>
           ))}
         </ul>

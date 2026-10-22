@@ -79,6 +79,52 @@ describe('EscaneigLogPage', () => {
     expect(await screen.findByText('offline')).toBeInTheDocument();
   });
 
+  it('mostra les etiquetes dels motius de diagnòstic nous', async () => {
+    const motius = ['debounce', 'lots-no-carregats', 'error-escriptura', 'timeout-escriptura', 'sense-connexio', 'pendent-enviar'];
+    mockSessionsIErrors([SESSIO_DOC], motius.map((motiu, i) => ({
+      id: `err-${i}`,
+      data: () => ({ sessionId: 'sessio-1', motiu, codi: `SOCI-${i}`, metode: 'qr', timestamp: null }),
+    })));
+    renderPagina();
+    expect(await screen.findByText('Reescaneig dins 3 s')).toBeInTheDocument();
+    expect(screen.getByText('Lots encara no carregats')).toBeInTheDocument();
+    expect(screen.getByText("Error d'escriptura")).toBeInTheDocument();
+    expect(screen.getByText('Escriptura sense confirmar (8 s)')).toBeInTheDocument();
+    expect(screen.getByText('Sense connexió')).toBeInTheDocument();
+    expect(screen.getByText("Codi pendent d'enviar")).toBeInTheDocument();
+  });
+
+  it('mostra els camps de diagnòstic (connexió, durada, caché, intent anterior) quan hi són', async () => {
+    mockSessionsIErrors([SESSIO_DOC], [{
+      id: 'err-1',
+      data: () => ({
+        sessionId: 'sessio-1',
+        motiu: 'debounce',
+        codi: 'SOCI-7',
+        metode: 'qr',
+        online: false,
+        ms: 1250,
+        desdeCache: true,
+        resultatAnterior: 'registrat',
+        timestamp: { toDate: () => new Date(2026, 8, 2, 20, 15) },
+      }),
+    }]);
+    renderPagina();
+    expect(await screen.findByText('Fora de línia · 1250 ms · des de la caché · anterior: registrat')).toBeInTheDocument();
+  });
+
+  it('un registre antic sense camps de diagnòstic no mostra la línia de diagnòstic', async () => {
+    mockSessionsIErrors([SESSIO_DOC], [{
+      id: 'err-1',
+      data: () => ({
+        sessionId: 'sessio-1', motiu: 'codi-desconegut', codi: 'XYZ', metode: 'qr', timestamp: null,
+      }),
+    }]);
+    const { container } = renderPagina();
+    expect(await screen.findByText('Codi no reconegut')).toBeInTheDocument();
+    expect(container.querySelector('.escaneig-log__diagnostic')).toBeNull();
+  });
+
   it('té un enllaç per tornar a la pàgina d\'escaneig', async () => {
     mockSessionsIErrors([], []);
     renderPagina();
