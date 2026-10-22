@@ -610,8 +610,24 @@ body.proposta-detall-obert-body {
 .ranking-tanda__fila {
   @apply grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-black/10 px-2 py-3 sm:gap-4 sm:px-3;
 }
+.ranking-tanda__fila--sense-posicio {
+  @apply grid-cols-[auto_minmax(0,1fr)_auto];
+}
 .ranking-tanda__fila:nth-child(even) {
   @apply bg-black/5;
+}
+.ranking-tanda__buit {
+  @apply m-0 border border-black/10 bg-white px-4 py-3 text-center font-body text-base font-semibold text-black/70;
+}
+/* Pel·lícules sense prou vots: grup apart, sense posició ni medalla. */
+.ranking-tanda__pocs {
+  @apply flex flex-col gap-1;
+}
+.ranking-tanda__pocs-titol {
+  @apply m-0 font-display text-base font-bold uppercase tracking-wide text-black/60;
+}
+.ranking-tanda__pocs-text {
+  @apply m-0 font-body text-xs text-black/60 sm:text-sm;
 }
 .ranking-tanda__cartell {
   @apply block h-24 w-16 shrink-0 rounded object-cover shadow-md sm:h-[7.5rem] sm:w-20;
