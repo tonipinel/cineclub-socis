@@ -1,0 +1,220 @@
+/* Pestanyes accessibles (components/Pestanyes.jsx). En mòbil la llista fa scroll horitzontal sense barra visible. */
+.pestanyes__llista {
+  @apply flex overflow-x-auto whitespace-nowrap border-b-2 border-gold/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
+.pestanyes__pestanya {
+  @apply -mb-0.5 inline-flex cursor-pointer items-center gap-2 border-0 border-b-2 border-transparent bg-transparent px-4 py-3 font-display font-bold text-black transition hover:text-gold-dark;
+}
+.pestanyes__pestanya:focus-visible {
+  @apply outline-2 -outline-offset-2 outline-gold;
+}
+.pestanyes__pestanya--activa {
+  @apply border-gold text-gold-dark;
+}
+.pestanyes__avis {
+  @apply h-2 w-2 rounded-full bg-gold;
+}
+.pestanyes__avis-text {
+  @apply sr-only;
+}
+
+/* Barra de desar fixa (components/BarraDesar.jsx). z-10: per sobre del contingut, sota la capçalera i el menú mòbil. */
+.barra-desar {
+  @apply fixed inset-x-0 bottom-0 z-10 border-t border-black/10 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgb(0_0_0/0.08)] print:hidden;
+}
+.barra-desar__contingut {
+  @apply mx-auto flex max-w-5xl items-center justify-between gap-4 p-3;
+}
+.barra-desar__estat {
+  @apply min-w-0 flex-1;
+}
+.barra-desar__text {
+  @apply m-0 font-body text-sm text-black/70;
+}
+.barra-desar__text--error {
+  @apply font-bold text-red-700;
+}
+.barra-desar__errors {
+  @apply m-0 mt-1 max-h-24 list-none overflow-y-auto p-0 sm:max-h-none;
+}
+.barra-desar__error {
+  @apply cursor-pointer border-0 bg-transparent p-0 text-left font-body text-sm text-red-700 underline hover:text-red-900;
+}
+.barra-desar__error:focus-visible {
+  @apply outline-2 outline-offset-2 outline-gold;
+}
+
+/* Fitxa de sessió (pages/Sessions/SessionForm.jsx): capçalera, pestanyes i targetes. pb-40: espai per a la barra de desar fixa. */
+.fitxa-sessio {
+  @apply flex flex-col bg-white pb-40;
+}
+.fitxa-sessio__contingut {
+  @apply mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 px-4 pt-6 sm:px-6;
+}
+.fitxa-sessio__capcalera {
+  @apply flex flex-col gap-3;
+}
+.fitxa-sessio__tornar {
+  @apply self-start font-body text-sm;
+}
+.fitxa-sessio__capcalera-cos {
+  @apply flex min-w-0 items-start gap-4;
+}
+.fitxa-sessio__cartell {
+  @apply aspect-[2/3] w-16 shrink-0 rounded object-cover sm:w-24;
+}
+.fitxa-sessio__capcalera-text {
+  @apply flex min-w-0 flex-col gap-2;
+}
+.fitxa-sessio__titol {
+  @apply m-0 flex min-w-0 items-center gap-2 wrap-anywhere font-display text-2xl font-bold uppercase tracking-wide text-black sm:text-4xl;
+}
+.fitxa-sessio__estrella {
+  @apply h-8 w-8 shrink-0 text-gold sm:h-10 sm:w-10;
+}
+.fitxa-sessio__quan {
+  @apply m-0 font-body text-sm text-black/70;
+}
+.fitxa-sessio__insignies {
+  @apply flex flex-wrap gap-2;
+}
+.fitxa-sessio__insignia--publicada {
+  @apply border-green-600 text-green-700;
+}
+.fitxa-sessio__accions {
+  @apply flex flex-wrap items-center gap-3 font-body text-sm;
+}
+.fitxa-sessio__panell {
+  @apply min-w-0;
+}
+.fitxa-sessio__panell--estadistiques {
+  @apply pt-2;
+}
+.fitxa-sessio__targetes {
+  @apply flex flex-col gap-6;
+}
+.fitxa-sessio__targeta {
+  @apply flex min-w-0 flex-col gap-2 rounded border border-black/10 p-4;
+}
+.fitxa-sessio__targeta-titol {
+  @apply m-0 mb-2 font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.fitxa-sessio__graella {
+  @apply grid grid-cols-1 gap-x-4 md:grid-cols-2;
+}
+.fitxa-sessio__url {
+  @apply min-w-0 wrap-anywhere font-mono text-xs;
+}
+
+/* Continguts: editor de Markdown i vista prèvia, un al costat de l'altre en pantalles grans. */
+.fitxa-sessio__editor {
+  @apply grid grid-cols-1 gap-4 lg:grid-cols-2;
+}
+.fitxa-sessio__editor-camp {
+  @apply flex min-w-0 flex-col gap-2;
+}
+.fitxa-sessio__previa {
+  @apply min-w-0 rounded border border-dashed border-black/20 bg-black/[0.02] p-4;
+}
+.fitxa-sessio__previa-titol {
+  @apply m-0 mb-2 font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.fitxa-sessio__previa-cos {
+  @apply wrap-anywhere font-body text-sm text-black;
+}
+.fitxa-sessio__previa-cos h2 {
+  @apply mt-4 mb-1 font-display text-lg font-bold uppercase tracking-wide first:mt-0;
+}
+.fitxa-sessio__previa-cos h3 {
+  @apply mt-3 mb-1 font-display text-base font-bold;
+}
+.fitxa-sessio__previa-cos p {
+  @apply my-2;
+}
+.fitxa-sessio__previa-cos ul,
+.fitxa-sessio__previa-cos ol {
+  @apply my-2 pl-5;
+}
+.fitxa-sessio__previa-cos ul {
+  @apply list-disc;
+}
+.fitxa-sessio__previa-cos ol {
+  @apply list-decimal;
+}
+.fitxa-sessio__previa-cos a {
+  @apply text-gold-dark underline;
+}
+.fitxa-sessio__previa-cos img {
+  @apply h-auto max-w-full;
+}
+
+/* Mitjans: cartell, galeria reordenable (GaleriaImatges.jsx) i tràiler. */
+.fitxa-sessio__cartell-mitjans {
+  @apply grid grid-cols-1 items-start gap-4 sm:grid-cols-[10rem_1fr];
+}
+.fitxa-sessio__cartell-imatge {
+  @apply aspect-[2/3] w-40 rounded object-cover;
+}
+.fitxa-sessio__trailer {
+  @apply aspect-video w-full max-w-xl rounded border-0;
+}
+.galeria-imatges {
+  @apply m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3;
+}
+.galeria-imatges__element {
+  @apply relative flex min-w-0 flex-col gap-1 rounded bg-white;
+}
+.galeria-imatges__element--arrossegant {
+  @apply z-10 opacity-80 shadow-lg;
+}
+.galeria-imatges__miniatura {
+  @apply aspect-video w-full rounded object-cover;
+}
+.galeria-imatges__accions {
+  @apply flex flex-wrap gap-1;
+}
+.galeria-imatges__accions .btn-icona {
+  @apply h-8 w-8 text-sm;
+}
+/* touch-action: none només al handle, perquè fora d'ell el dit continuï fent scroll de la pàgina. */
+.galeria-imatges__handle {
+  @apply cursor-grab touch-none active:cursor-grabbing;
+}
+.galeria-imatges__handle:focus-visible {
+  @apply outline-2 outline-offset-2 outline-gold;
+}
+
+/* Zona de pujada (ZonaPujada.jsx): deixar anar fitxers o triar-los. */
+.zona-pujada__contenidor {
+  @apply flex min-w-0 flex-col gap-2;
+}
+.zona-pujada {
+  @apply flex min-w-0 flex-col gap-2 rounded border-2 border-dashed border-black/20 p-4 transition;
+}
+.zona-pujada--activa {
+  @apply border-gold bg-gold/10;
+}
+.zona-pujada--deshabilitada {
+  @apply bg-black/[0.03] opacity-70;
+}
+.zona-pujada__etiqueta {
+  @apply font-body text-sm font-semibold text-black;
+}
+.zona-pujada__text {
+  @apply m-0 font-body text-sm text-black/70;
+}
+.zona-pujada__input {
+  @apply max-w-full min-w-0 font-body text-sm;
+}
+.zona-pujada__estats {
+  @apply m-0 flex list-none flex-col gap-1 p-0 font-body text-sm;
+}
+.zona-pujada__estat {
+  @apply wrap-anywhere text-black/70;
+}
+.zona-pujada__estat--ok {
+  @apply text-green-700;
+}
+.zona-pujada__estat--error {
+  @apply text-red-700;
+}

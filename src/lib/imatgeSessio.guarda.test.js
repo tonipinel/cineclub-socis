@@ -8,7 +8,7 @@ const PERMESOS = {
   // La funció única que tria entre `publica.cartell` i el valor de reserva.
   'src/lib/sessions.js': { 'sessio?.imatgeUrl': 1 },
   // Edició: en desar un cartell públic nou se'n copia la URL al valor de reserva.
-  'src/pages/Sessions/SessionForm.jsx': { 'nou.imatgeUrl': 1 },
+  'src/lib/desarSessio.js': { 'nou.imatgeUrl': 1 },
   // Propostes (no sessions): el cartell de la proposta, que passa a `publica.cartell` en programar-la.
   'src/lib/sessioPublica.js': { 'proposta.imatgeUrl': 1 },
   'src/pages/Propostes/PropostaForm.jsx': { 'dades.imatgeUrl': 5 },

@@ -107,6 +107,12 @@ export function dadesInicials() {
         any: 1964,
         durada: 91,
         cartell: i % 2 === 0 ? CARTELL_AMPLE : '',
+        // ses2 (activa) estressa les pestanyes Continguts i Mitjans: galeria, cos llarg i títol llarguíssim.
+        ...(i === 2 && {
+          titol: `${titol} ${PARAULA_LLARGA} ${PARAULA_LLARGA}`,
+          galeria: [CARTELL_AMPLE, '/logo-cineclub.png', '/logo-marca.png', '/cinema-pattern.jpg', '/logo-footer.png'],
+          cos: `## Sinopsi\n\n${'Paràgraf llarg amb molt de text per omplir l\'àrea. '.repeat(30)}\n\n## Context\n\n${URL_LLARGA}\n\n${PARAULA_LLARGA}\n\n`.repeat(3),
+        }),
       },
     };
   }

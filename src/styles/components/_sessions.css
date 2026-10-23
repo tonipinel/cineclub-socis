@@ -73,15 +73,6 @@
 .icona-estrella-activa {
   @apply h-5 w-5 shrink-0 text-gold;
 }
-.session-form__capcalera--principal {
-  @apply mb-4 border-b border-black/10 pb-4;
-}
-.session-form__titol {
-  @apply flex min-w-0 items-center gap-2 wrap-anywhere font-display text-4xl font-bold uppercase tracking-wide text-black;
-}
-.session-form__estrella {
-  @apply h-12 w-12 shrink-0 text-gold;
-}
 .session-form__subtitol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
@@ -91,17 +82,8 @@
 .session-form__graella--3 {
   @apply grid grid-cols-1 gap-6 pb-0 md:grid-cols-3;
 }
-.session-form__columna {
-  @apply flex flex-col gap-2;
-}
 .session-form__activa {
   @apply font-body text-sm font-semibold text-gold-dark;
-}
-.session-form__imatge-enllac {
-  @apply self-start;
-}
-.session-form__imatge {
-  @apply aspect-[2/3] w-full max-w-xs rounded object-cover;
 }
 .session-form__desglossament-titol {
   @apply font-display text-sm font-bold uppercase tracking-wide text-black;

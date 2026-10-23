@@ -33,6 +33,8 @@ export const RUTES = [
   '/socis', '/socis/nou', '/socis/s1', '/socis/s1/carnet', '/socis/carnets?ids=s1,s2,s3', '/socis/s1/pagament',
   '/solicituds',
   '/sessions', '/sessions/nova', '/sessions/ses2', '/sessions/ses5',
+  '/sessions/ses2?pestanya=dades', '/sessions/ses2?pestanya=continguts', '/sessions/ses2?pestanya=mitjans',
+  '/sessions/ses5?pestanya=dades',
   '/tickets', '/tickets/lot1',
   '/escaneig', '/escaneig/log',
   '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1',
@@ -48,6 +50,7 @@ const AMPLADES = [375, 320];
 const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
   editar: '[aria-label="Editar dades"]',
+  desar: '.barra-desar button[type="submit"]',
   calendari: '.sessions-list__accions [aria-label="Sincronitzar el calendari"]',
 };
 const ESTATS_PER_RUTA = {
@@ -55,8 +58,13 @@ const ESTATS_PER_RUTA = {
   '/comptabilitat': ['filtres'],
   '/socis/s1': ['editar'],
   '/sessions': ['calendari'],
-  '/sessions/ses2': ['editar'],
-  '/sessions/ses5': ['editar'],
+  // Fitxa de sessió: la barra fixa «Desar» és a les pestanyes d'edició (no a Estadístiques).
+  '/sessions/nova': ['desar'],
+  '/sessions/ses5': ['desar'], // sense control: la pestanya per defecte és Dades
+  '/sessions/ses2?pestanya=dades': ['desar'],
+  '/sessions/ses2?pestanya=continguts': ['desar'],
+  '/sessions/ses2?pestanya=mitjans': ['desar'],
+  '/sessions/ses5?pestanya=dades': ['desar'],
   '/comptabilitat/m1': ['editar'],
   '/configuracio': ['editar'],
   '/distribuidores/d1': ['editar'],
@@ -172,7 +180,7 @@ async function main() {
     for (const amplada of amplades) {
       for (const ruta of rutes) {
         const cami = ruta.split('?')[0];
-        const casos = [[ruta, null], ...(ESTATS_PER_RUTA[cami] ?? []).map((estat) => [`${ruta} ~${estat}`, ESTATS[estat]])];
+        const casos = [[ruta, null], ...(ESTATS_PER_RUTA[ruta] ?? []).map((estat) => [`${ruta} ~${estat}`, ESTATS[estat]])];
         for (const [nom, selector] of casos) {
           const pagina = await navegador.newPage();
           await pagina.setViewport({ width: amplada, height: 812, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
@@ -196,8 +204,8 @@ async function main() {
             } else senseBoto = true;
           } else {
             for (const [estat, sel] of Object.entries(ESTATS)) {
-              if (!(ESTATS_PER_RUTA[cami] ?? []).includes(estat) && await pagina.$(sel)) {
-                avisos.add(`${cami} té el botó «${estat}» però no és a ESTATS_PER_RUTA: no s'ha provat.`);
+              if (!(ESTATS_PER_RUTA[ruta] ?? []).includes(estat) && await pagina.$(sel)) {
+                avisos.add(`${ruta} té el botó «${estat}» però no és a ESTATS_PER_RUTA: no s'ha provat.`);
               }
             }
           }

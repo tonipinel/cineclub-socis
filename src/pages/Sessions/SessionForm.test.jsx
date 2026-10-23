@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {}, storage: { app: { options: { storageBucket: 'bucket-prova' } } } }));
 vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn() }));
@@ -26,56 +26,77 @@ vi.mock('firebase/firestore', () => ({
 import { addDoc, getDoc, getDocs, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import SessionForm from './SessionForm';
 
-function renderEnEdicio() {
+function renderEnEdicio(ruta = '/sessions/1') {
   return render(
-    <MemoryRouter initialEntries={['/sessions/1']}>
-      <Routes><Route path="/sessions/:id" element={<SessionForm />} /></Routes>
+    <MemoryRouter initialEntries={[ruta]}>
+      <Routes>
+        <Route path="/sessions/:id" element={<SessionForm />} />
+        <Route path="/sessions" element={<p>Llistat de sessions</p>} />
+      </Routes>
     </MemoryRouter>
   );
 }
 
+const pestanya = (nom) => screen.getByRole('tab', { name: new RegExp(`^${nom}`) });
+const textBarra = () => document.querySelector('.barra-desar__text').textContent;
+
 describe('SessionForm — alta', () => {
   beforeEach(() => addDoc.mockClear());
 
-  it('crea una sessió nova', async () => {
+  function FitxaNova() {
+    const { pathname, search } = useLocation();
+    return (
+      <>
+        <p>Fitxa de la sessió nova</p>
+        <p data-testid="ubicacio">{pathname + search}</p>
+      </>
+    );
+  }
+
+  // Migrada: abans tornava a la llista; ara obre la fitxa de la sessió nova.
+  it('crea una sessió nova i obre la seva fitxa', async () => {
+    addDoc.mockResolvedValueOnce({ id: 'abc' });
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/sessions/nova']}>
         <Routes>
           <Route path="/sessions/nova" element={<SessionForm />} />
+          <Route path="/sessions/abc" element={<FitxaNova />} />
           <Route path="/sessions" element={<p>Llistat de sessions</p>} />
         </Routes>
       </MemoryRouter>
     );
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
     await user.type(screen.getByLabelText('Títol'), 'The Artist');
     await user.type(screen.getByLabelText('Data'), '2026-03-05');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(await screen.findByText('Llistat de sessions')).toBeInTheDocument();
-    const [, dadesDesades] = addDoc.mock.calls[0];
-    expect(dadesDesades.titol).toBe('The Artist');
-    expect(dadesDesades.activa).toBe(false);
+    expect(await screen.findByText('Fitxa de la sessió nova')).toBeInTheDocument();
+    expect(screen.getByTestId('ubicacio')).toHaveTextContent('/sessions/abc?pestanya=dades');
+    expect(addDoc).toHaveBeenCalledTimes(1);
+    expect(addDoc.mock.calls[0][1]).toEqual({
+      titol: 'The Artist', data: '2026-03-05', hora: '19:00', urlProgramacio: '', imatgeUrl: '', activa: false,
+    });
   });
 });
 
-describe('SessionForm — edició, camps de només lectura per defecte', () => {
+// Migrada: ja no hi ha mode «Editar»; els camps de «Dades» són sempre editables.
+describe('SessionForm — edició, camps sempre editables', () => {
   beforeEach(() => {
     getDoc.mockClear();
     getDocs.mockReset();
     getDocs.mockResolvedValue({ docs: [] });
   });
 
-  it('mostra els camps només de lectura fins que es clica "Editar dades"', async () => {
+  it('a la pestanya Dades els camps són editables i no hi ha botó «Editar»', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
-    const user = userEvent.setup();
-    renderEnEdicio();
+    renderEnEdicio('/sessions/1?pestanya=dades');
     const camp = await screen.findByLabelText('Títol');
-    expect(camp).toHaveAttribute('readonly');
-    expect(screen.queryByRole('button', { name: 'Desar' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
     expect(camp).not.toHaveAttribute('readonly');
+    expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
   });
 });
@@ -131,14 +152,16 @@ describe('SessionForm — desar una sessió ja activa', () => {
     updateDoc.mockClear();
   });
 
+  // Migrada: sense canvis «Desar» està desactivat, així que es canvia l'hora abans de desar.
   it('en editar i desar una sessió ja activa, no sobreescriu el camp activa', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: true }),
     });
     const user = userEvent.setup();
-    renderEnEdicio();
+    renderEnEdicio('/sessions/1?pestanya=dades');
     await screen.findByDisplayValue('The Artist');
-    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    await user.clear(screen.getByLabelText("Hora d'inici"));
+    await user.type(screen.getByLabelText("Hora d'inici"), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const [, dadesDesades] = updateDoc.mock.calls[0];
@@ -160,9 +183,9 @@ describe('SessionForm — camps de la web pública', () => {
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false, slug: 'the-artist', publicada: true, publica }),
     });
     const user = userEvent.setup();
-    renderEnEdicio();
-    await screen.findByDisplayValue('The Artist');
-    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    // Migrat: la fitxa pública ja és visible a «Dades» i «Títol original» també val «The Artist».
+    await screen.findByLabelText('Títol');
     await user.clear(screen.getByLabelText('Títol'));
     await user.type(screen.getByLabelText('Títol'), "L'artista");
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -219,7 +242,8 @@ describe('SessionForm — desglossament econòmic', () => {
     const desglossament = within(
       (await screen.findByText('Desglossament econòmic')).closest('.session-form__bloc')
     );
-    const blocQuotes = desglossament.getByText('Quotes socis').closest('div').parentElement;
+    // Migrat: les estadístiques es carreguen amb React.lazy; s'espera que arribin els moviments.
+    const blocQuotes = (await desglossament.findByText('Quotes socis')).closest('div').parentElement;
     expect(within(blocQuotes).getByText('+50.00€')).toBeInTheDocument();
     expect(within(blocQuotes).getByText('30.00€ × 1 · Efectiu')).toBeInTheDocument();
     expect(within(blocQuotes).getByText('+30.00€')).toBeInTheDocument();
@@ -399,9 +423,10 @@ describe('SessionForm — detall de socis i aportacions', () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
-    getDocs.mockResolvedValueOnce({
-      docs: [{ id: 'soci-doc-7', data: () => ({ numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal' }) }],
-    });
+    // Migrada: la fitxa ara també llegeix les altres sessions en muntar-se; el soci es retorna per col·lecció.
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'socis'
+      ? { docs: [{ id: 'soci-doc-7', data: () => ({ numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal' }) }] }
+      : { docs: [] }));
     onSnapshot.mockImplementationOnce((q, callback) => {
       callback({
         docs: [
@@ -517,14 +542,15 @@ describe('SessionForm — sessions especials sense control', () => {
     getDocs.mockResolvedValue({ docs: [] });
   });
 
+  // Migrada: obre directament «Dades» (sense «Editar») i no hi ha la pestanya «Estadístiques».
   it('mostra les dades editables però amaga assistència, desglossament econòmic, moviments i socis', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'Carretera a Gusen', data: '2026-03-05', activa: false, senseControl: true }),
     });
-    const user = userEvent.setup();
     renderEnEdicio();
     expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: /Estadístiques/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
     expect(screen.queryByText("Resum d'assistència")).not.toBeInTheDocument();
     expect(screen.queryByText('Desglossament econòmic')).not.toBeInTheDocument();
@@ -596,16 +622,16 @@ describe('SessionForm — pàgina pública', () => {
     vi.restoreAllMocks();
   });
 
-  function carregar(sessio) {
+  // Migrat: en lloc de «Editar» + desplegar «Pàgina pública», s'obre la fitxa a la pestanya indicada.
+  function carregar(sessio, pestanyaInicial = 'dades') {
     getDoc.mockResolvedValueOnce({ data: () => structuredClone(sessio) });
     const user = userEvent.setup();
-    renderEnEdicio();
+    renderEnEdicio(`/sessions/1?pestanya=${pestanyaInicial}`);
     return user;
   }
 
-  async function obrir(user) {
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    await user.click(screen.getByRole('button', { name: 'Pàgina pública' }));
+  async function obrir() {
+    await screen.findByRole('tabpanel');
   }
 
   const desat = async () => {
@@ -615,7 +641,7 @@ describe('SessionForm — pàgina pública', () => {
 
   it('publicar sense slug, data ni títol dona errors i no desa', async () => {
     const user = carregar({ ...GESTIO, titol: '', data: '' });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     const alerta = await screen.findByRole('alert', { name: 'No es pot publicar' });
@@ -627,7 +653,7 @@ describe('SessionForm — pàgina pública', () => {
 
   it('publicar amb tot correcte desa publicada, slug, urlProgramacio i la publica neta amb actualitzatEl', async () => {
     const user = carregar({ ...GESTIO, slug: '', publicada: false, publica: { titol: 'Pig', directors: ['Michael Sarnoski'], seccio: 'cartellera' } });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(screen.getByRole('button', { name: 'Fer servir «pig»' }));
     await user.type(screen.getByLabelText('Guió'), 'Michael Sarnoski');
@@ -648,7 +674,7 @@ describe('SessionForm — pàgina pública', () => {
       ? { docs: [{ id: 'altra', data: () => ({ slug: 'pig', data: '2026-03-01' }) }] }
       : { docs: [] }));
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByRole('alert', { name: 'No es pot publicar' }))
@@ -658,28 +684,32 @@ describe('SessionForm — pàgina pública', () => {
 
   it('l\'avís de cartell absent no impedeix publicar', async () => {
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     expect(screen.getByText(/La sessió no té cartell/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect((await desat()).publicada).toBe(true);
   });
 
+  // Migrada: sense canvis «Desar» està desactivat i no s'escriu res; canviar un camp i desfer-lo tampoc compta com a canvi.
   it('desar sense canvis públics no toca publica ni actualitzatEl ni cap camp de gestió', async () => {
     const publica = { titol: 'Pig', actualitzatEl: '2026-01-01', directors: [], interprets: [], generes: [], participa: [], collabora: [], aliases: [] };
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: false, publica });
-    await obrir(user);
-    await user.click(screen.getByRole('button', { name: 'Desar' }));
-    const dades = await desat();
-    expect(dades).not.toHaveProperty('publica');
-    for (const camp of ['activa', 'senseControl', 'propostaId', 'hora', 'data', 'titol', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl']) {
-      expect(dades).not.toHaveProperty(camp);
-    }
+    await obrir();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    await user.type(screen.getByLabelText('Guió'), 'x');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+    await user.clear(screen.getByLabelText('Guió'));
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(textBarra()).toBe('Sense canvis');
+    fireEvent.submit(screen.getByRole('button', { name: 'Desar' }).closest('form'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('una sessió sense publica es desa sense crear-ne una de buida', async () => {
     const user = carregar({ ...GESTIO });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -688,7 +718,7 @@ describe('SessionForm — pàgina pública', () => {
 
   it('el preu 0 es desa com a 0, el buit no es desa i el text dona error', async () => {
     const user = carregar({ ...GESTIO, publica: { titol: 'Pig', preu: 5 } });
-    await obrir(user);
+    await obrir();
     const preu = screen.getByLabelText("Preu d'entrada (€)");
     await user.clear(preu);
     await user.type(preu, 'gratis');
@@ -704,7 +734,7 @@ describe('SessionForm — pàgina pública', () => {
 
   it('el preu buit no es desa', async () => {
     const user = carregar({ ...GESTIO, publica: { titol: 'Pig', preu: 5 } });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText("Preu d'entrada (€)"));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await desat()).toHaveProperty('publica');
@@ -714,7 +744,7 @@ describe('SessionForm — pàgina pública', () => {
   it('canviar el slug d\'una sessió publicada demana confirmació i afegeix l\'URL antiga als aliases', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', aliases: ['/programacio/25-de-juny-pig/'] } });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-2026');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -730,16 +760,17 @@ describe('SessionForm — pàgina pública', () => {
     expect(dades.publica.actualitzatEl).toBe('2026-10-22');
   });
 
+  // Migrada: l'enllaç «Veure la pàgina pública» ara és a la capçalera.
   it('enllaça a la pàgina pública només si la sessió desada està publicada', async () => {
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: false });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     expect(screen.queryByRole('link', { name: /Veure la pàgina pública/ })).not.toBeInTheDocument();
   });
 
   it('l\'enllaç a la pàgina pública apunta a la URL desada', async () => {
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: true });
-    await obrir(user);
+    await obrir();
     await user.type(screen.getByLabelText('Slug'), '-nou');
     expect(screen.getByRole('link', { name: /Veure la pàgina pública/ }))
       .toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/2026/pig/');
@@ -750,7 +781,7 @@ describe('SessionForm — pàgina pública', () => {
       ...GESTIO, slug: 'pig', publicada: true, urlProgramacio: 'https://cineclubrodadebera.cat/programacio/pig-de-hugo/',
       publica: { titol: 'Pig', actualitzatEl: '2026-01-01' },
     });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -759,9 +790,10 @@ describe('SessionForm — pàgina pública', () => {
 
   it('una descripció llarga ja desada no impedeix desar altres canvis', async () => {
     const llarga = 'a'.repeat(200);
-    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', descripcio: llarga } });
-    await obrir(user);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', descripcio: llarga } }, 'continguts');
+    await obrir();
     expect(screen.getByText(/passa de 160 caràcters/)).toBeInTheDocument();
+    await user.click(pestanya('Dades'));
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -769,8 +801,8 @@ describe('SessionForm — pàgina pública', () => {
   });
 
   it('editar la descripció d\'una sessió publicada a més de 160 caràcters avisa però desa', async () => {
-    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } });
-    await obrir(user);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } }, 'continguts');
+    await obrir();
     await user.type(screen.getByLabelText('Descripció (SEO)'), 'a'.repeat(161));
     expect(screen.getByText(/passa de 160 caràcters/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -778,18 +810,22 @@ describe('SessionForm — pàgina pública', () => {
   });
 
   it('publicar per primer cop amb una descripció de més de 160 caràcters no desa', async () => {
-    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false, publica: { titol: 'Pig' } });
-    await obrir(user);
+    const user = carregar({ ...GESTIO, slug: 'pig', publicada: false, publica: { titol: 'Pig' } }, 'continguts');
+    await obrir();
     await user.type(screen.getByLabelText('Descripció (SEO)'), 'a'.repeat(161));
+    await user.click(pestanya('Dades'));
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
+    // Torna a «Continguts», on hi ha el camp amb l'error, i hi posa el focus.
     expect(await screen.findByText('La descripció no pot passar de 160 caràcters.')).toBeInTheDocument();
+    expect(pestanya('Continguts')).toHaveAttribute('aria-selected', 'true');
+    expect(document.activeElement).toHaveAttribute('id', 'publica-descripcio');
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('un error a la fitxa pública sense tocar no bloqueja el desat', async () => {
     const user = carregar({ ...GESTIO, publica: { titol: 'Pig', durada: '92 min' } });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -798,7 +834,7 @@ describe('SessionForm — pàgina pública', () => {
 
   it('no escriu els valors per defecte dels camps que la sessió no tenia', async () => {
     const user = carregar({ titol: 'Pig', data: '2026-10-08', activa: false });
-    await obrir(user);
+    await obrir();
     await user.clear(screen.getByLabelText('Títol'));
     await user.type(screen.getByLabelText('Títol'), 'Pig 2');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -808,7 +844,7 @@ describe('SessionForm — pàgina pública', () => {
   it('despublicar i canviar el slug alhora també afegeix l\'URL antiga als aliases', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } });
-    await obrir(user);
+    await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.clear(screen.getByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-nou');
@@ -822,8 +858,8 @@ describe('SessionForm — pàgina pública', () => {
   it('un cartell nou es desa també com a imatgeUrl de la sessió', async () => {
     const { uploadBytes } = await import('firebase/storage');
     uploadBytes.mockResolvedValue({});
-    const user = carregar({ ...GESTIO, slug: 'pig', publica: { titol: 'Pig' } });
-    await obrir(user);
+    const user = carregar({ ...GESTIO, slug: 'pig', publica: { titol: 'Pig' } }, 'mitjans');
+    await obrir();
     await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
     await screen.findByRole('img', { name: 'Cartell' });
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -840,10 +876,11 @@ describe('SessionForm — imatge de la fitxa', () => {
     getDocs.mockResolvedValue({ docs: [] });
   });
 
-  const carrega = async (dades) => {
+  // Migrat: la imatge és el cartell petit de la capçalera; s'espera el títol de la capçalera.
+  const carrega = async (dades, ruta) => {
     getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'Pig', data: '2026-06-25', activa: false, ...dades }) });
-    renderEnEdicio();
-    await screen.findByDisplayValue('Pig');
+    renderEnEdicio(ruta);
+    await screen.findByRole('heading', { level: 1, name: 'Pig' });
   };
 
   it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', async () => {
@@ -868,9 +905,239 @@ describe('SessionForm — imatge de la fitxa', () => {
 
   it('el camp imatgeUrl s\'edita com a imatge de reserva', async () => {
     const user = userEvent.setup();
-    await carrega({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
-    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
-    expect(screen.getByLabelText('URL de la imatge de reserva (si no hi ha cartell públic)')).toHaveValue('https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
+    await carrega({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } }, '/sessions/1?pestanya=dades');
+    await user.type(screen.getByLabelText('URL de la imatge de reserva (si no hi ha cartell públic)'), '?v=2');
+    expect(screen.getByLabelText('URL de la imatge de reserva (si no hi ha cartell públic)')).toHaveValue('https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg?v=2');
   });
 });
 
+describe('SessionForm — pestanyes i barra de desar', () => {
+  const SESSIO = { titol: 'Pig', data: '2026-10-08', hora: '19:00', activa: false };
+
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    updateDoc.mockReset();
+    updateDoc.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function carregar(sessio, ruta = '/sessions/ses2') {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(sessio) });
+    const user = userEvent.setup();
+    renderEnEdicio(ruta);
+    return user;
+  }
+
+  it('per defecte obre «Estadístiques» i en carrega el contingut', async () => {
+    carregar(SESSIO);
+    expect(await screen.findByText("Resum d'assistència")).toBeInTheDocument();
+    expect(pestanya('Estadístiques')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Estadístiques', 'Dades', 'Continguts', 'Mitjans']);
+    // A «Estadístiques» no hi ha res a desar.
+    expect(screen.queryByRole('button', { name: 'Desar' })).not.toBeInTheDocument();
+  });
+
+  it('una sessió senseControl obre «Dades» i no té la pestanya «Estadístiques»', async () => {
+    carregar({ ...SESSIO, senseControl: true });
+    expect(await screen.findByLabelText('Títol')).toHaveValue('Pig');
+    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Dades', 'Continguts', 'Mitjans']);
+  });
+
+  it('una pestanya desconeguda a l\'adreça cau a «Estadístiques»', async () => {
+    carregar(SESSIO, '/sessions/ses2?pestanya=xyz');
+    expect(await screen.findByText("Resum d'assistència")).toBeInTheDocument();
+    expect(pestanya('Estadístiques')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('?pestanya=estadistiques en una sessió senseControl cau a «Dades»', async () => {
+    carregar({ ...SESSIO, senseControl: true }, '/sessions/ses2?pestanya=estadistiques');
+    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
+    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText("Resum d'assistència")).not.toBeInTheDocument();
+  });
+
+  it('canviar de pestanya actualitza l\'adreça i el panell', async () => {
+    const user = carregar(SESSIO);
+    await screen.findByText("Resum d'assistència");
+    await user.click(pestanya('Continguts'));
+    expect(pestanya('Continguts')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panell-continguts');
+    expect(screen.getByLabelText('Textos editorials (Markdown)')).toBeInTheDocument();
+  });
+
+  it('sense canvis diu «Sense canvis» i «Desar» està desactivat; en editar, diu quina pestanya té canvis', async () => {
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await screen.findByLabelText('Títol');
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    await user.type(screen.getByLabelText('Títol'), ' 2');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+  });
+
+  it('canviar de pestanya no perd els canvis sense desar', async () => {
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.clear(await screen.findByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.click(pestanya('Continguts'));
+    await user.type(screen.getByLabelText('Textos editorials (Markdown)'), '## Context');
+    await user.click(pestanya('Mitjans'));
+    await user.click(pestanya('Dades'));
+    expect(screen.getByLabelText('Títol')).toHaveValue('Nou');
+    await user.click(pestanya('Continguts'));
+    expect(screen.getByLabelText('Textos editorials (Markdown)')).toHaveValue('## Context');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades, Continguts');
+  });
+
+  it('desar envia només el títol, es queda a la fitxa i torna a «Sense canvis»', async () => {
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.clear(await screen.findByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Nou' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Nou' })).toBeInTheDocument();
+    expect(screen.queryByText('Llistat de sessions')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(textBarra()).toBe('Sense canvis'), { timeout: 4000 });
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(screen.getByLabelText('Títol')).toHaveValue('Nou');
+  });
+
+  it('un doble clic ràpid o dos submits seguits només escriuen una vegada', async () => {
+    let resoldre;
+    updateDoc.mockImplementation(() => new Promise((r) => { resoldre = r; }));
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.type(await screen.findByLabelText('Títol'), '!');
+    const boto = screen.getByRole('button', { name: 'Desar' });
+    await user.dblClick(boto);
+    fireEvent.submit(boto.closest('form'));
+    fireEvent.submit(boto.closest('form'));
+    await vi.waitFor(() => expect(textBarra()).toBe('Desant…'));
+    expect(boto).toBeDisabled();
+    resoldre();
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('si updateDoc falla, mostra l\'error, manté els canvis i es pot reintentar', async () => {
+    updateDoc.mockRejectedValueOnce(new Error('xarxa'));
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.clear(await screen.findByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+    expect(screen.getByRole('heading', { level: 1, name: 'Pig' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(2));
+    expect(updateDoc.mock.calls[1][1]).toEqual({ titol: 'Nou' });
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+  });
+
+  it('el que s\'escriu mentre es desa no es perd i queda pendent', async () => {
+    let resoldre;
+    updateDoc.mockImplementationOnce(() => new Promise((r) => { resoldre = r; }));
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.clear(await screen.findByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    await user.type(screen.getByLabelText('Títol'), ' 2');
+    await user.clear(screen.getByLabelText("Hora d'inici"));
+    await user.type(screen.getByLabelText("Hora d'inici"), '20:00');
+    resoldre();
+    await vi.waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Nou' })).toBeInTheDocument());
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Nou' });
+    expect(screen.getByLabelText('Títol')).toHaveValue('Nou 2');
+    expect(screen.getByLabelText("Hora d'inici")).toHaveValue('20:00');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+    // El segon desat només envia el que ha canviat respecte del que ja s'havia desat.
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(2));
+    expect(updateDoc.mock.calls[1][1]).toEqual({ titol: 'Nou 2', hora: '20:00' });
+  });
+
+  it('en tornar a editar després d\'un error, el resum d\'error desapareix', async () => {
+    updateDoc.mockRejectedValueOnce(new Error('xarxa'));
+    const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    await user.type(await screen.findByLabelText('Títol'), '!');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    await user.type(screen.getByLabelText('Títol'), '?');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+  });
+
+  it('el resum d\'errors de validació desapareix en editar i torna si el desat torna a fallar', async () => {
+    const user = carregar({ ...SESSIO, slug: '' }, '/sessions/ses2?pestanya=dades');
+    await user.click(await screen.findByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByRole('button', { name: 'Dades: Cal un slug.' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Guió'), 'x');
+    expect(screen.queryByRole('button', { name: 'Dades: Cal un slug.' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await screen.findByRole('button', { name: 'Dades: Cal un slug.' })).toBeInTheDocument();
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('publicar sense slug porta a «Dades», hi posa el focus i la barra enllaça a la pestanya', async () => {
+    const user = carregar({ ...SESSIO, slug: '' }, '/sessions/ses2?pestanya=dades');
+    await user.click(await screen.findByRole('checkbox', { name: 'Publicada' }));
+    await user.click(pestanya('Continguts'));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    const enllac = await screen.findByRole('button', { name: 'Dades: Cal un slug.' });
+    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    expect(document.activeElement).toHaveAttribute('id', 'publica-slug');
+    expect(updateDoc).not.toHaveBeenCalled();
+    await user.click(pestanya('Mitjans'));
+    await user.click(enllac);
+    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('després de desar un alies, un segon desat el conserva', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = carregar({ ...SESSIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } }, '/sessions/ses2?pestanya=dades');
+    await user.clear(await screen.findByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-2');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1].publica.aliases).toEqual(['/programacio/2026/pig/']);
+    expect(await screen.findByText('/programacio/2026/pig/')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Guió'), 'Sarnoski');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(2));
+    expect(updateDoc.mock.calls[1][1].publica.aliases).toEqual(['/programacio/2026/pig/']);
+    expect(updateDoc.mock.calls[1][1].publica.guio).toBe('Sarnoski');
+    expect(updateDoc.mock.calls[1][1]).not.toHaveProperty('slug');
+  });
+
+  it('la capçalera mostra l\'estat de publicació, l\'enllaç públic i «Marcar com a activa»', async () => {
+    carregar({ ...SESSIO, data: '', slug: 'pig', publicada: false });
+    await screen.findByRole('heading', { level: 1, name: 'Pig' });
+    expect(screen.getByText('Esborrany')).toBeInTheDocument();
+    expect(screen.queryByText('Publicada')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Veure la pàgina pública/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar com a activa' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: '← Sessions' })).toHaveAttribute('href', '/sessions');
+  });
+
+  it('la capçalera d\'una sessió publicada i activa', async () => {
+    carregar({ ...SESSIO, slug: 'pig', publicada: true, activa: true });
+    const titol = await screen.findByRole('heading', { level: 1, name: /Pig$/ });
+    expect(within(titol).getByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
+    expect(screen.getByText('Publicada')).toBeInTheDocument();
+    expect(screen.getByText('Activa')).toBeInTheDocument();
+    expect(screen.getByText('08/10/2026 · 19:00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Veure la pàgina pública/ }))
+      .toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/2026/pig/');
+    expect(screen.queryByRole('button', { name: 'Marcar com a activa' })).not.toBeInTheDocument();
+  });
+});

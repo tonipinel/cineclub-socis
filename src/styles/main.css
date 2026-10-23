@@ -18,6 +18,7 @@
 @import "./components/_configuracio.css";
 @import "./components/_propostes.css";
 @import "./components/_propostes-admin.css";
+@import "./components/_fitxa-sessio.css";
 
 @theme {
   --color-gold: #BF9000;
