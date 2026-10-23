@@ -57,3 +57,16 @@ describe('PropostesNova', () => {
     expect(addDoc).not.toHaveBeenCalled();
   });
 });
+
+describe('PropostesNova: layout estàndard', () => {
+  it('és un formulari estret amb un sol h1 i l\'enllaç «← Propostes»', async () => {
+    const { container } = renderPagina();
+    await screen.findByLabelText('Soci');
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--formulari');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent("Nova proposta en nom d'un soci");
+    expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
+  });
+});

@@ -66,3 +66,16 @@ describe('EntitatsList', () => {
     expect(screen.getByRole('link', { name: 'https://x.test/' })).toBeInTheDocument();
   });
 });
+
+describe('EntitatsList: layout estàndard', () => {
+  it('fa servir l\'amplada de llista, un sol h1 i el botó «Nova entitat» amb text', async () => {
+    getDocs.mockResolvedValueOnce(resposta(ENTITATS));
+    const { container } = render(<MemoryRouter><EntitatsList /></MemoryRouter>);
+    const boto = await screen.findByRole('link', { name: 'Nova entitat' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Entitats');
+    expect(boto).toHaveTextContent('Nova entitat');
+  });
+});

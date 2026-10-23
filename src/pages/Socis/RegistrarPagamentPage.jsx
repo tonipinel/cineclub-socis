@@ -4,6 +4,8 @@ import {
   collection, doc, getDoc, getDocs, query, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import * as ROUTES from '../../constants/routes';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import {
@@ -36,6 +38,7 @@ function sessioMesPropera(sessions, dataAvui) {
 export default function RegistrarPagamentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
   const [soci, setSoci] = useState(null);
   const [carregant, setCarregant] = useState(true);
   const [data, setData] = useState(avui());
@@ -102,9 +105,10 @@ export default function RegistrarPagamentPage() {
     const avisDesactivat = !estaActiu(soci)
       ? ' Atenció: aquest soci està desactivat i continuarà desactivat (el carnet no funcionarà) fins que el reactivis manualment des de la seva fitxa.'
       : '';
-    const confirmat = window.confirm(
-      `Confirmes que has rebut un pagament de ${importPagament}€ amb data ${formatData(data)}?${avisDesactivat} Aquesta acció no es pot desfer.`
-    );
+    const confirmat = await confirma({
+      missatge: `Confirmes que has rebut un pagament de ${importPagament}€ amb data ${formatData(data)}?${avisDesactivat} Aquesta acció no es pot desfer.`,
+      etiquetaAcceptar: 'Registra',
+    });
     if (!confirmat) return;
     setDesant(true);
     try {
@@ -153,8 +157,7 @@ export default function RegistrarPagamentPage() {
   if (carregant) return <Carregant />;
 
   return (
-    <form className="pagament-form" onSubmit={handleSubmit}>
-      <h1 className="pagament-form__titol">Registrar pagament</h1>
+    <PaginaAdmin as="form" amplada="formulari" className="pagament-form" onSubmit={handleSubmit} titol="Registrar pagament">
       <p className="pagament-form__soci">{soci.nom} {soci.cognoms}</p>
 
       {!estaActiu(soci) && (
@@ -228,6 +231,6 @@ export default function RegistrarPagamentPage() {
 
       <button className="btn" type="submit" disabled={desant}>Registrar pagament</button>
       <Link className="btn btn--outline" to={ROUTES.SOCIS_EDITAR.replace(':id', id)}>Cancel·lar</Link>
-    </form>
+    </PaginaAdmin>
   );
 }

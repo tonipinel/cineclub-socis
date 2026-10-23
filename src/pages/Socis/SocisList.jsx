@@ -11,6 +11,7 @@ import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -114,10 +115,11 @@ export default function SocisList() {
   };
 
   return (
-    <div className="socis-list">
-      <div className="socis-list__capcalera">
-        <h1 className="socis-list__titol">Socis</h1>
-        <div className="socis-list__accions">
+    <PaginaAdmin
+      amplada="llista"
+      titol="Socis"
+      accions={(
+        <>
           {seleccionats.size > 0 && (
             <Link className="btn btn--outline" to={`${ROUTES.SOCIS_CARNETS}?ids=${[...seleccionats].join(',')}`}>
               Imprimir carnets ({seleccionats.size})
@@ -125,17 +127,19 @@ export default function SocisList() {
           )}
           <BotoFiltres obert={filtresOberts} onClick={() => setFiltresOberts((v) => !v)} />
           <BotoAfegir to={ROUTES.SOCIS_NOU} etiqueta="Donar d'alta" />
-        </div>
-      </div>
+        </>
+      )}
+    >
       <div className={`socis-list__filtres-wrap ${filtresOberts ? 'socis-list__filtres-wrap--obert' : ''}`}>
         <div className="socis-list__filtres">
           <input
             className="form__input"
+            aria-label="Cerca un soci"
             placeholder="Cerca per nom, cognoms o número de soci"
             value={cerca}
             onChange={(e) => setCerca(e.target.value)}
           />
-          <select className="form__input" value={estat} onChange={(e) => setEstat(e.target.value)}>
+          <select className="form__input" aria-label="Filtra per estat" value={estat} onChange={(e) => setEstat(e.target.value)}>
             <option value="tots">Tots els estats</option>
             <option value={ESTAT_AL_DIA}>Estat: Al dia</option>
             <option value={ESTAT_PENDENT}>Estat: Pendent</option>
@@ -198,6 +202,6 @@ export default function SocisList() {
           </tbody>
         </table>
       </div>
-    </div>
+    </PaginaAdmin>
   );
 }

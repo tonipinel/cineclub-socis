@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { ACCEPT_IMATGE } from '../../../lib/sessioPublica';
+import SelectorFitxer from '../../../components/SelectorFitxer';
 
 const TEXT_ESTAT = { pujant: 'pujant…', ok: 'pujada' };
 
-// Zona on deixar anar fitxers (HTML5 natiu) amb el selector de fitxers de reserva i l'estat de cada fitxer.
+// Zona on deixar anar fitxers (HTML5 natiu) amb el selector de fitxers en català i l'estat de cada fitxer.
 export default function ZonaPujada({
   id, etiqueta, habilitada, motiuDeshabilitada, multiple = false, onFitxers, estats = [],
 }) {
@@ -27,11 +28,8 @@ export default function ZonaPujada({
     if (habilitada) passar(e.dataTransfer.files);
   };
 
-  const onChange = (e) => {
-    const fitxers = e.target.files;
-    passar(fitxers);
-    e.target.value = '';
-  };
+  // SelectorFitxer buida l'input just després: `passar` en copia els fitxers de manera síncrona.
+  const onChange = (e) => passar(e.target.files);
 
   const classe = ['zona-pujada', activa && 'zona-pujada--activa', !habilitada && 'zona-pujada--deshabilitada']
     .filter(Boolean).join(' ');
@@ -39,12 +37,10 @@ export default function ZonaPujada({
   return (
     <div className="zona-pujada__contenidor">
       <div className={classe} onDragOver={onDragOver} onDragLeave={() => setActiva(false)} onDrop={onDrop}>
-        <label className="zona-pujada__etiqueta" htmlFor={id}>{etiqueta}</label>
         <p className="zona-pujada__text">{multiple ? 'Arrossega-hi les imatges o tria-les:' : 'Arrossega-hi la imatge o tria-la:'}</p>
-        <input
+        <SelectorFitxer
           id={id}
-          className="zona-pujada__input"
-          type="file"
+          etiqueta={etiqueta}
           accept={ACCEPT_IMATGE}
           multiple={multiple}
           disabled={!habilitada}

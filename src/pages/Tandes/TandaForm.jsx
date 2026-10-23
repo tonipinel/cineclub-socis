@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, doc, getDoc, getDocs, limit, query, serverTimestamp, updateDoc,
 } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { aData, potCrearTanda, validarTanda } from '../../lib/tandes';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const aInput = (data) => `${data.toLocaleDateString('sv-SE')}T${data.toLocaleTimeString('sv-SE').slice(0, 5)}`;
 
@@ -102,10 +103,14 @@ export default function TandaForm() {
   const propostesBloquejades = editant && (!oberta || jaHiHaVots);
 
   return (
-    <form className="tanda-form" onSubmit={handleSubmit}>
-      <Link className="tandes-list__tornar" to={ROUTES.TANDES}>← Tandes</Link>
-      <h1 className="tanda-form__titol">{editant ? 'Tanda' : 'Nova tanda'}</h1>
-
+    <PaginaAdmin
+      as="form"
+      amplada="formulari"
+      className="tanda-form"
+      titol={editant ? 'Tanda' : 'Nova tanda'}
+      tornar={{ to: ROUTES.TANDES, etiqueta: 'Tandes' }}
+      onSubmit={handleSubmit}
+    >
       <div className="form__field">
         <label className="form__label" htmlFor="nom">Nom</label>
         <input id="nom" className="form__input" value={nom} onChange={(e) => setNom(e.target.value)} />
@@ -138,6 +143,6 @@ export default function TandaForm() {
         <button className="btn" type="submit">Desar</button>
         {oberta && <button className="btn btn--outline" type="button" onClick={handleTancarAra}>Tancar ara</button>}
       </div>
-    </form>
+    </PaginaAdmin>
   );
 }

@@ -44,18 +44,19 @@
   @apply outline-2 outline-offset-2 outline-gold;
 }
 
-/* Fitxa de sessió (pages/Sessions/SessionForm.jsx): capçalera, pestanyes i targetes. pb-40: espai per a la barra de desar fixa. */
+/* Fitxa de sessió (pages/Sessions/SessionForm.jsx): capçalera, pestanyes i targetes, dins de .pagina-admin--fitxa. */
 .fitxa-sessio {
-  @apply flex flex-col bg-white pb-40;
+  @apply flex flex-col gap-6;
+}
+/* Espai per a la barra de desar fixa; doble classe per guanyar al padding de .pagina-admin (importat després). */
+.pagina-admin.fitxa-sessio--amb-barra {
+  @apply pb-40;
 }
 .fitxa-sessio__contingut {
-  @apply mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 px-4 pt-6 sm:px-6;
+  @apply flex w-full min-w-0 flex-col gap-4;
 }
 .fitxa-sessio__capcalera {
   @apply flex flex-col gap-3;
-}
-.fitxa-sessio__tornar {
-  @apply self-start font-body text-sm;
 }
 .fitxa-sessio__capcalera-cos {
   @apply flex min-w-0 items-start gap-4;
@@ -66,11 +67,12 @@
 .fitxa-sessio__capcalera-text {
   @apply flex min-w-0 flex-col gap-2;
 }
+/* Mida de títol estàndard (com .pagina-admin__titol), amb l'estrella de sessió activa */
 .fitxa-sessio__titol {
-  @apply m-0 flex min-w-0 items-center gap-2 wrap-anywhere font-display text-2xl font-bold uppercase tracking-wide text-black sm:text-4xl;
+  @apply m-0 flex min-w-0 items-center gap-2 wrap-anywhere font-display text-2xl font-bold uppercase tracking-wide text-black md:text-3xl;
 }
 .fitxa-sessio__estrella {
-  @apply h-8 w-8 shrink-0 text-gold sm:h-10 sm:w-10;
+  @apply h-8 w-8 shrink-0 text-gold;
 }
 .fitxa-sessio__quan {
   @apply m-0 font-body text-sm text-black/70;
@@ -87,8 +89,9 @@
 .fitxa-sessio__panell {
   @apply min-w-0;
 }
+/* Les franges grises de les estadístiques arriben fins a la vora del contenidor */
 .fitxa-sessio__panell--estadistiques {
-  @apply pt-2;
+  @apply -mx-4 sm:-mx-6;
 }
 .fitxa-sessio__targetes {
   @apply flex flex-col gap-6;
@@ -106,15 +109,15 @@
   @apply min-w-0 wrap-anywhere font-mono text-xs;
 }
 
-/* Continguts: editor de Markdown i vista prèvia, un al costat de l'altre en pantalles grans. */
+/* Continguts: editor i vista prèvia apilats al mòbil i en dues columnes iguals des de md. */
 .fitxa-sessio__editor {
-  @apply grid grid-cols-1 gap-4 lg:grid-cols-2;
+  @apply grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6;
 }
 .fitxa-sessio__editor-camp {
   @apply flex min-w-0 flex-col gap-2;
 }
 .fitxa-sessio__previa {
-  @apply min-w-0 rounded border border-dashed border-black/20 bg-black/[0.02] p-4;
+  @apply min-w-0 self-start rounded border border-dashed border-black/20 bg-black/[0.02] p-4;
 }
 .fitxa-sessio__previa-titol {
   @apply m-0 mb-2 font-body text-xs font-semibold uppercase tracking-wide text-black/60;
@@ -197,14 +200,8 @@
 .zona-pujada--deshabilitada {
   @apply bg-black/[0.03] opacity-70;
 }
-.zona-pujada__etiqueta {
-  @apply font-body text-sm font-semibold text-black;
-}
 .zona-pujada__text {
   @apply m-0 font-body text-sm text-black/70;
-}
-.zona-pujada__input {
-  @apply max-w-full min-w-0 font-body text-sm;
 }
 .zona-pujada__estats {
   @apply m-0 flex list-none flex-col gap-1 p-0 font-body text-sm;

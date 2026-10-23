@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../firebase/firebase', () => ({ functions: {} }));
@@ -7,6 +7,9 @@ const crida = vi.fn();
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => crida) }));
 
 import SincronitzarCalendari from './SincronitzarCalendari';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 const INFORME = {
   aplicat: false,
@@ -21,14 +24,13 @@ const INFORME = {
 const BUIT = { aplicat: false, crear: [], actualitzar: [], esborrar: [], placeholdersConservats: [], noGestionats: 0, sessionsOmeses: [], totals: { crear: 0, actualitzar: 0, esborrar: 0 } };
 
 function obrir(onTancar = vi.fn()) {
-  render(<SincronitzarCalendari onTancar={onTancar} />);
+  renderAmbConfirmacio(<SincronitzarCalendari onTancar={onTancar} />);
   return onTancar;
 }
 
 describe('SincronitzarCalendari', () => {
   beforeEach(() => {
     crida.mockReset();
-    window.confirm = vi.fn(() => true);
   });
 
   it('en obrir demana l\'informe sense aplicar i és un diàleg accessible', async () => {
@@ -68,9 +70,15 @@ describe('SincronitzarCalendari', () => {
     obrir();
     const boto = await screen.findByRole('button', { name: 'Aplicar els canvis' });
     await user.dblClick(boto);
-    expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(window.confirm).toHaveBeenCalledWith('Segur que vols aplicar-ho al calendari de Google? Es crearan 1, s\'actualitzaran 2 i s\'esborraran 1 esdeveniments.');
+    const confirmacio = await dialegConfirmacio();
+    expect(document.querySelectorAll('dialog.dialeg-confirmacio')).toHaveLength(1);
+    expect(confirmacio).toHaveAttribute('role', 'alertdialog');
+    expect(confirmacio).toHaveTextContent('Segur que vols aplicar-ho al calendari de Google? Es crearan 1, s\'actualitzaran 2 i s\'esborraran 1 esdeveniments.');
+    expect(crida).toHaveBeenCalledTimes(1);
+    await acceptaDialeg('Aplica');
     expect(await screen.findByRole('button', { name: 'Aplicant…' })).toBeDisabled();
+    // El segon clic no ha deixat cap altra confirmació a la cua.
+    expect(hiHaDialegConfirmacio()).toBe(false);
     expect(crida.mock.calls.filter(([a]) => a.aplicar === true)).toHaveLength(1);
     resoldre({ data: { ...INFORME, aplicat: true } });
     expect(await screen.findByText('Tot sincronitzat')).toBeInTheDocument();
@@ -80,12 +88,34 @@ describe('SincronitzarCalendari', () => {
     expect(screen.getByText(/s'han creat 1, actualitzat 2 i esborrat 1/)).toBeInTheDocument();
   });
 
-  it('cancel·lar la confirmació no crida res', async () => {
-    window.confirm = vi.fn(() => false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('tancar la confirmació amb %s no crida res ni tanca el panell', async (_nom, tanca) => {
+    const user = userEvent.setup();
+    crida.mockResolvedValue({ data: INFORME });
+    const onTancar = obrir();
+    const boto = await screen.findByRole('button', { name: 'Aplicar els canvis' });
+    await user.click(boto);
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(crida).toHaveBeenCalledTimes(1);
+    expect(crida).not.toHaveBeenCalledWith({ aplicar: true });
+    expect(onTancar).not.toHaveBeenCalled();
+    expect(boto).toHaveFocus();
+    expect(boto).toBeEnabled();
+  });
+
+  it('amb la confirmació oberta, Tab es queda dins de la confirmació', async () => {
+    const user = userEvent.setup();
     crida.mockResolvedValue({ data: INFORME });
     obrir();
-    await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    await user.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    const confirmacio = await dialegConfirmacio();
+    await user.tab();
+    expect(confirmacio).toContainElement(document.activeElement);
+    await user.tab();
+    expect(confirmacio).toContainElement(document.activeElement);
     expect(crida).toHaveBeenCalledTimes(1);
   });
 
@@ -105,6 +135,7 @@ describe('SincronitzarCalendari', () => {
       .mockResolvedValueOnce({ data: INFORME });
     obrir();
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     expect(await screen.findByRole('alert')).toHaveTextContent('No s\'ha pogut sincronitzar el calendari. Torna-ho a provar.');
     await userEvent.click(screen.getByRole('button', { name: 'Tornar a provar' }));
     await waitFor(() => expect(crida).toHaveBeenCalledTimes(3));
@@ -130,6 +161,7 @@ describe('SincronitzarCalendari', () => {
       .mockResolvedValueOnce({ data: BUIT });
     obrir();
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     expect(await screen.findByText('Fet: s\'han creat 7, actualitzat 5 i esborrat 3 esdeveniments.')).toBeInTheDocument();
   });
 
@@ -140,6 +172,7 @@ describe('SincronitzarCalendari', () => {
       .mockResolvedValueOnce({ data: BUIT });
     obrir();
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     expect(await screen.findByText('Els canvis s\'han aplicat al calendari.')).toBeInTheDocument();
   });
 
@@ -157,6 +190,7 @@ describe('SincronitzarCalendari', () => {
       .mockResolvedValueOnce({ data: BUIT });
     const onTancar = obrir();
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     expect(await screen.findByText(/S'està aplicant, no tanquis/)).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     expect(onTancar).not.toHaveBeenCalled();
@@ -174,10 +208,11 @@ describe('SincronitzarCalendari', () => {
       .mockResolvedValueOnce({ data: INFORME })
       .mockImplementationOnce(() => new Promise((r) => { resoldre = r; }))
       .mockResolvedValue({ data: INFORME });
-    const { unmount } = render(<SincronitzarCalendari onTancar={vi.fn()} />);
+    const { unmount } = renderAmbConfirmacio(<SincronitzarCalendari onTancar={vi.fn()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     unmount();
-    render(<SincronitzarCalendari onTancar={vi.fn()} />);
+    renderAmbConfirmacio(<SincronitzarCalendari onTancar={vi.fn()} />);
     await screen.findByText(/1 per crear/);
     expect(screen.getByRole('button', { name: 'Aplicant…' })).toBeDisabled();
     crida.mockResolvedValue({ data: BUIT });
@@ -192,6 +227,7 @@ describe('SincronitzarCalendari', () => {
       .mockRejectedValueOnce({ code: 'functions/internal' });
     obrir();
     await userEvent.click(await screen.findByRole('button', { name: 'Aplicar els canvis' }));
+    await acceptaDialeg('Aplica');
     expect(await screen.findByRole('alert')).toHaveTextContent('Els canvis s\'han aplicat, però no s\'ha pogut recarregar l\'informe.');
     expect(screen.getByText(/Fet: s'han creat 1/)).toBeInTheDocument();
   });
@@ -201,9 +237,9 @@ describe('SincronitzarCalendari', () => {
     crida
       .mockImplementationOnce(() => new Promise((r) => { resoldreVella = r; }))
       .mockResolvedValueOnce({ data: BUIT });
-    const { unmount } = render(<SincronitzarCalendari onTancar={vi.fn()} />);
+    const { unmount } = renderAmbConfirmacio(<SincronitzarCalendari onTancar={vi.fn()} />);
     unmount();
-    render(<SincronitzarCalendari onTancar={vi.fn()} />);
+    renderAmbConfirmacio(<SincronitzarCalendari onTancar={vi.fn()} />);
     await screen.findByText('Tot sincronitzat');
     await act(async () => { resoldreVella({ data: INFORME }); });
     expect(screen.getByText('Tot sincronitzat')).toBeInTheDocument();
@@ -215,7 +251,7 @@ describe('SincronitzarCalendari', () => {
     const boto = document.createElement('button');
     document.body.appendChild(boto);
     boto.focus();
-    const { unmount } = render(<SincronitzarCalendari onTancar={vi.fn()} />);
+    const { unmount } = renderAmbConfirmacio(<SincronitzarCalendari onTancar={vi.fn()} />);
     await screen.findByText(/1 per crear/);
     const dialeg = screen.getByRole('dialog');
     screen.getByRole('button', { name: 'Aplicar els canvis' }).focus();

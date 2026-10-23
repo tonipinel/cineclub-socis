@@ -41,6 +41,7 @@ export default function CarnetsLot() {
 
   return (
     <div className="carnets-lot-pagina">
+      <h1 className="titol-ocult">Carnets de socis</h1>
       <div className="carnets-lot-pagina__capcalera">
         <Link className="carnets-lot-pagina__tornar" to={ROUTES.SOCIS}>← Tornar al llistat</Link>
         {socis.length > 0 && (

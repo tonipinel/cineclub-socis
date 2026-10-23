@@ -19,6 +19,8 @@ import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
 import BotoAfegir from '../../components/BotoAfegir';
 import CarnetCard from '../../components/CarnetCard';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -60,6 +62,7 @@ export default function SociForm() {
   const [motiuDesactivacio, setMotiuDesactivacio] = useState('');
   const [mostrarFormDesactivacio, setMostrarFormDesactivacio] = useState(false);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     if (!editant) return;
@@ -136,9 +139,11 @@ export default function SociForm() {
       setErrorEstat('Cal indicar el motiu de la desactivació.');
       return;
     }
-    const confirmat = window.confirm(
-      "Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig."
-    );
+    const confirmat = await confirma({
+      missatge: "Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig.",
+      perill: true,
+      etiquetaAcceptar: 'Desactiva',
+    });
     if (!confirmat) return;
     setErrorEstat(null);
     try {
@@ -156,9 +161,11 @@ export default function SociForm() {
   };
 
   const handleRegenerarCarnet = async () => {
-    const confirmat = window.confirm(
-      'Segur que vols regenerar el carnet? El QR físic actual deixarà de funcionar i caldrà imprimir-ne un de nou.'
-    );
+    const confirmat = await confirma({
+      missatge: 'Segur que vols regenerar el carnet? El QR físic actual deixarà de funcionar i caldrà imprimir-ne un de nou.',
+      perill: true,
+      etiquetaAcceptar: 'Regenera',
+    });
     if (!confirmat) return;
     setErrorEstat(null);
     try {
@@ -175,7 +182,7 @@ export default function SociForm() {
   };
 
   const handleReactivar = async () => {
-    const confirmat = window.confirm('Segur que vols reactivar aquest soci?');
+    const confirmat = await confirma({ missatge: 'Segur que vols reactivar aquest soci?', etiquetaAcceptar: 'Reactiva' });
     if (!confirmat) return;
     setErrorEstat(null);
     try {
@@ -218,167 +225,168 @@ export default function SociForm() {
 
   return (
     <>
-      <div className="soci-form-pagina">
-        <form className="soci-form" onSubmit={handleSubmit}>
-          <div className="soci-form__capcalera">
-            <h1 className="soci-form__titol">{editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}</h1>
-            <div className="soci-form__capcalera-accions">
-              {editant && (
-                <span className="soci-form__pagament-mobil">
-                  <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" />
-                </span>
-              )}
-              {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+      <PaginaAdmin
+        amplada="fitxa"
+        titol={editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}
+        accions={editant && (
+          <>
+            <span className="soci-form__pagament-mobil">
+              <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
+            </span>
+            {!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+          </>
+        )}
+      >
+        <div className="soci-form-pagina">
+          <form className="soci-form" onSubmit={handleSubmit}>
+            {editant && (
+              <div className="soci-form__dades-clau">
+                <p className="soci-form__numero">
+                  Número de soci/a: {dades.numeroSoci || "pendent d'assignar"}
+                </p>
+                <p className="soci-form__data-clau">Data de sol·licitud: {formatData(dades.dataAlta)}</p>
+                <p className="soci-form__data-clau">Últim pagament: {formatData(dades.ultimPagament)}</p>
+                <p className="soci-form__data-clau">
+                  Activació del carnet: {dades.inicPeriode ? formatData(dades.inicPeriode) : 'Encara no ha escanejat des del pagament'}
+                </p>
+                {venciment && (
+                  <p className="soci-form__data-clau">Venciment de la quota: {formatData(venciment)}</p>
+                )}
+              </div>
+            )}
+
+            {CAMPS_FORMULARI.map(([camp, etiqueta]) => (
+              <div className="form__field" key={camp}>
+                <label className="form__label" htmlFor={camp}>{etiqueta}</label>
+                <input
+                  id={camp}
+                  className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
+                  value={dades[camp] ?? ''}
+                  onChange={handleChange(camp)}
+                  readOnly={!desbloquejat}
+                />
+              </div>
+            ))}
+
+            <div className="form__field form__field--casella">
+              <label className="form__casella" htmlFor="organitzacio">
+                <input
+                  id="organitzacio"
+                  type="checkbox"
+                  checked={Boolean(dades.organitzacio)}
+                  onChange={(e) => setDades((d) => ({ ...d, organitzacio: e.target.checked }))}
+                  disabled={!desbloquejat}
+                />
+                Persona de l'organització del Cineclub
+              </label>
+              <p className="form__ajuda">
+                Les seves propostes de pel·lícules es mostren com a «{NOM_ORGANITZACIO}».
+              </p>
             </div>
-          </div>
+
+            {error && <p className="form__error">{error}</p>}
+
+            {desbloquejat && <button className="btn" type="submit">Desar</button>}
+          </form>
 
           {editant && (
-            <div className="soci-form__dades-clau">
-              <p className="soci-form__numero">
-                Número de soci/a: {dades.numeroSoci || "pendent d'assignar"}
-              </p>
-              <p className="soci-form__data-clau">Data de sol·licitud: {formatData(dades.dataAlta)}</p>
-              <p className="soci-form__data-clau">Últim pagament: {formatData(dades.ultimPagament)}</p>
-              <p className="soci-form__data-clau">
-                Activació del carnet: {dades.inicPeriode ? formatData(dades.inicPeriode) : 'Encara no ha escanejat des del pagament'}
-              </p>
-              {venciment && (
-                <p className="soci-form__data-clau">Venciment de la quota: {formatData(venciment)}</p>
+            <aside className="soci-form-pagina__accions">
+              {teNumeroSoci(dades) && (
+                <div className="soci-form-pagina__bloc-accio">
+                  <h2 className="soci-form-pagina__accions-titol">Carnet</h2>
+                  <Link className="soci-form-pagina__carnet" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
+                    <CarnetCard soci={dades} />
+                  </Link>
+                  <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet}>
+                    Regenerar carnet
+                  </button>
+                </div>
               )}
-            </div>
+
+              <div className="soci-form__bloc">
+                <h3 className="soci-form__bloc-titol">Estat del soci</h3>
+                <div className="soci-form__llegenda-estat">
+                  <span className={`badge badge--${estatSoci}`}>{ETIQUETES_ESTAT[estatSoci]}</span>
+                  <span className={`badge ${!estaActiu(dades) ? 'badge--desactivat' : 'badge--assisteix'}`}>
+                    {!estaActiu(dades) ? 'Desactivat' : 'Actiu'}
+                  </span>
+                </div>
+
+                {!estaActiu(dades) ? (
+                  <>
+                    <p className="soci-form__xifra-detall">
+                      Desactivat el {formatData(dades.dataDesactivacio)}
+                      {dades.motiuDesactivacio ? `: ${dades.motiuDesactivacio}` : ''}
+                    </p>
+                    <button type="button" className="soci-form__accio-petita" onClick={handleReactivar}>Reactivar soci</button>
+                  </>
+                ) : mostrarFormDesactivacio ? (
+                  <>
+                    <div className="form__field">
+                      <label className="form__label" htmlFor="motiu-desactivacio">Motiu de la desactivació</label>
+                      <input
+                        id="motiu-desactivacio"
+                        className="form__input"
+                        value={motiuDesactivacio}
+                        onChange={(e) => setMotiuDesactivacio(e.target.value)}
+                      />
+                    </div>
+                    <button type="button" className="btn btn--outline" onClick={handleDesactivar}>Confirmar desactivació</button>
+                  </>
+                ) : (
+                  <button type="button" className="soci-form__accio-petita" onClick={() => setMostrarFormDesactivacio(true)}>
+                    Desactivar soci
+                  </button>
+                )}
+                {errorEstat && <p className="form__error">{errorEstat}</p>}
+              </div>
+
+              {teNumeroSoci(dades) && assistencies.length > 0 && (
+                <>
+                  <div className="soci-form__bloc">
+                    <h3 className="soci-form__bloc-titol">Sessions assistides (període actual)</h3>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie data={dadesGrafic} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                          {dadesGrafic.map((d) => <Cell key={d.name} fill={d.color} />)}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="soci-form__llegenda">
+                      <span><span className="soci-form__pastilla" style={{ background: COLOR_ASSISTEIX }} /> Hi ha assistit ({sessionsPeriodeActual.length})</span>
+                      <span><span className="soci-form__pastilla" style={{ background: COLOR_NO_ASSISTEIX }} /> No hi ha assistit ({sessionsNoAssistidesPeriodeActual.length})</span>
+                    </div>
+                  </div>
+                  <div className="soci-form__bloc">
+                    <h3 className="soci-form__bloc-titol">Cost per sessió (període actual)</h3>
+                    {costPerSessio !== null ? (
+                      <>
+                        <p className="soci-form__xifra-gran">{formatEuros(costPerSessio)}</p>
+                        <p className="soci-form__xifra-detall">
+                          {formatEuros(pagamentActual.total)} pagats ÷ {sessionsPeriodeActual.length} {sessionsPeriodeActual.length === 1 ? 'sessió assistida' : 'sessions assistides'} des del {formatData(iniciPeriode)}
+                        </p>
+                      </>
+                    ) : !pagamentActual ? (
+                      <p className="soci-form__xifra-detall">No hi ha cap pagament de quota registrat.</p>
+                    ) : (
+                      <p className="soci-form__xifra-detall">Encara no ha assistit a cap sessió des de l'últim pagament.</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+            </aside>
           )}
-
-          {CAMPS_FORMULARI.map(([camp, etiqueta]) => (
-            <div className="form__field" key={camp}>
-              <label className="form__label" htmlFor={camp}>{etiqueta}</label>
-              <input
-                id={camp}
-                className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
-                value={dades[camp] ?? ''}
-                onChange={handleChange(camp)}
-                readOnly={!desbloquejat}
-              />
-            </div>
-          ))}
-
-          <div className="form__field form__field--casella">
-            <label className="form__casella" htmlFor="organitzacio">
-              <input
-                id="organitzacio"
-                type="checkbox"
-                checked={Boolean(dades.organitzacio)}
-                onChange={(e) => setDades((d) => ({ ...d, organitzacio: e.target.checked }))}
-                disabled={!desbloquejat}
-              />
-              Persona de l'organització del Cineclub
-            </label>
-            <p className="form__ajuda">
-              Les seves propostes de pel·lícules es mostren com a «{NOM_ORGANITZACIO}».
-            </p>
-          </div>
-
-          {error && <p className="form__error">{error}</p>}
-
-          {desbloquejat && <button className="btn" type="submit">Desar</button>}
-        </form>
-
-        {editant && (
-          <aside className="soci-form-pagina__accions">
-            {teNumeroSoci(dades) && (
-              <div className="soci-form-pagina__bloc-accio">
-                <h2 className="soci-form-pagina__accions-titol">Carnet</h2>
-                <Link className="soci-form-pagina__carnet" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
-                  <CarnetCard soci={dades} />
-                </Link>
-                <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet}>
-                  Regenerar carnet
-                </button>
-              </div>
-            )}
-
-            <div className="soci-form__bloc">
-              <h3 className="soci-form__bloc-titol">Estat del soci</h3>
-              <div className="soci-form__llegenda-estat">
-                <span className={`badge badge--${estatSoci}`}>{ETIQUETES_ESTAT[estatSoci]}</span>
-                <span className={`badge ${!estaActiu(dades) ? 'badge--desactivat' : 'badge--assisteix'}`}>
-                  {!estaActiu(dades) ? 'Desactivat' : 'Actiu'}
-                </span>
-              </div>
-
-              {!estaActiu(dades) ? (
-                <>
-                  <p className="soci-form__xifra-detall">
-                    Desactivat el {formatData(dades.dataDesactivacio)}
-                    {dades.motiuDesactivacio ? `: ${dades.motiuDesactivacio}` : ''}
-                  </p>
-                  <button type="button" className="soci-form__accio-petita" onClick={handleReactivar}>Reactivar soci</button>
-                </>
-              ) : mostrarFormDesactivacio ? (
-                <>
-                  <div className="form__field">
-                    <label className="form__label" htmlFor="motiu-desactivacio">Motiu de la desactivació</label>
-                    <input
-                      id="motiu-desactivacio"
-                      className="form__input"
-                      value={motiuDesactivacio}
-                      onChange={(e) => setMotiuDesactivacio(e.target.value)}
-                    />
-                  </div>
-                  <button type="button" className="btn btn--outline" onClick={handleDesactivar}>Confirmar desactivació</button>
-                </>
-              ) : (
-                <button type="button" className="soci-form__accio-petita" onClick={() => setMostrarFormDesactivacio(true)}>
-                  Desactivar soci
-                </button>
-              )}
-              {errorEstat && <p className="form__error">{errorEstat}</p>}
-            </div>
-
-            {teNumeroSoci(dades) && assistencies.length > 0 && (
-              <>
-                <div className="soci-form__bloc">
-                  <h3 className="soci-form__bloc-titol">Sessions assistides (període actual)</h3>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie data={dadesGrafic} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2}>
-                        {dadesGrafic.map((d) => <Cell key={d.name} fill={d.color} />)}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="soci-form__llegenda">
-                    <span><span className="soci-form__pastilla" style={{ background: COLOR_ASSISTEIX }} /> Hi ha assistit ({sessionsPeriodeActual.length})</span>
-                    <span><span className="soci-form__pastilla" style={{ background: COLOR_NO_ASSISTEIX }} /> No hi ha assistit ({sessionsNoAssistidesPeriodeActual.length})</span>
-                  </div>
-                </div>
-                <div className="soci-form__bloc">
-                  <h3 className="soci-form__bloc-titol">Cost per sessió (període actual)</h3>
-                  {costPerSessio !== null ? (
-                    <>
-                      <p className="soci-form__xifra-gran">{formatEuros(costPerSessio)}</p>
-                      <p className="soci-form__xifra-detall">
-                        {formatEuros(pagamentActual.total)} pagats ÷ {sessionsPeriodeActual.length} {sessionsPeriodeActual.length === 1 ? 'sessió assistida' : 'sessions assistides'} des del {formatData(iniciPeriode)}
-                      </p>
-                    </>
-                  ) : !pagamentActual ? (
-                    <p className="soci-form__xifra-detall">No hi ha cap pagament de quota registrat.</p>
-                  ) : (
-                    <p className="soci-form__xifra-detall">Encara no ha assistit a cap sessió des de l'últim pagament.</p>
-                  )}
-                </div>
-              </>
-            )}
-
-          </aside>
-        )}
-      </div>
+        </div>
+      </PaginaAdmin>
 
       {editant && (
         <div className="soci-form__seccio soci-form__seccio--gris">
           <div className="soci-form__contingut">
             <div className="soci-form__seccio-capcalera">
               <h2 className="soci-form__subtitol">Pagaments de la quota</h2>
-              <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" />
+              <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
             </div>
             {pagaments.length > 0 ? (
               <ul className="soci-form__llista">

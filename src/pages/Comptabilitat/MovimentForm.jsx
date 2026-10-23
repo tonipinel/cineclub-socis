@@ -13,7 +13,10 @@ import {
 } from '../../lib/adjunts';
 import { sessionsAmbControl } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import BotoEditar from '../../components/BotoEditar';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import SelectorFitxer from '../../components/SelectorFitxer';
 import * as ROUTES from '../../constants/routes';
 
 // Un soci pot tenir diversos moviments de "Quotes socis" (alta + renovacions
@@ -83,6 +86,7 @@ export default function MovimentForm() {
   const [treureAdjunt, setTreureAdjunt] = useState(false);
   const [urlAdjuntActual, setUrlAdjuntActual] = useState(null);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     if (!editant) return;
@@ -224,7 +228,11 @@ export default function MovimentForm() {
   };
 
   const handleEliminar = async () => {
-    const confirmat = window.confirm('Segur que vols eliminar aquest moviment? Aquesta acció no es pot desfer.');
+    const confirmat = await confirma({
+      missatge: 'Segur que vols eliminar aquest moviment? Aquesta acció no es pot desfer.',
+      perill: true,
+      etiquetaAcceptar: 'Elimina',
+    });
     if (!confirmat) return;
     setError(null);
     try {
@@ -253,11 +261,14 @@ export default function MovimentForm() {
   const sessioPreseleccionada = !editant && Boolean(searchParams.get('sessionId'));
 
   return (
-    <form className="moviment-form" onSubmit={handleSubmit}>
-      <div className="moviment-form__capcalera">
-        <h1 className="moviment-form__titol">{editant ? 'Editar moviment' : 'Afegir moviment'}</h1>
-        {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
-      </div>
+    <PaginaAdmin
+      as="form"
+      amplada="fitxa"
+      className="moviment-form"
+      onSubmit={handleSubmit}
+      titol={editant ? 'Editar moviment' : 'Afegir moviment'}
+      accions={editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+    >
 
       <div className="form__field">
         <label className="form__label" htmlFor="data">Data</label>
@@ -356,8 +367,8 @@ export default function MovimentForm() {
         />
       </div>
 
-      <div className="form__field">
-        <label className="form__label" htmlFor="adjunt">Document / factura</label>
+      <div className="form__field" role="group" aria-labelledby="adjunt-titol">
+        <span className="form__label" id="adjunt-titol">Document / factura</span>
         {dades.adjunt && !treureAdjunt && (
           <p className="moviment-form__adjunt">
             {urlAdjuntActual ? (
@@ -372,7 +383,13 @@ export default function MovimentForm() {
         )}
         {!dades.adjunt && !desbloquejat && <p className="moviment-form__adjunt">Cap document adjunt.</p>}
         {desbloquejat && (
-          <input id="adjunt" type="file" className="form__input" accept={ACCEPT_ADJUNT} onChange={handleCanviFitxer} />
+          <SelectorFitxer
+            id="adjunt"
+            etiqueta={dades.adjunt && !treureAdjunt ? 'Canviar el document' : 'Adjuntar un document'}
+            accept={ACCEPT_ADJUNT}
+            onChange={handleCanviFitxer}
+            nomFitxer={fitxerNou ? fitxerNou.name : 'Cap fitxer seleccionat'}
+          />
         )}
       </div>
 
@@ -384,6 +401,6 @@ export default function MovimentForm() {
           Eliminar
         </button>
       )}
-    </form>
+    </PaginaAdmin>
   );
 }

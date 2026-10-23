@@ -324,3 +324,30 @@ describe('TandaForm', () => {
     });
   });
 });
+
+describe('TandaForm: layout estàndard', () => {
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    respondrePropostes();
+  });
+
+  it('nova: formulari estret amb un sol h1 «Nova tanda» i l\'enllaç «← Tandes»', async () => {
+    const { container } = renderNova();
+    await screen.findByRole('checkbox', { name: 'Stalker' });
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--formulari');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Nova tanda');
+    expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
+  });
+
+  it('existent: un sol h1 «Tanda» i l\'enllaç «← Tandes»', async () => {
+    getDoc.mockResolvedValue({ data: () => tandaPassada() });
+    renderExistent();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tanda' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
+  });
+});

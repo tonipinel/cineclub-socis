@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase/firebase';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 
 const MISSATGES_ERROR = {
   'functions/permission-denied': 'No tens permís per sincronitzar el calendari.',
@@ -45,6 +46,9 @@ export default function SincronitzarCalendari({ onTancar }) {
   const aplicantRef = useRef(aplicacioEnCurs !== null);
   const aplicatRef = useRef(false);
   const dialegRef = useRef(null);
+  // Un sol diàleg de confirmació alhora per a «Aplicar».
+  const confirmantRef = useRef(false);
+  const { confirma } = useConfirmacio();
 
   // Cada canvi de `peticio` demana l'informe de nou.
   const carregar = useCallback(() => {
@@ -67,6 +71,8 @@ export default function SincronitzarCalendari({ onTancar }) {
     const obridor = document.activeElement;
     dialeg?.focus();
     const alTeclar = (e) => {
+      // ESC i Tab dins d'una altra capa modal (el diàleg de confirmació) són seus: no tanquen ni mouen el focus d'aquest panell.
+      if (e.target instanceof Element && e.target.closest('dialog[open], [aria-modal="true"]') && !dialeg?.contains(e.target)) return;
       if (e.key === 'Escape') {
         if (!aplicantRef.current) onTancar();
         return;
@@ -107,8 +113,15 @@ export default function SincronitzarCalendari({ onTancar }) {
   const hiHaCanvis = nCrear + nActualitzar + nEsborrar > 0;
 
   async function aplicar() {
-    if (aplicantRef.current) return;
-    if (!window.confirm(`Segur que vols aplicar-ho al calendari de Google? Es crearan ${nCrear}, s'actualitzaran ${nActualitzar} i s'esborraran ${nEsborrar} esdeveniments.`)) return;
+    if (aplicantRef.current || confirmantRef.current) return;
+    confirmantRef.current = true;
+    const confirmat = await confirma({
+      missatge: `Segur que vols aplicar-ho al calendari de Google? Es crearan ${nCrear}, s'actualitzaran ${nActualitzar} i s'esborraran ${nEsborrar} esdeveniments.`,
+      perill: true,
+      etiquetaAcceptar: 'Aplica',
+    });
+    confirmantRef.current = false;
+    if (!confirmat || aplicantRef.current) return;
     aplicantRef.current = true;
     aplicatRef.current = false;
     setAplicant(true);

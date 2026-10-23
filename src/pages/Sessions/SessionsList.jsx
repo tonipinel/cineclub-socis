@@ -9,6 +9,7 @@ import { imatgeDeSessio } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import EstrellaActiva from '../../components/EstrellaActiva';
+import PaginaAdmin from '../../components/PaginaAdmin';
 import SincronitzarCalendari from './SincronitzarCalendari';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -51,10 +52,11 @@ export default function SessionsList() {
   const rendibilitat = rendibilitatPerSessio(moviments, socis, sessions);
 
   return (
-    <div className="sessions-list">
-      <div className="sessions-list__capcalera">
-        <h1 className="sessions-list__titol">Sessions</h1>
-        <div className="sessions-list__accions">
+    <PaginaAdmin
+      amplada="llista"
+      titol="Sessions"
+      accions={(
+        <>
           <button
             type="button"
             className="btn-icona"
@@ -77,8 +79,9 @@ export default function SessionsList() {
             </svg>
           </button>
           <BotoAfegir to={ROUTES.SESSIONS_NOVA} etiqueta="Nova sessió" />
-        </div>
-      </div>
+        </>
+      )}
+    >
       <ul className="sessions-list__graella">
         {sessions.map((s) => {
           const resum = resumPerSessioState[s.id] ?? RESUM_INICIAL;
@@ -115,6 +118,6 @@ export default function SessionsList() {
         })}
       </ul>
       {sincronitzant && <SincronitzarCalendari onTancar={tancarSincro} />}
-    </div>
+    </PaginaAdmin>
   );
 }

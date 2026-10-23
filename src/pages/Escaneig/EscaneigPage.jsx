@@ -18,6 +18,7 @@ import {
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
 import { imatgeDeSessio } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import EstrellaActiva from '../../components/EstrellaActiva';
 
 const DEBOUNCE_MS = 3000;
@@ -200,6 +201,9 @@ export default function EscaneigPage() {
   // Un sol intent alhora: la càmera detecta el mateix QR cada 400 ms i, sense
   // això, un segon intent sobreescrivia el resultat del primer.
   const processantRef = useRef(false);
+  // Un sol diàleg de «Comptar igualment» alhora (p. ex. amb un doble toc).
+  const confirmantRef = useRef(false);
+  const { confirma } = useConfirmacio();
   const [processant, setProcessant] = useState(false);
   const [reintentant, setReintentant] = useState(false);
   // Avorta les lectures de l'intent en curs si la pantalla es desmunta o
@@ -823,9 +827,10 @@ export default function EscaneigPage() {
 
   if (!mockup && !sessioActiva) {
     return (
-      <p className="escaneig__sense-sessio">
-        No hi ha cap sessió activa. Marca una sessió com a activa abans d'escanejar.
-      </p>
+      <div className="escaneig__sense-sessio">
+        <h1 className="titol-ocult">Escaneig d'entrades</h1>
+        <p>No hi ha cap sessió activa. Marca una sessió com a activa abans d'escanejar.</p>
+      </div>
     );
   }
 
@@ -838,6 +843,7 @@ export default function EscaneigPage() {
 
   return (
     <div className="escaneig">
+      <h1 className="titol-ocult">Escaneig d'entrades</h1>
       {(mockup || modeProva || !enLinia || pendentsEnviar > 0 || enviamentsFallits.length > 0) && (
         <div className="escaneig__avisos">
           {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
@@ -946,11 +952,18 @@ export default function EscaneigPage() {
                 className="btn btn--blanc escaneig__boto-confirmar"
                 type="button"
                 disabled={processant}
-                onClick={() => {
-                  if (processantRef.current) return;
-                  if (window.confirm(`Segur que vols comptar el codi ${missatge.codiTiquet} igualment?`)) {
-                    missatge.onConfirmar();
-                  }
+                onClick={async () => {
+                  if (processantRef.current || confirmantRef.current) return;
+                  const avisMostrat = missatge;
+                  confirmantRef.current = true;
+                  const confirmat = await confirma({
+                    missatge: `Segur que vols comptar el codi ${avisMostrat.codiTiquet} igualment?`,
+                    etiquetaAcceptar: 'Compta igualment',
+                  });
+                  confirmantRef.current = false;
+                  // Mentre el diàleg era obert, la pantalla pot haver canviat o haver començat un altre intent.
+                  if (!confirmat || processantRef.current || missatgeRef.current !== avisMostrat) return;
+                  avisMostrat.onConfirmar();
                 }}
               >
                 {processant ? 'Registrant…' : 'Comptar igualment'}

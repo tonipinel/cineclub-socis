@@ -7,8 +7,12 @@
 //   npm run audit-overflow                         (totes les rutes, 375 i 320 px)
 //   npm run audit-overflow -- --rutes /socis,/tickets --amplades 320
 //
+// A cada ruta (i estat) comprova també: cap camp visible sense nom accessible, exactament un <h1>
+// (`scripts/auditoria-a11y.js`) i, a 1440 px, que l'amplada de `.pagina-admin` sigui una de les tres
+// estàndard (1280/1024/768 ±2), excepte a les rutes de `SENSE_PAGINA_ADMIN` (amb el motiu).
+//
 // Surt amb codi 1 si alguna pàgina desborda, no acaba de carregar, redirigeix, llança un error
-// (`pageerror`) o no té el botó d'un estat que s'hi espera. Fa servir el Chrome instal·lat
+// (`pageerror`), no té el botó d'un estat que s'hi espera o incompleix alguna d'aquestes comprovacions. Fa servir el Chrome instal·lat
 // (`CHROME_PATH` per canviar-ne la ruta) i el port 6201 (`PORT_ARNES` per canviar-lo).
 //
 // Sense xarxa: Firebase és simulat (dades en memòria, no es llegeix ni s'escriu res real) i el
@@ -21,6 +25,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import puppeteer from 'puppeteer-core';
+import { campsSenseNom, nombreH1, ampladaContenidor, ampladaEstandard } from './auditoria-a11y.js';
 
 const ARREL = fileURLToPath(new URL('..', import.meta.url));
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -45,6 +50,16 @@ export const RUTES = [
   '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t1/resultats',
 ];
 const AMPLADES = [375, 320];
+const AMPLADA_ESCRIPTORI = 1440;
+
+// Rutes que no fan servir `PaginaAdmin` (o no n'han de seguir l'amplada), només per a la comprovació
+// d'amplada a 1440 px. Cada excepció té un motiu; no s'hi afegeix res per fer passar l'auditoria.
+const SENSE_PAGINA_ADMIN = {
+  '/accedir': 'pantalla d\'accés, fora de l\'administració (targeta centrada pròpia)',
+  '/escaneig': 'pantalla d\'operació a la porta: a tot l\'ample, pensada per a tauleta/mòbil',
+  '/socis/s1/carnet': 'carnet: disseny d\'impressió amb mides fixes',
+  '/socis/carnets': 'carnets: disseny d\'impressió amb mides fixes',
+};
 
 // Estats que només apareixen en interactuar, i les rutes on s'han de provar. Si la ruta no té el
 // botó, falla; si una ruta té el botó però no és a la llista, s'avisa perquè s'hi afegeixi.
@@ -52,7 +67,7 @@ const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
   editar: '[aria-label="Editar dades"]',
   desar: '.barra-desar button[type="submit"]',
-  calendari: '.sessions-list__accions [aria-label="Sincronitzar el calendari"]',
+  calendari: '.pagina-admin__accions [aria-label="Sincronitzar el calendari"]',
 };
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],
@@ -83,6 +98,7 @@ const opcio = (nom) => {
   return i >= 0 ? args[i + 1] : null;
 };
 const rutes = opcio('--rutes')?.split(',') ?? RUTES;
+const excepcioAmplada = (ruta) => SENSE_PAGINA_ADMIN[ruta.split('?')[0]] ?? (/^\/socis\/[^/]+\/carnet$/.test(ruta.split('?')[0]) ? SENSE_PAGINA_ADMIN['/socis/s1/carnet'] : null);
 const amplades = opcio('--amplades')?.split(',').map(Number) ?? AMPLADES;
 
 // S'executa dins la pàgina. Un element és culpable si sobresurt per la dreta de la finestra i
@@ -212,9 +228,34 @@ async function main() {
           }
           const r = await pagina.evaluate(mesura);
           const desborda = Math.max(r.scrollHtml, r.scrollBody) - r.amplada;
-          resultats.push({ nom, amplada, desborda, carregada, senseBoto, culpables: r.culpables, errors });
+          const infraccions = [];
+          {
+            const h1 = await pagina.evaluate(nombreH1);
+            if (h1 !== 1) infraccions.push(`${h1} <h1> (n'hi ha d'haver exactament 1)`);
+          }
+          for (const camp of await pagina.evaluate(campsSenseNom)) infraccions.push(`camp sense nom accessible: ${camp}`);
+          resultats.push({ nom, amplada, desborda, carregada, senseBoto, culpables: r.culpables, errors, infraccions });
           await pagina.close();
         }
+      }
+    }
+    // Amplada del contenidor principal a escriptori (només la ruta, sense estats).
+    if (!opcio('--amplades')) {
+      for (const ruta of rutes) {
+        const pagina = await navegador.newPage();
+        await pagina.setViewport({ width: AMPLADA_ESCRIPTORI, height: 900, deviceScaleFactor: 1 });
+        await pagina.setRequestInterception(true);
+        pagina.on('request', (peticio) => (esLocal(peticio.url()) ? peticio.continue() : peticio.abort('blockedbyclient')));
+        await pagina.goto(base + ruta, { waitUntil: 'load' });
+        const carregada = await preparada(pagina) && new URL(pagina.url()).pathname === ruta.split('?')[0];
+        const px = await pagina.evaluate(ampladaContenidor);
+        const motiu = excepcioAmplada(ruta);
+        const infraccions = [];
+        if (!carregada) infraccions.push('no carrega a 1440 px');
+        else if (!motiu && px === null) infraccions.push('no fa servir PaginaAdmin (.pagina-admin) i no és a SENSE_PAGINA_ADMIN');
+        else if (!motiu && !ampladaEstandard(px)) infraccions.push(`amplada de .pagina-admin ${px} px: no és 1280, 1024 ni 768 (±2)`);
+        resultats.push({ nom: ruta, amplada: AMPLADA_ESCRIPTORI, desborda: 0, carregada: true, senseBoto: false, culpables: [], errors: [], infraccions, px, motiu });
+        await pagina.close();
       }
     }
   } finally {
@@ -222,14 +263,16 @@ async function main() {
     await servidor.close();
   }
 
-  const dolents = resultats.filter((r) => r.desborda > 0 || !r.carregada || r.senseBoto || r.errors.length);
+  const dolents = resultats.filter((r) => r.desborda > 0 || !r.carregada || r.senseBoto || r.errors.length || r.infraccions.length);
   for (const r of resultats) {
     let estat = 'ok        ';
     if (r.errors.length) estat = 'ERROR JS  ';
     if (r.senseBoto) estat = 'SENSE BOTÓ';
     if (!r.carregada) estat = 'NO CARREGA';
+    if (r.infraccions.length) estat = 'INFRACCIÓ ';
     if (r.desborda > 0) estat = 'DESBORDA  ';
-    console.log(`${estat}  ${String(r.amplada).padEnd(4)} ${r.nom}${r.desborda > 0 ? `  (+${r.desborda} px)` : ''}`);
+    console.log(`${estat}  ${String(r.amplada).padEnd(4)} ${r.nom}${r.desborda > 0 ? `  (+${r.desborda} px)` : ''}${r.motiu ? `  (exceptuada: ${r.motiu})` : ''}`);
+    for (const i of r.infraccions) console.log(`          ${r.nom}: ${i}`);
     if (r.errors.length) console.log(`          errors de la pàgina: ${r.errors.join(' | ')}`);
     for (const c of r.desborda > 0 ? r.culpables : []) {
       const classe = c.classes.find((k) => classes.has(k));
@@ -239,7 +282,7 @@ async function main() {
   }
   for (const avis of avisos) console.log(`AVÍS: ${avis}`);
   if (bloquejades.size) console.log(`Peticions externes avortades (fonts alternatives deterministes): ${[...bloquejades].join(', ')}`);
-  console.log(`\n${resultats.length} casos, ${dolents.length} amb problemes (desbordament, sense carregar, error JS o sense botó).`);
+  console.log(`\n${resultats.length} casos, ${dolents.length} amb problemes (desbordament, sense carregar, error JS, sense botó, h1, noms accessibles o amplada).`);
   process.exitCode = dolents.length ? 1 : 0;
 }
 

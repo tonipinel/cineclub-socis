@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, updateDoc,
 } from 'firebase/firestore';
@@ -7,6 +7,9 @@ import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import SelectorFitxer from '../../components/SelectorFitxer';
 import { ACCEPT_IMATGE, urlStorage, validarImatge } from '../../lib/sessioPublica';
 import { camiLogoEntitat, sessionsQueUsen, validarEntitat } from '../../lib/entitats';
 
@@ -27,6 +30,7 @@ export default function EntitatForm() {
   const [error, setError] = useState(null);
   const [errorCarrega, setErrorCarrega] = useState(null);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     const carrega = async () => {
@@ -104,7 +108,11 @@ export default function EntitatForm() {
         setError(`No es pot esborrar: ${recompte} (${usen.map((s) => s.titol).join(', ')})`);
         return;
       }
-      if (!window.confirm('Segur que vols esborrar aquesta entitat? Aquesta acció no es pot desfer.')) return;
+      if (!(await confirma({
+        missatge: 'Segur que vols esborrar aquesta entitat? Aquesta acció no es pot desfer.',
+        perill: true,
+        etiquetaAcceptar: 'Esborra',
+      }))) return;
       await deleteDoc(doc(db, 'entitats', id));
       navigate(ROUTES.ENTITATS);
     } catch {
@@ -112,14 +120,24 @@ export default function EntitatForm() {
     }
   };
 
-  if (errorCarrega) return <p className="form__error" role="alert">{errorCarrega}</p>;
+  if (errorCarrega) {
+    return (
+      <PaginaAdmin amplada="formulari" titol={editant ? 'Entitat' : 'Nova entitat'} tornar={{ to: ROUTES.ENTITATS, etiqueta: 'Entitats' }}>
+        <p className="form__error" role="alert">{errorCarrega}</p>
+      </PaginaAdmin>
+    );
+  }
   if (carregant) return <Carregant />;
 
   return (
-    <form className="entitat-form" onSubmit={handleSubmit}>
-      <Link className="entitat-form__tornar" to={ROUTES.ENTITATS}>← Entitats</Link>
-      <h1 className="entitat-form__titol">{editant ? 'Entitat' : 'Nova entitat'}</h1>
-
+    <PaginaAdmin
+      as="form"
+      amplada="formulari"
+      className="entitat-form"
+      titol={editant ? 'Entitat' : 'Nova entitat'}
+      tornar={{ to: ROUTES.ENTITATS, etiqueta: 'Entitats' }}
+      onSubmit={handleSubmit}
+    >
       <div className="form__field">
         <label className="form__label" htmlFor="nom">Nom</label>
         <input
@@ -137,11 +155,11 @@ export default function EntitatForm() {
         <input id="url" className="form__input" value={url} onChange={(e) => setUrl(e.target.value)} />
         {errors.url && <p className="form__error" role="alert">{errors.url}</p>}
       </div>
-      <div className="form__field">
-        <label className="form__label" htmlFor="logo">Logo</label>
+      <div className="form__field" role="group" aria-labelledby="logo-titol">
+        <span className="form__label" id="logo-titol">Logo</span>
         <div className="entitat-form__logo">
           {logo && <img className="entitat-form__previsualitzacio" src={logo} alt="Logo" />}
-          <input id="logo" className="entitat-form__fitxer" type="file" accept={ACCEPT_IMATGE} onChange={pujarLogo} disabled={pujant} />
+          <SelectorFitxer id="logo" etiqueta={logo ? 'Canviar el logo' : 'Pujar el logo'} accept={ACCEPT_IMATGE} onChange={pujarLogo} disabled={pujant} />
         </div>
         {logo && <button className="btn btn--outline" type="button" onClick={() => setLogo('')}>Treure el logo</button>}
       </div>
@@ -149,6 +167,6 @@ export default function EntitatForm() {
       {error && <p className="form__error" role="alert">{error}</p>}
       <button className="btn" type="submit" disabled={pujant}>Desar</button>
       {editant && <button className="btn btn--outline" type="button" onClick={handleEsborrar}>Esborrar</button>}
-    </form>
+    </PaginaAdmin>
   );
 }

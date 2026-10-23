@@ -5,6 +5,7 @@ import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const ERROR_CARREGA = "No s'han pogut carregar les entitats. Torna-ho a provar.";
 
@@ -20,15 +21,21 @@ export default function EntitatsList() {
     }).catch(() => setError(ERROR_CARREGA));
   }, []);
 
-  if (error) return <p className="form__error" role="alert">{error}</p>;
+  if (error) {
+    return (
+      <PaginaAdmin amplada="llista" titol="Entitats">
+        <p className="form__error" role="alert">{error}</p>
+      </PaginaAdmin>
+    );
+  }
   if (entitats === null) return <Carregant />;
 
   return (
-    <div className="entitats-list">
-      <div className="entitats-list__capcalera">
-        <h1 className="entitats-list__titol">Entitats</h1>
-        <BotoAfegir to={ROUTES.ENTITATS_NOVA} etiqueta="Nova entitat" />
-      </div>
+    <PaginaAdmin
+      amplada="llista"
+      titol="Entitats"
+      accions={<BotoAfegir to={ROUTES.ENTITATS_NOVA} etiqueta="Nova entitat" />}
+    >
       {entitats.length === 0 && <p>Encara no hi ha cap entitat.</p>}
       <ul className="entitats-list__llista">
         {entitats.map((e) => (
@@ -41,6 +48,6 @@ export default function EntitatsList() {
           </li>
         ))}
       </ul>
-    </div>
+    </PaginaAdmin>
   );
 }

@@ -35,6 +35,7 @@ export default function CarnetSoci() {
 
   return (
     <div className="carnet-pagina">
+      <h1 className="titol-ocult">Carnet de soci</h1>
       <Link className="carnet-pagina__tornar" to={ROUTES.SOCIS_EDITAR.replace(':id', id)}>
         ← Tornar a la fitxa
       </Link>

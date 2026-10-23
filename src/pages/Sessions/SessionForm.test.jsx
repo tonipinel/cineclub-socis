@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
@@ -25,9 +25,12 @@ vi.mock('firebase/firestore', () => ({
 
 import { addDoc, getDoc, getDocs, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import SessionForm from './SessionForm';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 function renderEnEdicio(ruta = '/sessions/1') {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={[ruta]}>
       <Routes>
         <Route path="/sessions/:id" element={<SessionForm />} />
@@ -57,7 +60,7 @@ describe('SessionForm — alta', () => {
   it('crea una sessió nova i obre la seva fitxa', async () => {
     addDoc.mockResolvedValueOnce({ id: 'abc' });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/sessions/nova']}>
         <Routes>
           <Route path="/sessions/nova" element={<SessionForm />} />
@@ -741,18 +744,31 @@ describe('SessionForm — pàgina pública', () => {
     expect(updateDoc.mock.calls[0][1].publica).not.toHaveProperty('preu');
   });
 
-  it('canviar el slug d\'una sessió publicada demana confirmació i afegeix l\'URL antiga als aliases', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('canviar el slug d\'una sessió publicada demana confirmació (tancada amb %s no desa res) i afegeix l\'URL antiga als aliases', async (_nom, tanca) => {
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig', aliases: ['/programacio/25-de-juny-pig/'] } });
     await obrir();
     await user.clear(screen.getByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-2026');
+    const addDocAbans = addDoc.mock.calls.length;
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(confirm).toHaveBeenCalledWith("Això trencarà l'URL anterior; s'afegirà com a alias perquè continuï funcionant.");
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveTextContent("Això trencarà l'URL anterior; s'afegirà com a alias perquè continuï funcionant.");
+    expect(dialeg).not.toHaveAttribute('role', 'alertdialog');
     expect(updateDoc).not.toHaveBeenCalled();
 
-    confirm.mockReturnValue(true);
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(addDoc).toHaveBeenCalledTimes(addDocAbans);
+    expect(screen.queryByText("No s'ha pogut desar. Torna-ho a provar.")).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+    expect(screen.getByLabelText('Slug')).toHaveValue('pig-2026');
+
     await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await acceptaDialeg('Desa');
     const dades = await desat();
     expect(dades.slug).toBe('pig-2026');
     expect(dades.urlProgramacio).toBe('https://cineclubrodadebera.cat/programacio/2026/pig-2026/');
@@ -842,13 +858,13 @@ describe('SessionForm — pàgina pública', () => {
   });
 
   it('despublicar i canviar el slug alhora també afegeix l\'URL antiga als aliases', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = carregar({ ...GESTIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } });
     await obrir();
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.clear(screen.getByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-nou');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await acceptaDialeg('Desa');
     const dades = await desat();
     expect(dades.publicada).toBe(false);
     expect(dades.publica.aliases).toEqual(['/programacio/2026/pig/']);
@@ -1103,11 +1119,11 @@ describe('SessionForm — pestanyes i barra de desar', () => {
   });
 
   it('després de desar un alies, un segon desat el conserva', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = carregar({ ...SESSIO, slug: 'pig', publicada: true, publica: { titol: 'Pig' } }, '/sessions/ses2?pestanya=dades');
     await user.clear(await screen.findByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-2');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await acceptaDialeg('Desa');
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1].publica.aliases).toEqual(['/programacio/2026/pig/']);
     expect(await screen.findByText('/programacio/2026/pig/')).toBeInTheDocument();
@@ -1139,6 +1155,34 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     expect(screen.getByRole('link', { name: /Veure la pàgina pública/ }))
       .toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/2026/pig/');
     expect(screen.queryByRole('button', { name: 'Marcar com a activa' })).not.toBeInTheDocument();
+  });
+
+  it('la fitxa fa servir l\'amplada de fitxa, un sol h1 i l\'enllaç estàndard «← Sessions»', async () => {
+    carregar(SESSIO, '/sessions/ses2?pestanya=dades');
+    const titol = await screen.findByRole('heading', { level: 1, name: 'Pig' });
+    const arrel = titol.closest('form');
+    expect(arrel).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '← Sessions' })).toHaveClass('pagina-admin__tornar');
+    // Amb la barra de desar es reserva espai a sota; a Estadístiques (sense barra), no.
+    expect(arrel).toHaveClass('fitxa-sessio--amb-barra');
+    const user = userEvent.setup();
+    await user.click(pestanya('Estadístiques'));
+    expect(arrel).not.toHaveClass('fitxa-sessio--amb-barra');
+  });
+
+  it('«Nova sessió» fa servir l\'amplada de fitxa, un sol h1 i l\'enllaç «← Sessions»', () => {
+    renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/sessions/nova']}>
+        <Routes>
+          <Route path="/sessions/nova" element={<SessionForm />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const titol = screen.getByRole('heading', { level: 1, name: 'Nova sessió' });
+    expect(titol.closest('form')).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '← Sessions' })).toHaveAttribute('href', '/sessions');
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -33,13 +33,16 @@ import {
   addDoc, getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
 } from 'firebase/firestore';
 import SociForm from './SociForm';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 describe('SociForm — alta', () => {
   beforeEach(() => addDoc.mockClear());
 
   it('crea un soci nou amb dataAlta i ultimPagament iguals', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/nou']}>
         <Routes>
           <Route path="/socis/nou" element={<SociForm />} />
@@ -59,7 +62,7 @@ describe('SociForm — alta', () => {
   it('mostra un error i no navega si la creació falla', async () => {
     addDoc.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/nou']}>
         <Routes>
           <Route path="/socis/nou" element={<SociForm />} />
@@ -76,7 +79,7 @@ describe('SociForm — alta', () => {
 
   it('en crear un soci nou, es genera un token de carnet', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/nou']}>
         <Routes>
           <Route path="/socis/nou" element={<SociForm />} />
@@ -94,10 +97,39 @@ describe('SociForm — alta', () => {
   });
 });
 
+describe('SociForm — layout', () => {
+  it("l'alta usa el layout de fitxa amb un únic h1", () => {
+    const { container } = renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/socis/nou']}>
+        <Routes><Route path="/socis/nou" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent("Donar d'alta un/a soci/a");
+  });
+
+  it('la fitxa usa el layout de fitxa amb un únic h1 i el botó Editar a la capçalera', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    const { container } = renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    const editar = await screen.findByRole('button', { name: 'Editar dades' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Fitxa del soci/a');
+    expect(editar.closest('.pagina-admin__accions')).toBeInTheDocument();
+  });
+});
+
 describe('SociForm — mode lectura/edició', () => {
   it('en editar un soci existent, els camps són de només lectura per defecte', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -110,7 +142,7 @@ describe('SociForm — mode lectura/edició', () => {
   it('en clicar "Editar dades", els camps es tornen editables i apareix Desar', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -126,7 +158,7 @@ describe('SociForm — mode lectura/edició', () => {
         nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', dataAlta: '2026-02-15', ultimPagament: '2026-08-29',
       }),
     });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -141,7 +173,7 @@ describe('SociForm — mode lectura/edició', () => {
         nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', inicPeriode: '2026-08-06',
       }),
     });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -153,7 +185,7 @@ describe('SociForm — mode lectura/edició', () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23' }),
     });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -162,7 +194,7 @@ describe('SociForm — mode lectura/edició', () => {
   });
 
   it('en crear un soci nou, els camps ja són editables sense cal clicar res', () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/nou']}>
         <Routes><Route path="/socis/nou" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -176,7 +208,7 @@ describe('SociForm — mode lectura/edició', () => {
 describe('SociForm — accions', () => {
   it('mostra a la columna d\'accions un enllaç per registrar un pagament', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -203,7 +235,7 @@ describe('SociForm — pagaments de la quota', () => {
       .mockResolvedValueOnce({
         docs: [{ id: 'moviment-1', data: () => ({ data: '2026-03-05', total: 30, metodePagament: 'efectiu' }) }],
       });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -219,7 +251,7 @@ describe('SociForm — pagaments de la quota', () => {
 describe('SociForm — previsualització del carnet', () => {
   it('no mostra el carnet si el soci encara no té número de soci', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -230,7 +262,7 @@ describe('SociForm — previsualització del carnet', () => {
 
   it('mostra el carnet clicable si el soci ja té número de soci, i porta a la pàgina del carnet', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -263,7 +295,7 @@ describe('SociForm — assistència a sessions', () => {
       })
       .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's2' }) }] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -282,7 +314,7 @@ describe('SociForm — assistència a sessions', () => {
       .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Pig', data: '2026-06-25' }) }] })
       .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -305,7 +337,7 @@ describe('SociForm — assistència a sessions', () => {
       })
       .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -316,7 +348,7 @@ describe('SociForm — assistència a sessions', () => {
 
   it('no mostra les seccions d\'assistència si el soci no té número de soci', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -340,7 +372,7 @@ describe('SociForm — assistència a sessions', () => {
       })
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -362,7 +394,7 @@ describe('SociForm — assistència a sessions', () => {
       })
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -385,7 +417,7 @@ describe('SociForm — assistència a sessions', () => {
       })
       .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's0' }) }, { data: () => ({ sessionId: 's1' }) }] })
       .mockResolvedValueOnce({ docs: [{ id: 'm1', data: () => ({ data: '2026-03-05', total: 30, metodePagament: 'efectiu' }) }] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -409,7 +441,7 @@ describe('SociForm — assistència a sessions', () => {
         docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }],
       })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -436,7 +468,7 @@ describe('SociForm — assistència a sessions', () => {
         docs: [{ data: () => ({ sessionId: 's1' }) }, { data: () => ({ sessionId: 's2' }) }],
       })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -454,7 +486,7 @@ describe('SociForm — assistència a sessions', () => {
       .mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-03-05' }) }] })
       .mockResolvedValueOnce({ docs: [{ data: () => ({ sessionId: 's1' }) }] })
       .mockResolvedValueOnce({ docs: [] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -473,12 +505,11 @@ describe('SociForm — desactivació', () => {
     __batchDelete.mockClear();
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   it('per defecte mostra l\'estat Actiu i el formulari de desactivació amagat', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -491,7 +522,7 @@ describe('SociForm — desactivació', () => {
   it('en clicar "Desactivar soci" mostra el formulari, i exigeix un motiu abans de desar', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -507,7 +538,7 @@ describe('SociForm — desactivació', () => {
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -515,7 +546,11 @@ describe('SociForm — desactivació', () => {
     await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
     await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
     await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent("Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig.");
+    expect(__batchCommit).not.toHaveBeenCalled();
+    await acceptaDialeg('Desactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(false);
@@ -527,7 +562,7 @@ describe('SociForm — desactivació', () => {
   it('esborra socisPublic pel token en desactivar, encara que el soci no tingui numeroSoci (esborrar per token és inofensiu)', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '', tokenCarnet: 'tok-1' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -535,6 +570,7 @@ describe('SociForm — desactivació', () => {
     await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
     await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
     await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await acceptaDialeg('Desactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchDelete).toHaveBeenCalledWith('tok-1');
   });
@@ -542,7 +578,7 @@ describe('SociForm — desactivació', () => {
   it('no toca socisPublic en desactivar un soci sense tokenCarnet', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -550,6 +586,7 @@ describe('SociForm — desactivació', () => {
     await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
     await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
     await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await acceptaDialeg('Desactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchDelete).not.toHaveBeenCalled();
   });
@@ -562,7 +599,7 @@ describe('SociForm — desactivació', () => {
       }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -570,11 +607,66 @@ describe('SociForm — desactivació', () => {
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
     expect(screen.getByText(/Mal comportament/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reactivar soci' }));
+    expect(await dialegConfirmacio()).toHaveTextContent('Segur que vols reactivar aquest soci?');
+    expect(__batchCommit).not.toHaveBeenCalled();
+    await acceptaDialeg('Reactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(true);
     expect(actualitzacio.motiuDesactivacio).toBe(null);
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
+  });
+});
+
+describe('SociForm — cancel·lar les confirmacions de desactivar i reactivar', () => {
+  beforeEach(() => {
+    writeBatch.mockClear();
+    __batchCommit.mockClear();
+    __batchCommit.mockResolvedValue(undefined);
+  });
+
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no desactiva el soci si es tanca la confirmació amb %s', async (_nom, tanca) => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }),
+    });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Mal comportament');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchCommit).not.toHaveBeenCalled();
+    expect(screen.getByText('Actiu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Motiu de la desactivació')).toHaveValue('Mal comportament');
+  });
+
+  it('no reactiva el soci si es cancel·la la confirmació', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false,
+        motiuDesactivacio: 'Mal comportament', dataDesactivacio: '2026-06-01',
+      }),
+    });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/socis/1']}>
+        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+    await cancellaDialeg(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(__batchCommit).not.toHaveBeenCalled();
+    expect(screen.getByText('Desactivat')).toBeInTheDocument();
   });
 });
 
@@ -592,7 +684,7 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
       data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1' }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -608,7 +700,7 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
       data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '', tokenCarnet: 'tok-1' }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -624,7 +716,7 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
       data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -649,7 +741,7 @@ describe('SociForm — persona de l\'organització', () => {
   const SOCI = { nom: 'Toni', cognoms: 'Pinel', numeroSoci: '9', tokenCarnet: 'tok-9' };
 
   function renderSoci() {
-    return render(
+    return renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
@@ -715,11 +807,6 @@ describe('SociForm — regenerar carnet', () => {
     __batchDelete.mockClear();
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
-    // mockReset (not mockReturnValue directly): vi.spyOn reuses the mock
-    // already installed by the "desactivació" tests above, so its call
-    // count must be cleared here too, or toHaveBeenCalledTimes below would
-    // count clicks from earlier describe blocks.
-    vi.spyOn(window, 'confirm').mockReset().mockReturnValue(true);
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-nou');
   });
 
@@ -728,13 +815,17 @@ describe('SociForm — regenerar carnet', () => {
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols regenerar el carnet? El QR físic actual deixarà de funcionar i caldrà imprimir-ne un de nou.');
+    expect(__batchCommit).not.toHaveBeenCalled();
+    await acceptaDialeg('Regenera');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.tokenCarnet).toBe('token-nou');
@@ -742,18 +833,23 @@ describe('SociForm — regenerar carnet', () => {
     expect(__batchSet).toHaveBeenCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' });
   });
 
-  it('no regenera el token si es cancel·la la confirmació', async () => {
-    window.confirm.mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no regenera el token si es tanca la confirmació amb %s', async (_nom, tanca) => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' }),
     });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
         <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchCommit).not.toHaveBeenCalled();
   });
 });

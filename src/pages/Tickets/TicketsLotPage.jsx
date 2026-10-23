@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import {
   arrayRemove, arrayUnion, collection, doc, onSnapshot, query, updateDoc, where,
@@ -9,6 +9,8 @@ import { codisDesDe, tiquetsDelLot } from '../../lib/escaneig';
 import { avui, formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 
 export default function TicketsLotPage() {
   const { id } = useParams();
@@ -17,6 +19,7 @@ export default function TicketsLotPage() {
   const [urlsPerCodi, setUrlsPerCodi] = useState({});
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     return onSnapshot(doc(db, 'lotsTiquets', id), (snap) => {
@@ -50,7 +53,7 @@ export default function TicketsLotPage() {
   }, [lot?.numeroInicial, lot?.quantitat]);
 
   const handleMarcarImpres = async () => {
-    const confirmat = window.confirm('Confirmes que has imprès aquest lot de tiquets?');
+    const confirmat = await confirma({ missatge: 'Confirmes que has imprès aquest lot de tiquets?', etiquetaAcceptar: 'Marca com imprès' });
     if (!confirmat) return;
     setError(null);
     try {
@@ -61,9 +64,11 @@ export default function TicketsLotPage() {
   };
 
   const handleAnularLot = async () => {
-    const confirmat = window.confirm(
-      "Segur que vols anul·lar tot el lot? Els tiquets encara no utilitzats deixaran de funcionar. Aquesta acció no es pot desfer."
-    );
+    const confirmat = await confirma({
+      missatge: "Segur que vols anul·lar tot el lot? Els tiquets encara no utilitzats deixaran de funcionar. Aquesta acció no es pot desfer.",
+      perill: true,
+      etiquetaAcceptar: 'Anul·la el lot',
+    });
     if (!confirmat) return;
     setError(null);
     try {
@@ -74,7 +79,7 @@ export default function TicketsLotPage() {
   };
 
   const handleAnularTiquet = async (codi) => {
-    const confirmat = window.confirm(`Segur que vols anul·lar el tiquet ${codi}?`);
+    const confirmat = await confirma({ missatge: `Segur que vols anul·lar el tiquet ${codi}?`, perill: true, etiquetaAcceptar: 'Anul·la' });
     if (!confirmat) return;
     setError(null);
     try {
@@ -100,27 +105,28 @@ export default function TicketsLotPage() {
   const disponibles = tiquets.filter((t) => !t.usat && !lot.anulat && !codisAnulats.includes(t.codi)).length;
 
   return (
-    <div className="tickets-pagina">
-      <Link className="tickets-pagina__tornar" to={ROUTES.TICKETS}>← Tornar al llistat</Link>
-
-      <div className="tickets-pagina__capcalera">
-        <h1 className="tickets-pagina__titol">
-          Tiquets T-{String(lot.numeroInicial).padStart(6, '0')} – T-{String(lot.numeroInicial + lot.quantitat - 1).padStart(6, '0')}
-        </h1>
-        <p className="tickets-pagina__disponibles">{disponibles} de {lot.quantitat} disponibles</p>
+    <PaginaAdmin
+      amplada="fitxa"
+      className="tickets-lot"
+      titol={`Tiquets T-${String(lot.numeroInicial).padStart(6, '0')} – T-${String(lot.numeroInicial + lot.quantitat - 1).padStart(6, '0')}`}
+      tornar={{ to: ROUTES.TICKETS, etiqueta: 'Tiquets' }}
+      accions={(
+        <>
+          {lot.impres ? (
+            <span className="badge badge--impres">Imprès el {formatData(lot.dataImpressio)}</span>
+          ) : (
+            <button type="button" className="btn" onClick={handleMarcarImpres}>Marcar com imprès</button>
+          )}
+          <button type="button" className="btn btn--outline" onClick={() => window.print()}>Imprimir</button>
+          {!lot.anulat && (
+            <button type="button" className="btn btn--outline" onClick={handleAnularLot}>Anul·lar tot el lot</button>
+          )}
+        </>
+      )}
+    >
+      <div className="tickets-lot__estat">
+        <p className="tickets-lot__disponibles">{disponibles} de {lot.quantitat} disponibles</p>
         {lot.anulat && <span className="badge badge--anulat">Anul·lat el {formatData(lot.dataAnulacio)}</span>}
-      </div>
-
-      <div className="tickets-pagina__accions">
-        {lot.impres ? (
-          <span className="badge badge--impres">Imprès el {formatData(lot.dataImpressio)}</span>
-        ) : (
-          <button type="button" className="btn" onClick={handleMarcarImpres}>Marcar com imprès</button>
-        )}
-        <button type="button" className="btn btn--outline" onClick={() => window.print()}>Imprimir</button>
-        {!lot.anulat && (
-          <button type="button" className="btn btn--outline" onClick={handleAnularLot}>Anul·lar tot el lot</button>
-        )}
       </div>
 
       {error && <p className="form__error">{error}</p>}
@@ -175,6 +181,6 @@ export default function TicketsLotPage() {
           })}
         </div>
       </div>
-    </div>
+    </PaginaAdmin>
   );
 }

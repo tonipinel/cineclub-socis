@@ -7,6 +7,7 @@ import { formatEuros } from '../../lib/moviments';
 import Carregant from '../../components/Carregant';
 import { dadesEfectives, INTERNA_BUIDA } from '../../components/GestioInternaProposta';
 import BotoAfegir from '../../components/BotoAfegir';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const CLASSE_ESTAT = {
   pendent: 'badge--pendent', aprovada: 'badge--al-dia', rebutjada: 'badge--vencut', programada: 'badge--nou-registre',
@@ -91,14 +92,12 @@ function GestioPropostes() {
 
 export default function PropostesPendents() {
   return (
-    <div className="propostes-pendents">
-      <div className="propostes-pendents__capcalera">
-        <h1 className="propostes-pendents__titol">Propostes de programació</h1>
-        <div className="propostes-pendents__accions">
-          <BotoAfegir to={ROUTES.PROPOSTES_NOVA} etiqueta="Nova proposta" />
-        </div>
-      </div>
+    <PaginaAdmin
+      amplada="llista"
+      titol="Propostes de programació"
+      accions={<BotoAfegir to={ROUTES.PROPOSTES_NOVA} etiqueta="Nova proposta" />}
+    >
       <GestioPropostes />
-    </div>
+    </PaginaAdmin>
   );
 }

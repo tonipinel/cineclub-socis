@@ -19,6 +19,18 @@ describe('ConfiguracioPage', () => {
     expect(await screen.findByDisplayValue('30')).toBeInTheDocument();
   });
 
+  it('és un formulari amb el layout de formulari, un únic h1 i el botó Editar a la capçalera', async () => {
+    getDoc.mockResolvedValueOnce({ exists: () => false });
+    const { container } = render(<ConfiguracioPage />);
+    const editar = await screen.findByRole('button', { name: 'Editar dades' });
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--formulari');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent("Configuració de l'associació");
+    expect(editar.closest('.pagina-admin__accions')).toBeInTheDocument();
+  });
+
   it('carrega i mostra en només lectura la configuració existent', async () => {
     getDoc.mockResolvedValueOnce({
       exists: () => true,

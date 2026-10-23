@@ -6,6 +6,7 @@ import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 export default function PropostesNova() {
   const [socis, setSocis] = useState(null);
@@ -53,9 +54,14 @@ export default function PropostesNova() {
   };
 
   return (
-    <form className="propostes-nova" onSubmit={handleSubmit}>
-      <h1 className="propostes-nova__titol">Nova proposta en nom d'un soci</h1>
-
+    <PaginaAdmin
+      as="form"
+      amplada="formulari"
+      className="propostes-nova"
+      titol="Nova proposta en nom d'un soci"
+      tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
+      onSubmit={handleSubmit}
+    >
       <div className="form__field">
         <label className="form__label" htmlFor="soci">Soci</label>
         <input
@@ -87,6 +93,6 @@ export default function PropostesNova() {
 
       {error && <p className="form__error">{error}</p>}
       <button className="btn" type="submit" disabled={desant}>Crear proposta</button>
-    </form>
+    </PaginaAdmin>
   );
 }

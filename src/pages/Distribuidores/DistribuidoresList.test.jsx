@@ -37,3 +37,17 @@ describe('DistribuidoresList', () => {
     expect(screen.getByRole('link', { name: 'Nova distribuïdora' })).toHaveAttribute('href', '/distribuidores/nova');
   });
 });
+
+describe('DistribuidoresList: layout estàndard', () => {
+  it('fa servir l\'amplada de llista, un sol h1, l\'enllaç «← Propostes» i el botó amb text', async () => {
+    getDocs.mockResolvedValueOnce({ docs: [] });
+    const { container } = render(<MemoryRouter><DistribuidoresList /></MemoryRouter>);
+    const boto = await screen.findByRole('link', { name: 'Nova distribuïdora' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Distribuïdores');
+    expect(screen.getByRole('link', { name: '← Propostes' })).toHaveClass('pagina-admin__tornar');
+    expect(boto).toHaveTextContent('Nova distribuïdora');
+  });
+});

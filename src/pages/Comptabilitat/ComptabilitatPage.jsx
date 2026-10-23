@@ -12,6 +12,7 @@ import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
 import EnllacAdjunt from '../../components/EnllacAdjunt';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const COLUMNES = [
   ['total', 'Import'],
@@ -87,14 +88,16 @@ export default function ComptabilitatPage() {
   );
 
   return (
-    <div className="comptabilitat">
-      <div className="comptabilitat__capcalera">
-        <h1 className="comptabilitat__titol">Comptabilitat</h1>
-        <div className="comptabilitat__accions">
+    <PaginaAdmin
+      amplada="llista"
+      titol="Comptabilitat"
+      accions={(
+        <>
           <BotoFiltres obert={filtresOberts} onClick={() => setFiltresOberts((v) => !v)} />
           <BotoAfegir to={ROUTES.COMPTABILITAT_NOU} etiqueta="Afegir moviment" />
-        </div>
-      </div>
+        </>
+      )}
+    >
 
       <div className="comptabilitat__formula">
         <div className="comptabilitat__formula-fila">
@@ -119,19 +122,19 @@ export default function ComptabilitatPage() {
 
       <div className={`comptabilitat__filtres-wrap ${filtresOberts ? 'comptabilitat__filtres-wrap--obert' : ''}`}>
         <div className="comptabilitat__filtres">
-          <select className="form__input" value={tipus} onChange={(e) => setTipus(e.target.value)}>
+          <select className="form__input" aria-label="Filtra per tipus" value={tipus} onChange={(e) => setTipus(e.target.value)}>
             <option value="tots">Tots els tipus</option>
             <option value={TIPUS_MOVIMENT.INGRES}>Tipus: Ingrés</option>
             <option value={TIPUS_MOVIMENT.DESPESA}>Tipus: Despesa</option>
             <option value={TIPUS_MOVIMENT.TRASPAS}>Tipus: Traspàs</option>
           </select>
-          <select className="form__input" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+          <select className="form__input" aria-label="Filtra per categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             <option value="totes">Totes les categories</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select className="form__input" value={sessionId} onChange={(e) => setSessionId(e.target.value)}>
+          <select className="form__input" aria-label="Filtra per sessió" value={sessionId} onChange={(e) => setSessionId(e.target.value)}>
             <option value="totes">Totes les sessions</option>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>{s.titol}</option>
@@ -190,6 +193,6 @@ export default function ComptabilitatPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </PaginaAdmin>
   );
 }

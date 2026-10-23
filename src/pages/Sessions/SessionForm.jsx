@@ -14,8 +14,10 @@ import { estatBarra, pestanyesAmbCanvis } from '../../lib/estatDesar';
 import useAvisSortida from '../../lib/useAvisSortida';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import Pestanyes from '../../components/Pestanyes';
 import BarraDesar from '../../components/BarraDesar';
+import PaginaAdmin from '../../components/PaginaAdmin';
 import { ETIQUETA_PESTANYA, PESTANYA_DEL_CAMP, PESTANYES } from './camps';
 import CapcaleraSessio from './CapcaleraSessio';
 import DadesSessio, { TargetaSessio } from './pestanyes/DadesSessio';
@@ -83,6 +85,7 @@ function FitxaSessio({ id }) {
   const temporitzadorDesat = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   const canvis = campsCanviats(dades, original, publicaForm, publicaInicial);
   const hiHaCanvis = canvis.dades.length > 0 || canvis.publica.length > 0;
@@ -157,8 +160,14 @@ function FitxaSessio({ id }) {
     const altres = dades.publicada ? sessionsDe(await getDocs(collection(db, 'sessions'))) : [];
     const {
       errors, cancelat, dadesADesar, canvis: canvisADesar, publicaFinal,
-    } = prepararDesat({
-      id, dades, publicaForm, publicaInicial, original, altresSessions: altres, confirmarAlias: () => window.confirm(MISSATGE_ALIAS),
+    } = await prepararDesat({
+      id,
+      dades,
+      publicaForm,
+      publicaInicial,
+      original,
+      altresSessions: altres,
+      confirmarAlias: () => confirma({ missatge: MISSATGE_ALIAS, etiquetaAcceptar: 'Desa' }),
     });
     if (Object.keys(errors).length > 0) {
       const llista = errorsPerPestanya(errors);
@@ -240,20 +249,31 @@ function FitxaSessio({ id }) {
 
   if (!editant) {
     return (
-      <form className="fitxa-sessio" onSubmit={handleSubmit}>
+      <PaginaAdmin
+        as="form"
+        amplada="fitxa"
+        className="fitxa-sessio fitxa-sessio--amb-barra"
+        titol="Nova sessió"
+        tornar={{ to: ROUTES.SESSIONS, etiqueta: 'Sessions' }}
+        onSubmit={handleSubmit}
+      >
         <div className="fitxa-sessio__contingut">
-          <h1 className="fitxa-sessio__titol">Nova sessió</h1>
           <TargetaSessio dades={dades} onCanviDades={onCanviDades} />
         </div>
         {barra}
-      </form>
+      </PaginaAdmin>
     );
   }
 
   const PestanyaEdicio = PESTANYES_EDICIO[pestanya];
 
   return (
-    <form className="fitxa-sessio" onSubmit={handleSubmit}>
+    <PaginaAdmin
+      as="form"
+      amplada="fitxa"
+      className={pestanya === 'estadistiques' ? 'fitxa-sessio' : 'fitxa-sessio fitxa-sessio--amb-barra'}
+      onSubmit={handleSubmit}
+    >
       <div className="fitxa-sessio__contingut">
         <CapcaleraSessio dades={dades} original={original} onMarcarActiva={handleMarcarActiva} errorActiva={errorActiva} />
         <Pestanyes
@@ -291,7 +311,7 @@ function FitxaSessio({ id }) {
         )}
       </div>
       {pestanya !== 'estadistiques' && barra}
-    </form>
+    </PaginaAdmin>
   );
 }
 

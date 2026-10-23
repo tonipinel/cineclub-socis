@@ -61,3 +61,16 @@ describe('TandesList', () => {
     expect(await screen.findByText('Encara no hi ha cap tanda.')).toBeInTheDocument();
   });
 });
+
+describe('TandesList: layout estàndard', () => {
+  it('fa servir l\'amplada de llista, un sol h1 i el botó «Nova tanda» amb text', async () => {
+    respon([TANCADA]);
+    const { container } = render(<MemoryRouter><TandesList /></MemoryRouter>);
+    const boto = await screen.findByRole('link', { name: 'Nova tanda' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Tandes de votació');
+    expect(boto).toHaveTextContent('Nova tanda');
+  });
+});

@@ -212,7 +212,7 @@ export default function EstadistiquesSessio({ id, sessio }) {
           <div className="session-form__bloc">
             <div className="session-form__capcalera">
               <h2 className="session-form__subtitol">Moviments</h2>
-              <BotoAfegir to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`} etiqueta="Afegir moviment d'aquesta sessió" />
+              <BotoAfegir to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`} etiqueta="Afegir moviment d'aquesta sessió" compacte />
             </div>
             {aportacionsPendents && (
               <p className="session-form__avis">

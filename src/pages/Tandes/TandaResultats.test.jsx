@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  act, render, screen, within,
+  act, screen, waitFor, within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -16,6 +16,9 @@ vi.mock('firebase/firestore', () => ({
 
 import { deleteDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import TandaResultats from './TandaResultats';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 const stamp = (d) => ({ toDate: () => d });
 const docs = (llista) => ({ docs: llista.map((d) => ({ id: d.id, data: () => d })) });
@@ -47,7 +50,7 @@ const emet = (ruta, valor) => act(() => subscripcions[ruta].forEach((cb) => cb(v
 const snapVots = (vots) => docs(vots);
 const snapTanda = (tanda) => ({ data: () => tanda });
 
-const renderitza = () => render(
+const renderitza = () => renderAmbConfirmacio(
   <MemoryRouter initialEntries={['/tandes/t1/resultats']}>
     <Routes>
       <Route path="/tandes/:id/resultats" element={<TandaResultats />} />
@@ -213,11 +216,6 @@ describe('TandaResultats', () => {
     const TANDA_OBERTA = { ...TANDA, tanca: stamp(new Date('2099-01-01T20:00:00')) };
     const TANDA_TANCADA = { ...TANDA, tanca: stamp(new Date('2020-01-01T20:00:00')) };
     const botoDe = (nom) => screen.getByRole('button', { name: `Esborrar tots els vots de ${nom}` });
-    let confirma;
-
-    beforeEach(() => {
-      confirma = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    });
 
     it('només ofereix el botó a les files amb document de vot', async () => {
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
@@ -230,19 +228,26 @@ describe('TandaResultats', () => {
       expect(screen.queryByRole('button', { name: /Pere Vila/ })).not.toBeInTheDocument();
     });
 
-    it('si cancel·la la confirmació no esborra res', async () => {
+    it.each([
+      ['Cancel·lar', (usuari) => cancellaDialeg(usuari)],
+      ['ESC', (usuari) => tancaDialegAmbEsc(usuari)],
+    ])('si tanca la confirmació amb %s no esborra res', async (_nom, tanca) => {
       const usuari = userEvent.setup();
-      confirma.mockReturnValue(false);
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
-      expect(confirma).toHaveBeenCalledTimes(1);
+      await tanca(usuari);
+      await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
       expect(deleteDoc).not.toHaveBeenCalled();
+      expect(botoDe('Anna Puig')).toBeEnabled();
     });
 
     it('en confirmar esborra el document tandes/{id}/vots/{numeroSoci}', async () => {
       const usuari = userEvent.setup();
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      expect(await dialegConfirmacio()).toHaveAttribute('role', 'alertdialog');
+      expect(deleteDoc).not.toHaveBeenCalled();
+      await acceptaDialeg('Esborra');
       await vi.waitFor(() => expect(deleteDoc).toHaveBeenCalledTimes(1));
       expect(deleteDoc).toHaveBeenCalledWith('tandes/t1/vots/12');
     });
@@ -251,8 +256,8 @@ describe('TandaResultats', () => {
       const usuari = userEvent.setup();
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
-      expect(confirma).toHaveBeenCalledWith(
-        'Segur que vols esborrar tots els vots de Anna Puig (2 de 3)? Aquesta acció no es pot desfer. El soci podrà tornar a votar.'
+      expect(await dialegConfirmacio()).toHaveTextContent(
+        /^Segur que vols esborrar tots els vots de Anna Puig \(2 de 3\)\? Aquesta acció no es pot desfer\. El soci podrà tornar a votar\.Cancel·larEsborra$/
       );
     });
 
@@ -260,8 +265,8 @@ describe('TandaResultats', () => {
       const usuari = userEvent.setup();
       await renderitzaIEmet({ tanda: TANDA_TANCADA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Joan Serra' }));
-      expect(confirma).toHaveBeenCalledWith(
-        'Segur que vols esborrar tots els vots de Joan Serra (3 de 3)? Aquesta acció no es pot desfer. El resultat final de la tanda canviarà.'
+      expect(await dialegConfirmacio()).toHaveTextContent(
+        /^Segur que vols esborrar tots els vots de Joan Serra \(3 de 3\)\? Aquesta acció no es pot desfer\. El resultat final de la tanda canviarà\.Cancel·larEsborra$/
       );
     });
 
@@ -270,6 +275,7 @@ describe('TandaResultats', () => {
       deleteDoc.mockRejectedValue(new Error('permission-denied'));
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
+      await acceptaDialeg('Esborra');
       expect(await screen.findByRole('alert')).toHaveTextContent('No s\'han pogut esborrar els vots de Anna Puig. Torna-ho a provar.');
       expect(screen.getByRole('table')).toBeInTheDocument();
       expect(botoDe('Anna Puig')).toBeEnabled();
@@ -281,7 +287,8 @@ describe('TandaResultats', () => {
       deleteDoc.mockReturnValue(new Promise((r) => { resol = r; }));
       await renderitzaIEmet({ tanda: TANDA_OBERTA });
       await usuari.click(await screen.findByRole('button', { name: 'Esborrar tots els vots de Anna Puig' }));
-      expect(botoDe('Anna Puig')).toBeDisabled();
+      await acceptaDialeg('Esborra');
+      await waitFor(() => expect(botoDe('Anna Puig')).toBeDisabled());
       await act(async () => { resol(); });
       expect(botoDe('Anna Puig')).toBeEnabled();
     });
@@ -368,6 +375,25 @@ describe('TandaResultats', () => {
       act(() => actual('tandes/t1/vots')(snapVots(VOTS)));
       expect(await screen.findByRole('heading', { name: /Novembre/ })).toBeInTheDocument();
       expect(screen.queryByText(MISSATGE)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('layout estàndard', () => {
+    it('fa servir l\'amplada de fitxa, un sol h1 i l\'enllaç «← Tandes»', async () => {
+      await renderitzaIEmet();
+      const titol = await screen.findByRole('heading', { level: 1, name: 'Resultats: Novembre' });
+      expect(titol.closest('.pagina-admin')).toHaveClass('pagina-admin--fitxa');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
+    });
+
+    it('amb error de càrrega també manté el contenidor de fitxa i l\'enllaç «← Tandes»', async () => {
+      getDocs.mockRejectedValue(new Error('offline'));
+      renderitza();
+      const avis = await screen.findByRole('alert');
+      expect(avis.closest('.pagina-admin')).toHaveClass('pagina-admin--fitxa');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
     });
   });
 

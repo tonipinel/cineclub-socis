@@ -16,6 +16,7 @@ import {
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const PESTANYES_EVOLUCIO = [
   ['real', 'Últims 12 mesos (real)'],
@@ -75,7 +76,13 @@ export default function DashboardPage() {
     }).catch(() => setError(true));
   }, []);
 
-  if (error) return <p className="dashboard__error">No s'han pogut carregar les dades del dashboard.</p>;
+  if (error) {
+    return (
+      <PaginaAdmin amplada="fitxa" titol="Dashboard">
+        <p className="dashboard__error">No s'han pogut carregar les dades del dashboard.</p>
+      </PaginaAdmin>
+    );
+  }
   if (!dades) return <Carregant />;
 
   const socis = resumDashboardSocis(dades.socis, dades.sessions, dades.accessLog);
@@ -134,8 +141,7 @@ export default function DashboardPage() {
   const percentTiquetsUsats = totalTiquets > 0 ? Math.round((tiquets.usats / totalTiquets) * 100) : 0;
 
   return (
-    <div className="dashboard">
-      <h1 className="dashboard__titol">Dashboard</h1>
+    <PaginaAdmin amplada="fitxa" titol="Dashboard">
 
       <div className="dashboard__numeros">
         <div className="comptabilitat__formula-terme">
@@ -437,6 +443,6 @@ export default function DashboardPage() {
         </div>
 
       </div>
-    </div>
+    </PaginaAdmin>
   );
 }

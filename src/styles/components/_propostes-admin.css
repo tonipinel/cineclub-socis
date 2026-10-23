@@ -1,17 +1,5 @@
-.propostes-pendents {
-  @apply p-6;
-}
-.propostes-pendents__capcalera {
-  @apply mb-4 flex items-center justify-between gap-2 border-b border-black/10 pb-4;
-}
-.propostes-pendents__accions {
-  @apply flex items-center gap-4 text-sm font-semibold;
-}
-.propostes-pendents__titol {
-  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
-}
 .propostes-pendents__taula-wrap {
-  @apply -mx-6 md:mx-0;
+  @apply -mx-4 sm:-mx-6 md:mx-0;
 }
 .propostes-pendents__taula {
   @apply w-full border-collapse text-left text-sm;
@@ -31,27 +19,22 @@
 .propostes-pendents__nota {
   @apply mt-3 text-xs text-black/60;
 }
-.propostes-pendents__llista {
-  @apply flex list-none flex-col gap-2 p-0;
-}
-.propostes-pendents__item {
-  @apply flex items-center justify-between gap-2 border-b border-black/10 py-2;
+.proposta-fitxa {
+  @apply flex flex-col;
 }
 .proposta-fitxa__hero {
-  @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-4 text-center text-white;
+  @apply mt-3 flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-4 text-center text-white;
   background-image: url('/cinema-pattern.jpg');
   background-repeat: repeat;
   background-color: #4d4d4d;
   background-blend-mode: multiply;
 }
 .proposta-fitxa__barra {
-  @apply flex w-full max-w-5xl items-center justify-between gap-2;
+  @apply flex w-full items-center justify-end gap-2;
 }
-.proposta-fitxa__tornar {
-  @apply text-sm font-semibold uppercase tracking-wide text-white no-underline hover:text-gold;
-}
+/* Mida de títol estàndard (com .pagina-admin__titol), amb el color i l'ombra del «hero» */
 .proposta-fitxa__titol {
-  @apply font-display text-5xl font-bold uppercase text-gold sm:text-7xl;
+  @apply font-display text-2xl font-bold uppercase text-gold wrap-anywhere md:text-3xl;
   line-height: 1.1;
   text-shadow: 2px 2px 2px black;
 }
@@ -62,7 +45,7 @@
   @apply w-full border-b-[6px] border-t-4 border-dashed border-b-black border-t-white bg-neutral-100;
 }
 .proposta-fitxa__fitxa {
-  @apply mx-auto flex max-w-[1000px] flex-col gap-6 p-10 text-sm sm:flex-row;
+  @apply flex flex-col gap-6 p-6 text-sm sm:flex-row sm:p-10;
 }
 .proposta-fitxa__cartell-col {
   @apply mx-auto flex w-40 flex-shrink-0 flex-col items-center gap-4 self-start sm:mx-0 sm:w-48;
@@ -84,7 +67,7 @@
   @apply italic;
 }
 .proposta-fitxa__sinopsi {
-  @apply mx-4 mb-8 mt-8 max-w-3xl border-2 border-dashed border-black bg-white p-6 font-body text-base text-black/80 shadow-lg sm:mx-auto;
+  @apply mx-auto mb-8 mt-8 w-full max-w-3xl border-2 border-dashed border-black bg-white p-6 font-body text-base text-black/80 shadow-lg;
 }
 .proposta-fitxa__traduccio {
   @apply mt-3 text-xs italic text-black/50;
@@ -97,13 +80,7 @@
   @apply self-start;
 }
 .proposta-form {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
-}
-.proposta-form__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
-}
-.proposta-form__soci {
-  @apply -mt-2 mb-2 font-body text-sm text-black/70;
+  @apply flex flex-col gap-2;
 }
 .proposta-form__comentari {
   @apply -mt-2 mb-2 font-body text-sm italic text-black/70;
@@ -112,30 +89,16 @@
   @apply mt-2 flex flex-wrap items-center gap-3;
 }
 .propostes-nova {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
-}
-.propostes-nova__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply flex flex-col gap-2;
 }
 
 /* Distribuïdores */
-.distribuidores-list {
-  @apply mx-auto max-w-3xl p-6;
-}
-.distribuidores-list__capcalera {
-  @apply mb-4 flex flex-wrap items-start justify-between gap-2 border-b border-black/10 pb-4;
-}
-.distribuidores-list__tornar {
-  @apply text-sm font-semibold text-gold-dark no-underline hover:underline;
-}
-.distribuidores-list__titol {
-  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
-}
 .distribuidores-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
+/* Llista a 1280 px: la fila es limita perquè les dades no quedin escampades */
 .distribuidores-list__item {
-  @apply flex flex-col gap-1 border-b border-black/10 py-3 text-sm;
+  @apply flex max-w-3xl flex-col gap-1 border-b border-black/10 py-3 text-sm;
 }
 .distribuidores-list__nom {
   @apply text-base font-semibold;
@@ -144,36 +107,19 @@
   @apply text-black/70;
 }
 .distribuidora-form {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
-}
-.distribuidora-form__capcalera {
-  @apply flex items-center justify-between gap-2;
-}
-.distribuidora-form__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply flex flex-col gap-2;
 }
 
 /* Tandes de votació */
-.tandes-list {
-  @apply mx-auto max-w-3xl p-6;
-}
-.tandes-list__capcalera {
-  @apply mb-4 flex items-center justify-between gap-2 border-b border-black/10 pb-4;
-}
-.tandes-list__titol {
-  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
-}
-.tandes-list__tornar {
-  @apply text-sm font-semibold text-gold-dark no-underline hover:underline;
-}
 .tandes-list__avis {
   @apply mb-4 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
 }
 .tandes-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
+/* Llista a 1280 px: la fila es limita perquè «Resultats» no quedi lluny del nom */
 .tandes-list__item {
-  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm;
+  @apply flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm;
 }
 .tandes-list__nom {
   @apply text-base font-semibold;
@@ -182,10 +128,7 @@
   @apply flex-1 text-black/70;
 }
 .tanda-form {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
-}
-.tanda-form__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply flex flex-col gap-2;
 }
 .tanda-form__propostes {
   @apply mb-4 flex flex-col gap-2 border-0 p-0;
@@ -197,9 +140,6 @@
   @apply mt-2 flex flex-wrap items-center gap-3;
 }
 
-.tanda-resultats {
-  @apply mx-auto max-w-5xl p-6;
-}
 .tanda-resultats__participants {
   @apply mb-2 text-sm font-semibold text-black/70;
 }
@@ -237,7 +177,7 @@
   @apply w-12 text-right font-semibold text-gold-dark;
 }
 .tanda-resultats__taula-wrap {
-  @apply -mx-6 md:mx-0;
+  @apply -mx-4 sm:-mx-6 md:mx-0;
 }
 .tanda-resultats__taula {
   @apply w-full border-collapse text-left text-sm;
@@ -286,7 +226,7 @@
 
 /* Gestió interna d'una proposta (privada) */
 .gestio-interna {
-  @apply mx-4 mb-8 max-w-3xl border-2 border-dashed border-gold-dark bg-gold/10 p-6 sm:mx-auto;
+  @apply mx-auto mb-8 w-full max-w-3xl border-2 border-dashed border-gold-dark bg-gold/10 p-6;
 }
 .gestio-interna--formulari {
   @apply mx-0 mb-2 mt-4 flex max-w-none flex-col gap-2 p-4;

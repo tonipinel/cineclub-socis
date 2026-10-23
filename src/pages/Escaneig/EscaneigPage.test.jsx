@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  act, render, screen, fireEvent,
+  act, screen, fireEvent, waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -35,6 +35,9 @@ import {
   addDoc, getDocs, getDocsFromServer, onSnapshot, updateDoc, where,
 } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 import { formatData } from '../../lib/data';
 
 async function obrirCodiManual(user) {
@@ -49,27 +52,25 @@ describe('EscaneigPage', () => {
     updateDoc.mockClear();
     getDocs.mockReset();
     getDocsFromServer.mockReset();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    window.confirm.mockClear();
     window.location.hash = '';
   });
 
   it('per defecte mostra el botó Escanejar i l\'enllaç per introduir un codi manualment, sense el camp encara', async () => {
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Introduir codi manualment' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
   });
 
   it('mostra un enllaç LOG al footer que porta al registre d\'incidències', async () => {
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByRole('button', { name: 'Escanejar' });
     expect(screen.getByRole('link', { name: 'LOG' })).toHaveAttribute('href', '/escaneig/log');
   });
 
   it('en clicar l\'enllaç, mostra el camp de codi manual i amaga el botó Escanejar', async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Registrar' })).toBeInTheDocument();
@@ -86,7 +87,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -118,7 +119,7 @@ describe('EscaneigPage', () => {
       return { empty: true, docs: [] };
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'CARNET-abc-123');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -144,7 +145,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament, inicPeriode: ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -157,7 +158,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: false, motiuDesactivacio: 'Mal comportament' }) }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -189,7 +190,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000047');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -221,7 +222,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -237,7 +238,7 @@ describe('EscaneigPage', () => {
   it('mostra un error si el número de soci no existeix', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-999');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -270,7 +271,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -304,7 +305,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -318,13 +319,20 @@ describe('EscaneigPage', () => {
       online: true, ms: expect.any(Number), desdeCache: false,
     });
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveTextContent('Segur que vols comptar el codi T-000014 igualment?');
+    expect(dialeg).not.toHaveAttribute('role', 'alertdialog');
+    expect(addDoc).toHaveBeenCalledTimes(1);
+    await acceptaDialeg('Compta igualment');
+    await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(2));
     expect(addDoc.mock.calls[1][1].codiTiquet).toBe('T-000014');
     expect(addDoc.mock.calls[1][1].tipus).toBe('generic');
   });
 
-  it('no registra el codi repetit si es cancel·la la confirmació', async () => {
-    window.confirm.mockReturnValueOnce(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no registra el codi repetit si es tanca la confirmació amb %s, i l\'avís continua operatiu', async (_nom, tanca) => {
     getDocsFromServer.mockResolvedValueOnce({
       empty: false,
       docs: [{ data: () => ({ timestamp: null }) }],
@@ -346,18 +354,28 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await user.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(addDoc).toHaveBeenCalledTimes(1);
     expect(addDoc.mock.calls[0][1].motiu).toBe('tiquet-ja-utilitzat');
+    // No queda bloquejat: l'avís segueix a la pantalla i es pot tornar a escanejar o comptar.
+    expect(screen.getByText('Codi ja utilitzat')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Comptar igualment' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Escanejar un altre' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
+    await acceptaDialeg('Compta igualment');
+    await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(2));
+    expect(addDoc.mock.calls[1][1].codiTiquet).toBe('T-000014');
   });
 
   it('mostra un error per a un codi no reconegut', async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -374,7 +392,7 @@ describe('EscaneigPage', () => {
   it('mostra un error si falla la consulta a Firestore', async () => {
     getDocs.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -405,7 +423,7 @@ describe('EscaneigPage', () => {
         return () => {};
       });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'T-000014');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -430,7 +448,7 @@ describe('EscaneigPage', () => {
       docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -441,7 +459,7 @@ describe('EscaneigPage', () => {
 
   it('en clicar "Escanejar un altre", neteja el missatge anterior i torna a mostrar el camp manual', async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -452,7 +470,7 @@ describe('EscaneigPage', () => {
   });
 
   it('afegeix la classe escaneig-body al body i la treu en desmuntar', async () => {
-    const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const { unmount } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByRole('button', { name: 'Escanejar' });
     expect(document.body).toHaveClass('escaneig-body');
     unmount();
@@ -460,14 +478,14 @@ describe('EscaneigPage', () => {
   });
 
   it('el botó de tancar del footer no es mostra a l\'estat inicial', async () => {
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByRole('button', { name: 'Escanejar' });
     expect(screen.queryByRole('button', { name: "Tancar i tornar a l'inici" })).not.toBeInTheDocument();
   });
 
   it('el botó de tancar del footer torna a l\'estat inicial des del mode manual', async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     await user.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
     expect(screen.queryByLabelText('Codi manual')).not.toBeInTheDocument();
@@ -476,7 +494,7 @@ describe('EscaneigPage', () => {
 
   it('amb #ok a la URL mostra directament el missatge de prova (mode mockup)', async () => {
     window.location.hash = '#ok';
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Al dia')).toHaveClass('badge--al-dia');
     expect(screen.getByText('Mode mockup: #ok')).toBeInTheDocument();
@@ -484,7 +502,7 @@ describe('EscaneigPage', () => {
 
   it('amb #codi a la URL mostra directament el formulari manual (mode mockup)', async () => {
     window.location.hash = '#codi';
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByLabelText('Codi manual')).toBeInTheDocument();
   });
 
@@ -496,7 +514,7 @@ describe('EscaneigPage', () => {
       return () => {};
     });
     window.location.hash = '#ok';
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
     expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
     vi.unstubAllEnvs();
@@ -504,7 +522,7 @@ describe('EscaneigPage', () => {
 
   it('canviar el fragment de la URL sense recarregar actualitza el mockup mostrat', async () => {
     window.location.hash = '#ok';
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByText('Anna Vidal');
 
     window.location.hash = '#error';
@@ -515,7 +533,7 @@ describe('EscaneigPage', () => {
 
   it('treure el fragment de mockup de la URL torna a l\'estat inicial real', async () => {
     window.location.hash = '#ok';
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await screen.findByText('Anna Vidal');
 
     window.location.hash = '';
@@ -526,7 +544,7 @@ describe('EscaneigPage', () => {
 
   it('el botó de tancar del footer torna a l\'estat inicial des d\'un missatge', async () => {
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -538,14 +556,14 @@ describe('EscaneigPage', () => {
 
   describe('mode prova', () => {
     it('per defecte està desactivat i no mostra l\'avís', () => {
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       expect(screen.getByRole('button', { name: 'Mode prova: desactivat' })).toBeInTheDocument();
       expect(screen.queryByText('Mode prova: no es desa res')).not.toBeInTheDocument();
     });
 
     it('activar-lo mostra l\'avís permanent i canvia el text del botó', async () => {
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       expect(screen.getByText('Mode prova: no es desa res')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Mode prova: activat' })).toBeInTheDocument();
@@ -558,7 +576,7 @@ describe('EscaneigPage', () => {
         docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
       });
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       const input = await obrirCodiManual(user);
       await user.type(input, 'SOCI-7');
@@ -589,7 +607,7 @@ describe('EscaneigPage', () => {
           return () => {};
         });
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       const input = await obrirCodiManual(user);
       await user.type(input, 'T-000014');
@@ -635,7 +653,7 @@ describe('EscaneigPage', () => {
         empty: false,
         docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament }) }],
       });
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
 
       vi.useFakeTimers();
@@ -667,7 +685,7 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
       docs: [{ ref: sociRef, data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -692,7 +710,7 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
       }],
     });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
@@ -715,7 +733,7 @@ describe('EscaneigPage — sessions especials sense control', () => {
       });
       return () => {};
     });
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Escanejar' })).not.toBeInTheDocument();
   });
@@ -731,7 +749,7 @@ describe('EscaneigPage — sessions especials sense control', () => {
       });
       return () => {};
     });
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
     expect(screen.queryByText(/No hi ha cap sessió activa/)).not.toBeInTheDocument();
   });
@@ -829,7 +847,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       getDocs.mockResolvedValue(SOCI_7());
       const escriptura = diferida();
       addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
 
       vi.useFakeTimers();
@@ -864,7 +882,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
           return Promise.resolve([]);
         });
       });
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
 
       vi.useFakeTimers();
@@ -894,7 +912,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       codiDetectat = 'T-000014';
       getDocsFromServer.mockResolvedValue({ empty: true, docs: [] });
       const { carregarLots } = mockSubscripcions({ lotsCarregats: false });
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
 
       vi.useFakeTimers();
@@ -910,7 +928,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     it('durant el reintent d\'una lectura, la càmera no processa cap codi (ni el mateix ni un altre)', async () => {
       const segona = diferida();
       getDocs.mockImplementationOnce(() => new Promise(() => {})).mockImplementationOnce(() => segona.promise);
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
 
       vi.useFakeTimers();
@@ -944,7 +962,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       const segona = diferida();
       getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(() => segona.promise);
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -975,7 +993,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     it('si els dos intents esgoten el temps, avisa de sense connexió als 13 s i el reescaneig es processa sense avís fals', async () => {
       getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(lecturaPenjada).mockResolvedValue(SOCI_7());
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1005,7 +1023,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       const lectura = diferida();
       getDocs.mockImplementationOnce(() => lectura.promise);
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1023,7 +1041,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       getDocsFromServer.mockImplementationOnce(lecturaPenjada).mockResolvedValueOnce({ empty: true, docs: [] });
       mockSubscripcions();
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1042,7 +1060,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       getDocsFromServer.mockImplementation(lecturaPenjada);
       mockSubscripcions();
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1060,7 +1078,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       getDocs.mockResolvedValue(SOCI_7());
       addDoc.mockImplementation((col) => (col === 'accessLog' ? new Promise(() => {}) : Promise.resolve({ id: 'e' })));
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1079,7 +1097,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       const segona = diferida();
       getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(() => segona.promise);
       const user = userEvent.setup();
-      const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const { unmount } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1099,7 +1117,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     it('si es desmunta la pantalla durant el reintent i la lectura no arriba mai, només queda «abandonat» al log', async () => {
       getDocs.mockImplementation(lecturaPenjada);
       const user = userEvent.setup();
-      const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const { unmount } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1122,7 +1140,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
         return () => {};
       });
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1164,7 +1182,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
         return () => {};
       });
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1194,7 +1212,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       getDocs.mockImplementationOnce(lecturaPenjada)
         .mockResolvedValueOnce({ empty: true, docs: [], metadata: { fromCache: true } });
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await obrirCodiManual(user);
 
       vi.useFakeTimers();
@@ -1210,7 +1228,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     it('en mode prova, el reintent no escriu res, ni al log', async () => {
       getDocs.mockImplementationOnce(lecturaPenjada).mockResolvedValueOnce(SOCI_7());
       const user = userEvent.setup();
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
       await obrirCodiManual(user);
 
@@ -1227,7 +1245,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('si el primer intent falla per una excepció, el reintent immediat es processa sense el fals «ja registrat»', async () => {
     getDocs.mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(SOCI_7());
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('SOCI-7');
     expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
@@ -1245,7 +1263,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       .mockImplementationOnce(() => Promise.reject(new Error('permission-denied')))
       .mockResolvedValue({ id: 'log-1' });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('SOCI-7');
     expect(await screen.findByText("No s'ha pogut registrar l'entrada. Torna-ho a provar.")).toBeInTheDocument();
@@ -1263,7 +1281,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('el reescaneig d\'un codi ja registrat dins 3 s mostra l\'avís i queda al log com a debounce', async () => {
     getDocs.mockResolvedValue(SOCI_7());
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('SOCI-7');
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
@@ -1282,7 +1300,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     const escriptura = diferida();
     addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
 
     vi.useFakeTimers();
@@ -1318,7 +1336,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     getDocsFromServer.mockRejectedValueOnce(new Error('Failed to get documents from server'));
     mockSubscripcions();
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('T-000014');
     expect(await screen.findByText("No es pot comprovar si aquest tiquet ja s'ha utilitzat (sense connexió). Reintenta quan hi hagi xarxa.")).toBeInTheDocument();
@@ -1333,7 +1351,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('si la consulta de socis torna buida des de la caché, no diu que el soci no existeix', async () => {
     getDocs.mockResolvedValueOnce({ empty: true, docs: [], metadata: { fromCache: true } });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('SOCI-7');
     expect(await screen.findByText('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.')).toBeInTheDocument();
@@ -1344,7 +1362,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('si els lots encara no s\'han carregat, ho diu i ho deixa al log', async () => {
     mockSubscripcions({ lotsCarregats: false });
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('T-000014');
     expect(await screen.findByText('Encara carregant els lots de tiquets. Torna-ho a provar.')).toBeInTheDocument();
@@ -1354,7 +1372,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('el registre de diagnòstic no peta si no hi ha usuari', async () => {
     auth.user = undefined;
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('XYZ');
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
@@ -1366,14 +1384,20 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     mockSubscripcions();
     const escriptura = diferida();
     addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('T-000014');
     const boto = await screen.findByRole('button', { name: 'Comptar igualment' });
     fireEvent.click(boto);
     fireEvent.click(boto);
+    await dialegConfirmacio();
+    expect(document.querySelectorAll('dialog.dialeg-confirmacio')).toHaveLength(1);
+    await acceptaDialeg('Compta igualment');
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    await waitFor(() => expect(escripturesAccessLog()).toHaveLength(1));
+    fireEvent.click(boto);
+    expect(hiHaDialegConfirmacio()).toBe(false);
     expect(escripturesAccessLog()).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Registrant…' })).toBeDisabled();
 
@@ -1382,17 +1406,36 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     expect(escripturesAccessLog()).toHaveLength(1);
   });
 
+  it('si l\'avís desapareix mentre la confirmació és oberta, acceptar-la no registra res', async () => {
+    getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
+    mockSubscripcions();
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await obrirCodiManual(user);
+    enviarCodiManual('T-000014');
+    fireEvent.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
+    await dialegConfirmacio();
+    // Sense showModal (jsdom) el fons no és inert: l'avís es pot tancar amb el diàleg obert.
+    fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+    expect(screen.queryByText('Codi ja utilitzat')).not.toBeInTheDocument();
+    await acceptaDialeg('Compta igualment');
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    await act(async () => {});
+    expect(escripturesAccessLog()).toHaveLength(0);
+  });
+
   it('mentre «Comptar igualment» escriu, no es pot tornar a la càmera ni tancar (el resultat no cau sobre la persona següent)', async () => {
     getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
     mockSubscripcions();
     const escriptura = diferida();
     addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('T-000014');
     fireEvent.click(await screen.findByRole('button', { name: 'Comptar igualment' }));
+    await acceptaDialeg('Compta igualment');
+    await waitFor(() => expect(escripturesAccessLog()).toHaveLength(1));
 
     expect(screen.getByRole('button', { name: 'Escanejar un altre' })).toBeDisabled();
     expect(screen.getByRole('button', { name: "Tancar i tornar a l'inici" })).toBeDisabled();
@@ -1407,14 +1450,14 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   it('«Comptar igualment» respecta el mode prova activat després de veure l\'avís', async () => {
     getDocsFromServer.mockResolvedValueOnce({ empty: false, docs: [{ data: () => ({ timestamp: null }) }] });
     mockSubscripcions();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
     enviarCodiManual('T-000014');
     await screen.findByRole('button', { name: 'Comptar igualment' });
     await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
     await user.click(screen.getByRole('button', { name: 'Comptar igualment' }));
+    await acceptaDialeg('Compta igualment');
     expect(await screen.findByText('Entrada genèrica (5€)')).toBeInTheDocument();
     expect(escripturesAccessLog()).toHaveLength(0);
   });
@@ -1424,7 +1467,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     const escriptura = diferida();
     addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
 
     vi.useFakeTimers();
@@ -1465,7 +1508,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     getDocs.mockResolvedValue({ empty: false, docs: [soci] });
     addDoc.mockImplementation((col) => (col === 'accessLog' ? new Promise(() => {}) : Promise.resolve({ id: 'e' })));
     const user = userEvent.setup();
-    render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     await obrirCodiManual(user);
 
     vi.useFakeTimers();
@@ -1484,7 +1527,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     });
 
     it('mostra «Sense connexió» quan el dispositiu perd la xarxa i ho amaga quan torna', async () => {
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await screen.findByRole('button', { name: 'Escanejar' });
       expect(screen.queryByText('Sense connexió')).not.toBeInTheDocument();
 
@@ -1504,7 +1547,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
         metadata: { hasPendingWrites: pendent },
       });
       mockSubscripcions({ accessLogDocs: [entrada(true), entrada(true), entrada(false)] });
-      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       expect(await screen.findByText("2 entrades pendents d'enviar")).toHaveAttribute('role', 'status');
       // La subscripció a l'accessLog inclou els canvis de metadades.
       expect(onSnapshot.mock.calls[2][1]).toEqual({ includeMetadataChanges: true });
@@ -1521,7 +1564,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', async () => {
       for (const imatgeUrl of ['https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', '']) {
         ambSessio({ imatgeUrl, publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
-        const { container, unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+        const { container, unmount } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
         await screen.findByRole('button', { name: 'Escanejar' });
         expect(fons(container)).toContain('https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
         expect(fons(container)).not.toContain('poster_hu');
@@ -1531,14 +1574,14 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
 
     it('sense publica fa servir imatgeUrl', async () => {
       ambSessio({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg' });
-      const { container } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const { container } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await screen.findByRole('button', { name: 'Escanejar' });
       expect(fons(container)).toContain('https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
     });
 
     it('sense cap imatge no posa fons', async () => {
       ambSessio({});
-      const { container } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const { container } = renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
       await screen.findByRole('button', { name: 'Escanejar' });
       expect(fons(container)).toBe('');
     });

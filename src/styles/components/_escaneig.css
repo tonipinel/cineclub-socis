@@ -155,18 +155,6 @@ body.escaneig-body {
   @apply border-amber-500 bg-amber-500 text-black;
 }
 
-.escaneig-log {
-  @apply mx-auto flex max-w-4xl flex-col gap-4 p-6 pb-24;
-}
-.escaneig-log__capcalera {
-  @apply flex flex-col gap-1 border-b border-black/10 pb-4;
-}
-.escaneig-log__tornar {
-  @apply font-body text-sm text-black/70;
-}
-.escaneig-log__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
-}
 .escaneig-log__buit {
   @apply font-body text-black/70;
 }

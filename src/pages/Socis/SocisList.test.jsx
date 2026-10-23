@@ -165,4 +165,26 @@ describe('SocisList', () => {
     expect(screen.getByRole('button', { name: 'Amagar filtres' })).toBe(botoFiltres);
     expect(botoFiltres).toHaveAttribute('aria-expanded', 'true');
   });
+
+  it('usa el layout de llista amb un únic h1 i el botó «Donar d\'alta» amb text', () => {
+    const { container } = render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Socis');
+    const afegir = screen.getByRole('link', { name: "Donar d'alta" });
+    expect(afegir).toHaveAttribute('href', '/socis/nou');
+    expect(afegir.querySelector('.btn-icona__text')).toHaveTextContent("Donar d'alta");
+  });
+
+  it('el camp de cerca i el filtre d\'estat tenen nom accessible', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    const cerca = screen.getByLabelText('Cerca un soci');
+    expect(cerca.tagName).toBe('INPUT');
+    const estat = screen.getByLabelText('Filtra per estat');
+    expect(estat.tagName).toBe('SELECT');
+    await user.selectOptions(estat, 'vencut');
+    expect(estat).toHaveValue('vencut');
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {}, functions: {} }));
@@ -22,17 +22,18 @@ vi.mock('firebase/firestore', () => ({
 
 import { getDocs, onSnapshot } from 'firebase/firestore';
 import SessionsList from './SessionsList';
+import { renderAmbConfirmacio } from '../../test/confirmacio';
 
 describe('SessionsList', () => {
   it('mostra les sessions i marca quina és l\'activa', () => {
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(screen.getByText(/The Artist/)).toBeInTheDocument();
     expect(screen.getByText(/Delicatessen/)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
   });
 
   it('l\'enllaç de cada sessió porta a la seva fitxa', () => {
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(screen.getByRole('link', { name: /The Artist/ })).toHaveAttribute('href', '/sessions/1');
   });
 
@@ -55,7 +56,7 @@ describe('SessionsList', () => {
         ],
       })
       .mockResolvedValueOnce({ docs: [] });
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Socis: 1')).toBeInTheDocument();
     expect(screen.getByText('No socis: 1')).toBeInTheDocument();
     expect(screen.getByText('Rendibilitat: 60.00€')).toBeInTheDocument();
@@ -71,7 +72,7 @@ describe('SessionsList', () => {
       });
       return () => {};
     });
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Carretera a Gusen')).toBeInTheDocument();
     expect(screen.getByText('Sessió especial · sense control')).toBeInTheDocument();
     expect(screen.getAllByText(/^Socis:/)).toHaveLength(1);
@@ -90,7 +91,7 @@ describe('SessionsList', () => {
       });
       return () => {};
     });
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(await screen.findByText('Text')).toBeInTheDocument();
     expect(screen.queryByText('Sessió especial · sense control')).not.toBeInTheDocument();
     expect(screen.getAllByText(/^Socis:/)).toHaveLength(3);
@@ -106,7 +107,7 @@ describe('SessionsList', () => {
     it('fa servir publica.cartell encara que imatgeUrl estigui trencada o buida', () => {
       for (const imatgeUrl of ['https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg', '']) {
         ambSessio({ imatgeUrl, publica: { cartell: 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media' } });
-        const { container, unmount } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+        const { container, unmount } = renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
         expect(imatge(container)).toHaveAttribute('src', 'https://firebasestorage.googleapis.com/v0/b/b/o/web%2Fsessions%2Fpig%2Fposter.jpg?alt=media');
         unmount();
       }
@@ -114,20 +115,20 @@ describe('SessionsList', () => {
 
     it('sense publica fa servir imatgeUrl', () => {
       ambSessio({ imatgeUrl: 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg' });
-      const { container } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+      const { container } = renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
       expect(imatge(container)).toHaveAttribute('src', 'https://cineclubrodadebera.cat/programacio/2026/pig/poster_hu123.jpg');
     });
 
     it('sense cap imatge no pinta cap <img>', () => {
       ambSessio({});
-      const { container } = render(<MemoryRouter><SessionsList /></MemoryRouter>);
+      const { container } = renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
       expect(screen.getByText('Pig')).toBeInTheDocument();
       expect(imatge(container)).toBeNull();
     });
   });
 
   it('el botó «Sincronitzar el calendari» obre el panell', async () => {
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Sincronitzar el calendari' }));
     expect(screen.getByRole('dialog', { name: 'Sincronitzar el calendari' })).toBeInTheDocument();
@@ -135,7 +136,7 @@ describe('SessionsList', () => {
   });
 
   it('el botó del calendari és d\'icona: aria-label, title, sense text visible i obre el panell', () => {
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     const boto = screen.getByRole('button', { name: 'Sincronitzar el calendari' });
     expect(boto).toHaveAttribute('aria-label', 'Sincronitzar el calendari');
     expect(boto).toHaveAttribute('title', 'Sincronitzar el calendari');
@@ -147,11 +148,22 @@ describe('SessionsList', () => {
   });
 
   it('en tancar el panell el focus torna al botó del calendari', () => {
-    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
     const boto = screen.getByRole('button', { name: 'Sincronitzar el calendari' });
     boto.focus();
     fireEvent.click(boto);
     fireEvent.click(screen.getByRole('button', { name: 'Tancar el diàleg' }));
     expect(boto).toHaveFocus();
+  });
+});
+
+describe('SessionsList: layout estàndard', () => {
+  it('fa servir l\'amplada de llista, un sol h1 i el botó «Nova sessió» amb text', () => {
+    const { container } = renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Sessions');
+    expect(screen.getByRole('link', { name: 'Nova sessió' })).toHaveTextContent('Nova sessió');
   });
 });

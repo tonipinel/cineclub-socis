@@ -31,7 +31,32 @@ describe('ContingutsSessio', () => {
     for (const etiqueta of ['Descripció (SEO)', 'Ganxo', 'Sinopsi del cartell', 'Textos editorials (Markdown)']) {
       expect(screen.getByLabelText(etiqueta)).toBeInTheDocument();
     }
-    expect(screen.getByLabelText('Textos editorials (Markdown)')).toHaveAttribute('rows', '16');
+    // Migrada: abans 16 files fixes; ara el textarea creix amb el text (mínim 8 files).
+    const cos = screen.getByLabelText('Textos editorials (Markdown)');
+    expect(cos).toHaveClass('textarea-automatic', 'pagina-publica__cos');
+    expect(cos).toHaveAttribute('rows', '8');
+    const sinopsi = screen.getByLabelText('Sinopsi del cartell');
+    expect(sinopsi).toHaveClass('textarea-automatic');
+    expect(sinopsi).toHaveAttribute('rows', '3');
+  });
+
+  it('la vista prèvia va després de l\'editor', () => {
+    render(<Arnes />);
+    const previa = screen.getByRole('region', { name: 'Vista prèvia' });
+    expect(screen.getByLabelText('Textos editorials (Markdown)').compareDocumentPosition(previa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('cada camp de text públic té la seva ajuda enllaçada', () => {
+    render(<Arnes publica={{ descripcio: 'Hola' }} />);
+    expect(screen.getByLabelText('Descripció (SEO)')).toHaveAccessibleDescription(
+      "4/160 caràcters Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa el Ganxo i, si tampoc n'hi ha, un text automàtic amb el títol, l'any i la direcció.",
+    );
+    expect(screen.getByLabelText('Ganxo')).toHaveAccessibleDescription(
+      "Frase curta d'una línia que resumeix la pel·lícula. Només s'usa com a descripció de la pàgina quan «Descripció (SEO)» està buida; si ja l'has omplerta, no es mostra enlloc.",
+    );
+    expect(screen.getByLabelText('Sinopsi del cartell')).toHaveAccessibleDescription(
+      "Text breu del cartell imprimible i de la descripció de l'esdeveniment per als cercadors. Si el deixes buit, s'usa la secció «Sinopsi» del text editorial.",
+    );
   });
 
   it('compta els caràcters de la descripció i avisa si passa de 160', async () => {

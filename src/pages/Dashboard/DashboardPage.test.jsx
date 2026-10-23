@@ -63,6 +63,24 @@ describe('DashboardPage', () => {
     expect(await screen.findByText("No s'han pogut carregar les dades del dashboard.")).toBeInTheDocument();
   });
 
+  it('usa el layout de fitxa amb un únic h1', async () => {
+    mockCarrega();
+    const { container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Noves altes de socis' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Dashboard');
+  });
+
+  it("l'error de càrrega també és dins del layout, amb el seu h1", async () => {
+    getDocs.mockRejectedValue(new Error('boom'));
+    const { container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    await screen.findByText("No s'han pogut carregar les dades del dashboard.");
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard');
+  });
+
   it('mòdul Noves altes de socis: no mostra renovacions quan tots els socis estan vençuts', async () => {
     mockCarrega();
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);

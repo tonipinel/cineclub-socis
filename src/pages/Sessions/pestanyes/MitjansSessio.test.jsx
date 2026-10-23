@@ -80,6 +80,8 @@ describe('MitjansSessio', () => {
     const { container } = render(<Arnes />);
     expect(screen.getByLabelText('Pujar cartell')).toBeDisabled();
     expect(screen.getByLabelText('Afegir imatges a la galeria')).toBeDisabled();
+    expect(screen.getByLabelText('Pujar cartell')).toHaveClass('selector-fitxer__input');
+    expect(screen.getByLabelText('Afegir imatges a la galeria')).toHaveClass('selector-fitxer__input');
     expect(screen.getAllByText('Cal un slug per poder pujar imatges.')).toHaveLength(2);
     const zones = container.querySelectorAll('.zona-pujada');
     expect(zones).toHaveLength(2);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, setDoc, updateDoc, where,
@@ -11,9 +11,12 @@ import { formatData } from '../../lib/data';
 import { construirSessioDesDeProposta } from '../../lib/sessioPublica';
 import { assignarPellicula } from '../../lib/pellicules';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import BotoEditar from '../../components/BotoEditar';
 import CercadorPellicula from '../../components/CercadorPellicula';
 import FitxaPellicula from '../../components/FitxaPellicula';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import TextareaAutomatic from '../../components/TextareaAutomatic';
 import { GestioInternaCamps, GestioInternaVista, INTERNA_BUIDA } from '../../components/GestioInternaProposta';
 
 const CLASSE_ESTAT = {
@@ -42,7 +45,10 @@ export default function PropostaForm() {
   const [interna, setInterna] = useState(INTERNA_BUIDA);
   const [distribuidores, setDistribuidores] = useState([]);
   const [programant, setProgramant] = useState(false);
+  // Bloqueja un segon «Programar» mentre el diàleg de confirmació és obert.
+  const programantRef = useRef(false);
   const navigate = useNavigate();
+  const { confirma, avisa } = useConfirmacio();
 
   const carregar = useCallback(() => {
     Promise.all([
@@ -159,8 +165,16 @@ export default function PropostaForm() {
   // dins d'una transacció amb id determinista, perquè dos admins alhora no
   // puguin crear-ne dues. Si la proposta ja té sessió, només hi navega.
   const handleProgramar = async () => {
-    if (programant) return;
-    if (!window.confirm(`Vols programar una sessió amb "${dades.titol}"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».`)) return;
+    if (programant || programantRef.current) return;
+    programantRef.current = true;
+    const confirmat = await confirma({
+      missatge: `Vols programar una sessió amb "${dades.titol}"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».`,
+      etiquetaAcceptar: 'Programa',
+    });
+    if (!confirmat) {
+      programantRef.current = false;
+      return;
+    }
     setError(null);
     setProgramant(true);
     try {
@@ -177,18 +191,21 @@ export default function PropostaForm() {
         if (estat === 'aprovada') tx.update(propostaRef, { estat: 'programada' });
         return existeix;
       });
-      if (existia) window.alert('Aquesta proposta ja té una sessió: s\'obre per editar-la.');
+      if (existia) await avisa({ missatge: 'Aquesta proposta ja té una sessió: s\'obre per editar-la.' });
       navigate(ROUTES.SESSIONS_EDITAR.replace(':id', sessioId));
     } catch (e) {
       setError(e.message === ERROR_NO_APROVADA ? ERROR_NO_APROVADA : "No s'ha pogut programar la sessió. Torna-ho a provar.");
       setProgramant(false);
+      programantRef.current = false;
     }
   };
 
   const handleEliminar = async () => {
-    const confirmat = window.confirm(
-      `Segur que vols eliminar definitivament la proposta "${dades.titol}"? Aquesta acció no es pot desfer.`
-    );
+    const confirmat = await confirma({
+      missatge: `Segur que vols eliminar definitivament la proposta "${dades.titol}"? Aquesta acció no es pot desfer.`,
+      perill: true,
+      etiquetaAcceptar: 'Elimina',
+    });
     if (!confirmat) return;
     setError(null);
     try {
@@ -204,10 +221,10 @@ export default function PropostaForm() {
 
   if (!editant) {
     return (
-      <div className="proposta-fitxa">
+      <PaginaAdmin amplada="fitxa" className="proposta-fitxa">
+        <Link className="pagina-admin__tornar" to={ROUTES.PROPOSTES_PENDENTS}>← Propostes</Link>
         <header className="proposta-fitxa__hero">
           <div className="proposta-fitxa__barra">
-            <Link className="proposta-fitxa__tornar" to={ROUTES.PROPOSTES_PENDENTS}>← Propostes</Link>
             <BotoEditar onClick={() => setEditant(true)} />
           </div>
           <h1 className="proposta-fitxa__titol">{dades.titol}</h1>
@@ -284,13 +301,19 @@ export default function PropostaForm() {
             )}
           </div>
         )}
-      </div>
+      </PaginaAdmin>
     );
   }
 
   return (
-    <form className="proposta-form" onSubmit={handleSubmit}>
-      <h1 className="proposta-form__titol">{dades.titol}</h1>
+    <PaginaAdmin
+      as="form"
+      amplada="fitxa"
+      className="proposta-form"
+      titol={dades.titol}
+      tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
+      onSubmit={handleSubmit}
+    >
       {dades.enllac && (
         <p><a className="enllac" href={dades.enllac} target="_blank" rel="noopener noreferrer">{dades.enllac}</a></p>
       )}
@@ -341,12 +364,12 @@ export default function PropostaForm() {
 
       <div className="form__field">
         <label className="form__label" htmlFor="sinopsi">Sinopsi</label>
-        <textarea id="sinopsi" className="form__input" value={dades.sinopsi} onChange={handleChange('sinopsi')} />
+        <TextareaAutomatic id="sinopsi" mida="llarg" value={dades.sinopsi} onChange={handleChange('sinopsi')} />
       </div>
 
       <div className="form__field">
         <label className="form__label" htmlFor="comentari">Comentari del soci</label>
-        <textarea id="comentari" className="form__input" rows={3} value={dades.comentari} onChange={handleChange('comentari')} />
+        <TextareaAutomatic id="comentari" mida="curt" value={dades.comentari} onChange={handleChange('comentari')} />
       </div>
 
       <GestioInternaCamps interna={interna} distribuidores={distribuidores} onChange={handleCanviInterna} />
@@ -357,6 +380,6 @@ export default function PropostaForm() {
         <button className="btn btn--outline" type="button" onClick={handleCancellar}>Cancel·lar</button>
         <button className="btn btn--perill" type="button" onClick={handleEliminar}>Eliminar proposta</button>
       </div>
-    </form>
+    </PaginaAdmin>
   );
 }

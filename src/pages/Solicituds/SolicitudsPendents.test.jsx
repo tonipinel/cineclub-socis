@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -40,6 +40,9 @@ import {
   getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
 } from 'firebase/firestore';
 import SolicitudsPendents from './SolicitudsPendents';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 describe('SolicitudsPendents', () => {
   beforeEach(() => {
@@ -52,12 +55,19 @@ describe('SolicitudsPendents', () => {
     __batchDelete.mockClear();
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
-    window.confirm?.mockClear?.();
+  });
+
+  it('usa el layout de llista amb un únic h1', () => {
+    const { container } = renderAmbConfirmacio(<SolicitudsPendents />);
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Sol·licituds');
   });
 
   it('aprova una sol·licitud: assigna el següent número de soci disponible i crea el soci en un sol batch', async () => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(getDocs).toHaveBeenCalledTimes(1);
     expect(writeBatch).toHaveBeenCalledTimes(1);
@@ -70,7 +80,7 @@ describe('SolicitudsPendents', () => {
 
   it('aprova una sol·licitud: també crea el doc socisPublic amb el token del nou soci', async () => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).toHaveBeenCalledTimes(2);
@@ -82,49 +92,60 @@ describe('SolicitudsPendents', () => {
 
   it('després d\'aprovar, mostra un avís amb l\'opció de desfer', async () => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(await screen.findByText(/aprovada/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desfer' })).toBeInTheDocument();
   });
 
   it('en desfer una aprovació, elimina el soci creat i torna la sol·licitud a pendent', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent("Segur que vols desfer l'aprovació de Anna Vidal? S'eliminarà el soci creat i la sol·licitud tornarà a l'estat pendent.");
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    await acceptaDialeg('Desfés');
+    await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
     expect(writeBatch).toHaveBeenCalledTimes(2);
     expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'pendent' });
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
   });
 
   it('en desfer una aprovació, també elimina el doc socisPublic del nou soci', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const tokenCarnet = __batchSet.mock.calls[0][1].tokenCarnet;
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
+    await acceptaDialeg('Desfés');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
     expect(__batchDelete).toHaveBeenCalledWith(tokenCarnet);
   });
 
-  it('no desfà res si es cancel·la la confirmació de desfer', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no desfà res si es tanca la confirmació de desfer amb %s', async (_nom, tanca) => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchCommit).toHaveBeenCalledTimes(1);
+    expect(__batchDelete).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Desfer' })).toBeInTheDocument();
   });
 
   it('el botó "Amagar" tanca l\'avís sense desfer res', async () => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     await user.click(await screen.findByRole('button', { name: 'Amagar' }));
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
@@ -133,7 +154,7 @@ describe('SolicitudsPendents', () => {
 
   it('descarta una sol·licitud sense crear cap soci', async () => {
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
     expect(writeBatch).not.toHaveBeenCalled();
     expect(updateDoc).toHaveBeenCalledWith('sol-1', { estat: 'descartada' });
@@ -143,7 +164,7 @@ describe('SolicitudsPendents', () => {
     let resolBatch;
     __batchCommit.mockReturnValue(new Promise((resolve) => { resolBatch = resolve; }));
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
@@ -153,7 +174,7 @@ describe('SolicitudsPendents', () => {
   it('mostra un error i reactiva els botons si l\'aprovació falla', async () => {
     __batchCommit.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeEnabled();
@@ -181,7 +202,7 @@ describe('SolicitudsPendents', () => {
       });
       return () => {};
     });
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     const files = screen.getAllByRole('listitem');
     expect(files[0]).toHaveTextContent('Anna');
     expect(files[0]).toHaveTextContent('28/08/2026');
@@ -204,7 +225,7 @@ describe('SolicitudsPendents', () => {
       });
       return () => {};
     });
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     expect(await screen.findByText('12345678Z', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Roda de Berà', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('43883', { exact: false })).toBeInTheDocument();
@@ -224,7 +245,7 @@ describe('SolicitudsPendents', () => {
       return () => {};
     });
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
 
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.queryByText('Marc Serra')).not.toBeInTheDocument();
@@ -238,7 +259,7 @@ describe('SolicitudsPendents', () => {
   });
 
   it('no mostra la pestanya Aprovades, ja que en aprovar-se passa a ser un soci', async () => {
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await screen.findByText('Anna Vidal');
     expect(screen.queryByRole('button', { name: 'Aprovades' })).not.toBeInTheDocument();
   });
@@ -251,14 +272,13 @@ describe('SolicitudsPendents', () => {
       return () => {};
     });
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Descartades' }));
     await user.click(await screen.findByRole('button', { name: 'Marcar com a pendent' }));
     expect(updateDoc).toHaveBeenCalledWith('sol-descartada', { estat: 'pendent' });
   });
 
   it('a la pestanya Descartades, elimina definitivament la sol·licitud amb confirmació', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     onSnapshot.mockImplementationOnce((q, callback) => {
       callback({
         docs: [{ id: 'sol-descartada', data: () => ({ nom: 'Marc', cognoms: 'Serra', telefon: '611111111', estat: 'descartada' }) }],
@@ -266,15 +286,22 @@ describe('SolicitudsPendents', () => {
       return () => {};
     });
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Descartades' }));
     await user.click(await screen.findByRole('button', { name: 'Eliminar definitivament' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols eliminar definitivament la sol·licitud de Marc Serra? Aquesta acció no es pot desfer.');
+    expect(deleteDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Elimina');
+    await waitFor(() => expect(deleteDoc).toHaveBeenCalledTimes(1));
     expect(deleteDoc).toHaveBeenCalledWith('sol-descartada');
   });
 
-  it('no elimina res si es cancel·la la confirmació', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no elimina res si es tanca la confirmació amb %s', async (_nom, tanca) => {
     onSnapshot.mockImplementationOnce((q, callback) => {
       callback({
         docs: [{ id: 'sol-descartada', data: () => ({ nom: 'Marc', cognoms: 'Serra', telefon: '611111111', estat: 'descartada' }) }],
@@ -282,9 +309,12 @@ describe('SolicitudsPendents', () => {
       return () => {};
     });
     const user = userEvent.setup();
-    render(<SolicitudsPendents />);
+    renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Descartades' }));
     await user.click(await screen.findByRole('button', { name: 'Eliminar definitivament' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(deleteDoc).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Eliminar definitivament' })).toBeEnabled();
   });
 });

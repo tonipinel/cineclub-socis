@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -25,13 +25,45 @@ vi.mock('../../lib/adjunts', async (importOriginal) => ({
 }));
 
 import { addDoc, deleteDoc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { eliminarAdjunt, pujarAdjunt, urlAdjunt } from '../../lib/adjunts';
+import { ACCEPT_ADJUNT, eliminarAdjunt, pujarAdjunt, urlAdjunt } from '../../lib/adjunts';
 import MovimentForm from './MovimentForm';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 const MOVIMENT_EXISTENT = {
   data: '2026-03-05', concepte: 'Quotes de març', tipus: 'ingres', categoria: 'Quotes socis',
   metodePagament: 'efectiu', preuUnitari: 100, quantitat: 1, total: 100, sessionId: '',
 };
+
+describe('MovimentForm — layout', () => {
+  it("l'alta és un formulari amb el layout de fitxa i un únic h1", () => {
+    const { container } = renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/comptabilitat/nou']}>
+        <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Afegir moviment');
+  });
+
+  it("l'edició té el botó Editar a la capçalera", async () => {
+    getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
+    const { container } = renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/comptabilitat/1']}>
+        <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
+      </MemoryRouter>
+    );
+    const editar = await screen.findByRole('button', { name: 'Editar dades' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar moviment');
+    expect(editar.closest('.pagina-admin__accions')).toBeInTheDocument();
+  });
+});
 
 describe('MovimentForm — alta', () => {
   beforeEach(() => {
@@ -41,7 +73,7 @@ describe('MovimentForm — alta', () => {
 
   it('crea un ingrés amb categoria i mètode de pagament', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -70,7 +102,7 @@ describe('MovimentForm — alta', () => {
 
   it('no deixa desar un moviment amb el concepte en blanc (el navegador el bloqueja com a camp requerit)', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -83,7 +115,7 @@ describe('MovimentForm — alta', () => {
 
   it('no deixa desar un moviment amb el concepte només amb espais, i el retalla en desar-lo', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -107,7 +139,7 @@ describe('MovimentForm — alta', () => {
 
   it('en triar tipus Traspàs, desa la direcció en comptes de categoria i mètode', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -131,7 +163,7 @@ describe('MovimentForm — alta', () => {
   });
 
   it('no permet triar "Quotes socis" com a categoria (només es crea des de la fitxa del soci)', async () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -146,7 +178,7 @@ describe('MovimentForm — alta', () => {
 describe('MovimentForm — mode lectura/edició', () => {
   it('en editar un moviment existent, els camps són de només lectura per defecte', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -160,7 +192,7 @@ describe('MovimentForm — mode lectura/edició', () => {
   it('en clicar "Editar dades" apareixen Desar i Eliminar', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -174,7 +206,7 @@ describe('MovimentForm — mode lectura/edició', () => {
   it('en editar un moviment de "Quotes socis" existent, la categoria es manté visible i seleccionada', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -192,7 +224,7 @@ describe('MovimentForm — canviar tipus en editar', () => {
   it('en canviar el tipus d\'un moviment existent, no deixa camps obsolets del tipus anterior', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, categoria: 'Aportacions' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -214,7 +246,7 @@ describe('MovimentForm — canviar tipus en editar', () => {
   it('en editar un moviment de "Quotes socis", Tipus i Categoria queden bloquejats', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -228,7 +260,7 @@ describe('MovimentForm — canviar tipus en editar', () => {
   it('en editar un moviment de "Quotes socis" de tipusQuota "renovacio", Tipus i Categoria també queden bloquejats', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio', sessionId: '' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -248,7 +280,7 @@ describe('MovimentForm — numeroSoci', () => {
   it('conserva el numeroSoci d\'un moviment de quota en desar, encara que no sigui un camp editable', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, numeroSoci: 7 }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -266,7 +298,7 @@ describe('MovimentForm — numeroSoci', () => {
   it('conserva el tipusQuota d\'un moviment de quota en desar, encara que no sigui un camp editable', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio' }) });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -284,7 +316,7 @@ describe('MovimentForm — numeroSoci', () => {
 
   it('mostra "Alta nova" com a tipus de quota per defecte', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, tipusQuota: 'alta' }) });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes><Route path="/comptabilitat/:id" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -295,7 +327,7 @@ describe('MovimentForm — numeroSoci', () => {
   it('no afegeix numeroSoci a un moviment que no en tenia', async () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -317,8 +349,6 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     deleteDoc.mockClear();
     updateDoc.mockClear();
     getDocs.mockReset();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    window.confirm.mockClear();
   });
 
   afterEach(() => {
@@ -337,7 +367,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
       })
       .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -355,7 +385,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
     getDocs.mockResolvedValueOnce({ docs: [] }); // sessions (carregades al muntar el formulari)
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -376,7 +406,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
       .mockResolvedValueOnce({ docs: [{ data: () => ({ data: '2026-03-05' }) }] })
       .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -386,6 +416,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     );
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await acceptaDialeg('Elimina');
     await screen.findByText('Llibre de moviments');
     expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-03-05', inicPeriode: null });
   });
@@ -397,7 +428,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [{ ref: 'socis/abc' }] });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -407,6 +438,7 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     );
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await acceptaDialeg('Elimina');
     await screen.findByText('Llibre de moviments');
     expect(updateDoc).not.toHaveBeenCalled();
   });
@@ -415,13 +447,11 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
 describe('MovimentForm — eliminar', () => {
   beforeEach(() => {
     deleteDoc.mockClear();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    window.confirm.mockClear();
   });
 
   function renderEnEdicio() {
     getDoc.mockResolvedValueOnce({ data: () => MOVIMENT_EXISTENT });
-    return render(
+    return renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -436,24 +466,33 @@ describe('MovimentForm — eliminar', () => {
     renderEnEdicio();
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(deleteDoc).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols eliminar aquest moviment? Aquesta acció no es pot desfer.');
+    expect(deleteDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Elimina');
     expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
+    expect(deleteDoc).toHaveBeenCalledTimes(1);
   });
 
-  it('no esborra res si es cancel·la la confirmació', async () => {
-    window.confirm.mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no esborra res si es tanca la confirmació amb %s', async (_nom, tanca) => {
     const user = userEvent.setup();
     renderEnEdicio();
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(deleteDoc).not.toHaveBeenCalled();
+    expect(screen.queryByText('Llibre de moviments')).not.toBeInTheDocument();
   });
 });
 
 describe('MovimentForm — preu, quantitat i total', () => {
   it('el total sempre és de només lectura, encara que el formulari estigui desbloquejat', async () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -463,7 +502,7 @@ describe('MovimentForm — preu, quantitat i total', () => {
 
   it('quan la quantitat és 1, el total es calcula a partir del preu unitari', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -474,7 +513,7 @@ describe('MovimentForm — preu, quantitat i total', () => {
 
   it('quan la quantitat no és 1, el total es calcula com preu unitari × quantitat', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -494,7 +533,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
 
   it('no deixa desar un moviment de "Gestió pel·lícules" sense sessió', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -511,7 +550,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
   it('desa correctament un moviment de "Gestió pel·lícules" amb sessió vinculada', async () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -534,7 +573,7 @@ describe('MovimentForm — "Gestió pel·lícules" requereix sessió', () => {
 
 describe('MovimentForm — categories vàlides per tipus', () => {
   it('un ingrés només ofereix "Aportacions" com a categoria', async () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -545,7 +584,7 @@ describe('MovimentForm — categories vàlides per tipus', () => {
 
   it('una despesa només ofereix "Gestió pel·lícules" i "Gestió associació" com a categoria', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -559,7 +598,7 @@ describe('MovimentForm — categories vàlides per tipus', () => {
 describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => {
   it('no mostra el selector de sessió quan el tipus és Traspàs', async () => {
     const user = userEvent.setup();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -573,7 +612,7 @@ describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => 
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
     const user = userEvent.setup();
     addDoc.mockClear();
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -595,7 +634,7 @@ describe('MovimentForm — un traspàs no es pot vincular a cap sessió', () => 
 
 describe('MovimentForm — preomplenat via paràmetres d\'URL', () => {
   it('preomple data, tipus, categoria, concepte, preu unitari i quantitat des de la URL', async () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={[
         '/comptabilitat/nou?sessionId=s1&data=2026-03-05&tipus=ingres&categoria=Aportacions&concepte=Aportacions&preuUnitari=5&quantitat=10',
       ]}
@@ -612,7 +651,7 @@ describe('MovimentForm — preomplenat via paràmetres d\'URL', () => {
   });
 
   it('ignora una categoria de la URL que no és vàlida per al tipus indicat', async () => {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou?tipus=ingres&categoria=Gestió pel·lícules']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -624,7 +663,7 @@ describe('MovimentForm — preomplenat via paràmetres d\'URL', () => {
 describe('MovimentForm — preselecció de sessió des de la URL', () => {
   it('preselecciona la sessió quan arriba amb el paràmetre sessionId', async () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou?sessionId=s1']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -635,7 +674,7 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
 
   it('bloqueja el selector de sessió quan ve preseleccionada per URL', async () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou?sessionId=s1']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -646,7 +685,7 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
 
   it('no bloqueja el selector de sessió quan s\'obre el formulari sense sessió a la URL', async () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: '2026-05-01' }) }] });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>
@@ -659,7 +698,7 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
 describe('MovimentForm — moviment inexistent', () => {
   it('navega al llistat si el moviment no existeix', async () => {
     getDoc.mockResolvedValueOnce({ data: () => undefined });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/inexistent']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -685,7 +724,7 @@ describe('MovimentForm — document / factura adjunt', () => {
   });
 
   function renderNou() {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes>
           <Route path="/comptabilitat/nou" element={<MovimentForm />} />
@@ -696,7 +735,7 @@ describe('MovimentForm — document / factura adjunt', () => {
   }
 
   function renderEdicio() {
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/1']}>
         <Routes>
           <Route path="/comptabilitat/:id" element={<MovimentForm />} />
@@ -717,11 +756,43 @@ describe('MovimentForm — document / factura adjunt', () => {
     const user = userEvent.setup();
     renderNou();
     await omplirNou(user);
-    await user.upload(screen.getByLabelText('Document / factura'), pdf('factura.pdf'));
+    await user.upload(screen.getByLabelText('Adjuntar un document'), pdf('factura.pdf'));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByText('Llibre de moviments');
     expect(pujarAdjunt).toHaveBeenCalledWith(expect.objectContaining({ name: 'factura.pdf' }));
     expect(addDoc.mock.calls[0][1].adjunt).toEqual(ADJUNT);
+  });
+
+  it('el selector del document és dins del grup «Document / factura» i mostra el nom del fitxer triat', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    const selector = screen.getByLabelText('Adjuntar un document');
+    expect(selector).toHaveAttribute('type', 'file');
+    expect(selector).toHaveClass('selector-fitxer__input');
+    expect(selector).toHaveAttribute('accept', ACCEPT_ADJUNT);
+    expect(screen.getByRole('group', { name: 'Document / factura' })).toContainElement(selector);
+    expect(screen.getByText('Cap fitxer seleccionat')).toBeInTheDocument();
+    await user.upload(selector, pdf('factura.pdf'));
+    expect(screen.getByText('factura.pdf')).toBeInTheDocument();
+  });
+
+  it('un fitxer rebutjat no queda com a triat', async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    renderNou();
+    await user.upload(screen.getByLabelText('Adjuntar un document'), new File(['x'], 'notes.txt', { type: 'text/plain' }));
+    expect(screen.queryByText('notes.txt')).not.toBeInTheDocument();
+    expect(screen.getByText('Cap fitxer seleccionat')).toBeInTheDocument();
+  });
+
+  it('amb un document desat, el selector diu «Canviar el document»', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
+    urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
+    const user = userEvent.setup();
+    renderEdicio();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByRole('group', { name: 'Document / factura' })).toContainElement(screen.getByLabelText('Canviar el document'));
+    await user.click(screen.getByRole('button', { name: 'Treure' }));
+    expect(screen.getByLabelText('Adjuntar un document')).toBeInTheDocument();
   });
 
   it('sense cap document, no puja res ni desa cap camp adjunt', async () => {
@@ -737,7 +808,7 @@ describe('MovimentForm — document / factura adjunt', () => {
   it('rebutja un fitxer que no és PDF ni imatge', async () => {
     const user = userEvent.setup({ applyAccept: false });
     renderNou();
-    await user.upload(screen.getByLabelText('Document / factura'), new File(['x'], 'notes.txt', { type: 'text/plain' }));
+    await user.upload(screen.getByLabelText('Adjuntar un document'), new File(['x'], 'notes.txt', { type: 'text/plain' }));
     expect(screen.getByText('El document ha de ser un PDF o una imatge.')).toBeInTheDocument();
   });
 
@@ -746,7 +817,7 @@ describe('MovimentForm — document / factura adjunt', () => {
     renderNou();
     const gran = pdf('gran.pdf');
     Object.defineProperty(gran, 'size', { value: 10 * 1024 * 1024 + 1 });
-    await user.upload(screen.getByLabelText('Document / factura'), gran);
+    await user.upload(screen.getByLabelText('Adjuntar un document'), gran);
     expect(screen.getByText('El document no pot ocupar més de 10 MB.')).toBeInTheDocument();
   });
 
@@ -756,7 +827,7 @@ describe('MovimentForm — document / factura adjunt', () => {
     const user = userEvent.setup();
     renderNou();
     await omplirNou(user);
-    await user.upload(screen.getByLabelText('Document / factura'), pdf());
+    await user.upload(screen.getByLabelText('Adjuntar un document'), pdf());
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
@@ -768,7 +839,10 @@ describe('MovimentForm — document / factura adjunt', () => {
     renderEdicio();
     const enllac = await screen.findByRole('link', { name: 'factura.pdf' });
     expect(enllac).toHaveAttribute('href', 'https://storage.test/factura.pdf');
-    expect(screen.queryByLabelText('Document / factura')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Document / factura' })).toContainElement(enllac);
+    expect(screen.queryByLabelText('Adjuntar un document')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Canviar el document')).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Treure' })).not.toBeInTheDocument();
   });
 
@@ -798,7 +872,7 @@ describe('MovimentForm — document / factura adjunt', () => {
     const user = userEvent.setup();
     renderEdicio();
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    await user.upload(screen.getByLabelText('Document / factura'), pdf());
+    await user.upload(screen.getByLabelText('Canviar el document'), pdf());
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByText('Llibre de moviments');
     expect(setDoc.mock.calls[0][1].adjunt).toEqual(nou);
@@ -821,11 +895,11 @@ describe('MovimentForm — document / factura adjunt', () => {
   it('en eliminar el moviment, esborra també el seu document', async () => {
     getDoc.mockResolvedValueOnce({ data: () => ({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT }) });
     urlAdjunt.mockResolvedValue('https://storage.test/factura.pdf');
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
     renderEdicio();
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await acceptaDialeg('Elimina');
     await screen.findByText('Llibre de moviments');
     expect(deleteDoc).toHaveBeenCalled();
     expect(eliminarAdjunt).toHaveBeenCalledWith(ADJUNT.path);
@@ -840,7 +914,7 @@ describe('MovimentForm — sessions especials sense control', () => {
         { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', senseControl: true }) },
       ],
     });
-    render(
+    renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/comptabilitat/nou']}>
         <Routes><Route path="/comptabilitat/nou" element={<MovimentForm />} /></Routes>
       </MemoryRouter>

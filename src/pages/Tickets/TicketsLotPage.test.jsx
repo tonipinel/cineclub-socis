@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -26,6 +26,9 @@ vi.mock('firebase/firestore', () => ({
 
 import { onSnapshot, updateDoc } from 'firebase/firestore';
 import TicketsLotPage from './TicketsLotPage';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 function mockLotIAccessLog(lot, entradesGeneriques = []) {
   onSnapshot
@@ -40,7 +43,7 @@ function mockLotIAccessLog(lot, entradesGeneriques = []) {
 }
 
 function renderLot() {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={['/tickets/lot-1']}>
       <Routes>
         <Route path="/tickets/:id" element={<TicketsLotPage />} />
@@ -52,9 +55,21 @@ function renderLot() {
 
 describe('TicketsLotPage', () => {
   beforeEach(() => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    window.confirm.mockClear();
     updateDoc.mockClear();
+  });
+
+  it('usa el layout de fitxa amb un únic h1 i l\'enllaç estàndard per tornar als tiquets', async () => {
+    mockLotIAccessLog(LOT);
+    const { container } = renderLot();
+    await screen.findByText(/T-000001.*T-000003/);
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Tiquets T-000001 – T-000003');
+    const tornar = screen.getByRole('link', { name: '← Tiquets' });
+    expect(tornar).toHaveAttribute('href', '/tickets');
+    expect(tornar).toHaveClass('pagina-admin__tornar');
+    expect(screen.getByRole('button', { name: 'Imprimir' }).closest('.pagina-admin__accions')).toBeInTheDocument();
   });
 
   it('mostra el rang del lot i quants tiquets hi ha disponibles', async () => {
@@ -69,8 +84,23 @@ describe('TicketsLotPage', () => {
     const user = userEvent.setup();
     renderLot();
     await user.click(await screen.findByRole('button', { name: 'Marcar com imprès' }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveTextContent('Confirmes que has imprès aquest lot de tiquets?');
+    expect(dialeg).not.toHaveAttribute('role', 'alertdialog');
+    expect(updateDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Marca com imprès');
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1]).toMatchObject({ impres: true });
+  });
+
+  it('no marca el lot com imprès si es cancel·la la confirmació', async () => {
+    mockLotIAccessLog(LOT);
+    const user = userEvent.setup();
+    renderLot();
+    await user.click(await screen.findByRole('button', { name: 'Marcar com imprès' }));
+    await cancellaDialeg(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('demana confirmació i anul·la tot el lot', async () => {
@@ -78,7 +108,26 @@ describe('TicketsLotPage', () => {
     const user = userEvent.setup();
     renderLot();
     await user.click(await screen.findByRole('button', { name: 'Anul·lar tot el lot' }));
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols anul·lar tot el lot? Els tiquets encara no utilitzats deixaran de funcionar. Aquesta acció no es pot desfer.');
+    expect(updateDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Anul·la el lot');
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1]).toMatchObject({ anulat: true });
+  });
+
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no anul·la el lot si es tanca la confirmació amb %s', async (_nom, tanca) => {
+    mockLotIAccessLog(LOT);
+    const user = userEvent.setup();
+    renderLot();
+    await user.click(await screen.findByRole('button', { name: 'Anul·lar tot el lot' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('anul·la un tiquet individual no usat en clicar el seu botó "Anul·lar"', async () => {
@@ -88,8 +137,28 @@ describe('TicketsLotPage', () => {
     const botons = await screen.findAllByRole('button', { name: 'Anul·lar' });
     expect(botons).toHaveLength(3);
     await user.click(botons[0]);
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols anul·lar el tiquet T-000001?');
+    expect(updateDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Anul·la');
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayUnion', v: 'T-000001' });
+  });
+
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no anul·la el tiquet si es tanca la confirmació amb %s', async (_nom, tanca) => {
+    mockLotIAccessLog(LOT);
+    const user = userEvent.setup();
+    renderLot();
+    const botons = await screen.findAllByRole('button', { name: 'Anul·lar' });
+    await user.click(botons[0]);
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(botons[0]).toHaveFocus();
   });
 
   it('reactiva un tiquet anul·lat individualment amb el botó "Reactivar"', async () => {
@@ -97,6 +166,7 @@ describe('TicketsLotPage', () => {
     const user = userEvent.setup();
     renderLot();
     await user.click(await screen.findByRole('button', { name: 'Reactivar' }));
+    expect(hiHaDialegConfirmacio()).toBe(false);
     expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayRemove', v: 'T-000001' });
   });
 
@@ -115,6 +185,8 @@ describe('TicketsLotPage', () => {
     renderLot();
     const botons = await screen.findAllByRole('button', { name: 'Anul·lar' });
     await user.click(botons[0]);
+    await acceptaDialeg('Anul·la');
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1].codisAnulats).toEqual({ __op: 'arrayUnion', v: 'T-000001' });
   });
 

@@ -7,6 +7,7 @@ import { formatDataHora } from '../../lib/data';
 import { aData, potCrearTanda } from '../../lib/tandes';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const aMillis = (valor) => aData(valor).getTime();
 
@@ -26,11 +27,11 @@ export default function TandesList() {
   const podemCrear = potCrearTanda(tandes, ara);
 
   return (
-    <div className="tandes-list">
-      <div className="tandes-list__capcalera">
-        <h1 className="tandes-list__titol">Tandes de votació</h1>
-        <BotoAfegir to={ROUTES.TANDES_NOVA} etiqueta="Nova tanda" desactivat={!podemCrear} />
-      </div>
+    <PaginaAdmin
+      amplada="llista"
+      titol="Tandes de votació"
+      accions={<BotoAfegir to={ROUTES.TANDES_NOVA} etiqueta="Nova tanda" desactivat={!podemCrear} />}
+    >
       {!podemCrear && (
         <p className="tandes-list__avis">Ja hi ha una tanda oberta. Tanca-la abans de crear-ne una de nova.</p>
       )}
@@ -48,6 +49,6 @@ export default function TandesList() {
           );
         })}
       </ul>
-    </div>
+    </PaginaAdmin>
   );
 }

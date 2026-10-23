@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -27,9 +27,12 @@ import {
   getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchCommit,
 } from 'firebase/firestore';
 import RegistrarPagamentPage from './RegistrarPagamentPage';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 function renderPagina() {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={['/socis/1/pagament']}>
       <Routes>
         <Route path="/socis/:id/pagament" element={<RegistrarPagamentPage />} />
@@ -48,8 +51,20 @@ describe('RegistrarPagamentPage', () => {
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
     getDocs.mockClear();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    window.confirm.mockClear();
+  });
+
+  it('usa el layout de formulari amb un únic h1', async () => {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 35 }) });
+    const { container } = renderPagina();
+    await screen.findByLabelText('Import (€)');
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--formulari');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Registrar pagament');
+    expect(screen.getByText('Anna Vidal')).toHaveClass('pagament-form__soci');
   });
 
   it("omple l'import per defecte amb la quota anual configurada", async () => {
@@ -79,6 +94,7 @@ describe('RegistrarPagamentPage', () => {
     await user.clear(campData);
     await user.type(campData, '2026-03-10');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     expect(await screen.findByText('Fitxa del soci')).toBeInTheDocument();
 
     expect(writeBatch).toHaveBeenCalledTimes(1);
@@ -104,6 +120,7 @@ describe('RegistrarPagamentPage', () => {
     renderPagina();
     await screen.findByLabelText('Import (€)');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     expect(getDocs).not.toHaveBeenCalledWith('socis');
     expect(__batchUpdate.mock.calls[0][1].numeroSoci).toBeUndefined();
@@ -126,23 +143,33 @@ describe('RegistrarPagamentPage', () => {
     renderPagina();
     await screen.findByLabelText('Import (€)');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
 
     expect(__batchUpdate.mock.calls[0][1].numeroSoci).toBe(42);
     expect(__batchSet.mock.calls[1][1].numeroSoci).toBe(42);
   });
 
-  it('demana confirmació abans de desar', async () => {
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('demana confirmació abans de desar i no desa res si es tanca amb %s', async (_nom, tanca) => {
     getDoc
       .mockResolvedValueOnce({ id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) })
       .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'Sessió Test', data: '2026-03-10' }) }] });
-    window.confirm.mockReturnValueOnce(false);
     const user = userEvent.setup();
     renderPagina();
     await screen.findByLabelText('Import (€)');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveTextContent(/^Confirmes que has rebut un pagament de 30€ amb data .+\? Aquesta acció no es pot desfer\.Cancel·larRegistra$/);
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchCommit).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Registrar pagament' })).toBeEnabled();
+    expect(screen.queryByText('Fitxa del soci')).not.toBeInTheDocument();
   });
 
   it('en una renovació, preomple la data amb el venciment del soci (no amb avui), perquè l\'ultimPagament avanci exactament un any', async () => {
@@ -181,6 +208,7 @@ describe('RegistrarPagamentPage', () => {
     expect(await screen.findByLabelText('Sessió')).toHaveValue('propera');
     await user.selectOptions(screen.getByLabelText('Sessió'), 'llunyana');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     expect(__batchSet.mock.calls[1][1].sessionId).toBe('llunyana');
   });
@@ -197,6 +225,7 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByDisplayValue('30');
     await user.selectOptions(screen.getByLabelText('Sessió'), 'Sessió de test');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
   });
@@ -217,6 +246,7 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByDisplayValue('30');
     await user.selectOptions(screen.getByLabelText('Sessió'), 'Sessió de test');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).toHaveBeenCalledWith('tok-9', { numeroSoci: 9, nomPublic: 'Organització Cineclub Roda de Berà' });
   });
@@ -235,6 +265,7 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByDisplayValue('30');
     await user.selectOptions(screen.getByLabelText('Sessió'), 'Sessió de test');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).not.toHaveBeenCalledWith('tok-1', expect.anything());
     expect(__batchSet).toHaveBeenCalledTimes(1);
@@ -251,7 +282,8 @@ describe('RegistrarPagamentPage', () => {
     renderPagina();
     expect(await screen.findByText(/Aquest soci està desactivat \(Mal comportament\)/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
-    expect(window.confirm.mock.calls[0][0]).toMatch(/continuarà desactivat/);
+    expect(await dialegConfirmacio()).toHaveTextContent(/continuarà desactivat/);
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     expect(writeBatch).toHaveBeenCalledTimes(1);
   });
@@ -266,7 +298,6 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     __batchCommit.mockResolvedValue(undefined);
     getDocs.mockReset();
     getDocs.mockResolvedValue({ docs: [] });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   it('sense cap moviment de quota previ, és una alta: cal triar sessió i es desa amb tipusQuota "alta"', async () => {
@@ -278,6 +309,7 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     renderPagina();
     expect(await screen.findByLabelText('Sessió')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     const [, moviment] = __batchSet.mock.calls[1];
     expect(moviment.categoria).toBe('Quotes socis');
@@ -294,6 +326,7 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     await screen.findByLabelText('Sessió');
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
     expect(await screen.findByText(/Una alta nova ha d'estar vinculada a una sessió/)).toBeInTheDocument();
+    expect(hiHaDialegConfirmacio()).toBe(false);
     expect(writeBatch).not.toHaveBeenCalled();
   });
 
@@ -308,6 +341,7 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     renderPagina();
     expect(await screen.findByLabelText('Sessió')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     const [, moviment] = __batchSet.mock.calls[1];
     expect(moviment.categoria).toBe('Quotes socis');
@@ -329,6 +363,7 @@ describe('RegistrarPagamentPage — alta vs renovació', () => {
     expect(screen.getByText(/pagament de renovació/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Sessió')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     const [, moviment] = __batchSet.mock.calls[1];
     expect(moviment.categoria).toBe('Quotes socis');

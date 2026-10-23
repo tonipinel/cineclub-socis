@@ -131,3 +131,16 @@ describe('sense vista pública', () => {
     expect(screen.queryByText(/vista pública/i)).not.toBeInTheDocument();
   });
 });
+
+describe('layout estàndard', () => {
+  it('fa servir l\'amplada de llista, un sol h1 i el botó «Nova proposta» amb text', async () => {
+    const { container } = render(<MemoryRouter><PropostesPendents /></MemoryRouter>);
+    await screen.findByRole('link', { name: 'Amélie' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Propostes de programació');
+    const boto = screen.getByRole('link', { name: 'Nova proposta' });
+    expect(within(boto).getByText('Nova proposta')).toHaveClass('btn-icona__text');
+  });
+});

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import * as ROUTES from '../constants/routes';
 import { formatEuros } from '../lib/moviments';
 import { urlWeb } from '../lib/distribuidores';
+import TextareaAutomatic from './TextareaAutomatic';
 
 export const INTERNA_BUIDA = { preu: '', condicions: '', distribuidoraId: '' };
 
@@ -95,10 +96,9 @@ export function GestioInternaCamps({ interna, distribuidores, onChange }) {
       </div>
       <div className="form__field">
         <label className="form__label" htmlFor="condicions">Condicions especials</label>
-        <textarea
+        <TextareaAutomatic
           id="condicions"
-          className="form__input"
-          rows={3}
+          mida="curt"
           value={interna.condicions}
           onChange={onChange('condicions')}
           placeholder={distribuidora?.condicions ? `Per defecte: ${distribuidora.condicions}` : ''}

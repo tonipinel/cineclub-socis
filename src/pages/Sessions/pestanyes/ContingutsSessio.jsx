@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AVIS_DESCRIPCIO } from '../../../lib/sessioPublica';
 import { ESQUELET } from '../camps';
+import TextareaAutomatic from '../../../components/TextareaAutomatic';
 import Camp from './Camp';
 
 // Markdown → HTML sanejat. `marked` i `dompurify` es carreguen només quan es fan servir.
@@ -8,6 +9,10 @@ async function renderitzar(cos) {
   const [{ marked }, { default: DOMPurify }] = await Promise.all([import('marked'), import('dompurify')]);
   return DOMPurify.sanitize(await marked.parse(cos));
 }
+
+const AJUDA_DESCRIPCIO = "Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa el Ganxo i, si tampoc n'hi ha, un text automàtic amb el títol, l'any i la direcció.";
+const AJUDA_GANXO = "Frase curta d'una línia que resumeix la pel·lícula. Només s'usa com a descripció de la pàgina quan «Descripció (SEO)» està buida; si ja l'has omplerta, no es mostra enlloc.";
+const AJUDA_SINOPSI_CARTELL = "Text breu del cartell imprimible i de la descripció de l'esdeveniment per als cercadors. Si el deixes buit, s'usa la secció «Sinopsi» del text editorial.";
 
 function VistaPrevia({ cos }) {
   const [html, setHtml] = useState('');
@@ -40,18 +45,23 @@ export default function ContingutsSessio({ form, onCanviForm, errors }) {
         <Camp
           camp="descripcio"
           etiqueta="Descripció (SEO)"
-          ajuda={`${form.descripcio.length}/160 caràcters`}
+          ajuda={(
+            <>
+              <span>{form.descripcio.length}/160 caràcters</span>{' '}
+              <span>{AJUDA_DESCRIPCIO}</span>
+            </>
+          )}
           avis={form.descripcio.trim().length > 160 ? AVIS_DESCRIPCIO : ''}
           {...props}
         />
-        <Camp camp="hook" etiqueta="Ganxo" {...props} />
-        <Camp camp="sinopsiCartell" etiqueta="Sinopsi del cartell" {...props}>
-          <textarea
+        <Camp camp="hook" etiqueta="Ganxo" ajuda={AJUDA_GANXO} {...props} />
+        <Camp camp="sinopsiCartell" etiqueta="Sinopsi del cartell" ajuda={AJUDA_SINOPSI_CARTELL} {...props}>
+          <TextareaAutomatic
             id="publica-sinopsiCartell"
-            className="form__input"
-            rows={4}
+            mida="curt"
             value={form.sinopsiCartell}
             onChange={(e) => onCanviForm('sinopsiCartell', e.target.value)}
+            aria-describedby="publica-sinopsiCartell-ajuda"
           />
         </Camp>
       </section>
@@ -66,10 +76,10 @@ export default function ContingutsSessio({ form, onCanviForm, errors }) {
               ajuda="Apartats amb «## Sinopsi», «## Context», «## Curiositats» i «## Per què l'hem programat?»."
               {...props}
             >
-              <textarea
+              <TextareaAutomatic
                 id="publica-cos"
-                className="form__input pagina-publica__cos"
-                rows={16}
+                mida="llarg"
+                className="pagina-publica__cos"
                 value={form.cos}
                 onChange={(e) => onCanviForm('cos', e.target.value)}
                 aria-describedby="publica-cos-ajuda"

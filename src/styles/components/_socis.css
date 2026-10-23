@@ -1,15 +1,3 @@
-.socis-list {
-  @apply p-6;
-}
-.socis-list__capcalera {
-  @apply mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-black/10 pb-4;
-}
-.socis-list__accions {
-  @apply flex flex-wrap items-center gap-2;
-}
-.socis-list__titol {
-  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
-}
 .socis-list__filtres-wrap {
   @apply mb-4 grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out md:grid-rows-[1fr] md:transition-none;
 }
@@ -23,7 +11,7 @@
   @apply w-full md:w-auto;
 }
 .socis-list__taula-wrap {
-  @apply -mx-6 md:mx-0;
+  @apply -mx-4 sm:-mx-6 md:mx-0;
 }
 .socis-list__taula {
   @apply w-full min-w-[720px] border-collapse text-left;
@@ -80,7 +68,7 @@
   @apply border-red-600 bg-red-600 text-white;
 }
 .soci-form-pagina {
-  @apply mx-auto flex max-w-4xl flex-col gap-6 p-6 md:flex-row md:items-start;
+  @apply flex flex-col gap-6 md:flex-row md:items-start;
 }
 .soci-form-pagina__accions {
   @apply flex w-full flex-col gap-2 md:w-auto md:flex-shrink-0;
@@ -106,17 +94,8 @@
 .soci-form {
   @apply flex max-w-xl flex-1 flex-col gap-2;
 }
-.soci-form__capcalera {
-  @apply flex items-center justify-between gap-2;
-}
-.soci-form__capcalera-accions {
-  @apply flex items-center gap-2;
-}
 .soci-form__pagament-mobil {
   @apply md:hidden;
-}
-.soci-form__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
 }
 .soci-form__dades-clau {
   @apply -mt-2 mb-2 flex flex-col gap-0.5;
@@ -138,7 +117,7 @@
   @apply bg-black/5;
 }
 .soci-form__contingut {
-  @apply mx-auto flex max-w-4xl flex-col gap-4 p-6;
+  @apply mx-auto flex max-w-5xl flex-col gap-4 p-4 sm:p-6;
 }
 .soci-form__subtitol {
   @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
@@ -193,10 +172,7 @@
   @apply border-black/30 text-black/50;
 }
 .pagament-form {
-  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
-}
-.pagament-form__titol {
-  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+  @apply flex flex-col gap-2;
 }
 .pagament-form__soci {
   @apply -mt-2 mb-2 font-body text-sm text-black/70;

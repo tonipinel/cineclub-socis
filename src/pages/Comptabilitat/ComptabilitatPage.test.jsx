@@ -88,7 +88,7 @@ describe('ComptabilitatPage', () => {
   it('filtra per tipus', async () => {
     const user = userEvent.setup();
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'despesa');
+    await user.selectOptions(screen.getByLabelText('Filtra per tipus'), 'despesa');
     expect(screen.queryByText('Quotes de març')).not.toBeInTheDocument();
     expect(screen.getByText('Lloguer de sala')).toBeInTheDocument();
   });
@@ -112,6 +112,28 @@ describe('ComptabilitatPage', () => {
     expect(screen.getByRole('link', { name: 'Afegir moviment' })).toBeInTheDocument();
   });
 
+  it('usa el layout de llista amb un únic h1 i el botó «Afegir moviment» amb text', () => {
+    const { container } = render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Comptabilitat');
+    const afegir = screen.getByRole('link', { name: 'Afegir moviment' });
+    expect(afegir).toHaveAttribute('href', '/comptabilitat/nou');
+    expect(afegir.querySelector('.btn-icona__text')).toHaveTextContent('Afegir moviment');
+  });
+
+  it('tots els filtres tenen nom accessible', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    expect(screen.getByLabelText('Filtra per tipus').tagName).toBe('SELECT');
+    const categoria = screen.getByLabelText('Filtra per categoria');
+    await user.selectOptions(categoria, 'Quotes socis');
+    expect(categoria).toHaveValue('Quotes socis');
+    expect(screen.getByLabelText('Filtra per sessió').tagName).toBe('SELECT');
+    for (const camp of screen.getAllByRole('combobox')) expect(camp).toHaveAccessibleName();
+  });
+
   it('no mostra cap badge de mètode buit a les files de traspàs', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     const fila = screen.getByText('Traspàs a banc').closest('tr');
@@ -123,7 +145,7 @@ describe('ComptabilitatPage', () => {
     const user = userEvent.setup();
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     await screen.findByRole('option', { name: 'The Artist' });
-    await user.selectOptions(screen.getAllByRole('combobox')[2], 's1');
+    await user.selectOptions(screen.getByLabelText('Filtra per sessió'), 's1');
     expect(screen.getByText('Quotes de març')).toBeInTheDocument();
     expect(screen.queryByText('Lloguer de sala')).not.toBeInTheDocument();
   });

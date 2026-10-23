@@ -144,6 +144,18 @@ describe('EscaneigLogPage', () => {
     mockSessionsIErrors([], []);
     renderPagina();
     await screen.findByText('Encara no s\'ha registrat cap incidència.');
-    expect(screen.getByRole('link', { name: /Tornar a l'escaneig/ })).toHaveAttribute('href', '/escaneig');
+    const tornar = screen.getByRole('link', { name: '← Escaneig' });
+    expect(tornar).toHaveAttribute('href', '/escaneig');
+    expect(tornar).toHaveClass('pagina-admin__tornar');
+  });
+
+  it('usa el layout de llista amb un únic h1', async () => {
+    mockSessionsIErrors([], []);
+    const { container } = renderPagina();
+    await screen.findByText('Encara no s\'ha registrat cap incidència.');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--llista', 'escaneig-log');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent("Incidències d'escaneig");
   });
 });

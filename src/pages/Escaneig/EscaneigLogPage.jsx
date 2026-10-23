@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   collection, limit, onSnapshot, orderBy, query,
 } from 'firebase/firestore';
@@ -7,6 +6,7 @@ import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { formatDataHora } from '../../lib/data';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const MOTIU_ETIQUETES = {
   'codi-desconegut': 'Codi no reconegut',
@@ -65,13 +65,12 @@ export default function EscaneigLogPage() {
   if (errors === null) return <Carregant />;
 
   return (
-    <div className="escaneig-log">
-      <div className="escaneig-log__capcalera">
-        <div>
-          <Link className="escaneig-log__tornar" to={ROUTES.ESCANEIG}>← Tornar a l'escaneig</Link>
-          <h1 className="escaneig-log__titol">Incidències d'escaneig</h1>
-        </div>
-      </div>
+    <PaginaAdmin
+      amplada="llista"
+      className="escaneig-log"
+      titol="Incidències d'escaneig"
+      tornar={{ to: ROUTES.ESCANEIG, etiqueta: 'Escaneig' }}
+    >
 
       {errors.length === 0 ? (
         <p className="escaneig-log__buit">Encara no s'ha registrat cap incidència.</p>
@@ -94,6 +93,6 @@ export default function EscaneigLogPage() {
           ))}
         </ul>
       )}
-    </div>
+    </PaginaAdmin>
   );
 }

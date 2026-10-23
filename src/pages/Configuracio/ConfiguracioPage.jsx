@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import Carregant from '../../components/Carregant';
 import BotoEditar from '../../components/BotoEditar';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 const CAMPS_INICIALS = { quotaAnual: '30', numeroCompte: '' };
 
@@ -48,11 +49,14 @@ export default function ConfiguracioPage() {
   if (carregant) return <Carregant />;
 
   return (
-    <form className="configuracio-form" onSubmit={handleSubmit}>
-      <div className="configuracio-form__capcalera">
-        <h1 className="configuracio-form__titol">Configuració de l'associació</h1>
-        {!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
-      </div>
+    <PaginaAdmin
+      as="form"
+      amplada="formulari"
+      className="configuracio-form"
+      onSubmit={handleSubmit}
+      titol="Configuració de l'associació"
+      accions={!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+    >
 
       <p className="configuracio-form__ajuda">
         Aquestes dades s'utilitzen, per exemple, al correu de benvinguda que reben les noves sol·licituds d'alta.
@@ -76,6 +80,6 @@ export default function ConfiguracioPage() {
       {desat && <p className="configuracio-form__confirmacio">Desat correctament.</p>}
 
       {desbloquejat && <button className="btn" type="submit">Desar</button>}
-    </form>
+    </PaginaAdmin>
   );
 }

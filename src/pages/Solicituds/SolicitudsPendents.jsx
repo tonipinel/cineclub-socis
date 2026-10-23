@@ -3,6 +3,8 @@ import {
   collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import { solicitudASoci } from '../../lib/solicitudASoci';
 import { properNumeroSoci } from '../../lib/numeroSoci';
 import { avui, formatDataHora } from '../../lib/data';
@@ -30,6 +32,7 @@ const CAMPS_DETALL = [
 ];
 
 export default function SolicitudsPendents() {
+  const { confirma } = useConfirmacio();
   const [solicituds, setSolicituds] = useState([]);
   const [filtre, setFiltre] = useState('pendent');
   const [processant, setProcessant] = useState(() => new Set());
@@ -81,10 +84,12 @@ export default function SolicitudsPendents() {
 
   const desferAprovacio = async () => {
     if (!ultimaAprovacio) return;
-    const confirmat = window.confirm(
-      `Segur que vols desfer l'aprovació de ${ultimaAprovacio.nom} ${ultimaAprovacio.cognoms}? `
-      + "S'eliminarà el soci creat i la sol·licitud tornarà a l'estat pendent."
-    );
+    const confirmat = await confirma({
+      missatge: `Segur que vols desfer l'aprovació de ${ultimaAprovacio.nom} ${ultimaAprovacio.cognoms}? `
+        + "S'eliminarà el soci creat i la sol·licitud tornarà a l'estat pendent.",
+      perill: true,
+      etiquetaAcceptar: 'Desfés',
+    });
     if (!confirmat) return;
     setErrorDesfer(null);
     try {
@@ -122,9 +127,11 @@ export default function SolicitudsPendents() {
   };
 
   const eliminarDefinitivament = async (solicitud) => {
-    const confirmat = window.confirm(
-      `Segur que vols eliminar definitivament la sol·licitud de ${solicitud.nom} ${solicitud.cognoms}? Aquesta acció no es pot desfer.`
-    );
+    const confirmat = await confirma({
+      missatge: `Segur que vols eliminar definitivament la sol·licitud de ${solicitud.nom} ${solicitud.cognoms}? Aquesta acció no es pot desfer.`,
+      perill: true,
+      etiquetaAcceptar: 'Elimina',
+    });
     if (!confirmat) return;
     marcarProcessant(solicitud.id, true);
     setErrors((prev) => ({ ...prev, [solicitud.id]: null }));
@@ -141,8 +148,7 @@ export default function SolicitudsPendents() {
     .sort((a, b) => (b.timestamp?.toDate?.()?.getTime() ?? 0) - (a.timestamp?.toDate?.()?.getTime() ?? 0));
 
   return (
-    <div className="solicituds-pendents">
-      <h1 className="solicituds-pendents__titol">Sol·licituds</h1>
+    <PaginaAdmin amplada="llista" titol="Sol·licituds">
 
       <div className="solicituds-pendents__filtres">
         {FILTRES.map(([valor, etiqueta]) => (
@@ -287,6 +293,6 @@ export default function SolicitudsPendents() {
           );
         })}
       </ul>
-    </div>
+    </PaginaAdmin>
   );
 }

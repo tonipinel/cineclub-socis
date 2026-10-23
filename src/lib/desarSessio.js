@@ -1,5 +1,6 @@
 // Lògica pura de "Desar" d'una sessió: validació de la fitxa pública, alies, URL de programació i diff.
 // Sense Firestore: les altres sessions i la confirmació de l'alies arriben per paràmetre.
+// `confirmarAlias` pot tornar un booleà o una promesa d'un booleà (el diàleg de confirmació).
 import {
   afegirAlias, camiPublic, ERROR_DESCRIPCIO, formulariAPublica, marcarActualitzada, netejarPublica, urlPublica, validarPublicable,
 } from './sessioPublica';
@@ -22,7 +23,7 @@ export function campsCanviats(dades, original, publicaForm, publicaInicial) {
   };
 }
 
-export function prepararDesat({
+export async function prepararDesat({
   id, dades, publicaForm, publicaInicial, original, altresSessions, ara = new Date(), confirmarAlias,
 }) {
   const publicaCanviada = !igual(publicaForm, publicaInicial);
@@ -45,7 +46,7 @@ export function prepararDesat({
   let aliasNou = false;
   if (nou.publicada && (publicaPerPrimerCop || camiCanviat)) nou.urlProgramacio = urlPublica(nou.data, nou.slug);
   if (camiAntic && camiCanviat) {
-    if (!confirmarAlias()) return { errors: {}, cancelat: true, dadesADesar: {}, canvis: {}, publicaFinal: undefined };
+    if (!(await confirmarAlias())) return { errors: {}, cancelat: true, dadesADesar: {}, canvis: {}, publicaFinal: undefined };
     aliasNou = true;
     publica = { ...netejarPublica(publica), aliases: afegirAlias(publica?.aliases, camiAntic) };
   }

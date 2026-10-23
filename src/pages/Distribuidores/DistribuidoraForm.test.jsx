@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -20,9 +20,12 @@ import {
   addDoc, deleteDoc, getDoc, getDocs, setDoc,
 } from 'firebase/firestore';
 import DistribuidoraForm from './DistribuidoraForm';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 function renderNova() {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={['/distribuidores/nova']}>
       <Routes>
         <Route path="/distribuidores/nova" element={<DistribuidoraForm />} />
@@ -33,7 +36,7 @@ function renderNova() {
 }
 
 function renderExistent() {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={['/distribuidores/d1']}>
       <Routes>
         <Route path="/distribuidores/:id" element={<DistribuidoraForm />} />
@@ -50,7 +53,6 @@ describe('DistribuidoraForm', () => {
     deleteDoc.mockClear();
     getDoc.mockReset();
     getDocs.mockReset();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   it('crea una distribuïdora amb nom, web, persona i correu de contacte', async () => {
@@ -113,8 +115,29 @@ describe('DistribuidoraForm', () => {
     renderExistent();
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent('Segur que vols eliminar aquesta distribuïdora? Aquesta acció no es pot desfer.');
+    expect(deleteDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Elimina');
     expect(await screen.findByText('Llistat de distribuïdores')).toBeInTheDocument();
     expect(deleteDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no elimina la distribuïdora si es tanca el diàleg amb %s', async (_nom, tanca) => {
+    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Atalante' }) });
+    getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+    expect(deleteDoc).not.toHaveBeenCalled();
+    expect(screen.queryByText('Llistat de distribuïdores')).not.toBeInTheDocument();
   });
 
   it('no deixa eliminar una distribuïdora que ja fa servir alguna proposta', async () => {
@@ -125,6 +148,36 @@ describe('DistribuidoraForm', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     expect(await screen.findByText("No es pot eliminar: s'està fent servir en 2 proposta(es).")).toBeInTheDocument();
+    expect(hiHaDialegConfirmacio()).toBe(false);
     expect(deleteDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('DistribuidoraForm: layout estàndard', () => {
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDoc.mockResolvedValue({ data: () => ({ nom: 'Atalante', condicions: 'Només dimecres' }) });
+  });
+
+  it('nova: formulari estret amb un sol h1 i l\'enllaç «← Distribuïdores»', () => {
+    const { container } = renderNova();
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--formulari');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Nova distribuïdora');
+    expect(screen.getByRole('link', { name: '← Distribuïdores' })).toHaveAttribute('href', '/distribuidores');
+  });
+
+  it('les condicions creixen amb el text i, en lectura, segueixen sent de només lectura', async () => {
+    const user = userEvent.setup();
+    renderExistent();
+    const condicions = await screen.findByLabelText('Condicions per defecte');
+    expect(condicions).toHaveClass('textarea-automatic', 'form__input--nomes-lectura');
+    expect(condicions).toHaveAttribute('readonly');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Editar dades' }));
+    expect(screen.getByLabelText('Condicions per defecte')).not.toHaveClass('form__input--nomes-lectura');
+    expect(screen.getByLabelText('Condicions per defecte')).not.toHaveAttribute('readonly');
   });
 });

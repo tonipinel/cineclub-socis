@@ -31,7 +31,7 @@ export default function CapcaleraSessio({
 
   return (
     <header className="fitxa-sessio__capcalera">
-      <Link className="enllac fitxa-sessio__tornar" to={ROUTES.SESSIONS}>← Sessions</Link>
+      <Link className="pagina-admin__tornar" to={ROUTES.SESSIONS}>← Sessions</Link>
       <div className="fitxa-sessio__capcalera-cos">
         {imatge && <img className="fitxa-sessio__cartell" src={imatge} alt={original.titol} />}
         <div className="fitxa-sessio__capcalera-text">

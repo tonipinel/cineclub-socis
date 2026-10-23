@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   collection, deleteDoc, doc, getDocs, onSnapshot,
 } from 'firebase/firestore';
@@ -10,6 +10,10 @@ import {
   propostesEfectives, resumirResultats,
 } from '../../lib/tandes';
 import Carregant from '../../components/Carregant';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
+
+const TORNAR = { to: ROUTES.TANDES, etiqueta: 'Tandes' };
 
 const ICONES = { like: '👍', dislike: '👎' };
 const VOTS_TEXT = { like: 'M\'agrada', dislike: 'No m\'agrada' };
@@ -29,6 +33,7 @@ const etiquetaEstat = ({ estat, votats, total }) => {
 export default function TandaResultats() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
   const [tanda, setTanda] = useState(null);
   const [vots, setVots] = useState(null);
   const [referencies, setReferencies] = useState(null);
@@ -81,10 +86,12 @@ export default function TandaResultats() {
   const esborrarVots = async (fila) => {
     const nom = fila.nom || `Núm. ${fila.numeroSoci}`;
     const tancada = aData(tanda.tanca) <= new Date();
-    const confirmat = window.confirm(
-      `Segur que vols esborrar tots els vots de ${nom} (${fila.votats} de ${fila.total})? `
-      + `Aquesta acció no es pot desfer. ${tancada ? 'El resultat final de la tanda canviarà.' : 'El soci podrà tornar a votar.'}`
-    );
+    const confirmat = await confirma({
+      missatge: `Segur que vols esborrar tots els vots de ${nom} (${fila.votats} de ${fila.total})? `
+        + `Aquesta acció no es pot desfer. ${tancada ? 'El resultat final de la tanda canviarà.' : 'El soci podrà tornar a votar.'}`,
+      perill: true,
+      etiquetaAcceptar: 'Esborra',
+    });
     if (!confirmat) return;
     setErrorEsborrar(null);
     setEsborrant(fila.numeroSoci);
@@ -99,10 +106,10 @@ export default function TandaResultats() {
 
   if (error) {
     return (
-      <div className="tanda-resultats">
+      <PaginaAdmin amplada="fitxa" titol="Resultats" tornar={TORNAR}>
         <p className="tanda-resultats__error" role="alert">No s'han pogut carregar els resultats. Torna-ho a provar.</p>
         <button type="button" className="btn" onClick={tornarAProvar}>Tornar a provar</button>
-      </div>
+      </PaginaAdmin>
     );
   }
 
@@ -124,11 +131,7 @@ export default function TandaResultats() {
   const visibles = filtre === 'tots' ? files : files.filter((f) => f.estat === filtre);
 
   return (
-    <div className="tanda-resultats">
-      <div className="tandes-list__capcalera">
-        <h1 className="tandes-list__titol">Resultats: {tanda.nom}</h1>
-        <Link className="tandes-list__tornar" to={ROUTES.TANDES}>Tornar</Link>
-      </div>
+    <PaginaAdmin amplada="fitxa" titol={`Resultats: ${tanda.nom}`} tornar={TORNAR}>
       <p className="tanda-resultats__participants">
         {haVotat} de {elegibles.tots} han votat · {elegibles.completat} han completat · {pendents} pendents
       </p>
@@ -229,6 +232,6 @@ export default function TandaResultats() {
           </table>
         </div>
       )}
-    </div>
+    </PaginaAdmin>
   );
 }

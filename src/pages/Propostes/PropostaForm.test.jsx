@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
@@ -23,6 +23,9 @@ import {
 } from 'firebase/firestore';
 import { assignarPellicula, cercarPellicules } from '../../lib/pellicules';
 import PropostaForm from './PropostaForm';
+import {
+  acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
+} from '../../test/confirmacio';
 
 const SOCIS = [
   { id: 's7', nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 },
@@ -42,7 +45,7 @@ function UbicacioProva() {
 }
 
 function renderFormulari() {
-  return render(
+  return renderAmbConfirmacio(
     <MemoryRouter initialEntries={['/propostes/pendents/p1']}>
       <Routes>
         <Route path="/propostes/pendents/:id" element={<PropostaForm />} />
@@ -61,8 +64,6 @@ describe('PropostaForm', () => {
     getDocs.mockReset();
     cercarPellicules.mockReset().mockResolvedValue([]);
     assignarPellicula.mockReset();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -145,15 +146,21 @@ describe('PropostaForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Eliminar proposta' }));
 
-    expect(window.confirm).toHaveBeenCalledWith(
+    const dialeg = await dialegConfirmacio();
+    expect(dialeg).toHaveAttribute('role', 'alertdialog');
+    expect(dialeg).toHaveTextContent(
       'Segur que vols eliminar definitivament la proposta "Amélie"? Aquesta acció no es pot desfer.'
     );
+    expect(deleteDoc).not.toHaveBeenCalled();
+    await acceptaDialeg('Elimina');
     expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
     expect(deleteDoc).toHaveBeenCalledTimes(2);
   });
 
-  it('no elimina la proposta si es cancel·la la confirmació', async () => {
-    window.confirm.mockReturnValue(false);
+  it.each([
+    ['Cancel·lar', (user) => cancellaDialeg(user)],
+    ['ESC', (user) => tancaDialegAmbEsc(user)],
+  ])('no elimina la proposta si es tanca la confirmació amb %s', async (_nom, tanca) => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'Amélie', numeroSoci: 7, estat: 'pendent' }),
     });
@@ -163,9 +170,12 @@ describe('PropostaForm', () => {
     await obrirEdicio(user);
 
     await user.click(screen.getByRole('button', { name: 'Eliminar proposta' }));
+    await tanca(user);
+    await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
 
     expect(deleteDoc).not.toHaveBeenCalled();
     expect(screen.getByText('Amélie')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Eliminar proposta' })).toHaveFocus();
   });
 
   it('el cercador comença amb el títol de la proposta i, en triar una pel·lícula, carrega la fitxa de TMDB al formulari', async () => {
@@ -449,8 +459,14 @@ describe('PropostaForm', () => {
       runTransaction.mockImplementation(async (_db, fn) => fn(tx));
     }
 
-    async function programar(user) {
+    async function obrirProgramar(user) {
       await user.click(await screen.findByRole('button', { name: 'Programar sessió' }));
+      return dialegConfirmacio();
+    }
+
+    async function programar(user) {
+      await obrirProgramar(user);
+      await acceptaDialeg('Programa');
     }
 
     function senseEscripturesFora() {
@@ -504,10 +520,16 @@ describe('PropostaForm', () => {
       const user = userEvent.setup();
       renderFormulari();
       await programar(user);
+      expect(await screen.findByText("Aquesta proposta ja té una sessió: s'obre per editar-la.")).toBeInTheDocument();
+      // L'avís surt abans de navegar, i navega en tancar-lo.
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      const avis = await dialegConfirmacio();
+      expect(avis.querySelectorAll('button')).toHaveLength(1);
+      await acceptaDialeg('Entesos');
       expect(await screen.findByText('Edició de sessió a /sessions/sX')).toBeInTheDocument();
       expect(tx.set).not.toHaveBeenCalled();
       expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
-      expect(window.alert).toHaveBeenCalledTimes(1);
+      expect(runTransaction).toHaveBeenCalledTimes(1);
       senseEscripturesFora();
     });
 
@@ -516,6 +538,8 @@ describe('PropostaForm', () => {
       const user = userEvent.setup();
       renderFormulari();
       await programar(user);
+      expect(await screen.findByText("Aquesta proposta ja té una sessió: s'obre per editar-la.")).toBeInTheDocument();
+      await acceptaDialeg('Entesos');
       expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
       expect(tx.set).not.toHaveBeenCalled();
     });
@@ -531,14 +555,37 @@ describe('PropostaForm', () => {
       expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
     });
 
-    it('si cancel·les la confirmació no fa res', async () => {
+    it('la confirmació explica què passarà, sense perill i amb «Programa»', async () => {
       preparar();
-      window.confirm.mockReturnValue(false);
       const user = userEvent.setup();
       renderFormulari();
-      await programar(user);
+      const dialeg = await obrirProgramar(user);
+      expect(dialeg).toHaveTextContent('Vols programar una sessió amb "Amélie"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».');
+      expect(dialeg).not.toHaveAttribute('role', 'alertdialog');
       expect(runTransaction).not.toHaveBeenCalled();
+      expect(getDocs.mock.calls.some(([ref]) => ref.path === 'sessions')).toBe(false);
+    });
+
+    it.each([
+      ['Cancel·lar', (user) => cancellaDialeg(user)],
+      ['ESC', (user) => tancaDialegAmbEsc(user)],
+    ])('si tanques la confirmació amb %s no fa res i es pot tornar a programar', async (_nom, tanca) => {
+      preparar();
+      const user = userEvent.setup();
+      renderFormulari();
+      await obrirProgramar(user);
+      await tanca(user);
+      await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
+      expect(runTransaction).not.toHaveBeenCalled();
+      expect(tx.set).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
       expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      senseEscripturesFora();
+      // El bloqueig contra dobles execucions s'allibera en cancel·lar.
+      expect(screen.getByRole('button', { name: 'Programar sessió' })).toBeEnabled();
+      await programar(user);
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(runTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('si la transacció falla mostra l\'error i no navega', async () => {
@@ -561,8 +608,45 @@ describe('PropostaForm', () => {
       const user = userEvent.setup();
       renderFormulari();
       await user.dblClick(await screen.findByRole('button', { name: 'Programar sessió' }));
+      await dialegConfirmacio();
+      expect(document.querySelectorAll('dialog.dialeg-confirmacio')).toHaveLength(1);
+      await acceptaDialeg('Programa');
       await screen.findByText(/Edició de sessió/);
       expect(runTransaction).toHaveBeenCalledTimes(1);
+      expect(hiHaDialegConfirmacio()).toBe(false);
     });
+  });
+});
+
+describe('PropostaForm: layout estàndard', () => {
+  beforeEach(() => {
+    getDocs.mockReset();
+    getDoc.mockReset();
+    getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'Amélie', numeroSoci: 7, estat: 'pendent' }) });
+    getDoc.mockResolvedValue({ data: () => undefined });
+    mockSocis();
+  });
+
+  it('en lectura: amplada de fitxa, un sol h1 i l\'enllaç «← Propostes»', async () => {
+    const { container } = renderFormulari();
+    await screen.findByRole('heading', { level: 1, name: 'Amélie' });
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
+  });
+
+  it('en edició: formulari d\'amplada de fitxa, un sol h1, «← Propostes» i textareas que creixen', async () => {
+    const user = userEvent.setup();
+    const { container } = renderFormulari();
+    await obrirEdicio(user);
+    expect(container.firstChild.tagName).toBe('FORM');
+    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    const titols = screen.getAllByRole('heading', { level: 1 });
+    expect(titols).toHaveLength(1);
+    expect(titols[0]).toHaveTextContent('Amélie');
+    expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
+    for (const etiqueta of ['Sinopsi', 'Comentari del soci', 'Condicions especials']) {
+      expect(screen.getByLabelText(etiqueta)).toHaveClass('textarea-automatic');
+    }
   });
 });

@@ -46,6 +46,16 @@ describe('ZonaPujada', () => {
     expect(screen.getByLabelText('Afegir imatges a la galeria')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
   });
 
+  it('el control de fitxers és el selector en català i mostra quants fitxers s\'han triat', async () => {
+    muntar();
+    const input = screen.getByLabelText('Afegir imatges a la galeria');
+    expect(input).toHaveClass('selector-fitxer__input');
+    expect(input).toHaveAttribute('multiple');
+    expect(screen.getByText('Cap fitxer seleccionat')).toBeInTheDocument();
+    await userEvent.upload(input, [fitxer('a.jpg'), fitxer('b.jpg')]);
+    expect(screen.getByText('2 fitxers')).toBeInTheDocument();
+  });
+
   it('desactivada, deixar anar no fa res i se\'n veu el motiu', () => {
     const { onFitxers, zona } = muntar({ habilitada: false });
     fireEvent.drop(zona, { dataTransfer: { files: [fitxer('a.jpg')] } });

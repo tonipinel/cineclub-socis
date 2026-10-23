@@ -7,6 +7,7 @@ import { formatEuros } from '../../lib/moviments';
 import { urlWeb } from '../../lib/distribuidores';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
+import PaginaAdmin from '../../components/PaginaAdmin';
 
 export default function DistribuidoresList() {
   const [distribuidores, setDistribuidores] = useState(null);
@@ -21,14 +22,12 @@ export default function DistribuidoresList() {
   if (distribuidores === null) return <Carregant />;
 
   return (
-    <div className="distribuidores-list">
-      <div className="distribuidores-list__capcalera">
-        <div>
-          <Link className="distribuidores-list__tornar" to={ROUTES.PROPOSTES_PENDENTS}>← Propostes</Link>
-          <h1 className="distribuidores-list__titol">Distribuïdores</h1>
-        </div>
-        <BotoAfegir to={ROUTES.DISTRIBUIDORES_NOVA} etiqueta="Nova distribuïdora" />
-      </div>
+    <PaginaAdmin
+      amplada="llista"
+      titol="Distribuïdores"
+      tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
+      accions={<BotoAfegir to={ROUTES.DISTRIBUIDORES_NOVA} etiqueta="Nova distribuïdora" />}
+    >
       {distribuidores.length === 0 && <p>Encara no hi ha cap distribuïdora.</p>}
       <ul className="distribuidores-list__llista">
         {distribuidores.map((d) => (
@@ -48,6 +47,6 @@ export default function DistribuidoresList() {
           </li>
         ))}
       </ul>
-    </div>
+    </PaginaAdmin>
   );
 }

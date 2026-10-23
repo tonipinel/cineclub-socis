@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import { avui, formatData } from '../../lib/data';
 
 const QUANTITAT_MAXIMA = 500;
@@ -14,6 +16,7 @@ export default function TicketsPage() {
   const [generant, setGenerant] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     const q = query(collection(db, 'lotsTiquets'), orderBy('numeroInicial', 'desc'));
@@ -28,9 +31,10 @@ export default function TicketsPage() {
       setError(`La quantitat ha de ser un número enter entre 1 i ${QUANTITAT_MAXIMA}.`);
       return;
     }
-    const confirmat = window.confirm(
-      `Es reservaran ${n} números de tiquet nous. Un cop generats no es tornaran a repetir. Vols continuar?`
-    );
+    const confirmat = await confirma({
+      missatge: `Es reservaran ${n} números de tiquet nous. Un cop generats no es tornaran a repetir. Vols continuar?`,
+      etiquetaAcceptar: 'Genera',
+    });
     if (!confirmat) return;
     setError(null);
     setGenerant(true);
@@ -62,11 +66,11 @@ export default function TicketsPage() {
   };
 
   return (
-    <div className="tickets-pagina">
-      <div className="tickets-pagina__capcalera">
-        <h1 className="tickets-pagina__titol">Tiquets genèrics</h1>
-
-        <div className="tickets-pagina__formulari">
+    <PaginaAdmin
+      amplada="llista"
+      titol="Tiquets genèrics"
+      accions={(
+        <div className="tickets-generar">
           <div className="form__field form__field--curt">
             <label className="form__label" htmlFor="quantitat-tiquets">Quantitat</label>
             <input
@@ -109,8 +113,8 @@ export default function TicketsPage() {
             </svg>
           </button>
         </div>
-      </div>
-
+      )}
+    >
       {error && <p className="form__error">{error}</p>}
 
       <ul className="tickets-llista">
@@ -127,6 +131,6 @@ export default function TicketsPage() {
           </li>
         ))}
       </ul>
-    </div>
+    </PaginaAdmin>
   );
 }

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
+import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import BotoEditar from '../../components/BotoEditar';
+import PaginaAdmin from '../../components/PaginaAdmin';
+import TextareaAutomatic from '../../components/TextareaAutomatic';
 
 const CAMPS_BUITS = {
   nom: '', web: '', contacte: '', correu: '', preu: '', condicions: '',
@@ -20,6 +23,7 @@ export default function DistribuidoraForm() {
   const [desbloquejat, setDesbloquejat] = useState(!editant);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { confirma } = useConfirmacio();
 
   useEffect(() => {
     if (!editant) return;
@@ -68,7 +72,11 @@ export default function DistribuidoraForm() {
         setError(`No es pot eliminar: s'està fent servir en ${enUs.docs.length} proposta(es).`);
         return;
       }
-      if (!window.confirm('Segur que vols eliminar aquesta distribuïdora? Aquesta acció no es pot desfer.')) return;
+      if (!(await confirma({
+        missatge: 'Segur que vols eliminar aquesta distribuïdora? Aquesta acció no es pot desfer.',
+        perill: true,
+        etiquetaAcceptar: 'Elimina',
+      }))) return;
       await deleteDoc(doc(db, 'distribuidores', id));
       navigate(ROUTES.DISTRIBUIDORES);
     } catch {
@@ -81,13 +89,15 @@ export default function DistribuidoraForm() {
   const classeCamp = desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura';
 
   return (
-    <form className="distribuidora-form" onSubmit={handleSubmit}>
-      <Link className="distribuidores-list__tornar" to={ROUTES.DISTRIBUIDORES}>← Distribuïdores</Link>
-      <div className="distribuidora-form__capcalera">
-        <h1 className="distribuidora-form__titol">{editant ? 'Distribuïdora' : 'Nova distribuïdora'}</h1>
-        {editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
-      </div>
-
+    <PaginaAdmin
+      as="form"
+      amplada="formulari"
+      className="distribuidora-form"
+      titol={editant ? 'Distribuïdora' : 'Nova distribuïdora'}
+      tornar={{ to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' }}
+      accions={editant && !desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
+      onSubmit={handleSubmit}
+    >
       <div className="form__field">
         <label className="form__label" htmlFor="nom">Nom</label>
         <input id="nom" className={classeCamp} value={dades.nom} onChange={handleChange('nom')} readOnly={!desbloquejat} required />
@@ -110,7 +120,14 @@ export default function DistribuidoraForm() {
       </div>
       <div className="form__field">
         <label className="form__label" htmlFor="condicions">Condicions per defecte</label>
-        <textarea id="condicions" className={classeCamp} rows={3} value={dades.condicions} onChange={handleChange('condicions')} readOnly={!desbloquejat} />
+        <TextareaAutomatic
+          id="condicions"
+          mida="curt"
+          className={desbloquejat ? undefined : 'form__input--nomes-lectura'}
+          value={dades.condicions}
+          onChange={handleChange('condicions')}
+          readOnly={!desbloquejat}
+        />
         <p className="distribuidora-form__ajuda">
           S'apliquen a totes les pel·lícules d'aquesta distribuïdora que no tinguin un preu o unes condicions propis.
         </p>
@@ -121,6 +138,6 @@ export default function DistribuidoraForm() {
       {editant && desbloquejat && (
         <button className="btn btn--outline" type="button" onClick={handleEliminar}>Eliminar</button>
       )}
-    </form>
+    </PaginaAdmin>
   );
 }
