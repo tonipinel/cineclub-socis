@@ -48,7 +48,7 @@ const AMPLADES = [375, 320];
 const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
   editar: '[aria-label="Editar dades"]',
-  calendari: '.sessions-list__accions .btn--outline',
+  calendari: '.sessions-list__accions [aria-label="Sincronitzar el calendari"]',
 };
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],

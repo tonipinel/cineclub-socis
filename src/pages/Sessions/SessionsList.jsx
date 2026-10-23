@@ -55,7 +55,27 @@ export default function SessionsList() {
       <div className="sessions-list__capcalera">
         <h1 className="sessions-list__titol">Sessions</h1>
         <div className="sessions-list__accions">
-          <button type="button" className="btn btn--outline" onClick={() => setSincronitzant(true)}>Sincronitzar el calendari</button>
+          <button
+            type="button"
+            className="btn-icona"
+            onClick={() => setSincronitzant(true)}
+            aria-label="Sincronitzar el calendari"
+            title="Sincronitzar el calendari"
+          >
+            <svg
+              className="btn-icona__icona"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </svg>
+          </button>
           <BotoAfegir to={ROUTES.SESSIONS_NOVA} etiqueta="Nova sessió" />
         </div>
       </div>

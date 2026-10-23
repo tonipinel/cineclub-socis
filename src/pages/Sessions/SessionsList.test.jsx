@@ -133,4 +133,25 @@ describe('SessionsList', () => {
     expect(screen.getByRole('dialog', { name: 'Sincronitzar el calendari' })).toBeInTheDocument();
     expect(await screen.findByText('Tot sincronitzat')).toBeInTheDocument();
   });
+
+  it('el botó del calendari és d\'icona: aria-label, title, sense text visible i obre el panell', () => {
+    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    const boto = screen.getByRole('button', { name: 'Sincronitzar el calendari' });
+    expect(boto).toHaveAttribute('aria-label', 'Sincronitzar el calendari');
+    expect(boto).toHaveAttribute('title', 'Sincronitzar el calendari');
+    expect(boto).toHaveClass('btn-icona');
+    expect(boto).toHaveTextContent('');
+    expect(boto.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(boto);
+    expect(screen.getByRole('dialog', { name: 'Sincronitzar el calendari' })).toBeInTheDocument();
+  });
+
+  it('en tancar el panell el focus torna al botó del calendari', () => {
+    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    const boto = screen.getByRole('button', { name: 'Sincronitzar el calendari' });
+    boto.focus();
+    fireEvent.click(boto);
+    fireEvent.click(screen.getByRole('button', { name: 'Tancar el diàleg' }));
+    expect(boto).toHaveFocus();
+  });
 });
