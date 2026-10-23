@@ -46,7 +46,8 @@ export const RUTES = [
   '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1',
   '/configuracio',
   '/distribuidores', '/distribuidores/nova', '/distribuidores/d1',
-  '/propostes/pendents', '/propostes/pendents/nova', '/propostes/pendents/p1',
+  '/propostes/pendents', '/propostes/pendents?vista=tandes', '/propostes/pendents?estat=aprovada&tanda=cap',
+  '/propostes/pendents/nova', '/propostes/pendents/p1',
   '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t1/resultats',
 ];
 const AMPLADES = [375, 320];
@@ -85,6 +86,9 @@ const ESTATS_PER_RUTA = {
   '/configuracio': ['editar'],
   '/distribuidores/d1': ['editar'],
   '/propostes/pendents/p1': ['editar'],
+  '/propostes/pendents': ['filtres'],
+  '/propostes/pendents?vista=tandes': ['filtres'],
+  '/propostes/pendents?estat=aprovada&tanda=cap': ['filtres'],
 };
 
 const esLocal = (url) => {

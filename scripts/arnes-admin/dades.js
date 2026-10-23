@@ -27,6 +27,7 @@ const CORREU_LLARG = 'programacio.i.drets.de.projeccio.publica@distribuidora-de-
 const PARAULA_LLARGA = 'Supercalifragilisticexpialidocious-Anticonstitucionalissimament-Electroencefalografistes';
 // Cartell més ample que qualsevol mòbil (SVG en línia: no fa cap petició).
 const CARTELL_AMPLE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="#BF9000"/><text x="40" y="460" font-size="120">CARTELL AMPLE</text></svg>')}`;
+const CARTELL_VERTICAL = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600"><rect width="400" height="600" fill="#1f3a5f"/><text x="30" y="320" font-size="48" fill="#fff">CARTELL 2:3</text></svg>')}`;
 
 const TITOLS = [
   'Els paraigües de Cherbourg: edició restaurada i remasteritzada en 4K amb material inèdit',
@@ -253,7 +254,8 @@ export function dadesInicials() {
       numeroSoci: 1000 + i,
       nomProposant: `${NOMS[i % NOMS.length]} ${COGNOMS[i % COGNOMS.length]}`,
       comentari: i === 1 ? `L'he vist tres cops i cada cop m'agrada més. ${URL_LLARGA}` : 'Molt recomanable.',
-      imatgeUrl: i % 2 ? CARTELL_AMPLE : '',
+      // Cartell vertical (el normal) a p3; amples a la resta de senars; sense cartell a les parells.
+      imatgeUrl: (i === 3 && CARTELL_VERTICAL) || (i % 2 ? CARTELL_AMPLE : ''),
       trailerUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       enllac: URL_LLARGA,
       sinopsi: `${'Una sinopsi llarga, molt llarga, que no s\'acaba mai. '.repeat(10)}${PARAULA_LLARGA}`,
@@ -281,6 +283,21 @@ export function dadesInicials() {
       distribuidoraId: `d${(i % 6) + 1}`,
     };
   }
+
+  // Fora de cap tanda: una sense `timestamp` i una amb una distribuïdora de nom llarguíssim.
+  d['propostes/p21'] = { titol: 'Proposta sense data', estat: 'pendent', numeroSoci: 1021, nomProposant: 'Laia Llorens' };
+  d['propostes/p22'] = {
+    titol: `${TITOLS[4]} (còpia nova)`, estat: 'aprovada', numeroSoci: 1022, nomProposant: `${NOMS[0]} ${COGNOMS[0]}`, timestamp: ts(1),
+  };
+  d['distribuidores/d7'] = {
+    nom: `Distribuïdora Internacional de Cinema d'Autor, Restauracions i Drets Audiovisuals del Mediterrani Occidental ${PARAULA_LLARGA}`,
+    preu: 99,
+    condicions: '',
+  };
+  d['propostesInternes/p22'] = { preu: null, condicions: null, distribuidoraId: 'd7' };
+  // Sessions vinculades a propostes (a més de ses2 → p2).
+  d['sessions/ses4'].propostaId = 'p4';
+  d['sessions/ses6'].propostaId = 'p12';
 
   // --- Tandes de votació.
   const idsPropostes = Array.from({ length: 20 }, (_, i) => `p${i + 1}`);

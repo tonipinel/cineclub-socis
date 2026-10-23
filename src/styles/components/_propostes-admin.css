@@ -1,17 +1,111 @@
+/* Llistat de propostes: xips d'estat, cerca, vista i filtres plegables en mòbil (com a SocisList) */
+.propostes-pendents__eines {
+  @apply mb-3 flex flex-col gap-3;
+}
+.propostes-pendents__xips {
+  @apply flex flex-wrap gap-2;
+}
+/* Inactiu: text negre sobre blanc amb vora visible; actiu: fons daurat amb text negre */
+.propostes-pendents__xip {
+  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-black/50 bg-white px-3 py-1 font-body text-sm font-semibold text-black hover:bg-black/5;
+}
+.propostes-pendents__xip--actiu {
+  @apply border-gold-dark bg-gold hover:bg-gold;
+}
+.propostes-pendents__xip-recompte {
+  @apply rounded-full bg-black/10 px-1.5 text-xs font-bold;
+}
+.propostes-pendents__barra {
+  @apply flex flex-wrap items-center gap-2;
+}
+.propostes-pendents__cerca {
+  @apply min-w-0 basis-full md:flex-1 md:basis-0;
+}
+.propostes-pendents__vista {
+  @apply inline-flex overflow-hidden rounded border border-black/50;
+}
+.propostes-pendents__vista-boto {
+  @apply cursor-pointer border-0 bg-white px-3 py-2 font-body text-sm font-semibold text-black hover:bg-black/5;
+}
+.propostes-pendents__vista-boto + .propostes-pendents__vista-boto {
+  @apply border-l border-black/50;
+}
+.propostes-pendents__vista-boto--actiu {
+  @apply bg-gold hover:bg-gold;
+}
+.propostes-pendents__filtres-wrap {
+  @apply grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out md:grid-rows-[1fr] md:transition-none;
+}
+.propostes-pendents__filtres-wrap--obert {
+  @apply grid-rows-[1fr];
+}
+.propostes-pendents__filtres {
+  @apply flex flex-wrap gap-2 overflow-hidden;
+}
+.propostes-pendents__filtres .form__input {
+  @apply w-full min-w-0 md:w-auto md:max-w-sm;
+}
+.propostes-pendents__resum {
+  @apply mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm;
+}
+.propostes-pendents__total {
+  @apply m-0 font-semibold text-black/70;
+}
+.propostes-pendents__netejar {
+  @apply cursor-pointer border-0 bg-transparent p-0 font-body text-sm font-semibold text-black underline hover:text-gold-dark;
+}
+.propostes-pendents__buit {
+  @apply flex flex-col items-start gap-3 py-6;
+}
+.propostes-pendents__ordenar {
+  @apply cursor-pointer border-0 bg-transparent p-0 text-left font-display font-bold uppercase tracking-wide text-gold-dark;
+}
+.propostes-pendents__tandes {
+  @apply m-0 flex list-none flex-col gap-1 p-0;
+}
+.propostes-pendents__tanda {
+  @apply mb-8;
+}
+.propostes-pendents__tanda-capcalera {
+  @apply mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-dashed border-black/30 pb-2 text-sm;
+}
+.propostes-pendents__tanda-titol {
+  @apply m-0 w-full min-w-0 font-display text-xl font-bold uppercase wrap-anywhere md:w-auto;
+}
+.propostes-pendents__tanda-tanca,
+.propostes-pendents__tanda-recompte {
+  @apply text-black/70;
+}
+.propostes-pendents__tanda-resultats {
+  @apply font-semibold md:ml-auto;
+}
 .propostes-pendents__taula-wrap {
   @apply -mx-4 sm:-mx-6 md:mx-0;
 }
 .propostes-pendents__taula {
-  @apply w-full border-collapse text-left text-sm;
+  @apply w-full min-w-[880px] border-collapse text-left text-sm;
 }
 .propostes-pendents__taula th {
-  @apply border-b-2 border-black/20 px-2 py-2 font-display font-bold uppercase tracking-wide text-gold-dark;
+  @apply whitespace-nowrap border-b-2 border-black/20 px-2 py-2;
 }
 .propostes-pendents__taula td {
-  @apply border-b border-black/10 px-2 py-3;
+  @apply border-b border-black/10 px-2 py-3 align-top wrap-anywhere;
 }
-.propostes-pendents__preu {
-  @apply whitespace-nowrap;
+.propostes-pendents__taula .propostes-pendents__cella--titol {
+  @apply min-w-48 font-semibold;
+}
+/* Amples mínims perquè cap columna no quedi en una lletra per línia (la taula fa scroll en mòbil) */
+.propostes-pendents__taula .propostes-pendents__cella--proposant,
+.propostes-pendents__taula .propostes-pendents__cella--sessio {
+  @apply min-w-32;
+}
+.propostes-pendents__taula .propostes-pendents__cella--distribuidora,
+.propostes-pendents__taula .propostes-pendents__cella--tanda {
+  @apply min-w-44;
+}
+.propostes-pendents__taula .propostes-pendents__cella--preu,
+.propostes-pendents__taula .propostes-pendents__cella--estat {
+  @apply whitespace-nowrap [overflow-wrap:normal];
 }
 .propostes-pendents__per-defecte {
   @apply cursor-help font-semibold text-gold-dark;
@@ -62,6 +156,9 @@
 }
 .proposta-fitxa__gestio {
   @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] content-start gap-x-4 gap-y-2 border-t-2 border-dashed border-black/30 pt-6 text-sm;
+}
+.proposta-fitxa__tandes {
+  @apply m-0 flex list-none flex-col gap-1 p-0 wrap-anywhere;
 }
 .proposta-fitxa__comentari {
   @apply italic;
@@ -125,7 +222,7 @@
 }
 /* La fila ocupa tot l'ample; a escriptori, columnes alineades (nom flexible, estat, data, «Resultats» a la dreta) */
 .tandes-list__item {
-  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[minmax(0,1fr)_5.5rem_16rem_5rem];
+  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[minmax(0,1fr)_5.5rem_16rem_6.5rem_5rem];
 }
 .tandes-list__nom {
   @apply w-full min-w-0 text-base font-semibold wrap-anywhere lg:w-auto;
@@ -135,6 +232,9 @@
 }
 .tandes-list__tanca {
   @apply flex-1 text-black/70 lg:flex-none;
+}
+.tandes-list__propostes {
+  @apply whitespace-nowrap;
 }
 .tandes-list__resultats {
   @apply lg:justify-self-end;
@@ -147,6 +247,83 @@
 }
 .tanda-form__avis {
   @apply m-0 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
+}
+.tanda-form__eines {
+  @apply flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4;
+}
+.tanda-form__cerca {
+  @apply min-w-0 sm:max-w-md sm:flex-1;
+}
+.tanda-form__recompte {
+  @apply m-0 text-sm font-semibold text-black/70 sm:text-right;
+}
+.tanda-form__sense-resultats {
+  @apply m-0 text-sm text-black/60;
+}
+.tanda-form__graella {
+  @apply m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2;
+}
+.tanda-form__graella-item {
+  @apply flex min-w-0;
+}
+
+/* Targeta seleccionable d'una proposta: la casella sempre visible perquè l'estat no depengui només del color */
+.carta-proposta-tanda {
+  @apply flex w-full min-w-0 cursor-pointer gap-3 rounded border border-black/15 bg-white p-2 font-body text-sm text-black transition hover:border-black/40;
+}
+.carta-proposta-tanda:has(.carta-proposta-tanda__casella:focus-visible) {
+  @apply outline-2 outline-offset-2 outline-gold-dark;
+}
+.carta-proposta-tanda--seleccionada {
+  @apply border-gold bg-gold/10 ring-1 ring-gold hover:border-gold;
+}
+.carta-proposta-tanda--desactivada {
+  @apply cursor-not-allowed hover:border-black/15;
+}
+/* Bloquejada: s'apaguen el cartell i el text, però no la casella, perquè marcada/no marcada es continuï llegint */
+.carta-proposta-tanda--desactivada .carta-proposta-tanda__cartell {
+  @apply opacity-50;
+}
+.carta-proposta-tanda--desactivada .carta-proposta-tanda__titol,
+.carta-proposta-tanda--desactivada .carta-proposta-tanda__context,
+.carta-proposta-tanda--desactivada .carta-proposta-tanda__preu {
+  @apply text-black/50;
+}
+.carta-proposta-tanda--desactivada.carta-proposta-tanda--seleccionada {
+  @apply hover:border-gold;
+}
+.carta-proposta-tanda__cartell {
+  @apply block aspect-[2/3] w-14 flex-shrink-0 self-start rounded-sm bg-black/10 object-cover;
+}
+.carta-proposta-tanda__cartell--buit {
+  @apply border border-black/10;
+}
+.carta-proposta-tanda__dades {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+.carta-proposta-tanda__capcalera {
+  @apply flex items-start gap-2;
+}
+.carta-proposta-tanda__casella {
+  @apply mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer appearance-none rounded-sm border border-black/60 bg-white checked:border-gold-dark checked:bg-gold-dark disabled:cursor-not-allowed;
+}
+/* Casella pròpia (no la nativa) perquè, bloquejada, la marca continuï ben visible */
+.carta-proposta-tanda__casella:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+.carta-proposta-tanda__titol {
+  @apply min-w-0 font-semibold wrap-anywhere;
+}
+.carta-proposta-tanda__context {
+  @apply flex flex-col gap-0.5 text-xs text-black/70;
+}
+.carta-proposta-tanda__proposant,
+.carta-proposta-tanda__distribuidora {
+  @apply wrap-anywhere;
+}
+.carta-proposta-tanda__preu {
+  @apply font-semibold text-black;
 }
 .tanda-form__accions {
   @apply mt-2 flex flex-wrap items-center gap-3;
