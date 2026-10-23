@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
@@ -61,7 +61,7 @@ describe('PropostaForm', () => {
     updateDoc.mockClear();
     deleteDoc.mockClear();
     setDoc.mockClear();
-    getDocs.mockReset();
+    getDocs.mockReset().mockResolvedValue({ docs: [] });
     cercarPellicules.mockReset().mockResolvedValue([]);
     assignarPellicula.mockReset();
   });
@@ -369,7 +369,12 @@ describe('PropostaForm', () => {
       mockCarrega({ proposta: { titol: 'Amélie', numeroSoci: 7, estat: 'aprovada' }, interna: undefined });
       renderFormulari();
       await screen.findByText('Gestió interna');
-      expect(screen.getAllByText('—')).toHaveLength(3);
+      const buit = (etiqueta) => screen.getByText(etiqueta).nextElementSibling;
+      expect(buit('Tandes')).toHaveTextContent('—');
+      expect(buit('Sessió')).toHaveTextContent('—');
+      for (const etiqueta of ['Distribuïdora', 'Preu', 'Condicions especials']) {
+        expect(buit(etiqueta)).toHaveTextContent('—');
+      }
     });
 
     it('en editar, desa el preu, les condicions i la distribuïdora a la col·lecció privada', async () => {
@@ -493,9 +498,16 @@ describe('PropostaForm', () => {
       preparar();
       const user = userEvent.setup();
       renderFormulari();
+      await screen.findByRole('button', { name: 'Programar sessió' });
+      const consultesPropostaId = () => where.mock.calls.filter((c) => c[0] === 'propostaId' && c[1] === '==' && c[2] === 'p1').length;
+      const lecturesSessions = () => getDocs.mock.calls.filter(([ref]) => ref.path === 'sessions').length;
+      const whereAbans = consultesPropostaId();
+      const lecturesAbans = lecturesSessions();
       await programar(user);
       expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
-      expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
+      // La fitxa ja ha fet la seva pròpia consulta en carregar: «Programar» n'afegeix exactament una.
+      expect(consultesPropostaId()).toBe(whereAbans + 1);
+      expect(lecturesSessions()).toBe(lecturesAbans + 1);
       expect(tx.set).toHaveBeenCalledTimes(1);
       const [ref, sessio] = tx.set.mock.calls[0];
       expect(ref.path).toBe('sessions/proposta-p1');
@@ -559,11 +571,15 @@ describe('PropostaForm', () => {
       preparar();
       const user = userEvent.setup();
       renderFormulari();
+      await screen.findByRole('button', { name: 'Programar sessió' });
+      const lecturesSessions = () => getDocs.mock.calls.filter(([ref]) => ref.path === 'sessions').length;
+      const abans = lecturesSessions();
       const dialeg = await obrirProgramar(user);
       expect(dialeg).toHaveTextContent('Vols programar una sessió amb "Amélie"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».');
       expect(dialeg).not.toHaveAttribute('role', 'alertdialog');
       expect(runTransaction).not.toHaveBeenCalled();
-      expect(getDocs.mock.calls.some(([ref]) => ref.path === 'sessions')).toBe(false);
+      // La lectura de la fitxa ja ha consultat les sessions; programar no n'hi afegeix cap abans de confirmar.
+      expect(lecturesSessions()).toBe(abans);
     });
 
     it.each([
@@ -620,7 +636,7 @@ describe('PropostaForm', () => {
 
 describe('PropostaForm: layout estàndard', () => {
   beforeEach(() => {
-    getDocs.mockReset();
+    getDocs.mockReset().mockResolvedValue({ docs: [] });
     getDoc.mockReset();
     getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'Amélie', numeroSoci: 7, estat: 'pendent' }) });
     getDoc.mockResolvedValue({ data: () => undefined });
@@ -648,5 +664,113 @@ describe('PropostaForm: layout estàndard', () => {
     for (const etiqueta of ['Sinopsi', 'Comentari del soci', 'Condicions especials']) {
       expect(screen.getByLabelText(etiqueta)).toHaveClass('textarea-automatic');
     }
+  });
+});
+
+describe('PropostaForm: enllaços amb tandes i sessió', () => {
+  const futur = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const passat = new Date('2026-01-31T20:00:00');
+  const TANDES = [
+    { id: 't1', nom: 'Gener', propostes: ['p1', 'p9'], tanca: { toDate: () => passat } },
+    { id: 't2', nom: 'Novembre', propostes: ['p1'], tanca: { toDate: () => futur } },
+    { id: 't3', nom: 'Altra', propostes: ['p9'], tanca: { toDate: () => passat } },
+    { id: 't4', nom: 'Corrupta', propostes: 'p1', tanca: { toDate: () => passat } },
+  ];
+  const docsDe = (llista) => ({ docs: llista.map((d) => ({ id: d.id, data: () => d })) });
+
+  function mockCarrega({ tandes = [], sessions = [], falla = [] } = {}) {
+    getDoc.mockReset();
+    getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'Amélie', numeroSoci: 7, estat: 'aprovada' }) });
+    getDoc.mockResolvedValue({ data: () => undefined });
+    collection.mockImplementation((_db, nom) => nom);
+    getDocs.mockReset();
+    getDocs.mockImplementation((ruta) => {
+      if (falla.includes(ruta)) return Promise.reject(new Error('boom'));
+      return Promise.resolve(docsDe({ socis: SOCIS, distribuidores: [], tandes, sessions }[ruta]));
+    });
+  }
+
+  afterEach(() => collection.mockReset());
+
+  it('mostra les tandes que contenen la proposta (amb «(oberta)») i la sessió, enllaçades', async () => {
+    mockCarrega({
+      tandes: TANDES,
+      sessions: [{ id: 's5', titol: 'Sessió Amélie', propostaId: 'p1' }, { id: 's8', titol: 'Una altra', propostaId: 'p9' }],
+    });
+    renderFormulari();
+    const gener = await screen.findByRole('link', { name: 'Gener' });
+    expect(gener).toHaveAttribute('href', '/tandes/t1');
+    expect(screen.getByRole('link', { name: 'Novembre' })).toHaveAttribute('href', '/tandes/t2');
+    expect(screen.queryByRole('link', { name: 'Altra' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Corrupta' })).not.toBeInTheDocument();
+    const dd = gener.closest('dd');
+    expect(dd).toHaveTextContent('Novembre (oberta)');
+    expect(dd).not.toHaveTextContent('Gener (oberta)');
+    expect(screen.getByText('Tandes').nextElementSibling).toBe(dd);
+    const sessio = await screen.findByRole('link', { name: 'Sessió Amélie' });
+    expect(sessio).toHaveAttribute('href', '/sessions/s5');
+    expect(screen.getByText('Sessió').nextElementSibling).toContainElement(sessio);
+    expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
+  });
+
+  it('llista les tandes com al llistat (oberta primer, després per tancament descendent), una per línia', async () => {
+    const tanca = (iso) => ({ toDate: () => new Date(iso) });
+    mockCarrega({
+      tandes: [
+        { id: 'a', nom: 'Tanda antiga amb un nom molt llarg', propostes: ['p1'], tanca: tanca('2025-03-01T20:00:00') },
+        { id: 'o', nom: 'Oberta', propostes: ['p1'], tanca: { toDate: () => futur } },
+        { id: 'r', nom: 'Recent', propostes: ['p1'], tanca: tanca('2026-05-01T20:00:00') },
+      ],
+    });
+    renderFormulari();
+    await screen.findByRole('link', { name: 'Oberta' });
+    const dd = screen.getByText('Tandes').nextElementSibling;
+    const items = within(dd).getAllByRole('listitem');
+    expect(items.map((li) => li.textContent)).toEqual(['Oberta (oberta)', 'Recent', 'Tanda antiga amb un nom molt llarg']);
+    expect(within(items[0]).getByRole('link', { name: 'Oberta' })).toHaveAttribute('href', '/tandes/o');
+  });
+
+  it('si diverses sessions comparteixen proposta, tria la de data més recent', async () => {
+    mockCarrega({
+      sessions: [
+        { id: 'a', titol: 'Antiga', propostaId: 'p1', data: '2026-01-10' },
+        { id: 'b', titol: 'Recent', propostaId: 'p1', data: '2026-03-10' },
+      ],
+    });
+    renderFormulari();
+    expect(await screen.findByRole('link', { name: 'Recent' })).toHaveAttribute('href', '/sessions/b');
+    expect(screen.queryByRole('link', { name: 'Antiga' })).not.toBeInTheDocument();
+  });
+
+  it('sense tandes ni sessió mostra «—» a les dues files', async () => {
+    mockCarrega({ tandes: [TANDES[2]] });
+    renderFormulari();
+    await screen.findByRole('heading', { name: 'Amélie' });
+    await waitFor(() => {
+      const llegides = getDocs.mock.calls.map(([ref]) => ref);
+      expect(llegides).toEqual(expect.arrayContaining(['tandes', 'sessions']));
+    });
+    expect(screen.getByText('Tandes').nextElementSibling).toHaveTextContent('—');
+    expect(screen.getByText('Sessió').nextElementSibling).toHaveTextContent('—');
+  });
+
+  it.each([['tandes'], ['sessions']])('si falla la lectura de %s, la fitxa es mostra igualment amb «—»', async (ruta) => {
+    mockCarrega({ tandes: TANDES, sessions: [{ id: 's5', titol: 'Sessió Amélie', propostaId: 'p1' }], falla: [ruta] });
+    renderFormulari();
+    expect(await screen.findByRole('heading', { name: 'Amélie' })).toBeInTheDocument();
+    const fila = ruta === 'tandes' ? 'Tandes' : 'Sessió';
+    // L'altra lectura sí que arriba: la seva fila es renderitza.
+    if (ruta === 'tandes') await screen.findByRole('link', { name: 'Sessió Amélie' });
+    else await screen.findByRole('link', { name: 'Gener' });
+    expect(screen.getByText(fila).nextElementSibling).toHaveTextContent('—');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('el mode edició no mostra aquestes files', async () => {
+    mockCarrega({ tandes: TANDES });
+    const user = userEvent.setup();
+    renderFormulari();
+    await obrirEdicio(user);
+    expect(screen.queryByText('Tandes')).not.toBeInTheDocument();
   });
 });

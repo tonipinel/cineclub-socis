@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -23,10 +23,20 @@ import TandaForm from './TandaForm';
 
 const DIA = 24 * 60 * 60 * 1000;
 const PROPOSTES = [
-  { id: 'p1', titol: 'Stalker', estat: 'aprovada' },
+  { id: 'p1', titol: 'Stalker', estat: 'aprovada', nomProposant: 'Marta Puig', imatgeUrl: '/stalker.jpg' },
   { id: 'p2', titol: 'Pendent film', estat: 'pendent' },
-  { id: 'p3', titol: 'Solaris', estat: 'aprovada' },
+  { id: 'p3', titol: 'Solaris', estat: 'aprovada', nomProposant: 'Pau Serra' },
   { id: 'p4', titol: 'Rebutjada film', estat: 'rebutjada' },
+  { id: 'p5', titol: "L'àngel exterminador", estat: 'aprovada', nomProposant: 'Laia' },
+];
+// p1 té preu propi; p3 agafa el per defecte de la distribuïdora; p5 no té dades internes.
+const INTERNES = [
+  { id: 'p1', preu: '90', condicions: null, distribuidoraId: 'd2' },
+  { id: 'p3', preu: null, distribuidoraId: 'd1' },
+];
+const DISTRIBUIDORES = [
+  { id: 'd1', nom: 'Surtsey Films', preu: 150 },
+  { id: 'd2', nom: 'Atalante' },
 ];
 const stamp = (d) => ({ toDate: () => d });
 
@@ -54,10 +64,13 @@ function renderExistent() {
 
 const docs = (llista) => ({ docs: llista.map(({ id, ...dades }) => ({ id, data: () => dades })) });
 
-// Respon cada lectura segons la col·lecció: propostes, vots de la tanda t1 i llistat de tandes.
-function respondre({ vots = [], tandes = [] } = {}) {
+// Respon cada lectura segons la col·lecció: propostes, dades internes, distribuïdores, vots de la tanda t1 i
+// llistat de tandes. Sense `context`, les dades internes i les distribuïdores fallen (no són imprescindibles).
+function respondre({ vots = [], tandes = [], context = false } = {}) {
   getDocs.mockImplementation(async (ref) => {
     if (ref === 'propostes') return docs(PROPOSTES);
+    if (context && ref === 'propostesInternes') return docs(INTERNES);
+    if (context && ref === 'distribuidores') return docs(DISTRIBUIDORES);
     if (ref === 'tandes/t1/vots') return docs(vots);
     if (ref === 'tandes') return docs(tandes);
     throw new Error(`lectura inesperada: ${ref}`);
@@ -236,6 +249,7 @@ describe('TandaForm', () => {
       renderExistent();
       expect(await screen.findByRole('checkbox', { name: 'Stalker' })).toBeDisabled();
       expect(screen.getByRole('checkbox', { name: 'Solaris' })).toBeDisabled();
+      expect(screen.getByRole('checkbox', { name: "L'àngel exterminador" })).toBeDisabled();
       expect(screen.queryByText(AVIS_VOTS)).not.toBeInTheDocument();
     });
 
@@ -244,6 +258,180 @@ describe('TandaForm', () => {
       renderNova();
       expect(await screen.findByRole('checkbox', { name: 'Solaris' })).toBeEnabled();
       expect(getDocs).not.toHaveBeenCalledWith('tandes/t1/vots');
+    });
+  });
+
+  describe('graella de propostes amb context i cerca', () => {
+    const cartes = (container) => [...container.querySelectorAll('.carta-proposta-tanda')];
+    const titolsVisibles = (container) => cartes(container).map((c) => c.querySelector('.carta-proposta-tanda__titol').textContent);
+
+    it('mostra una carta per proposta aprovada amb proposant, distribuïdora i preu (* si és per defecte)', async () => {
+      respondre({ context: true });
+      const { container } = renderNova();
+      await screen.findByRole('checkbox', { name: 'Stalker' });
+      expect(titolsVisibles(container)).toEqual(['Stalker', 'Solaris', "L'àngel exterminador"]);
+      const [stalker, solaris, angel] = cartes(container);
+      expect(stalker).toHaveTextContent('Proposat per Marta Puig');
+      expect(stalker).toHaveTextContent('Atalante');
+      expect(within(stalker).getByText(/€/)).toHaveTextContent('90.00€');
+      expect(stalker).not.toHaveTextContent('*');
+      expect(stalker.querySelector('img')).toHaveAttribute('src', '/stalker.jpg');
+      expect(solaris).toHaveTextContent('Surtsey Films');
+      expect(within(solaris).getByText(/€/).closest('.carta-proposta-tanda__preu')).toHaveTextContent('150.00€ *');
+      expect(angel).toHaveTextContent('Proposat per Laia');
+      expect(angel).not.toHaveTextContent('€');
+      expect(angel.querySelector('.carta-proposta-tanda__distribuidora')).toBeNull();
+    });
+
+    it('si no es poden llegir les dades internes ni les distribuïdores, les cartes es mostren sense preu ni distribuïdora', async () => {
+      respondre();
+      const { container } = renderNova();
+      await screen.findByRole('checkbox', { name: 'Stalker' });
+      expect(cartes(container)).toHaveLength(3);
+      expect(container).not.toHaveTextContent('€');
+      expect(container.querySelector('.carta-proposta-tanda__distribuidora')).toBeNull();
+      expect(cartes(container)[0]).toHaveTextContent('Proposat per Marta Puig');
+    });
+
+    it('la cerca filtra per títol sense accents ni majúscules', async () => {
+      respondre({ context: true });
+      const user = userEvent.setup();
+      const { container } = renderNova();
+      await user.type(await screen.findByRole('searchbox', { name: 'Cerca entre les propostes aprovades' }), 'ANGEL');
+      expect(titolsVisibles(container)).toEqual(["L'àngel exterminador"]);
+    });
+
+    it('la cerca també troba pel proposant i per la distribuïdora', async () => {
+      respondre({ context: true });
+      const user = userEvent.setup();
+      const { container } = renderNova();
+      const cerca = await screen.findByRole('searchbox', { name: 'Cerca entre les propostes aprovades' });
+      await user.type(cerca, 'serra');
+      expect(titolsVisibles(container)).toEqual(['Solaris']);
+      await user.clear(cerca);
+      await user.type(cerca, 'atalante');
+      expect(titolsVisibles(container)).toEqual(['Stalker']);
+      await user.clear(cerca);
+      await user.type(cerca, 'res de res');
+      expect(cartes(container)).toHaveLength(0);
+      expect(screen.getByText('Cap proposta aprovada coincideix amb la cerca.')).toBeInTheDocument();
+    });
+
+    it('compta les seleccionades i no perd la selecció amagada per la cerca: es desa en l\'ordre triat', async () => {
+      respondre({ context: true });
+      const user = userEvent.setup();
+      renderNova();
+      expect(await screen.findByText('0 seleccionades')).toHaveAttribute('aria-live', 'polite');
+      await user.click(screen.getByRole('checkbox', { name: 'Solaris' }));
+      expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
+      await user.type(screen.getByRole('searchbox', { name: 'Cerca entre les propostes aprovades' }), 'àngel');
+      expect(screen.queryByRole('checkbox', { name: 'Solaris' })).not.toBeInTheDocument();
+      expect(screen.getByText('1 seleccionada')).toBeInTheDocument();
+      await user.click(screen.getByRole('checkbox', { name: "L'àngel exterminador" }));
+      expect(screen.getByText('2 seleccionades')).toBeInTheDocument();
+      await user.type(screen.getByLabelText('Nom'), 'Novembre');
+      await user.type(screen.getByLabelText('Tanca'), dataFutura(7));
+      await user.click(screen.getByRole('button', { name: 'Desar' }));
+      expect(await screen.findByText('Llistat de tandes')).toBeInTheDocument();
+      expect(addDoc.mock.calls[0][1]).toEqual({
+        nom: 'Novembre', propostes: ['p3', 'p5'], tanca: expect.any(Date), creada: 'TIMESTAMP',
+      });
+    });
+
+    it('prémer Enter a la cerca no desa la tanda ni en surt', async () => {
+      respondre({ context: true });
+      getDoc.mockResolvedValueOnce({ data: () => tandaFutura() });
+      const user = userEvent.setup();
+      renderExistent();
+      const cerca = await screen.findByRole('searchbox', { name: 'Cerca entre les propostes aprovades' });
+      await user.type(cerca, 'Sol{Enter}');
+      expect(screen.getByRole('heading', { level: 1, name: 'Tanda' })).toBeInTheDocument();
+      expect(screen.queryByText('Llistat de tandes')).not.toBeInTheDocument();
+      expect(updateDoc).not.toHaveBeenCalled();
+      expect(addDoc).not.toHaveBeenCalled();
+      expect(cerca).toHaveValue('Sol');
+    });
+
+    it('prémer Enter al nom continua desant', async () => {
+      respondre({ context: true });
+      getDoc.mockResolvedValueOnce({ data: () => tandaFutura() });
+      const user = userEvent.setup();
+      renderExistent();
+      await user.type(await screen.findByLabelText('Nom'), ' bis{Enter}');
+      expect(await screen.findByText('Llistat de tandes')).toBeInTheDocument();
+      expect(updateDoc.mock.calls[0][1]).toMatchObject({ nom: 'Novembre bis', propostes: ['p1'] });
+    });
+
+    it('desa les propostes en l\'ordre en què s\'han clicat, no en el de la graella', async () => {
+      respondre({ context: true });
+      const user = userEvent.setup();
+      renderNova();
+      await user.click(await screen.findByRole('checkbox', { name: "L'àngel exterminador" }));
+      await user.click(screen.getByRole('checkbox', { name: 'Stalker' }));
+      await user.type(screen.getByLabelText('Nom'), 'Novembre');
+      await user.type(screen.getByLabelText('Tanca'), dataFutura(7));
+      await user.click(screen.getByRole('button', { name: 'Desar' }));
+      expect(await screen.findByText('Llistat de tandes')).toBeInTheDocument();
+      expect(addDoc.mock.calls[0][1].propostes).toEqual(['p5', 'p1']);
+    });
+
+    describe('propostes de la tanda que ja no són aprovades', () => {
+      const recompte = () => document.querySelector('.tanda-form__recompte');
+
+      it('amb 20 propostes a la tanda i 7 aprovades, avisa que 13 no es mostren', async () => {
+        const mesAprovades = Array.from({ length: 4 }, (_, i) => ({ id: `q${i}`, titol: `Aprovada ${i}`, estat: 'aprovada' }));
+        getDocs.mockImplementation(async (ref) => {
+          if (ref === 'propostes') return docs([...PROPOSTES, ...mesAprovades]);
+          throw new Error(`lectura inesperada: ${ref}`);
+        });
+        const ids = ['p1', 'p3', 'p5', 'q0', 'q1', 'q2', 'q3', 'p2', 'p4', ...Array.from({ length: 11 }, (_, i) => `x${i}`)];
+        getDoc.mockResolvedValueOnce({ data: () => tandaPassada({ propostes: ids }) });
+        const { container } = renderExistent();
+        await screen.findByRole('checkbox', { name: 'Stalker' });
+        expect(container.querySelectorAll('.carta-proposta-tanda input:checked')).toHaveLength(7);
+        expect(recompte()).toHaveTextContent('20 seleccionades · 13 ja no són aprovades (no es mostren)');
+        expect(recompte()).toHaveAttribute('aria-live', 'polite');
+      });
+
+      it('en singular si només n\'hi ha una', async () => {
+        respondre({ context: true });
+        getDoc.mockResolvedValueOnce({ data: () => tandaPassada({ propostes: ['p1', 'p2'] }) });
+        renderExistent();
+        await screen.findByRole('checkbox', { name: 'Stalker' });
+        expect(recompte()).toHaveTextContent('2 seleccionades · 1 ja no és aprovada (no es mostra)');
+      });
+
+      it('sense avís si totes les de la tanda són aprovades', async () => {
+        respondre({ context: true });
+        getDoc.mockResolvedValueOnce({ data: () => tandaPassada({ propostes: ['p1', 'p3'] }) });
+        renderExistent();
+        await screen.findByRole('checkbox', { name: 'Stalker' });
+        expect(recompte().textContent).toBe('2 seleccionades');
+      });
+
+      it('també avisa si no queda cap proposta aprovada', async () => {
+        getDocs.mockImplementation(async (ref) => {
+          if (ref === 'propostes') return docs(PROPOSTES.filter((p) => p.estat !== 'aprovada'));
+          throw new Error(`lectura inesperada: ${ref}`);
+        });
+        getDoc.mockResolvedValueOnce({ data: () => tandaPassada({ propostes: ['p1', 'p3'] }) });
+        renderExistent();
+        expect(await screen.findByText('No hi ha cap proposta aprovada.')).toBeInTheDocument();
+        expect(recompte()).toHaveTextContent('2 seleccionades · 2 ja no són aprovades (no es mostren)');
+        expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+      });
+    });
+
+    it('en buidar la cerca, la carta seleccionada torna marcada', async () => {
+      respondre({ context: true });
+      const user = userEvent.setup();
+      renderNova();
+      await user.click(await screen.findByRole('checkbox', { name: 'Stalker' }));
+      const cerca = screen.getByRole('searchbox', { name: 'Cerca entre les propostes aprovades' });
+      await user.type(cerca, 'solaris');
+      await user.clear(cerca);
+      expect(screen.getByRole('checkbox', { name: 'Stalker' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Solaris' })).not.toBeChecked();
     });
   });
 

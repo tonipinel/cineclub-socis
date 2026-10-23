@@ -99,6 +99,12 @@ describe('TandaResultats', () => {
     expect(await screen.findByRole('heading', { name: /Novembre/ })).toBeInTheDocument();
   });
 
+  it('enllaça a les propostes de la tanda (llista filtrada per aquesta tanda)', async () => {
+    await renderitzaIEmet();
+    const enllac = await screen.findByRole('link', { name: 'Veure les propostes de la tanda' });
+    expect(enllac).toHaveAttribute('href', '/propostes/pendents?tanda=t1');
+  });
+
   it('resumeix quants elegibles han votat, completat i són pendents, amb la barra de participació', async () => {
     await renderitzaIEmet();
     expect(await screen.findByText('2 de 3 han votat · 1 han completat · 1 pendents')).toBeInTheDocument();

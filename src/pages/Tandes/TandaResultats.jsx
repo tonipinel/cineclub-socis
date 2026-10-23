@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   collection, deleteDoc, doc, getDocs, onSnapshot,
 } from 'firebase/firestore';
@@ -133,7 +133,16 @@ export default function TandaResultats() {
   const visibles = filtre === 'tots' ? files : files.filter((f) => f.estat === filtre);
 
   return (
-    <PaginaAdmin amplada="llista" titol={`Resultats: ${tanda.nom}`} tornar={TORNAR}>
+    <PaginaAdmin
+      amplada="llista"
+      titol={`Resultats: ${tanda.nom}`}
+      tornar={TORNAR}
+      accions={(
+        <Link className="enllac" to={`${ROUTES.PROPOSTES_PENDENTS}?tanda=${encodeURIComponent(id)}`}>
+          Veure les propostes de la tanda
+        </Link>
+      )}
+    >
       <p className="tanda-resultats__participants">
         {resum.participants} de {resum.total} han votat · {resum.completats} han completat · {resum.pendents} pendents
       </p>

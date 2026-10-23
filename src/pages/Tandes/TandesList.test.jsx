@@ -40,6 +40,18 @@ describe('TandesList', () => {
     expect(await screen.findByRole('link', { name: 'Resultats' })).toHaveAttribute('href', '/tandes/t1/resultats');
   });
 
+  it('mostra «N propostes» (singular/plural, 0 si no n\'hi ha o no és llista) com a enllaç a la llista filtrada per tanda', async () => {
+    respon([
+      { ...TANCADA, propostes: ['a', 'b', 'c'] },
+      { ...oberta(), propostes: ['a'] },
+      { id: 't3', nom: 'Buida', tanca: stamp(new Date('2026-01-01')), propostes: 'xx' },
+    ]);
+    render(<MemoryRouter><TandesList /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: '3 propostes' })).toHaveAttribute('href', '/propostes/pendents?tanda=t1');
+    expect(screen.getByRole('link', { name: '1 proposta' })).toHaveAttribute('href', '/propostes/pendents?tanda=t2');
+    expect(screen.getByRole('link', { name: '0 propostes' })).toHaveAttribute('href', '/propostes/pendents?tanda=t3');
+  });
+
   it('permet crear una tanda nova quan no n\'hi ha cap d\'oberta', async () => {
     respon([TANCADA]);
     render(<MemoryRouter><TandesList /></MemoryRouter>);

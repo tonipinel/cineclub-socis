@@ -38,12 +38,16 @@ export default function TandesList() {
       {tandes.length === 0 && <p>Encara no hi ha cap tanda.</p>}
       <ul className="tandes-list__llista">
         {tandes.map((t) => {
+          const nPropostes = Array.isArray(t.propostes) ? t.propostes.length : 0;
           const oberta = aMillis(t.tanca) > ara.getTime();
           return (
             <li key={t.id} className="tandes-list__item">
               <Link className="enllac tandes-list__nom" to={ROUTES.TANDES_EDITAR.replace(':id', t.id)}>{t.nom}</Link>
               <span className={`tandes-list__estat badge ${oberta ? 'badge--al-dia' : 'badge--desactivat'}`}>{oberta ? 'Oberta' : 'Tancada'}</span>
               <span className="tandes-list__tanca">Tanca: {formatDataHora(t.tanca)}</span>
+              <Link className="enllac tandes-list__propostes" to={`${ROUTES.PROPOSTES_PENDENTS}?tanda=${encodeURIComponent(t.id)}`}>
+                {nPropostes === 1 ? '1 proposta' : `${nPropostes} propostes`}
+              </Link>
               <Link className="enllac tandes-list__resultats" to={ROUTES.TANDES_RESULTATS.replace(':id', t.id)}>Resultats</Link>
             </li>
           );

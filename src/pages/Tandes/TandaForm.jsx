@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, doc, getDoc, getDocs, limit, query, serverTimestamp, updateDoc,
@@ -6,8 +6,15 @@ import {
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { aData, potCrearTanda, validarTanda } from '../../lib/tandes';
+import { construirFiles, filtrarFiles } from '../../lib/propostesLlistat';
 import Carregant from '../../components/Carregant';
+import CartaPropostaTanda from '../../components/CartaPropostaTanda';
 import PaginaAdmin from '../../components/PaginaAdmin';
+
+// Les dades internes i les distribuïdores només donen context: si no es poden llegir, les cartes es mostren sense.
+const llegirOBuit = (nom) => getDocs(collection(db, nom)).catch(() => ({ docs: [] }));
+const textSeleccionades = (n) => (n === 1 ? '1 seleccionada' : `${n} seleccionades`);
+const textFora = (n) => (n === 1 ? '1 ja no és aprovada (no es mostra)' : `${n} ja no són aprovades (no es mostren)`);
 
 const aInput = (data) => `${data.toLocaleDateString('sv-SE')}T${data.toLocaleTimeString('sv-SE').slice(0, 5)}`;
 
@@ -19,6 +26,8 @@ export default function TandaForm() {
   const [tanca, setTanca] = useState('');
   const [tancaInicial, setTancaInicial] = useState('');
   const [aprovades, setAprovades] = useState([]);
+  const [context, setContext] = useState({ internes: new Map(), distribuidores: new Map() });
+  const [cerca, setCerca] = useState('');
   const [jaHiHaVots, setJaHiHaVots] = useState(false);
   const [carregant, setCarregant] = useState(true);
   const [errors, setErrors] = useState({});
@@ -30,8 +39,13 @@ export default function TandaForm() {
       snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.estat === 'aprovada')
     ));
     const carregaTanda = editant ? getDoc(doc(db, 'tandes', id)) : Promise.resolve(null);
-    Promise.all([carregaPropostes, carregaTanda]).then(async ([propostes, snap]) => {
+    const carregaContext = Promise.all([llegirOBuit('propostesInternes'), llegirOBuit('distribuidores')]);
+    Promise.all([carregaPropostes, carregaTanda, carregaContext]).then(async ([propostes, snap, [internes, distribuidores]]) => {
       setAprovades(propostes);
+      setContext({
+        internes: new Map(internes.docs.map((d) => [d.id, d.data()])),
+        distribuidores: new Map(distribuidores.docs.map((d) => [d.id, { id: d.id, ...d.data() }])),
+      });
       if (editant) {
         const dades = snap.data();
         if (!dades) {
@@ -53,6 +67,11 @@ export default function TandaForm() {
       setCarregant(false);
     });
   }, [id, editant, navigate]);
+
+  const cartes = useMemo(() => construirFiles({
+    propostes: aprovades, ...context, tandes: [], sessions: [],
+  }), [aprovades, context]);
+  const cartesVisibles = useMemo(() => filtrarFiles(cartes, { cerca }), [cartes, cerca]);
 
   const alternaProposta = (propostaId) => setSeleccio((s) => (
     s.includes(propostaId) ? s.filter((p) => p !== propostaId) : [...s, propostaId]
@@ -101,6 +120,8 @@ export default function TandaForm() {
   const oberta = editant && new Date(tancaInicial) > new Date();
   // En una tanda tancada és històric; en una d'oberta, només es pot canviar mentre no hi ha cap vot.
   const propostesBloquejades = editant && (!oberta || jaHiHaVots);
+  // Propostes de la tanda que ja no són aprovades (programades, etc.): no tenen carta però es conserven en desar.
+  const fora = seleccio.filter((propostaId) => !aprovades.some((p) => p.id === propostaId)).length;
 
   return (
     <PaginaAdmin
@@ -123,12 +144,46 @@ export default function TandaForm() {
         {oberta && jaHiHaVots && (
           <p className="tanda-form__avis">Ja hi ha vots: tanca la tanda i crea&apos;n una de nova per canviar les propostes.</p>
         )}
-        {aprovades.map((p) => (
-          <label key={p.id} className="form__casella">
-            <input type="checkbox" checked={seleccio.includes(p.id)} disabled={propostesBloquejades} onChange={() => alternaProposta(p.id)} />
-            {p.titol}
-          </label>
-        ))}
+        {(aprovades.length > 0 || seleccio.length > 0) && (
+          <div className="tanda-form__eines">
+            {aprovades.length > 0 && (
+              <input
+                type="search"
+                className="form__input tanda-form__cerca"
+                placeholder="Títol, proposant o distribuïdora"
+                aria-label="Cerca entre les propostes aprovades"
+                value={cerca}
+                onChange={(e) => setCerca(e.target.value)}
+                // Enter a la cerca no ha d'enviar el formulari (desaria la tanda).
+                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+              />
+            )}
+            <p className="tanda-form__recompte" aria-live="polite">
+              {textSeleccionades(seleccio.length)}
+              {fora > 0 && ` · ${textFora(fora)}`}
+            </p>
+          </div>
+        )}
+        {aprovades.length > 0 && cartesVisibles.length === 0 && (
+          <p className="tanda-form__sense-resultats">Cap proposta aprovada coincideix amb la cerca.</p>
+        )}
+        {cartesVisibles.length > 0 && (
+          <ul className="tanda-form__graella">
+            {cartesVisibles.map((c) => (
+              <li key={c.id} className="tanda-form__graella-item">
+                <CartaPropostaTanda
+                  proposta={c.proposta}
+                  distribuidora={c.distribuidora}
+                  preu={c.preu}
+                  preuPerDefecte={c.preuPerDefecte}
+                  seleccionada={seleccio.includes(c.id)}
+                  desactivada={propostesBloquejades}
+                  onAlterna={() => alternaProposta(c.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
         {errors.propostes && <p className="form__error">{errors.propostes}</p>}
       </fieldset>
 

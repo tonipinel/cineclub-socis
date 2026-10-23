@@ -12,6 +12,8 @@ const PERMESOS = {
   // Propostes (no sessions): el cartell de la proposta, que passa a `publica.cartell` en programar-la.
   'src/lib/sessioPublica.js': { 'proposta.imatgeUrl': 1 },
   'src/pages/Propostes/PropostaForm.jsx': { 'dades.imatgeUrl': 5 },
+  // El cartell de la proposta a la targeta per triar-la en una tanda.
+  'src/components/CartaPropostaTanda.jsx': { 'proposta.imatgeUrl': 1 },
 };
 
 const ARREL = join(import.meta.dirname, '..', '..');

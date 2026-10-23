@@ -8,6 +8,8 @@ import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
 import { formatData } from '../../lib/data';
+import { sessionsPerProposta } from '../../lib/tandes';
+import { infoTanda, ordenarTandes } from '../../lib/propostesLlistat';
 import { construirSessioDesDeProposta } from '../../lib/sessioPublica';
 import { assignarPellicula } from '../../lib/pellicules';
 import Carregant from '../../components/Carregant';
@@ -45,6 +47,9 @@ export default function PropostaForm() {
   const [interna, setInterna] = useState(INTERNA_BUIDA);
   const [distribuidores, setDistribuidores] = useState([]);
   const [programant, setProgramant] = useState(false);
+  const [tandes, setTandes] = useState([]);
+  const [sessioId, setSessioId] = useState(null);
+  const [sessioTitol, setSessioTitol] = useState('');
   // Bloqueja un segon «Programar» mentre el diàleg de confirmació és obert.
   const programantRef = useRef(false);
   const navigate = useNavigate();
@@ -89,6 +94,25 @@ export default function PropostaForm() {
   }, [id]);
 
   useEffect(() => { carregarInterna(); }, [carregarInterna]);
+
+  // Només lectura i opcional: si falla, les files «Tandes» i «Sessió» mostren «—».
+  useEffect(() => {
+    getDocs(collection(db, 'tandes')).then((snap) => {
+      setTandes(
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((t) => Array.isArray(t.propostes) && t.propostes.includes(id))
+          .map((t) => infoTanda(t))
+          .sort(ordenarTandes),
+      );
+    }).catch(() => {});
+    getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id))).then((snap) => {
+      const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const triada = sessionsPerProposta(sessions)[id];
+      setSessioId(triada ?? null);
+      setSessioTitol(sessions.find((s) => s.id === triada)?.titol ?? '');
+    }).catch(() => {});
+  }, [id]);
 
   const handleCanviInterna = (camp) => (e) => setInterna((i) => ({ ...i, [camp]: e.target.value }));
 
@@ -258,6 +282,25 @@ export default function PropostaForm() {
                   <span className={`badge ${CLASSE_ESTAT[dades.estat] ?? ''}`}>
                     {ESTATS.find(([valor]) => valor === dades.estat)?.[1] ?? dades.estat}
                   </span>
+                </dd>
+                <dt className="fitxa-pellicula__etiqueta">Tandes</dt>
+                <dd className="fitxa-pellicula__valor">
+                  {tandes.length === 0 ? '—' : (
+                    <ul className="proposta-fitxa__tandes">
+                      {tandes.map((t) => (
+                        <li key={t.id}>
+                          <Link className="enllac" to={ROUTES.TANDES_EDITAR.replace(':id', t.id)}>{t.nom}</Link>
+                          {t.oberta && ' (oberta)'}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </dd>
+                <dt className="fitxa-pellicula__etiqueta">Sessió</dt>
+                <dd className="fitxa-pellicula__valor">
+                  {sessioId
+                    ? <Link className="enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', sessioId)}>{sessioTitol || 'Sessió'}</Link>
+                    : '—'}
                 </dd>
                 {dades.comentari && (
                   <>
