@@ -1,4 +1,8 @@
+import { Link } from 'react-router-dom';
 import { generarSlug, slugDisponible, validarPublicable } from '../../../lib/sessioPublica';
+import { llistaDeText, nomAlCataleg, textDeLlista } from '../../../lib/entitats';
+import * as ROUTES from '../../../constants/routes';
+import SelectorEntitats from '../../../components/SelectorEntitats';
 import { FITXA, GESTIO, SECCIONS, VERSIONS } from '../camps';
 import Camp from './Camp';
 
@@ -40,7 +44,7 @@ export function TargetaSessio({ dades, onCanviDades }) {
 }
 
 export default function DadesSessio({
-  dades, onCanviDades, form, onCanviForm, errors, altresSessions, urlPagina,
+  dades, onCanviDades, form, onCanviForm, errors, altresSessions, urlPagina, entitats = [], organitzaDesat = '',
 }) {
   const slug = dades.slug ?? '';
   const any = typeof dades.data === 'string' ? dades.data.slice(0, 4) : '';
@@ -49,6 +53,23 @@ export default function DadesSessio({
   const { avisos } = validarPublicable({ ...dades, publica: { cartell: form.cartell } }, altresSessions);
   const errorsPublicar = ['titol', 'data', 'slug'].filter((camp) => errors.publicar?.[camp]);
   const props = { form, onCanviForm, errors };
+  // «Organitza»: el valor actual i el desat es poden triar encara que no siguin al catàleg (mai es reescriuen).
+  // Si un d'ells és l'àlies d'una entitat (p. ex. «cineclub»), ocupa l'opció d'aquella entitat amb el seu nom.
+  const nomsCataleg = entitats.map((e) => e.nom);
+  const valorsOrganitza = [...new Set([form.organitza, organitzaDesat].filter(Boolean))];
+  const foraCataleg = valorsOrganitza.filter((v) => !nomAlCataleg(v, nomsCataleg));
+  const alies = Object.fromEntries(valorsOrganitza
+    .filter((v) => !nomsCataleg.includes(v) && nomAlCataleg(v, nomsCataleg))
+    .map((v) => [nomAlCataleg(v, nomsCataleg), v]));
+  const selector = (camp, etiqueta) => (
+    <SelectorEntitats
+      id={`publica-${camp}`}
+      etiqueta={etiqueta}
+      valor={llistaDeText(form[camp])}
+      onCanvi={(noms) => onCanviForm(camp, textDeLlista(noms))}
+      entitats={entitats}
+    />
+  );
 
   return (
     <div className="fitxa-sessio__targetes">
@@ -136,7 +157,17 @@ export default function DadesSessio({
             </select>
           </Camp>
           {GESTIO.map(([camp, etiqueta, ajuda]) => <Camp key={camp} camp={camp} etiqueta={etiqueta} ajuda={ajuda} {...props} />)}
+          <Camp camp="organitza" etiqueta="Organitza" {...props}>
+            <select id="publica-organitza" className="form__input" value={form.organitza} onChange={(e) => onCanviForm('organitza', e.target.value)}>
+              <option value="">—</option>
+              {foraCataleg.map((v) => <option key={v} value={v}>{v} (no és al catàleg)</option>)}
+              {entitats.map((e) => <option key={e.id} value={alies[e.nom] ?? e.nom}>{e.nom}</option>)}
+            </select>
+          </Camp>
+          {selector('participa', 'Participen')}
+          {selector('collabora', 'Col·laboren')}
         </div>
+        <Link className="enllac selector-entitats__gestionar" to={ROUTES.ENTITATS}>Gestionar entitats</Link>
       </section>
 
       <section className="fitxa-sessio__targeta" aria-labelledby="targeta-avancat">

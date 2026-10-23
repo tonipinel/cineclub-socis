@@ -70,6 +70,7 @@ function FitxaSessio({ id }) {
   const [publicaForm, setPublicaForm] = useState(() => publicaAFormulari(undefined));
   const [publicaInicial, setPublicaInicial] = useState(publicaForm);
   const [altresSessions, setAltresSessions] = useState([]);
+  const [entitats, setEntitats] = useState([]);
   const [errorsPublica, setErrorsPublica] = useState({});
   const [carregant, setCarregant] = useState(editant);
   const [errorActiva, setErrorActiva] = useState(null);
@@ -103,6 +104,20 @@ function FitxaSessio({ id }) {
   useEffect(() => {
     if (!editant) return;
     getDocs(collection(db, 'sessions')).then((snap) => setAltresSessions(sessionsDe(snap)));
+  }, [editant]);
+
+  // Catàleg d'entitats per als selectors de «Dades»; si no es pot llegir, queda buit i la fitxa funciona igual.
+  useEffect(() => {
+    if (!editant) return;
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'entitats'));
+        const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => typeof e.nom === 'string' && e.nom.trim());
+        setEntitats(llista.sort((a, b) => a.nom.localeCompare(b.nom, 'ca')));
+      } catch {
+        setEntitats([]);
+      }
+    })();
   }, [editant]);
 
   useEffect(() => () => clearTimeout(temporitzadorDesat.current), []);
@@ -267,6 +282,8 @@ function FitxaSessio({ id }) {
               onCanviForm={onCanviForm}
               errors={errorsPublica}
               altresSessions={altresSessions}
+              entitats={entitats}
+              organitzaDesat={publicaInicial.organitza}
               original={original}
               urlPagina={original.publicada ? urlPublica(original.data, original.slug) : ''}
             />

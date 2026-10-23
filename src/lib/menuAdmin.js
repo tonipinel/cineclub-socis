@@ -22,6 +22,15 @@ export const GRUPS_ADMIN = [
       { to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' },
     ],
   },
+  {
+    id: 'sessions',
+    etiqueta: 'Sessions',
+    icona: 'sessions',
+    elements: [
+      { to: ROUTES.SESSIONS, etiqueta: 'Sessions' },
+      { to: ROUTES.ENTITATS, etiqueta: 'Entitats' },
+    ],
+  },
 ];
 
 const coincideix = (pathname, ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`);

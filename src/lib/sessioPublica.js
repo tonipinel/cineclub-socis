@@ -243,7 +243,7 @@ export function formulariAPublica(form) {
 
 // ---------------------------------------------------------------- Imatges
 
-const EXTENSIONS_IMATGE = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+export const EXTENSIONS_IMATGE = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 export const ACCEPT_IMATGE = Object.keys(EXTENSIONS_IMATGE).join(',');
 export const MIDA_MAXIMA_IMATGE = 10 * 1024 * 1024;
 

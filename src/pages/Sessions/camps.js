@@ -26,9 +26,6 @@ export const GESTIO = [
   ['queInclou', 'Què inclou'],
   ['edatMinimaRecomanada', 'Edat mínima recomanada', '0 = tots els públics'],
   ['suportDistribucio', 'Suport de distribució'],
-  ['organitza', 'Organitza'],
-  ['participa', 'Participen', 'Noms de les entitats, separats per comes'],
-  ['collabora', 'Col·laboren', 'Noms de les entitats, separats per comes'],
 ];
 
 export const VERSIONS = [
@@ -50,6 +47,7 @@ export const PESTANYA_DEL_CAMP = {
   ...de(['titol', 'data', 'hora', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl', 'versioTipus', 'seccio'], 'dades'),
   ...de(FITXA.map(([camp]) => camp), 'dades'),
   ...de(GESTIO.map(([camp]) => camp), 'dades'),
+  ...de(['organitza', 'participa', 'collabora'], 'dades'),
   ...de(['descripcio', 'hook', 'sinopsiCartell', 'cos'], 'continguts'),
   ...de(['cartell', 'galeria', 'trailerYoutubeId'], 'mitjans'),
 };

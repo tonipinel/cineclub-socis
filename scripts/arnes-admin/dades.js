@@ -110,6 +110,12 @@ export function dadesInicials() {
         // ses2 (activa) estressa les pestanyes Continguts i Mitjans: galeria, cos llarg i títol llarguíssim.
         ...(i === 2 && {
           titol: `${titol} ${PARAULA_LLARGA} ${PARAULA_LLARGA}`,
+          // Selectors d'entitats: organitzador antic fora del catàleg i un nom llarg antic + un del catàleg.
+          organitza: 'cineclub',
+          participa: [
+            'Associació Cultural i Recreativa de Veïns i Veïnes de la Platja Llarga',
+            'Associació Cultural i Recreativa de Veïns i Amics del Cinema Independent de la Costa Daurada i el Camp de Tarragona',
+          ],
           galeria: [CARTELL_AMPLE, '/logo-cineclub.png', '/logo-marca.png', '/cinema-pattern.jpg', '/logo-footer.png'],
           cos: `## Sinopsi\n\n${'Paràgraf llarg amb molt de text per omplir l\'àrea. '.repeat(30)}\n\n## Context\n\n${URL_LLARGA}\n\n${PARAULA_LLARGA}\n\n`.repeat(3),
         }),
@@ -220,6 +226,14 @@ export function dadesInicials() {
   for (let i = 2; i <= 6; i += 1) {
     d[`distribuidores/d${i}`] = { nom: `Distribuïdora ${i}`, web: `distribuidora${i}.example`, contacte: 'Joan', correu: `joan${i}@example.com`, preu: i * 50, condicions: '' };
   }
+
+  // --- Entitats (una amb nom molt llarg i sense logo).
+  d['entitats/e1'] = {
+    nom: 'Associació Cultural i Recreativa de Veïns i Amics del Cinema Independent de la Costa Daurada i el Camp de Tarragona',
+    url: URL_LLARGA,
+  };
+  d['entitats/e2'] = { nom: 'Ateneu Rodenc', url: 'https://ateneu.example/', logo: '/logo-cineclub.png' };
+  d['entitats/e3'] = { nom: 'Ajuntament de Roda de Berà', url: 'https://rodadebera.example/', logo: '/logo-cineclub.png' };
 
   // --- Propostes (20) i dades internes.
   const estats = ['pendent', 'aprovada', 'rebutjada', 'programada'];

@@ -7,13 +7,13 @@ import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
 import { GRUPS_ADMIN, grupActiu } from '../lib/menuAdmin';
 
-const [GRUP_SOCIS, GRUP_PROPOSTES] = GRUPS_ADMIN;
+const [GRUP_SOCIS, GRUP_PROPOSTES, GRUP_SESSIONS] = GRUPS_ADMIN;
 
 // Els grups (amb `elements`) enllacen al seu primer element i tenen submenú.
 const ENLLACOS_ADMIN = [
   GRUP_SOCIS,
   GRUP_PROPOSTES,
-  { to: ROUTES.SESSIONS, etiqueta: 'Sessions', icona: 'sessions' },
+  GRUP_SESSIONS,
   { to: ROUTES.ESCANEIG, etiqueta: 'Escaneig', icona: 'escaneig' },
   { to: ROUTES.COMPTABILITAT, etiqueta: 'Comptabilitat', icona: 'comptabilitat' },
   { to: ROUTES.CONFIGURACIO, etiqueta: 'Configuració', icona: 'configuracio' },

@@ -27,6 +27,8 @@ import PropostaForm from './pages/Propostes/PropostaForm';
 import PropostesNova from './pages/Propostes/PropostesNova';
 import DistribuidoresList from './pages/Distribuidores/DistribuidoresList';
 import DistribuidoraForm from './pages/Distribuidores/DistribuidoraForm';
+import EntitatsList from './pages/Entitats/EntitatsList';
+import EntitatForm from './pages/Entitats/EntitatForm';
 import TandesList from './pages/Tandes/TandesList';
 import TandaForm from './pages/Tandes/TandaForm';
 import TandaResultats from './pages/Tandes/TandaResultats';
@@ -263,6 +265,36 @@ export default function App() {
             <RequireAuth>
               <RequireRole roles={[ROLE_ADMIN]}>
                 <DistribuidoraForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.ENTITATS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <EntitatsList />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.ENTITATS_NOVA}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <EntitatForm />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.ENTITATS_EDITAR}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[ROLE_ADMIN]}>
+                <EntitatForm />
               </RequireRole>
             </RequireAuth>
           }

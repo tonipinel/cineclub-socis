@@ -438,3 +438,24 @@ describe('firestore.rules — pagines', () => {
     await assertFails(deleteDoc(doc(taquillaDb, 'pagines/privacitat')));
   });
 });
+
+describe('firestore.rules — entitats', () => {
+  const adminDb = () => testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+
+  it('només l\'admin hi pot llegir i escriure', async () => {
+    await assertSucceeds(setDoc(doc(adminDb(), 'entitats/x'), { nom: 'Foo' }));
+    await assertSucceeds(getDoc(doc(adminDb(), 'entitats/x')));
+    await assertSucceeds(updateDoc(doc(adminDb(), 'entitats/x'), { url: 'https://x.cat' }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'entitats/x')));
+  });
+
+  it('ni un visitant ni un usuari no admin hi tenen accés', async () => {
+    await setDoc(doc(adminDb(), 'entitats/x'), { nom: 'Foo' });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    await assertFails(getDoc(doc(anonDb, 'entitats/x')));
+    await assertFails(setDoc(doc(anonDb, 'entitats/y'), { nom: 'Bar' }));
+    await assertFails(getDoc(doc(taquillaDb, 'entitats/x')));
+    await assertFails(setDoc(doc(taquillaDb, 'entitats/y'), { nom: 'Bar' }));
+  });
+});

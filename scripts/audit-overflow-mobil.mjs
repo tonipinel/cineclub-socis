@@ -35,6 +35,7 @@ export const RUTES = [
   '/sessions', '/sessions/nova', '/sessions/ses2', '/sessions/ses5',
   '/sessions/ses2?pestanya=dades', '/sessions/ses2?pestanya=continguts', '/sessions/ses2?pestanya=mitjans',
   '/sessions/ses5?pestanya=dades',
+  '/entitats', '/entitats/nova', '/entitats/e1',
   '/tickets', '/tickets/lot1',
   '/escaneig', '/escaneig/log',
   '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1',

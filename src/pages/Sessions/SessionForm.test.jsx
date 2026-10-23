@@ -1141,3 +1141,121 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     expect(screen.queryByRole('button', { name: 'Marcar com a activa' })).not.toBeInTheDocument();
   });
 });
+
+describe('SessionForm — entitats del catàleg', () => {
+  const ENTITATS = [
+    { id: 'e2', nom: "L'Ateneu Rodenc" },
+    { id: 'e1', nom: 'Ajuntament de Roda de Berà' },
+  ];
+  const SESSIO = {
+    titol: 'Pig', data: '2026-10-08', hora: '19:00', activa: false, senseControl: false, slug: 'pig', publicada: false,
+    urlProgramacio: '', imatgeUrl: '',
+    publica: {
+      titol: 'Pig', organitza: 'cineclub', participa: ['Entitat Vella'], collabora: [], actualitzatEl: '2026-01-01',
+    },
+  };
+
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'entitats'
+      ? { docs: ENTITATS.map(({ id, ...dades }) => ({ id, data: () => dades })) }
+      : { docs: [] }));
+    updateDoc.mockClear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T10:00:00Z'));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  function carregar() {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(SESSIO) });
+    const user = userEvent.setup();
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    return user;
+  }
+
+  it('carrega el catàleg ordenat per nom i mostra els noms antics com a «no és al catàleg»', async () => {
+    carregar();
+    const participen = await screen.findByRole('group', { name: 'Participen' });
+    expect(within(participen).getByRole('listitem')).toHaveTextContent('Entitat Vella — no és al catàleg');
+    await vi.waitFor(() => expect(within(within(participen).getByLabelText('Participen')).getAllByRole('option')
+      .map((o) => o.textContent)).toEqual(['— Tria una entitat —', 'Ajuntament de Roda de Berà', "L'Ateneu Rodenc"]));
+    expect(screen.getByLabelText('Organitza')).toHaveValue('cineclub');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+  });
+
+  it('canviar només el títol desa exactament el títol, sense tocar publica', async () => {
+    const user = carregar();
+    await screen.findByRole('group', { name: 'Participen' });
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('afegir una entitat del catàleg a «Participen» conserva el nom antic i l\'organitzador', async () => {
+    const user = carregar();
+    const participen = await screen.findByRole('group', { name: 'Participen' });
+    await vi.waitFor(() => expect(within(participen).getByRole('option', { name: "L'Ateneu Rodenc" })).toBeInTheDocument());
+    await user.selectOptions(within(participen).getByLabelText('Participen'), "L'Ateneu Rodenc");
+    await user.click(within(participen).getByRole('button', { name: 'Afegir' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const { publica } = updateDoc.mock.calls[0][1];
+    expect(publica.participa).toEqual(['Entitat Vella', "L'Ateneu Rodenc"]);
+    expect(publica.collabora).toEqual([]);
+    expect(publica.organitza).toBe('cineclub');
+    expect(Object.keys(updateDoc.mock.calls[0][1])).toEqual(['publica']);
+  });
+
+  it('si el catàleg no es pot llegir, la fitxa es mostra igualment amb els noms existents', async () => {
+    getDocs.mockImplementation((q) => (q === 'entitats' ? Promise.reject(new Error('xarxa')) : Promise.resolve({ docs: [] })));
+    carregar();
+    const participen = await screen.findByRole('group', { name: 'Participen' });
+    expect(within(participen).getByRole('listitem')).toHaveTextContent('Entitat Vella — no és al catàleg');
+    expect(within(within(participen).getByLabelText('Participen')).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['— Tria una entitat —']);
+  });
+
+  it('«cineclub» amb «Cineclub Roda de Berà» al catàleg es mostra sense avís i desar el títol escriu només el títol', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'entitats'
+      ? { docs: [...ENTITATS, { id: 'e3', nom: 'Cineclub Roda de Berà' }].map(({ id, ...dades }) => ({ id, data: () => dades })) }
+      : { docs: [] }));
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...structuredClone(SESSIO), publica: { titol: 'Pig', organitza: 'cineclub' } }) });
+    const user = userEvent.setup();
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    const select = await screen.findByLabelText('Organitza');
+    await vi.waitFor(() => expect(screen.getByRole('option', { name: 'Cineclub Roda de Berà', selected: true })).toBeInTheDocument());
+    expect(select).toHaveValue('cineclub');
+    expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('tornar a triar l\'organitzador antic després de canviar-lo deixa la fitxa sense canvis', async () => {
+    const user = carregar();
+    const select = await screen.findByLabelText('Organitza');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: "L'Ateneu Rodenc" })).toBeInTheDocument());
+    await user.selectOptions(select, "L'Ateneu Rodenc");
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+    await user.selectOptions(select, 'cineclub (no és al catàleg)');
+    expect(select).toHaveValue('cineclub');
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+  });
+
+  it('una entitat sense nom no buida el catàleg', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'entitats'
+      ? { docs: [{ id: 'x', data: () => ({ url: 'https://x.example/' }) }, ...ENTITATS.map(({ id, ...dades }) => ({ id, data: () => dades }))] }
+      : { docs: [] }));
+    carregar();
+    const participen = await screen.findByRole('group', { name: 'Participen' });
+    await vi.waitFor(() => expect(within(within(participen).getByLabelText('Participen')).getAllByRole('option')
+      .map((o) => o.textContent)).toEqual(['— Tria una entitat —', 'Ajuntament de Roda de Berà', "L'Ateneu Rodenc"]));
+  });
+});

@@ -107,6 +107,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Catàleg d'entitats (organitzadors i col·laboradors: nom, logo, URL) que la
+    // fitxa de sessió utilitza per triar-ne; només l'admin el gestiona.
+    match /entitats/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // Pàgines de contingut de la web pública (portada, preguntes freqüents...). La web les llegeix
     // des del servidor amb l'Admin SDK, que no passa per aquestes regles: aquí només l'admin.
     match /pagines/{slug} {

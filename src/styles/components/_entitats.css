@@ -1,0 +1,85 @@
+/* Entitats (organitzadors i col·laboradors) */
+.entitats-list {
+  @apply mx-auto max-w-3xl p-6;
+}
+.entitats-list__capcalera {
+  @apply mb-4 flex flex-wrap items-start justify-between gap-2 border-b border-black/10 pb-4;
+}
+.entitats-list__titol {
+  @apply font-display text-4xl font-bold uppercase tracking-wide text-black;
+}
+.entitats-list__llista {
+  @apply m-0 flex list-none flex-col p-0;
+}
+.entitats-list__item {
+  @apply flex items-center gap-3 border-b border-black/10 py-3 text-sm;
+}
+.entitats-list__logo {
+  @apply h-12 w-12 shrink-0 object-contain;
+}
+.entitats-list__text {
+  @apply flex min-w-0 flex-col gap-1;
+}
+.entitats-list__nom {
+  @apply text-base font-semibold;
+}
+
+.entitat-form {
+  @apply mx-auto flex max-w-lg flex-col gap-2 p-6;
+}
+.entitat-form__tornar {
+  @apply text-sm font-semibold text-gold-dark no-underline hover:underline;
+}
+.entitat-form__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide text-black;
+}
+.entitat-form__input--nomes-lectura {
+  @apply bg-black/5 text-black/70;
+}
+.entitat-form__logo {
+  @apply flex items-center gap-3;
+}
+.entitat-form__previsualitzacio {
+  @apply h-20 w-20 shrink-0 rounded border border-black/10 object-contain;
+}
+.entitat-form__fitxer {
+  @apply min-w-0 flex-1 text-sm;
+}
+
+/* Selector d'entitats de la fitxa de sessió */
+.selector-entitats__xips {
+  @apply m-0 flex list-none flex-wrap gap-2 p-0;
+}
+.selector-entitats__xip {
+  @apply flex min-w-0 max-w-full items-center gap-1 rounded-2xl border border-black/15 bg-black/5 py-1 pl-3 pr-1 text-sm;
+}
+.selector-entitats__nom {
+  @apply min-w-0 break-words;
+}
+.selector-entitats__avis {
+  @apply text-xs font-semibold italic text-black/70;
+}
+.selector-entitats__treure {
+  @apply flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-black/70 hover:bg-black/10 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gold-dark;
+}
+.selector-entitats__icona {
+  @apply h-4 w-4;
+}
+.selector-entitats__afegir {
+  @apply flex min-w-0 gap-2;
+}
+.selector-entitats__select {
+  @apply min-w-0 flex-1;
+}
+.selector-entitats__boto {
+  @apply shrink-0;
+}
+.selector-entitats__gestionar {
+  @apply mt-3 inline-block text-sm font-semibold;
+}
+.selector-entitats {
+  @apply m-0 min-w-0 border-0 p-0;
+}
+.selector-entitats__etiqueta {
+  @apply p-0;
+}

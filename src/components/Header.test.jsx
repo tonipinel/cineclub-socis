@@ -106,6 +106,7 @@ describe('Header', () => {
     const { container } = renderAdmin();
     expect(entrada(container, 'Socis')).toHaveAttribute('href', '/socis');
     expect(entrada(container, 'Propostes')).toHaveAttribute('href', '/propostes/pendents');
+    expect(entrada(container, 'Sessions')).toHaveAttribute('href', '/sessions');
   });
 
   describe('submenú dels grups', () => {
@@ -148,14 +149,31 @@ describe('Header', () => {
       expect(fons.nextElementSibling).toBe(submenu());
     });
 
-    it('a /sessions no hi ha submenú ni cap grup actiu', () => {
+    it('a /sessions mostra el submenú de Sessions amb Sessions marcat', () => {
       const { container } = renderAdmin('/sessions');
-      expect(submenu()).not.toBeInTheDocument();
-      expect(container.querySelector('.site-header__separador')).toBeNull();
-      expect(container.querySelector('.site-header__fons-submenu')).toBeNull();
+      expect(etiquetes()).toEqual(['Sessions', 'Entitats']);
+      expect(within(submenu()).getByRole('link', { name: 'Sessions' })).toHaveClass('site-header__sublink--actiu');
       expect(entrada(container, 'Sessions')).toHaveClass('site-header__link--actiu');
       expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
       expect(entrada(container, 'Propostes')).not.toHaveClass('site-header__link--actiu');
+    });
+
+    it('a /entitats mostra el submenú amb Sessions i Entitats, Entitats marcat', () => {
+      const { container } = renderAdmin('/entitats');
+      expect(etiquetes()).toEqual(['Sessions', 'Entitats']);
+      expect(within(submenu()).getByRole('link', { name: 'Entitats' })).toHaveClass('site-header__sublink--actiu');
+      expect(within(submenu()).getByRole('link', { name: 'Sessions' })).not.toHaveClass('site-header__sublink--actiu');
+      expect(entrada(container, 'Sessions')).toHaveClass('site-header__link--actiu');
+    });
+
+    it('a /escaneig no hi ha submenú ni cap grup actiu', () => {
+      const { container } = renderAdmin('/escaneig');
+      expect(submenu()).not.toBeInTheDocument();
+      expect(container.querySelector('.site-header__separador')).toBeNull();
+      expect(container.querySelector('.site-header__fons-submenu')).toBeNull();
+      expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Propostes')).not.toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Sessions')).not.toHaveClass('site-header__link--actiu');
     });
 
     it('al menú mòbil els grups mostren els seus elements a sota, sempre visibles', () => {
@@ -164,6 +182,7 @@ describe('Header', () => {
       expect([...grups].map((g) => [...g.querySelectorAll('a')].map((a) => a.textContent))).toEqual([
         ['Socis', 'Sol·licituds', 'Tiquets'],
         ['Propostes', 'Tandes', 'Distribuïdores'],
+        ['Sessions', 'Entitats'],
       ]);
     });
 
