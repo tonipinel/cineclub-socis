@@ -8,6 +8,7 @@ const grups = [
   { etiqueta: 'Participen', repetida: 'Participa', noms: participa },
   { etiqueta: 'Col·laboren', repetida: 'Col·labora', noms: collabora },
 ].filter((grup) => grup.noms.length);
+// Sense logo, l'entitat es mostra amb el nom en text.
 const entitat = (nom) => entitatPerNom(nom);
 ---
 {(participa.length || collabora.length) ? (
@@ -15,7 +16,7 @@ const entitat = (nom) => entitatPerNom(nom);
     <div class="collab-strip">
       <div class="collab-strip__item">
         <span class="collab-strip__label">Organitza</span>
-        {entitat(organitza) ? (
+        {entitat(organitza)?.logo ? (
           entitat(organitza).url ? (
             <a class="collab-strip__link" href={entitat(organitza).url} target="_blank" rel="noopener">
               <img class="collab-strip__logo" src={entitat(organitza).logo} alt={organitza} />
@@ -34,7 +35,7 @@ const entitat = (nom) => entitatPerNom(nom);
             {grup.noms.map((nom) => (
               <div class="collab-strip__item">
                 <span class="collab-strip__label collab-strip__label--repeat">{grup.repetida}</span>
-                {entitat(nom) ? (
+                {entitat(nom)?.logo ? (
                   entitat(nom).url ? (
                     <a class="collab-strip__link" href={entitat(nom).url} target="_blank" rel="noopener">
                       <img class="collab-strip__logo" src={entitat(nom).logo} alt={nom} />

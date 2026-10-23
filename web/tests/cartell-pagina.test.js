@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import RutaCartell from '../src/pages/programacio/[any]/[slug]/cartell.html.astro';
 import Pagina404 from '../src/pages/404.astro';
 import { entradesSitemap } from '../src/lib/sitemap.js';
+import { fixaEntitatsDeProva } from '../src/lib/entitats.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -37,6 +38,9 @@ const pig = {
     cos: "## Sinopsi\n\nEn Rob és un xef d'alta cuina. Vegeu [Hugo](https://exemple.cat).\n\n## Context\n\nAltres coses.\n",
   },
 };
+// El catàleg d'entitats el carrega el middleware (Firestore); aquí s'injecta directament.
+beforeEach(() => fixaEntitatsDeProva({ "L'Ateneu Rodenc": { logo: '/images/entitats/ateneu-rodenc.jpg', url: 'https://www.instagram.com/ateneu_rodenc.rdb/' } }));
+
 const ambPublica = (publica, extra = {}) => ({ ...pig, ...extra, publica: { ...pig.publica, ...publica } });
 
 const ambDb = (sessions, imatges = { 'hero-logo.png': LOGO }) => {

@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Les sessions (Firestore) es substitueixen per un mock: el middleware només les llegeix quan una
 // petició acaba en 404, per comprovar si és un alias de Hugo.
-const { sessionsMock, paginaMock } = vi.hoisted(() => ({ sessionsMock: vi.fn(), paginaMock: vi.fn() }));
+const { sessionsMock, paginaMock, entitatsMock, carregadesMock } = vi.hoisted(() => ({
+  sessionsMock: vi.fn(), paginaMock: vi.fn(), entitatsMock: vi.fn(), carregadesMock: vi.fn(),
+}));
 vi.mock('../src/lib/sessions.js', () => ({ sessionsPubliques: sessionsMock }));
+// El catàleg d'entitats es carrega (Firestore) abans de renderitzar cada pàgina HTML.
+vi.mock('../src/lib/entitats.js', () => ({ carregaEntitats: entitatsMock, entitatsCarregades: carregadesMock }));
 vi.mock('../src/lib/pagines.js', async (importOriginal) => ({ ...(await importOriginal()), paginaPerSlug: paginaMock }));
 
 const carrega = async (indexable) => {
@@ -22,6 +26,10 @@ describe('middleware', () => {
     sessionsMock.mockResolvedValue([]);
     paginaMock.mockReset();
     paginaMock.mockResolvedValue(null);
+    entitatsMock.mockReset();
+    entitatsMock.mockResolvedValue(undefined);
+    carregadesMock.mockReset();
+    carregadesMock.mockReturnValue(true);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -253,6 +261,66 @@ describe('middleware', () => {
         expect(res.status, cami).toBe(200);
       }
       expect(paginaMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('catàleg d\'entitats', () => {
+    it('es carrega abans de next() per a les pàgines HTML', async () => {
+      const { onRequest } = await carrega(true);
+      const ordre = [];
+      entitatsMock.mockImplementation(async () => { ordre.push('entitats'); });
+      for (const cami of ['/', '/programacio/2026/pig/', '/programacio/2026/pig/cartell.html', '/fes-te-socia/']) {
+        await onRequest(context(cami), () => { ordre.push('next'); return ok(); });
+      }
+      expect(ordre).toEqual(['entitats', 'next', 'entitats', 'next', 'entitats', 'next', 'entitats', 'next']);
+    });
+
+    it('si la càrrega rebutja, la pàgina HTML retorna la resposta de next() amb el seu estat', async () => {
+      const { onRequest } = await carrega(true);
+      entitatsMock.mockRejectedValue(new Error('caiguda'));
+      const res = await onRequest(context('/programacio/'), ok);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('<p>hola</p>');
+      const res404 = await onRequest(context('/no-existeix/'), no404);
+      expect(res404.status).toBe(404);
+      expect(entitatsMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('si el catàleg no s\'ha carregat mai, una pàgina HTML 200 porta una caché curta amb el mateix estat i cos', async () => {
+      const { onRequest } = await carrega(true);
+      const { CACHE_CLIENT, CACHE_OK, CACHE_AVUI, CACHE_NOT_FOUND, CACHE_REDIRECT } = await import('../src/lib/cache.js');
+      carregadesMock.mockReturnValue(false);
+      entitatsMock.mockRejectedValue(new Error('caiguda'));
+      const res = await onRequest(context('/programacio/2026/pig/'), ok);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('<p>hola</p>');
+      expect(res.headers.get('Cache-Control')).toBe(CACHE_CLIENT);
+      const avui = await onRequest(context('/'), () => Promise.resolve(new Response('a', { status: 200, headers: { 'Cache-Control': CACHE_AVUI } })));
+      expect(avui.headers.get('Cache-Control')).toBe(CACHE_CLIENT);
+      expect((await onRequest(context('/no-existeix/'), no404)).headers.get('Cache-Control')).toBe(CACHE_NOT_FOUND);
+      sessionsMock.mockResolvedValue([{ id: 'pig', slug: 'pig', data: '2026-06-25', hora: '19:00', publicada: true, publica: { aliases: ['/programacio/25-de-juny-pig/'] } }]);
+      const alias = await onRequest(context('/programacio/25-de-juny-pig/'), no404);
+      expect(alias.status).toBe(301);
+      expect(alias.headers.get('Cache-Control')).toBe(CACHE_REDIRECT);
+      // Una imatge (no HTML) conserva la seva caché encara que el catàleg no s'hagi carregat.
+      expect((await onRequest(context('/api/img.webp'), ok)).headers.get('Cache-Control')).toBe(CACHE_OK);
+    });
+
+    it('un cop carregat el catàleg, la pàgina HTML porta la caché normal', async () => {
+      const { onRequest } = await carrega(true);
+      const { CACHE_OK, CACHE_AVUI } = await import('../src/lib/cache.js');
+      carregadesMock.mockReturnValue(true);
+      expect((await onRequest(context('/programacio/2026/pig/'), ok)).headers.get('Cache-Control')).toBe(CACHE_OK);
+      const avui = await onRequest(context('/'), () => Promise.resolve(new Response('a', { status: 200, headers: { 'Cache-Control': CACHE_AVUI } })));
+      expect(avui.headers.get('Cache-Control')).toBe(CACHE_AVUI);
+    });
+
+    it('les imatges, els estàtics i els endpoints de dades no la criden', async () => {
+      const { onRequest } = await carrega(true);
+      for (const cami of ['/apple-touch-icon.png', '/images/entitats/ateneu-rodenc.jpg', '/api/img.webp', '/index.xml', '/programacio/index.xml', '/sitemap.xml', '/robots.txt', '/propostes/votar/og.jpg', '/favicon.ico']) {
+        await onRequest(context(cami), ok);
+      }
+      expect(entitatsMock).not.toHaveBeenCalled();
     });
   });
 });
