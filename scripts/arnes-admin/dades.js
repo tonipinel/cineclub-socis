@@ -83,6 +83,7 @@ export function dadesInicials() {
       titol,
       data: iso(i * 14 - 20),
       hora: '19:00',
+      ...(i === 2 ? { propostaId: 'p2' } : {}),
       activa: i === 2,
       senseControl: i === 5,
       urlProgramacio: URL_LLARGA,
@@ -236,14 +237,19 @@ export function dadesInicials() {
   d['entitats/e3'] = { nom: 'Ajuntament de Roda de Berà', url: 'https://rodadebera.example/', logo: '/logo-cineclub.png' };
 
   // --- Propostes (20) i dades internes.
-  const estats = ['pendent', 'aprovada', 'rebutjada', 'programada'];
+  // Barreja d'estats amb 14 propostes efectives (aprovades o programades), perquè la votació tingui un top llarg.
+  const estatDe = (i) => {
+    if (i % 5 === 0) return 'pendent';
+    if (i % 7 === 0) return 'rebutjada';
+    return i % 2 ? 'aprovada' : 'programada';
+  };
   for (let i = 1; i <= 20; i += 1) {
     const titol = TITOLS[i % TITOLS.length];
     d[`propostes/p${i}`] = {
       titol,
       titolLocal: `${titol} (títol a Espanya)`,
       lema: 'Una pel·lícula que no et deixarà indiferent, ni a tu ni a ningú de la sala',
-      estat: estats[i % estats.length],
+      estat: estatDe(i),
       numeroSoci: 1000 + i,
       nomProposant: `${NOMS[i % NOMS.length]} ${COGNOMS[i % COGNOMS.length]}`,
       comentari: i === 1 ? `L'he vist tres cops i cada cop m'agrada més. ${URL_LLARGA}` : 'Molt recomanable.',
@@ -285,8 +291,12 @@ export function dadesInicials() {
     creada: ts(5),
   };
   d['tandes/t2'] = { nom: 'Tanda de primavera', propostes: idsPropostes.slice(0, 4), tanca: ts(100), creada: ts(130) };
+  // Tandes tancades amb 8 i 12 propostes efectives, per comprovar l'amplada de la taula de resultats.
+  const efectives = idsPropostes.filter((_, k) => ![5, 7, 10, 14, 15, 20].includes(k + 1));
+  d['tandes/t3'] = { nom: 'Tanda de 8 pel·lícules', propostes: efectives.slice(0, 8), tanca: ts(200), creada: ts(230) };
+  d['tandes/t4'] = { nom: 'Tanda de 12 pel·lícules', propostes: efectives.slice(0, 12), tanca: ts(300), creada: ts(330) };
   for (let i = 1; i <= 30; i += 1) {
-    const valors = Object.fromEntries(idsPropostes.filter((_, k) => (k + i) % 3 !== 0).map((id, k) => [id, (k + i) % 2 ? 'like' : 'dislike']));
+    const valors = Object.fromEntries(idsPropostes.filter((_, k) => (k + i) % 3 !== 0).map((id, k) => [id, (i + k * k) % (k % 5 + 2) ? 'like' : 'dislike']));
     d[`tandes/t1/vots/${1000 + i}`] = { valors };
   }
 

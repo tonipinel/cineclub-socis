@@ -81,3 +81,16 @@
 .dashboard__tooltip-total {
   @apply mt-1 border-t border-black/10 pt-1 font-semibold;
 }
+
+.dashboard__votacio-barra-wrap {
+  @apply flex items-center gap-3;
+}
+.dashboard__votacio-barra {
+  @apply h-3 flex-1 overflow-hidden rounded-full bg-black/10;
+}
+.dashboard__votacio-barra-omplerta {
+  @apply h-full bg-gold;
+}
+.dashboard__votacio-percentatge {
+  @apply w-12 text-right font-semibold text-gold-dark;
+}

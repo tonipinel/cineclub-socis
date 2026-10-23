@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validarTanda, tandaOberta, potCrearTanda, resumirResultats, classificarSocis, comptarEstats, propostesEfectives,
-  ordenarPropostesPerResultat,
+  ordenarPropostesPerResultat, resumVotacio, destiFitxaProposta, sessionsPerProposta,
 } from './tandes';
 
 const ARA = new Date('2026-10-22T12:00:00');
@@ -107,7 +107,7 @@ describe('classificarSocis', () => {
     expect(perNumero[3]).toMatchObject({ estat: 'sense-comencar', votats: 0, total: 3, valors: {} });
   });
 
-  it('ordena En curs, Sense començar i Completats, i per número de soci dins de cada estat', () => {
+  it('ordena Completats, En curs i Sense començar, i per número de soci dins de cada estat', () => {
     const socis = [soci(5), soci(2), soci(9), soci(7), soci(1)];
     const vots = [
       vot(5, { a: 'like', b: 'like', c: 'like' }),
@@ -115,7 +115,7 @@ describe('classificarSocis', () => {
       vot(9, { a: 'like' }),
       vot(2, { b: 'dislike' }),
     ];
-    expect(classificarSocis(socis, vots, PROPOSTES).map((f) => f.numeroSoci)).toEqual([2, 9, 7, 1, 5]);
+    expect(classificarSocis(socis, vots, PROPOSTES).map((f) => f.numeroSoci)).toEqual([1, 5, 2, 9, 7]);
   });
 
   it('ignora els valors de propostes que ja no són a la tanda i els valors no vàlids', () => {
@@ -225,5 +225,95 @@ describe('ordenarPropostesPerResultat', () => {
     const ids = ['a', 'b'];
     ordenarPropostesPerResultat(ids, { a: resum(0, 1), b: resum(1, 0) });
     expect(ids).toEqual(['a', 'b']);
+  });
+});
+
+describe('resumVotacio', () => {
+  const socis = Array.from({ length: 64 }, (_, i) => ({
+    numeroSoci: i + 1, nom: `Soci${i + 1}`, cognoms: 'X', tokenCarnet: 't',
+  }));
+  const propostes = {
+    p1: { titol: 'Un ours dans le Jura', estat: 'aprovada', imatgeUrl: '/p1.jpg' },
+    p2: { titol: 'My Favourite Cake', estat: 'programada' },
+    p3: { titol: 'Cinema Paradiso', estat: 'aprovada', imatgeUrl: '' },
+    p4: { titol: 'Rebutjada', estat: 'rebutjada' },
+  };
+  const tanda = { nom: 'Q4 2026', propostes: ['p1', 'p2', 'p3', 'p4', 'p9'] };
+  const vots = [
+    ...Array.from({ length: 12 }, (_, i) => ({ numeroSoci: i + 1, valors: { p1: 'like', p2: i === 0 ? 'dislike' : 'like', p3: 'like' } })),
+    { numeroSoci: 13, valors: { p1: 'like' } },
+  ];
+
+  it('compta elegibles, han votat, completats, pendents i el % de completats', () => {
+    const r = resumVotacio({ tanda, vots, socis, propostes });
+    expect(r.total).toBe(64);
+    expect(r.participants).toBe(13);
+    expect(r.completats).toBe(12);
+    expect(r.pendents).toBe(51);
+    expect(r.percentCompletats).toBe(19);
+  });
+
+  it('exclou les propostes no efectives i ordena de millor a pitjor', () => {
+    const r = resumVotacio({ tanda, vots, socis, propostes });
+    expect(r.efectives).toEqual(['p1', 'p2', 'p3']);
+    expect(r.files).toEqual([
+      { id: 'p1', titol: 'Un ours dans le Jura', imatgeUrl: '/p1.jpg', href: '/propostes/pendents/p1', likes: 13, dislikes: 0, percent: 100 },
+      { id: 'p3', titol: 'Cinema Paradiso', imatgeUrl: null, href: '/propostes/pendents/p3', likes: 12, dislikes: 0, percent: 100 },
+      { id: 'p2', titol: 'My Favourite Cake', imatgeUrl: null, href: '/propostes/pendents/p2', likes: 11, dislikes: 1, percent: 92 },
+    ]);
+  });
+
+  it('sense vots: tot pendent, 0% i propostes sense percentatge en l\'ordre de la tanda', () => {
+    const r = resumVotacio({ tanda, vots: [], socis, propostes });
+    expect(r).toMatchObject({ total: 64, participants: 0, completats: 0, pendents: 64, percentCompletats: 0 });
+    expect(r.files).toEqual([
+      { id: 'p1', titol: 'Un ours dans le Jura', imatgeUrl: '/p1.jpg', href: '/propostes/pendents/p1', likes: 0, dislikes: 0, percent: null },
+      { id: 'p2', titol: 'My Favourite Cake', imatgeUrl: null, href: '/propostes/pendents/p2', likes: 0, dislikes: 0, percent: null },
+      { id: 'p3', titol: 'Cinema Paradiso', imatgeUrl: null, href: '/propostes/pendents/p3', likes: 0, dislikes: 0, percent: null },
+    ]);
+  });
+
+  it('sense socis elegibles el % és 0', () => {
+    const r = resumVotacio({ tanda, vots: [], socis: [], propostes });
+    expect(r).toMatchObject({ total: 0, pendents: 0, percentCompletats: 0 });
+  });
+});
+
+describe('destiFitxaProposta i sessionsPerProposta', () => {
+  const sessions = [{ id: 's9', propostaId: 'p2' }, { id: 's8' }];
+
+  it('indexa les sessions per proposta, ignorant les que no en tenen', () => {
+    expect(sessionsPerProposta(sessions)).toEqual({ p2: 's9' });
+  });
+
+  it('amb diverses sessions per proposta tria la de data més recent i, en empat, l\'id més baix', () => {
+    expect(sessionsPerProposta([
+      { id: 'a', propostaId: 'p1', data: '2026-01-10' },
+      { id: 'b', propostaId: 'p1', data: '2026-03-10' },
+      { id: 'c', propostaId: 'p1', data: '2026-02-10' },
+    ])).toEqual({ p1: 'b' });
+    expect(sessionsPerProposta([
+      { id: 'z', propostaId: 'p1', data: '2026-03-10' },
+      { id: 'm', propostaId: 'p1', data: '2026-03-10' },
+    ])).toEqual({ p1: 'm' });
+    expect(sessionsPerProposta([
+      { id: 'x', propostaId: 'p1' },
+      { id: 'y', propostaId: 'p1', data: '2026-03-10' },
+    ])).toEqual({ p1: 'y' });
+  });
+
+  it.each([
+    ['programada amb sessió', { propostaId: 'p2', estat: 'programada' }, '/sessions/s9'],
+    ['programada sense sessió', { propostaId: 'p3', estat: 'programada' }, '/propostes/pendents/p3'],
+    ['aprovada (encara que tingui sessió)', { propostaId: 'p2', estat: 'aprovada' }, '/propostes/pendents/p2'],
+    ['estat desconegut', { propostaId: 'p1', estat: undefined }, '/propostes/pendents/p1'],
+  ])('%s', (_, proposta, esperat) => {
+    expect(destiFitxaProposta(proposta, sessionsPerProposta(sessions))).toBe(esperat);
+  });
+
+  it('resumVotacio assigna la sessió a la proposta programada amb sessió', () => {
+    const propostes = { p1: { estat: 'aprovada' }, p2: { estat: 'programada' } };
+    const r = resumVotacio({ tanda: { propostes: ['p1', 'p2'] }, vots: [], socis: [], propostes, sessions });
+    expect(r.files.map((f) => f.href)).toEqual(['/propostes/pendents/p1', '/sessions/s9']);
   });
 });

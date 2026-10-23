@@ -9,12 +9,14 @@ import { db } from '../../firebase/firebase';
 import { avui } from '../../lib/data';
 import { resumDashboardSocis } from '../../lib/socis';
 import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
+import { resumVotacio, tandaOberta } from '../../lib/tandes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import {
   resumComptable, resumReal, resumPrevisio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
+import TopVotacio from '../../components/TopVotacio';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
 
@@ -40,11 +42,15 @@ function TooltipAssistencia({ active, payload, label }) {
   );
 }
 
+// El dashboard ensenya com a molt les 8 millors pel·lícules de la votació.
+const FILMS_MAXIMS_DASHBOARD = 8;
+
 const CATEGORIES_DETALL_TANCAT_PER_DEFECTE = ['Gestió associació'];
 
 export default function DashboardPage() {
   const [dades, setDades] = useState(undefined);
   const [error, setError] = useState(false);
+  const [votacio, setVotacio] = useState(null);
   const [pestanyaEvolucio, setPestanyaEvolucio] = useState('real');
   const [categoriesDetallTancat, setCategoriesDetallTancat] = useState(
     () => new Set(CATEGORIES_DETALL_TANCAT_PER_DEFECTE)
@@ -74,6 +80,31 @@ export default function DashboardPage() {
         lots: lotsSnap.docs.map((d) => d.data()),
       });
     }).catch(() => setError(true));
+  }, []);
+
+  // Lectures opcionals: si fallen, simplement no es mostra el bloc de votació.
+  useEffect(() => {
+    let viu = true;
+    (async () => {
+      try {
+        const tandesSnap = await getDocs(collection(db, 'tandes'));
+        const tanda = tandaOberta(tandesSnap.docs.map((d) => ({ id: d.id, ...d.data() })), new Date());
+        if (!tanda) return;
+        const [votsSnap, propostesSnap] = await Promise.all([
+          getDocs(collection(db, 'tandes', tanda.id, 'vots')),
+          getDocs(collection(db, 'propostes')),
+        ]);
+        if (!viu) return;
+        setVotacio({
+          tanda,
+          vots: votsSnap.docs.map((d) => ({ numeroSoci: d.id, ...d.data() })),
+          propostes: Object.fromEntries(propostesSnap.docs.map((d) => [d.id, d.data()])),
+        });
+      } catch {
+        // Sense bloc de votació.
+      }
+    })();
+    return () => { viu = false; };
   }, []);
 
   if (error) {
@@ -138,6 +169,9 @@ export default function DashboardPage() {
     ? (dadesAltesSessions.reduce((suma, s) => suma + s.altes, 0) / dadesAltesSessions.length).toFixed(1)
     : 0;
   const totalTiquets = tiquets.disponibles + tiquets.usats;
+  const resumVot = votacio && resumVotacio({
+    tanda: votacio.tanda, vots: votacio.vots, socis: dades.socis, propostes: votacio.propostes, sessions: dades.sessions,
+  });
   const percentTiquetsUsats = totalTiquets > 0 ? Math.round((tiquets.usats / totalTiquets) * 100) : 0;
 
   return (
@@ -177,6 +211,29 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard__fila-superior">
+        {resumVot && (
+          <div className="dashboard__modul dashboard__modul--ample">
+            <h2 className="dashboard__modul-titol">Votació: {votacio.tanda.nom}</h2>
+            <p>{resumVot.participants} de {resumVot.total} han votat · {resumVot.completats} han completat · {resumVot.pendents} pendents</p>
+            <p className="dashboard__subtitol">Completats: {resumVot.completats} de {resumVot.total}</p>
+            <div className="dashboard__votacio-barra-wrap">
+              <div
+                className="dashboard__votacio-barra"
+                role="progressbar"
+                aria-label="Completats"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={resumVot.percentCompletats}
+                aria-valuetext={`${resumVot.completats} de ${resumVot.total} han completat la votació`}
+              >
+                <div className="dashboard__votacio-barra-omplerta" style={{ width: `${resumVot.percentCompletats}%` }} />
+              </div>
+              <span className="dashboard__votacio-percentatge">{resumVot.percentCompletats}%</span>
+            </div>
+            <TopVotacio files={resumVot.files.slice(0, FILMS_MAXIMS_DASHBOARD)} />
+            <Link className="dashboard__enllac" to={ROUTES.TANDES_RESULTATS.replace(':id', votacio.tanda.id)}>Veure resultats complets</Link>
+          </div>
+        )}
         <div className="dashboard__columna">
 
         <div className="dashboard__modul">

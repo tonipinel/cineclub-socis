@@ -29,6 +29,7 @@ const PROPOSTES = [
   { id: 'p2', titol: 'Solaris', estat: 'programada' },
   { id: 'p3', titol: 'El mirall', estat: 'aprovada' },
 ];
+const SESSIONS = [{ id: 'ses7', titol: 'Solaris', propostaId: 'p2' }];
 const SOCIS = [
   { id: 's1', numeroSoci: 12, nom: 'Anna', cognoms: 'Puig', tokenCarnet: 't12' },
   { id: 's2', numeroSoci: 40, nom: 'Joan', cognoms: 'Serra', tokenCarnet: 't40' },
@@ -66,6 +67,14 @@ const renderitzaIEmet = async ({ tanda = TANDA, vots = VOTS } = {}) => {
   emet('tandes/t1/vots', snapVots(vots));
 };
 
+const renderitzaIEmetAmbContenidor = async () => {
+  const r = renderitza();
+  await vi.waitFor(() => expect(subscripcions['tandes/t1/vots']).toBeDefined());
+  emet('tandes/t1', snapTanda(TANDA));
+  emet('tandes/t1/vots', snapVots(VOTS));
+  return r;
+};
+
 const textsDeFila = (fila) => Array.from(fila.children).map((c) => c.textContent);
 const files = () => within(screen.getByRole('table')).getAllByRole('row').slice(1);
 
@@ -82,7 +91,7 @@ describe('TandaResultats', () => {
     deleteDoc.mockReset();
     deleteDoc.mockResolvedValue();
     getDocs.mockReset();
-    getDocs.mockImplementation((ruta) => Promise.resolve(docs({ socis: SOCIS, propostes: PROPOSTES }[ruta])));
+    getDocs.mockImplementation((ruta) => Promise.resolve(docs({ socis: SOCIS, propostes: PROPOSTES, sessions: SESSIONS }[ruta])));
   });
 
   it('mostra el nom de la tanda', async () => {
@@ -111,18 +120,50 @@ describe('TandaResultats', () => {
     expect(resultats[2]).not.toHaveTextContent('%');
   });
 
-  it('mostra la matriu amb una fila per soci, ordenada En curs, Sense començar i Completats', async () => {
+  it('cada pel·lícula del top enllaça a la sessió si és programada amb sessió i, si no, a la proposta', async () => {
+    await renderitzaIEmet();
+    const top = (await screen.findAllByTestId('resultat-proposta'));
+    const href = (titol) => within(top.find((li) => within(li).queryByRole('heading', { name: titol }))).getByRole('link', { name: titol });
+    expect(href('Solaris')).toHaveAttribute('href', '/sessions/ses7');
+    expect(href('Stalker')).toHaveAttribute('href', '/propostes/pendents/p1');
+    expect(href('El mirall')).toHaveAttribute('href', '/propostes/pendents/p3');
+  });
+
+  it('si no es poden llegir les sessions, totes les pel·lícules enllacen a la proposta', async () => {
+    getDocs.mockImplementation((ruta) => (ruta === 'sessions'
+      ? Promise.reject(new Error('boom'))
+      : Promise.resolve(docs({ socis: SOCIS, propostes: PROPOSTES }[ruta]))));
+    await renderitzaIEmet();
+    const link = await screen.findByRole('link', { name: 'Solaris' });
+    expect(link).toHaveAttribute('href', '/propostes/pendents/p2');
+  });
+
+  it('fa servir l\'amplada de llista i la capçalera de la taula mostra la caràtula de cada pel·lícula', async () => {
+    getDocs.mockImplementation((ruta) => Promise.resolve(docs({
+      socis: SOCIS, sessions: SESSIONS, propostes: PROPOSTES.map((p) => (p.id === 'p1' ? { ...p, imatgeUrl: '/stalker.jpg' } : p)),
+    }[ruta])));
+    await renderitzaIEmetAmbContenidor();
+    await screen.findByRole('table');
+    expect(document.querySelector('.pagina-admin')).toHaveClass('pagina-admin--llista');
+    const capcalera = within(await screen.findByRole('table')).getAllByRole('row')[0];
+    const stalker = within(capcalera).getByRole('columnheader', { name: 'Stalker' });
+    expect(stalker.querySelector('img')).toHaveAttribute('src', '/stalker.jpg');
+    expect(stalker.querySelector('img')).toHaveAttribute('alt', '');
+    expect(within(capcalera).getByRole('columnheader', { name: 'Solaris' }).querySelector('.tanda-resultats__cartell--buit')).toBeInTheDocument();
+  });
+
+  it('mostra la matriu amb una fila per soci, ordenada Completats, En curs i Sense començar', async () => {
     await renderitzaIEmet();
     const taula = await screen.findByRole('table');
     const capcalera = within(taula).getAllByRole('row')[0];
     expect(within(capcalera).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Soci', 'Estat', 'El mirall', 'Solaris', 'Stalker']);
     expect(within(capcalera).getByRole('columnheader', { name: 'Stalker' })).toHaveAttribute('title', 'Stalker');
     expect(files().map(textsDeFila)).toEqual([
+      ['Joan Serranúm. 40Esborrar els vots', 'Completat', '👍', '👍', '👍'],
       ['Anna Puignúm. 12Esborrar els vots', 'En curs (2/3)', '—', '👍', '👎'],
       ['Núm. 77no elegibleEsborrar els vots', 'En curs (2/3)', '—', '👎', '👎'],
       ['Rosa Masnúm. 80no elegibleEsborrar els vots', 'En curs (1/3)', '—', '—', '👍'],
       ['Pere Vilanúm. 55', 'Sense començar (0/3)', '—', '—', '—'],
-      ['Joan Serranúm. 40Esborrar els vots', 'Completat', '👍', '👍', '👍'],
     ]);
   });
 
@@ -149,7 +190,7 @@ describe('TandaResultats', () => {
     const rowheaders = within(taula).getAllByRole('rowheader');
     expect(rowheaders).toHaveLength(5);
     rowheaders.forEach((c) => expect(c).toHaveAttribute('scope', 'row'));
-    const filaAnna = files()[0];
+    const filaAnna = files()[1];
     expect(within(filaAnna).getByRole('img', { name: 'No m\'agrada' })).toHaveTextContent('👎');
     expect(within(filaAnna).getByRole('img', { name: 'M\'agrada' })).toHaveTextContent('👍');
     expect(within(filaAnna).getByRole('img', { name: 'Sense vot' })).toHaveTextContent('—');
@@ -305,7 +346,7 @@ describe('TandaResultats', () => {
 
   describe('propostes retirades de la tanda', () => {
     const ambPropostes = (propostes) => getDocs.mockImplementation(
-      (ruta) => Promise.resolve(docs({ socis: SOCIS, propostes }[ruta]))
+      (ruta) => Promise.resolve(docs({ socis: SOCIS, propostes, sessions: [] }[ruta]))
     );
 
     it('si una proposta ja no és aprovada/programada, la classificació, el resum i les columnes l\'ignoren', async () => {
@@ -321,7 +362,7 @@ describe('TandaResultats', () => {
       // Anna (p1 + p2) i Joan queden completats; Pere, pendent; Rosa (inactiva), en curs 1/2.
       expect(screen.getByText('2 de 3 han votat · 2 han completat · 1 pendents')).toBeInTheDocument();
       expect(files().map(textsDeFila).map((f) => f[1])).toEqual(
-        ['En curs (1/2)', 'Sense començar (0/2)', 'Completat', 'Completat', 'Completat']
+        ['Completat', 'Completat', 'Completat', 'En curs (1/2)', 'Sense començar (0/2)']
       );
       expect(screen.queryByText('El mirall')).not.toBeInTheDocument();
     });
@@ -379,19 +420,19 @@ describe('TandaResultats', () => {
   });
 
   describe('layout estàndard', () => {
-    it('fa servir l\'amplada de fitxa, un sol h1 i l\'enllaç «← Tandes»', async () => {
+    it('fa servir l\'amplada de llista, un sol h1 i l\'enllaç «← Tandes»', async () => {
       await renderitzaIEmet();
       const titol = await screen.findByRole('heading', { level: 1, name: 'Resultats: Novembre' });
-      expect(titol.closest('.pagina-admin')).toHaveClass('pagina-admin--fitxa');
+      expect(titol.closest('.pagina-admin')).toHaveClass('pagina-admin--llista');
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
       expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
     });
 
-    it('amb error de càrrega també manté el contenidor de fitxa i l\'enllaç «← Tandes»', async () => {
+    it('amb error de càrrega també manté el contenidor de llista i l\'enllaç «← Tandes»', async () => {
       getDocs.mockRejectedValue(new Error('offline'));
       renderitza();
       const avis = await screen.findByRole('alert');
-      expect(avis.closest('.pagina-admin')).toHaveClass('pagina-admin--fitxa');
+      expect(avis.closest('.pagina-admin')).toHaveClass('pagina-admin--llista');
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
       expect(screen.getByRole('link', { name: '← Tandes' })).toHaveAttribute('href', '/tandes');
     });

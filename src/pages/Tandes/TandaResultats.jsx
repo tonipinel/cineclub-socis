@@ -5,10 +5,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
-import {
-  aData, classificarSocis, comptarEstats, ordenarPropostesPerResultat, percentatgeLikes,
-  propostesEfectives, resumirResultats,
-} from '../../lib/tandes';
+import { aData, resumVotacio } from '../../lib/tandes';
+import TopVotacio from '../../components/TopVotacio';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
@@ -37,6 +35,7 @@ export default function TandaResultats() {
   const [tanda, setTanda] = useState(null);
   const [vots, setVots] = useState(null);
   const [referencies, setReferencies] = useState(null);
+  const [sessions, setSessions] = useState([]);
   const [filtre, setFiltre] = useState('tots');
   const [error, setError] = useState(false);
   const [intent, setIntent] = useState(0);
@@ -69,10 +68,17 @@ export default function TandaResultats() {
     ]).then(([socisSnap, propostesSnap]) => {
       setReferencies({
         socis: socisSnap.docs.map((d) => d.data()),
-        titols: Object.fromEntries(propostesSnap.docs.map((d) => [d.id, d.data().titol])),
-        estats: Object.fromEntries(propostesSnap.docs.map((d) => [d.id, d.data().estat])),
+        propostes: Object.fromEntries(propostesSnap.docs.map((d) => [d.id, d.data()])),
       });
     }, () => setError(true));
+  }, [intent]);
+
+  // Lectura opcional: sense sessions, cada pel·lícula enllaça a la fitxa de la proposta.
+  useEffect(() => {
+    getDocs(collection(db, 'sessions')).then(
+      (snap) => setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => {},
+    );
   }, [intent]);
 
   const tornarAProvar = () => {
@@ -106,7 +112,7 @@ export default function TandaResultats() {
 
   if (error) {
     return (
-      <PaginaAdmin amplada="fitxa" titol="Resultats" tornar={TORNAR}>
+      <PaginaAdmin amplada="llista" titol="Resultats" tornar={TORNAR}>
         <p className="tanda-resultats__error" role="alert">No s'han pogut carregar els resultats. Torna-ho a provar.</p>
         <button type="button" className="btn" onClick={tornarAProvar}>Tornar a provar</button>
       </PaginaAdmin>
@@ -115,27 +121,23 @@ export default function TandaResultats() {
 
   if (tanda === null || vots === null || referencies === null) return <Carregant />;
 
-  const { socis, titols, estats } = referencies;
-  const efectives = propostesEfectives(tanda.propostes, estats);
-  const { perProposta } = resumirResultats(vots, efectives);
-  const titol = (propostaId) => titols[propostaId] ?? propostaId;
-  const ordenades = ordenarPropostesPerResultat(efectives, perProposta);
-
-  const files = classificarSocis(socis, vots, efectives);
-  const comptadors = comptarEstats(files);
-  const elegibles = comptarEstats(files.filter((f) => f.elegible));
-  const pendents = elegibles['sense-comencar'];
-  const haVotat = elegibles.tots - pendents;
-  const participacio = elegibles.tots === 0 ? 0 : Math.round((elegibles.completat / elegibles.tots) * 100);
+  const { socis, propostes } = referencies;
+  const resum = resumVotacio({
+    tanda, vots, socis, propostes, sessions,
+  });
+  const titol = (propostaId) => propostes[propostaId]?.titol ?? propostaId;
+  const { classificacio: files, comptadors } = resum;
+  const ordenades = resum.files.map((f) => f.id);
+  const filaPerProposta = Object.fromEntries(resum.files.map((f) => [f.id, f]));
   const numerosAmbVot = new Set(vots.map((v) => String(v.numeroSoci)));
   const visibles = filtre === 'tots' ? files : files.filter((f) => f.estat === filtre);
 
   return (
-    <PaginaAdmin amplada="fitxa" titol={`Resultats: ${tanda.nom}`} tornar={TORNAR}>
+    <PaginaAdmin amplada="llista" titol={`Resultats: ${tanda.nom}`} tornar={TORNAR}>
       <p className="tanda-resultats__participants">
-        {haVotat} de {elegibles.tots} han votat · {elegibles.completat} han completat · {pendents} pendents
+        {resum.participants} de {resum.total} han votat · {resum.completats} han completat · {resum.pendents} pendents
       </p>
-      <p className="tanda-resultats__etiqueta-barra">Completats: {elegibles.completat} de {elegibles.tots}</p>
+      <p className="tanda-resultats__etiqueta-barra">Completats: {resum.completats} de {resum.total}</p>
       <div className="tanda-resultats__barra-wrap">
         <div
           className="tanda-resultats__barra"
@@ -143,25 +145,13 @@ export default function TandaResultats() {
           aria-label="Completats"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={participacio}
+          aria-valuenow={resum.percentCompletats}
         >
-          <div className="tanda-resultats__barra-omplerta" style={{ width: `${participacio}%` }} />
+          <div className="tanda-resultats__barra-omplerta" style={{ width: `${resum.percentCompletats}%` }} />
         </div>
-        <span className="tanda-resultats__percentatge">{participacio}%</span>
+        <span className="tanda-resultats__percentatge">{resum.percentCompletats}%</span>
       </div>
-      <ul className="tanda-resultats__llista">
-        {ordenades.map((propostaId) => {
-          const { likes, dislikes } = perProposta[propostaId];
-          const percentatge = percentatgeLikes(perProposta[propostaId]);
-          return (
-            <li key={propostaId} className="tanda-resultats__proposta" data-testid="resultat-proposta">
-              <h2 className="tanda-resultats__proposta-titol">{titol(propostaId)}</h2>
-              <span>👍 {likes} · 👎 {dislikes}</span>
-              {percentatge !== null && <span className="tanda-resultats__percentatge">{percentatge}%</span>}
-            </li>
-          );
-        })}
-      </ul>
+      <TopVotacio files={resum.files} nivellTitol="h2" />
       <div className="tanda-resultats__filtres" role="group" aria-label="Filtrar per estat">
         {FILTRES.map(({ clau, etiqueta }) => (
           <button
@@ -179,15 +169,20 @@ export default function TandaResultats() {
       {visibles.length === 0 ? (
         <p>Cap soci en aquest estat.</p>
       ) : (
-        <div className="scroll-horitzontal tanda-resultats__taula-wrap" role="region" tabIndex={0} aria-label="Vots per soci">
-          <table className="tanda-resultats__taula">
+        <div className="tanda-resultats__taula-wrap" role="region" tabIndex={0} aria-label="Vots per soci">
+          <table className="tanda-resultats__taula" style={{ '--pellicules': ordenades.length }}>
             <thead>
               <tr>
                 <th scope="col">Soci</th>
                 <th scope="col">Estat</th>
                 {ordenades.map((propostaId) => (
                   <th key={propostaId} scope="col" className="tanda-resultats__proposta-columna" title={titol(propostaId)}>
-                    {titol(propostaId)}
+                    {filaPerProposta[propostaId].imatgeUrl ? (
+                      <img className="tanda-resultats__cartell" src={filaPerProposta[propostaId].imatgeUrl} alt="" loading="lazy" />
+                    ) : (
+                      <span className="tanda-resultats__cartell tanda-resultats__cartell--buit" aria-hidden="true" />
+                    )}
+                    <span className="tanda-resultats__proposta-columna-titol">{titol(propostaId)}</span>
                   </th>
                 ))}
               </tr>

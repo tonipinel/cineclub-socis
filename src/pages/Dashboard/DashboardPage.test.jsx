@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -10,7 +10,7 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn(),
 }));
 
-import { getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import DashboardPage from './DashboardPage';
 
 const SOCIS = [
@@ -38,6 +38,37 @@ function mockCarrega(overrides = {}) {
     .mockResolvedValueOnce({ docs: dades.lots.map((d) => ({ data: () => d })) });
 }
 
+const DIA = 24 * 60 * 60 * 1000;
+const SOCIS_VOTACIO = Array.from({ length: 64 }, (_, i) => ({
+  numeroSoci: i + 1, nom: `Soci${i + 1}`, cognoms: 'X', tokenCarnet: 't', dataAlta: '2026-08-01', ultimPagament: '2026-08-01',
+}));
+const VOTS_VOTACIO = [
+  ...Array.from({ length: 12 }, (_, i) => ({
+    id: String(i + 1), valors: { p1: 'like', p2: i === 0 ? 'dislike' : 'like', p3: 'like' },
+  })),
+  { id: '13', valors: { p1: 'like' } },
+];
+const PROPOSTES_VOTACIO = [
+  { id: 'p1', titol: 'Un ours dans le Jura', estat: 'aprovada', imatgeUrl: '/ours.jpg' },
+  { id: 'p2', titol: 'My Favourite Cake', estat: 'programada' },
+  { id: 'p3', titol: 'Cinema Paradiso', estat: 'aprovada' },
+  { id: 'p4', titol: 'Rebutjada', estat: 'rebutjada' },
+];
+const TANDA_OBERTA = {
+  id: 't1', nom: 'Q4 2026', propostes: ['p1', 'p2', 'p3', 'p4'], tanca: new Date(Date.now() + DIA), creada: new Date(Date.now() - DIA),
+};
+const TANDA_TANCADA = { ...TANDA_OBERTA, id: 't0', tanca: new Date(Date.now() - DIA) };
+
+const llista = (docs) => ({ docs: docs.map(({ id, ...d }) => ({ id, data: () => d })) });
+
+// Lectures de la votació, després de les cinc del dashboard: tandes, i si n'hi ha d'oberta, vots i propostes.
+function mockVotacio(tandes = [TANDA_OBERTA]) {
+  getDocs.mockResolvedValueOnce(llista(tandes));
+  if (tandes.some((t) => t.tanca > new Date())) {
+    getDocs.mockResolvedValueOnce(llista(VOTS_VOTACIO)).mockResolvedValueOnce(llista(PROPOSTES_VOTACIO));
+  }
+}
+
 function elementModul(nom) {
   return screen.getByRole('heading', { name: nom }).closest('.dashboard__modul');
 }
@@ -49,6 +80,7 @@ function modul(nom) {
 describe('DashboardPage', () => {
   beforeEach(() => {
     getDocs.mockReset();
+    collection.mockClear();
   });
 
   it('mostra el gif de càrrega mentre es resolen les dades', () => {
@@ -271,5 +303,110 @@ describe('DashboardPage', () => {
     expect(taulaPrevisio.getAllByText('-150.00€')).toHaveLength(12); // el cost de pel·lícula més car, cada fila
 
     vi.useRealTimers();
+  });
+
+  describe('mòdul de votació', () => {
+    const titolVotacio = 'Votació: Q4 2026';
+
+    it('amb una tanda oberta mostra el resum, el progrés i les pel·lícules de millor a pitjor', async () => {
+      mockCarrega({ socis: SOCIS_VOTACIO });
+      mockVotacio();
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: titolVotacio });
+      const m = modul(titolVotacio);
+      expect(m.getByText('13 de 64 han votat · 12 han completat · 51 pendents')).toBeInTheDocument();
+      expect(m.getByText('Completats: 12 de 64')).toBeInTheDocument();
+      expect(m.getByText('19%', { selector: '.dashboard__votacio-percentatge' })).toBeInTheDocument();
+      const barra = m.getByRole('progressbar', { name: 'Completats' });
+      expect(barra).toHaveAttribute('aria-valuenow', '19');
+      expect(barra).toHaveAttribute('aria-valuemin', '0');
+      expect(barra).toHaveAttribute('aria-valuemax', '100');
+      const files = m.getAllByRole('listitem');
+      expect(files.map((li) => within(li).getByRole('heading').textContent)).toEqual([
+        'Un ours dans le Jura', 'Cinema Paradiso', 'My Favourite Cake',
+      ]);
+      expect(files[0]).toHaveTextContent('👍 13 · 👎 0');
+      expect(files[0]).toHaveTextContent('100%');
+      expect(files[1]).toHaveTextContent('👍 12 · 👎 0');
+      expect(files[2]).toHaveTextContent('👍 11 · 👎 1');
+      expect(files[2]).toHaveTextContent('92%');
+      expect(files[0].querySelector('img')).toHaveAttribute('src', '/ours.jpg');
+      expect(within(files[1]).getByTestId('cartell-buit')).toBeInTheDocument();
+    });
+
+    it('enllaça als resultats complets de la tanda', async () => {
+      mockCarrega({ socis: SOCIS_VOTACIO });
+      mockVotacio();
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: titolVotacio });
+      const m = modul(titolVotacio);
+      expect(m.getByRole('link', { name: 'Veure resultats complets' })).toHaveAttribute('href', '/tandes/t1/resultats');
+    });
+
+    it('sense percentatge quan una pel·lícula encara no té vots', async () => {
+      mockCarrega({ socis: SOCIS_VOTACIO });
+      getDocs
+        .mockResolvedValueOnce(llista([TANDA_OBERTA]))
+        .mockResolvedValueOnce(llista([]))
+        .mockResolvedValueOnce(llista(PROPOSTES_VOTACIO));
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: titolVotacio });
+      const m = modul(titolVotacio);
+      expect(m.getByText('0 de 64 han votat · 0 han completat · 64 pendents')).toBeInTheDocument();
+      expect(m.getAllByRole('listitem')[0]).toHaveTextContent('Un ours dans le Jura👍 0 · 👎 0Sense vots');
+    });
+
+    it.each([[6, 6], [8, 8], [9, 8]])('amb %i pel·lícules ensenya les %i millors i sempre enllaça als resultats complets', async (quantes, visibles) => {
+      const ids = Array.from({ length: quantes }, (_, i) => `q${i + 1}`);
+      const propostes = ids.map((id) => ({ id, titol: `Film ${id}`, estat: 'aprovada' }));
+      mockCarrega({ socis: SOCIS_VOTACIO });
+      getDocs
+        .mockResolvedValueOnce(llista([{ ...TANDA_OBERTA, propostes: ids }]))
+        .mockResolvedValueOnce(llista([]))
+        .mockResolvedValueOnce(llista(propostes));
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: titolVotacio });
+      const m = modul(titolVotacio);
+      expect(m.getAllByRole('listitem')).toHaveLength(visibles);
+      expect(m.getByRole('link', { name: 'Veure resultats complets' })).toHaveAttribute('href', '/tandes/t1/resultats');
+    });
+
+    it('la barra de progrés té un text de valor llegible', async () => {
+      mockCarrega({ socis: SOCIS_VOTACIO });
+      mockVotacio();
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: titolVotacio });
+      expect(modul(titolVotacio).getByRole('progressbar', { name: 'Completats' }))
+        .toHaveAttribute('aria-valuetext', '12 de 64 han completat la votació');
+    });
+
+    it('sense cap tanda oberta no mostra el bloc ni llegeix els vots', async () => {
+      mockCarrega();
+      mockVotacio([TANDA_TANCADA]);
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: 'Noves altes de socis' });
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(6));
+      expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
+      expect(collection.mock.calls.some((args) => args.includes('vots'))).toBe(false);
+    });
+
+    it('si fallen les lectures de la votació s\'omet el bloc i la resta del dashboard funciona', async () => {
+      mockCarrega();
+      getDocs.mockRejectedValueOnce(new Error('boom'));
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: 'Noves altes de socis' });
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(6));
+      expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
+      expect(screen.queryByText("No s'han pogut carregar les dades del dashboard.")).not.toBeInTheDocument();
+    });
+
+    it('si fallen els vots de la tanda oberta també s\'omet el bloc', async () => {
+      mockCarrega();
+      getDocs.mockResolvedValueOnce(llista([TANDA_OBERTA])).mockRejectedValueOnce(new Error('boom'));
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: 'Noves altes de socis' });
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(8));
+      expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
+    });
   });
 });

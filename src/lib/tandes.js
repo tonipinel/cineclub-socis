@@ -1,4 +1,5 @@
 import { estaActiu } from './estatSoci';
+import * as ROUTES from '../constants/routes';
 
 export const aData = (valor) => (typeof valor?.toDate === 'function' ? valor.toDate() : valor);
 
@@ -53,7 +54,8 @@ export const ordenarPropostesPerResultat = (propostesIds, perProposta) => (
     .map(({ id }) => id)
 );
 
-const ORDRE_ESTAT = { 'en-curs': 0, 'sense-comencar': 1, completat: 2 };
+// Primer els que ja han votat del tot, després els que han començat i, al final, els que encara no han votat.
+const ORDRE_ESTAT = { completat: 0, 'en-curs': 1, 'sense-comencar': 2 };
 
 const potVotar = (soci) => Boolean(soci.numeroSoci && soci.tokenCarnet && estaActiu(soci));
 
@@ -94,4 +96,58 @@ export function comptarEstats(files) {
   };
   files.forEach(({ estat }) => { comptadors[estat] += 1; });
   return comptadors;
+}
+
+// Resum de l'estat d'una votació; l'usen la pàgina de resultats i el dashboard perquè mostrin sempre els mateixos números.
+// { [propostaId]: sessionId } a partir de les sessions (docs amb `id`) que tenen una proposta associada.
+// Si diverses sessions comparteixen proposta, tria la de `data` més recent i, en empat, la d'id més baix.
+export const sessionsPerProposta = (sessions) => {
+  const triades = {};
+  sessions.filter((s) => s.propostaId).forEach((s) => {
+    const actual = triades[s.propostaId];
+    const dataS = s.data ?? '';
+    const dataA = actual?.data ?? '';
+    if (!actual || dataS > dataA || (dataS === dataA && String(s.id) < String(actual.id))) triades[s.propostaId] = s;
+  });
+  return Object.fromEntries(Object.entries(triades).map(([propostaId, s]) => [propostaId, s.id]));
+};
+
+// Una proposta programada amb sessió porta a la sessió; en qualsevol altre cas, a la fitxa de la proposta.
+export function destiFitxaProposta({ propostaId, estat }, sessioPerPropostaId = {}) {
+  const sessioId = sessioPerPropostaId[propostaId];
+  if (estat === 'programada' && sessioId) return ROUTES.SESSIONS_EDITAR.replace(':id', sessioId);
+  return ROUTES.PROPOSTES_EDITAR.replace(':id', propostaId);
+}
+
+// `propostes` és un objecte { [id]: { titol, estat, imatgeUrl } } amb els documents de les propostes.
+export function resumVotacio({
+  tanda, vots, socis, propostes, sessions = [],
+}) {
+  const sessioPerProposta = sessionsPerProposta(sessions);
+  const estatsPropostes = Object.fromEntries(Object.entries(propostes).map(([id, p]) => [id, p.estat]));
+  const efectives = propostesEfectives(tanda.propostes, estatsPropostes);
+  const { perProposta } = resumirResultats(vots, efectives);
+  const files = ordenarPropostesPerResultat(efectives, perProposta).map((id) => ({
+    id,
+    titol: propostes[id]?.titol ?? id,
+    imatgeUrl: propostes[id]?.imatgeUrl || null,
+    href: destiFitxaProposta({ propostaId: id, estat: propostes[id]?.estat }, sessioPerProposta),
+    ...perProposta[id],
+    percent: percentatgeLikes(perProposta[id]),
+  }));
+  const classificacio = classificarSocis(socis, vots, efectives);
+  const comptadors = comptarEstats(classificacio);
+  const elegibles = comptarEstats(classificacio.filter((f) => f.elegible));
+  const pendents = elegibles['sense-comencar'];
+  return {
+    efectives,
+    files,
+    classificacio,
+    comptadors,
+    total: elegibles.tots,
+    participants: elegibles.tots - pendents,
+    completats: elegibles.completat,
+    pendents,
+    percentCompletats: elegibles.tots === 0 ? 0 : Math.round((elegibles.completat / elegibles.tots) * 100),
+  };
 }
