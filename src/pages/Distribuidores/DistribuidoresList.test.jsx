@@ -39,7 +39,7 @@ describe('DistribuidoresList', () => {
 });
 
 describe('DistribuidoresList: layout estàndard', () => {
-  it('fa servir l\'amplada de llista, un sol h1, l\'enllaç «← Propostes» i el botó amb text', async () => {
+  it('fa servir l\'amplada de llista, un sol h1, sense enllaç de tornar i el botó amb text', async () => {
     getDocs.mockResolvedValueOnce({ docs: [] });
     const { container } = render(<MemoryRouter><DistribuidoresList /></MemoryRouter>);
     const boto = await screen.findByRole('link', { name: 'Nova distribuïdora' });
@@ -47,7 +47,8 @@ describe('DistribuidoresList: layout estàndard', () => {
     const titols = screen.getAllByRole('heading', { level: 1 });
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent('Distribuïdores');
-    expect(screen.getByRole('link', { name: '← Propostes' })).toHaveClass('pagina-admin__tornar');
+    expect(container.querySelector('.pagina-admin__tornar')).toBeNull();
+    expect(screen.queryByRole('link', { name: /←/ })).not.toBeInTheDocument();
     expect(boto).toHaveTextContent('Nova distribuïdora');
   });
 });

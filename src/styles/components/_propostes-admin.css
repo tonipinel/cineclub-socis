@@ -96,15 +96,21 @@
 .distribuidores-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
-/* Llista a 1280 px: la fila es limita perquè les dades no quedin escampades */
+/* La fila ocupa tot l'ample; a escriptori, columnes alineades (nom flexible, web, preu, contacte) */
 .distribuidores-list__item {
-  @apply flex max-w-3xl flex-col gap-1 border-b border-black/10 py-3 text-sm;
+  @apply flex flex-col gap-1 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[minmax(0,1fr)_14rem_11rem_minmax(0,18rem)] lg:items-center lg:gap-x-4;
 }
 .distribuidores-list__nom {
-  @apply text-base font-semibold;
+  @apply min-w-0 text-base font-semibold wrap-anywhere lg:row-start-1;
+}
+.distribuidores-list__web {
+  @apply min-w-0 wrap-anywhere lg:col-start-2 lg:row-start-1;
+}
+.distribuidores-list__preu {
+  @apply text-black/70 lg:col-start-3 lg:row-start-1;
 }
 .distribuidores-list__contacte {
-  @apply text-black/70;
+  @apply min-w-0 text-black/70 wrap-anywhere lg:col-start-4 lg:row-start-1;
 }
 .distribuidora-form {
   @apply flex flex-col gap-2;
@@ -117,15 +123,21 @@
 .tandes-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
-/* Llista a 1280 px: la fila es limita perquè «Resultats» no quedi lluny del nom */
+/* La fila ocupa tot l'ample; a escriptori, columnes alineades (nom flexible, estat, data, «Resultats» a la dreta) */
 .tandes-list__item {
-  @apply flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm;
+  @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[minmax(0,1fr)_5.5rem_16rem_5rem];
 }
 .tandes-list__nom {
-  @apply text-base font-semibold;
+  @apply w-full min-w-0 text-base font-semibold wrap-anywhere lg:w-auto;
+}
+.tandes-list__estat {
+  @apply justify-self-start;
 }
 .tandes-list__tanca {
-  @apply flex-1 text-black/70;
+  @apply flex-1 text-black/70 lg:flex-none;
+}
+.tandes-list__resultats {
+  @apply lg:justify-self-end;
 }
 .tanda-form {
   @apply flex flex-col gap-2;
@@ -176,11 +188,37 @@
 .tanda-resultats__percentatge {
   @apply w-12 text-right font-semibold text-gold-dark;
 }
+/* La capçalera enganxada (sticky) només funciona dins d'un contenidor que faci scroll en tots dos eixos:
+   per això la taula té la seva pròpia alçada màxima (alçada de pantalla menys la capçalera del lloc). */
 .tanda-resultats__taula-wrap {
-  @apply -mx-4 sm:-mx-6 md:mx-0;
+  max-height: calc(100vh - 9rem);
+  max-height: calc(100dvh - 9rem);
+  @apply isolate -mx-4 overflow-auto sm:-mx-6 md:mx-0 print:max-h-none print:overflow-visible;
 }
 .tanda-resultats__taula {
-  @apply w-full border-collapse text-left text-sm;
+  @apply w-full table-fixed border-collapse text-left text-sm;
+  /* Columnes de soci (176 px) i estat (112 px) fixes; la resta de l'ample es reparteix entre les pel·lícules.
+     Per sota de 72 px (48 px a escriptori) per pel·lícula la taula fa scroll dins la seva regió. */
+  min-width: calc(288px + var(--pellicules, 0) * 72px);
+}
+@media (min-width: 1024px) {
+  .tanda-resultats__taula {
+    min-width: calc(320px + var(--pellicules, 0) * 48px);
+  }
+}
+.tanda-resultats__taula thead th:first-child {
+  width: 176px;
+}
+.tanda-resultats__taula thead th:nth-child(2) {
+  width: 112px;
+}
+.tanda-resultats__taula td:nth-child(2) {
+  @apply whitespace-normal;
+}
+@media (min-width: 1024px) {
+  .tanda-resultats__taula thead th:first-child {
+    width: 208px;
+  }
 }
 .tanda-resultats__taula th,
 .tanda-resultats__taula td {
@@ -188,7 +226,14 @@
 }
 .tanda-resultats__taula th:first-child,
 .tanda-resultats__taula td:first-child {
-  @apply sticky left-0 z-10 bg-inherit text-left;
+  @apply sticky left-0 z-10 whitespace-normal bg-inherit text-left;
+}
+.tanda-resultats__taula thead th {
+  @apply sticky top-0 z-20 bg-white align-bottom;
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.2);
+}
+.tanda-resultats__taula thead th:first-child {
+  @apply z-30;
 }
 .tanda-resultats__taula tbody th {
   @apply font-normal;
@@ -199,8 +244,17 @@
 .tanda-resultats__taula tbody tr:nth-child(even) {
   @apply bg-neutral-100;
 }
-.tanda-resultats__proposta-columna {
-  @apply max-w-28 truncate;
+.tanda-resultats__taula .tanda-resultats__proposta-columna {
+  @apply whitespace-normal align-top;
+}
+.tanda-resultats__cartell {
+  @apply mx-auto mb-1 block aspect-[2/3] w-[min(100%,64px)] rounded-sm bg-black/10 object-cover;
+}
+.tanda-resultats__cartell--buit {
+  @apply border border-black/10;
+}
+.tanda-resultats__proposta-columna-titol {
+  @apply line-clamp-2 break-words text-xs font-semibold;
 }
 .tanda-resultats__soci-nom {
   @apply block font-semibold;

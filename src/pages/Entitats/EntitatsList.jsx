@@ -40,10 +40,12 @@ export default function EntitatsList() {
       <ul className="entitats-list__llista">
         {entitats.map((e) => (
           <li key={e.id} className="entitats-list__item">
-            {e.logo && <img className="entitats-list__logo" src={e.logo} alt={e.nom} />}
+            {e.logo
+              ? <img className="entitats-list__logo" src={e.logo} alt={e.nom} />
+              : <span className="entitats-list__logo entitats-list__logo--buit" data-testid="logo-buit" aria-hidden="true" />}
             <div className="entitats-list__text">
               <Link className="enllac entitats-list__nom" to={ROUTES.ENTITATS_EDITAR.replace(':id', e.id)}>{e.nom}</Link>
-              {e.url && <a className="enllac" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
+              {e.url && <a className="enllac entitats-list__url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
             </div>
           </li>
         ))}

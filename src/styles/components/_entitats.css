@@ -2,18 +2,25 @@
 .entitats-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
-/* Llista a 1280 px: la fila es limita perquè el nom i l'URL no quedin escampats */
+/* La fila ocupa tot l'ample; a escriptori, nom a l'esquerra i URL en una columna a la dreta */
 .entitats-list__item {
-  @apply flex max-w-3xl items-center gap-3 border-b border-black/10 py-3 text-sm;
+  @apply flex items-center gap-3 border-b border-black/10 py-3 text-sm;
 }
 .entitats-list__logo {
   @apply h-12 w-12 shrink-0 object-contain;
 }
+/* Reserva l'espai del logo perquè els noms quedin alineats amb i sense logo. */
+.entitats-list__logo--buit {
+  @apply block;
+}
 .entitats-list__text {
-  @apply flex min-w-0 flex-col gap-1;
+  @apply flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4;
 }
 .entitats-list__nom {
-  @apply text-base font-semibold;
+  @apply min-w-0 text-base font-semibold wrap-anywhere sm:flex-1;
+}
+.entitats-list__url {
+  @apply min-w-0 wrap-anywhere sm:w-72 sm:shrink-0 lg:w-96;
 }
 
 .entitat-form {

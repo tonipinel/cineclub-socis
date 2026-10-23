@@ -36,6 +36,19 @@ describe('EntitatsList', () => {
     expect(screen.getAllByRole('img')).toHaveLength(1);
   });
 
+  it('les files sense logo reserven l\'espai del logo (amagat per a lectors) perquè els noms quedin alineats', async () => {
+    getDocs.mockResolvedValueOnce(resposta(ENTITATS));
+    render(<MemoryRouter><EntitatsList /></MemoryRouter>);
+    await screen.findByRole('img', { name: 'Ateneu Rodenc' });
+    const sense = ENTITATS.filter((e) => !e.logo).length;
+    const buits = screen.getAllByTestId('logo-buit');
+    expect(buits).toHaveLength(sense);
+    buits.forEach((b) => {
+      expect(b).toHaveAttribute('aria-hidden', 'true');
+      expect(b).toHaveClass('entitats-list__logo');
+    });
+  });
+
   it('mostra la URL com a enllaç extern', async () => {
     getDocs.mockResolvedValueOnce(resposta(ENTITATS));
     render(<MemoryRouter><EntitatsList /></MemoryRouter>);

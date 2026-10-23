@@ -42,9 +42,9 @@ export default function TandesList() {
           return (
             <li key={t.id} className="tandes-list__item">
               <Link className="enllac tandes-list__nom" to={ROUTES.TANDES_EDITAR.replace(':id', t.id)}>{t.nom}</Link>
-              <span className={`badge ${oberta ? 'badge--al-dia' : 'badge--desactivat'}`}>{oberta ? 'Oberta' : 'Tancada'}</span>
+              <span className={`tandes-list__estat badge ${oberta ? 'badge--al-dia' : 'badge--desactivat'}`}>{oberta ? 'Oberta' : 'Tancada'}</span>
               <span className="tandes-list__tanca">Tanca: {formatDataHora(t.tanca)}</span>
-              <Link className="enllac" to={ROUTES.TANDES_RESULTATS.replace(':id', t.id)}>Resultats</Link>
+              <Link className="enllac tandes-list__resultats" to={ROUTES.TANDES_RESULTATS.replace(':id', t.id)}>Resultats</Link>
             </li>
           );
         })}

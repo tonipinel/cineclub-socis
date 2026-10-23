@@ -25,7 +25,6 @@ export default function DistribuidoresList() {
     <PaginaAdmin
       amplada="llista"
       titol="Distribuïdores"
-      tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
       accions={<BotoAfegir to={ROUTES.DISTRIBUIDORES_NOVA} etiqueta="Nova distribuïdora" />}
     >
       {distribuidores.length === 0 && <p>Encara no hi ha cap distribuïdora.</p>}
@@ -34,9 +33,9 @@ export default function DistribuidoresList() {
           <li key={d.id} className="distribuidores-list__item">
             <Link className="enllac distribuidores-list__nom" to={ROUTES.DISTRIBUIDORES_EDITAR.replace(':id', d.id)}>{d.nom}</Link>
             {d.web && (
-              <a className="enllac" href={urlWeb(d.web)} target="_blank" rel="noopener noreferrer">{d.web}</a>
+              <a className="enllac distribuidores-list__web" href={urlWeb(d.web)} target="_blank" rel="noopener noreferrer">{d.web}</a>
             )}
-            {d.preu != null && <span className="distribuidores-list__contacte">Preu per defecte: {formatEuros(d.preu)}</span>}
+            {d.preu != null && <span className="distribuidores-list__preu">Preu per defecte: {formatEuros(d.preu)}</span>}
             {(d.contacte || d.correu) && (
               <span className="distribuidores-list__contacte">
                 {d.contacte}
