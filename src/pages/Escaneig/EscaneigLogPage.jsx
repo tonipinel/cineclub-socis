@@ -22,6 +22,10 @@ const MOTIU_ETIQUETES = {
   'timeout-escriptura': 'Escriptura sense confirmar (8 s)',
   'sense-connexio': 'Sense connexió',
   'pendent-enviar': "Codi pendent d'enviar",
+  'lectura-lenta': 'Lectura lenta (reintent correcte)',
+  'sessio-canviada': 'Sessió canviada a mig escaneig',
+  'sessio-canviada-escrit': 'Sessió canviada (entrada ja desada)',
+  abandonat: 'Escaneig abandonat (pantalla tancada)',
 };
 
 // Camps afegits als registres a partir d'octubre de 2026; els antics no en
@@ -30,6 +34,7 @@ function textDiagnostic(e) {
   const parts = [];
   if (e.online !== undefined) parts.push(e.online ? 'En línia' : 'Fora de línia');
   if (e.ms !== undefined) parts.push(`${e.ms} ms`);
+  if (e.intents) parts.push(`${e.intents} intents`);
   if (e.desdeCache) parts.push('des de la caché');
   if (e.resultatAnterior) parts.push(`anterior: ${e.resultatAnterior}`);
   if (e.versio) parts.push(e.versio);

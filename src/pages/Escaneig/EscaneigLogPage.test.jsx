@@ -80,7 +80,7 @@ describe('EscaneigLogPage', () => {
   });
 
   it('mostra les etiquetes dels motius de diagnòstic nous', async () => {
-    const motius = ['debounce', 'lots-no-carregats', 'error-escriptura', 'timeout-escriptura', 'sense-connexio', 'pendent-enviar'];
+    const motius = ['debounce', 'lots-no-carregats', 'error-escriptura', 'timeout-escriptura', 'sense-connexio', 'pendent-enviar', 'lectura-lenta', 'sessio-canviada', 'sessio-canviada-escrit', 'abandonat'];
     mockSessionsIErrors([SESSIO_DOC], motius.map((motiu, i) => ({
       id: `err-${i}`,
       data: () => ({ sessionId: 'sessio-1', motiu, codi: `SOCI-${i}`, metode: 'qr', timestamp: null }),
@@ -92,6 +92,21 @@ describe('EscaneigLogPage', () => {
     expect(screen.getByText('Escriptura sense confirmar (8 s)')).toBeInTheDocument();
     expect(screen.getByText('Sense connexió')).toBeInTheDocument();
     expect(screen.getByText("Codi pendent d'enviar")).toBeInTheDocument();
+    expect(screen.getByText('Lectura lenta (reintent correcte)')).toBeInTheDocument();
+    expect(screen.getByText('Sessió canviada a mig escaneig')).toBeInTheDocument();
+    expect(screen.getByText('Sessió canviada (entrada ja desada)')).toBeInTheDocument();
+    expect(screen.getByText('Escaneig abandonat (pantalla tancada)')).toBeInTheDocument();
+  });
+
+  it('mostra el nombre d\'intents de lectura quan n\'hi ha', async () => {
+    mockSessionsIErrors([SESSIO_DOC], [{
+      id: 'err-1',
+      data: () => ({
+        sessionId: 'sessio-1', motiu: 'lectura-lenta', codi: 'SOCI-7', metode: 'qr', online: true, ms: 6200, intents: 2, timestamp: null,
+      }),
+    }]);
+    renderPagina();
+    expect(await screen.findByText('En línia · 6200 ms · 2 intents')).toBeInTheDocument();
   });
 
   it('mostra els camps de diagnòstic (connexió, durada, caché, intent anterior) quan hi són', async () => {

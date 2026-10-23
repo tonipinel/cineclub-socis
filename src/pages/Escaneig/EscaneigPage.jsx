@@ -25,6 +25,13 @@ const DEBOUNCE_MS = 3000;
 // abans de donar un missatge: sense això, amb mala connexió la promesa de
 // Firestore no es resol i l'operador es queda sense resposta i reescaneja.
 const TEMPS_LIMIT_MS = 8000;
+// Les lectures (idempotents) tenen un primer intent més curt i, si s'esgota,
+// un sol reintent amb el límit sencer: ≈ 13 s en el pitjor cas.
+const TEMPS_PRIMERA_LECTURA_MS = 5000;
+const DETALL_LECTURA_ESGOTADA = 'Temps límit de lectura esgotat (2 intents)';
+// Valor que retorna processarCodiUnic quan abandona l'intent durant una
+// lectura (abans de cap escriptura i de cap missatge).
+const CANCELLAT = 'cancellat';
 const TEXT_ERROR_REGISTRE = "No s'ha pogut registrar l'entrada. Torna-ho a provar.";
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
@@ -79,15 +86,23 @@ const MOCKUPS = {
   },
 };
 
-// Resol { valor } si la promesa acaba dins el temps límit o { esgotat: true }
-// si no; la promesa original segueix viva. Si falla abans, l'error es propaga.
-function ambTempsLimit(promesa) {
+// Resol { valor } si la promesa acaba dins el temps límit, { esgotat: true }
+// si no, o { cancellat: true } si s'avorta el senyal; la promesa original
+// segueix viva. Si falla abans, l'error es propaga.
+function ambTempsLimit(promesa, ms = TEMPS_LIMIT_MS, senyal = undefined) {
   let temporitzador;
+  let cancellar;
   const limit = new Promise((resolve) => {
-    temporitzador = setTimeout(() => resolve({ esgotat: true }), TEMPS_LIMIT_MS);
+    temporitzador = setTimeout(() => resolve({ esgotat: true }), ms);
+    cancellar = () => resolve({ cancellat: true });
+    if (senyal?.aborted) cancellar();
+    senyal?.addEventListener('abort', cancellar);
   });
   return Promise.race([promesa.then((valor) => ({ valor })), limit])
-    .finally(() => clearTimeout(temporitzador));
+    .finally(() => {
+      clearTimeout(temporitzador);
+      senyal?.removeEventListener('abort', cancellar);
+    });
 }
 
 // Identificador del build desplegat: el nom (amb hash) del bundle principal,
@@ -186,6 +201,10 @@ export default function EscaneigPage() {
   // això, un segon intent sobreescrivia el resultat del primer.
   const processantRef = useRef(false);
   const [processant, setProcessant] = useState(false);
+  const [reintentant, setReintentant] = useState(false);
+  // Avorta les lectures de l'intent en curs si la pantalla es desmunta o
+  // canvia la sessió activa: cap resultat tardà pot escriure res.
+  const controladorRef = useRef(null);
   const [enLinia, setEnLinia] = useState(() => navigator.onLine);
   const [pendentsEnviar, setPendentsEnviar] = useState(0);
   // Entrades que es van donar per pendents d'enviar però que el servidor ha
@@ -271,6 +290,18 @@ export default function EscaneigPage() {
       setPendentsEnviar(snap.docs.filter((d) => d.metadata?.hasPendingWrites).length);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessioActiva?.id]);
+
+  // En desmuntar, l'intent s'abandona en silenci; si canvia la sessió activa,
+  // s'avisa l'operador (vegeu processarCodi).
+  useEffect(() => () => controladorRef.current?.abort('desmuntat'), []);
+  const sessioIdRef = useRef(undefined);
+  useEffect(() => {
+    const id = sessioActiva?.id;
+    if (sessioIdRef.current !== undefined && sessioIdRef.current !== id) {
+      controladorRef.current?.abort('sessio-canviada');
+    }
+    sessioIdRef.current = id;
   }, [sessioActiva?.id]);
 
   const mostrarResultat = (nouMissatge) => {
@@ -409,17 +440,47 @@ export default function EscaneigPage() {
     }
   };
 
+  // Lectura amb un reintent si el primer intent esgota el temps. Retorna el
+  // resultat d'ambTempsLimit; { esgotat: true } vol dir que han fallat els dos.
+  // Les escriptures no passen mai per aquí: reintentar-les podria duplicar-les.
+  // `valid` descarta del log `lectura-lenta` les respostes que acabaran en
+  // `sense-connexio` (un sol registre per intent).
+  const llegirAmbReintent = async (llegir, {
+    senyal, inici, dades, valid = () => true,
+  }) => {
+    const primer = await ambTempsLimit(llegir(), TEMPS_PRIMERA_LECTURA_MS, senyal);
+    if (!primer.esgotat) return primer;
+    setReintentant(true);
+    let segon;
+    try {
+      segon = await ambTempsLimit(llegir(), TEMPS_LIMIT_MS, senyal);
+    } finally {
+      setReintentant(false);
+    }
+    if (segon.valor !== undefined && valid(segon.valor)) {
+      registrarErrorEscaneig('lectura-lenta', { ...dades, ms: Date.now() - inici, intents: 2 });
+    }
+    return { ...segon, intents: 2 };
+  };
+
   // Consulta de socis amb getDocs (no getDocsFromServer): la fitxa d'un soci
   // treta de la caché és vàlida per deixar-lo entrar, però un resultat buit
   // venint de la caché no vol dir que no existeixi, sinó que no s'ha pogut
   // preguntar al servidor; aquest cas es tracta com a "sense connexió".
-  const consultarSoci = async (camp, valor) => {
-    const resultat = await ambTempsLimit(getDocs(query(collection(db, 'socis'), where(camp, '==', valor))));
-    if (resultat.esgotat) return { senseConnexio: true, detall: 'Temps límit de lectura esgotat' };
+  const buitDesdeCache = (snap) => snap.docs.length === 0 && snap.metadata?.fromCache;
+  const consultarSoci = async (camp, valor, opcions) => {
+    const resultat = await llegirAmbReintent(
+      () => getDocs(query(collection(db, 'socis'), where(camp, '==', valor))),
+      { ...opcions, valid: (snap) => !buitDesdeCache(snap) },
+    );
+    if (resultat.cancellat) return { cancellat: true };
+    if (resultat.esgotat) return { senseConnexio: true, detall: DETALL_LECTURA_ESGOTADA, intents: 2 };
     const snap = resultat.valor;
     const desdeCache = snap.metadata?.fromCache;
-    if (snap.docs.length === 0 && desdeCache) {
-      return { senseConnexio: true, desdeCache, detall: 'Cap resultat a la caché local' };
+    if (buitDesdeCache(snap)) {
+      return {
+        senseConnexio: true, desdeCache, detall: 'Cap resultat a la caché local', intents: resultat.intents,
+      };
     }
     return { sociDoc: snap.docs[0], desdeCache };
   };
@@ -427,11 +488,12 @@ export default function EscaneigPage() {
   const processarSociTrobat = async ({
     consulta, missatgeNoTrobat, detallNoTrobat, metode, codi, inici,
   }) => {
+    if (consulta.cancellat) return CANCELLAT;
     const { sociDoc, desdeCache } = consulta;
     const diagnostic = { ms: Date.now() - inici, desdeCache };
     if (consulta.senseConnexio) {
       avisSenseConnexio('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.', {
-        codi, metode, ...diagnostic, detall: consulta.detall,
+        codi, metode, ...diagnostic, detall: consulta.detall, intents: consulta.intents,
       });
       return;
     }
@@ -507,7 +569,7 @@ export default function EscaneigPage() {
       : avisPendent(nom, { estat, venciment }));
   };
 
-  const processarCodiUnic = async (codi, metode, inici) => {
+  const processarCodiUnic = async (codi, metode, inici, senyal) => {
     const identificatAbans = identificarCodi(codi);
     const clau = identificatAbans.tipus === 'soci' ? clauSoci(identificatAbans.numeroSoci) : codi;
     if (codisPendentsRef.current.has(clau)) {
@@ -539,26 +601,28 @@ export default function EscaneigPage() {
       }
 
       if (identificat.tipus === 'soci') {
-        await processarSociTrobat({
-          consulta: await consultarSoci('numeroSoci', identificat.numeroSoci),
+        return await processarSociTrobat({
+          consulta: await consultarSoci('numeroSoci', identificat.numeroSoci, {
+            senyal, inici, dades: { codi, metode },
+          }),
           missatgeNoTrobat: `No hi ha cap soci amb el número ${identificat.numeroSoci}`,
           detallNoTrobat: 'Comprova el número al carnet o al llistat de socis',
           metode,
           codi,
           inici,
         });
-        return;
       }
 
       if (identificat.tipus === 'carnet-token') {
-        await processarSociTrobat({
-          consulta: await consultarSoci('tokenCarnet', identificat.token),
+        return await processarSociTrobat({
+          consulta: await consultarSoci('tokenCarnet', identificat.token, {
+            senyal, inici, dades: { codi, metode },
+          }),
           missatgeNoTrobat: 'Aquest carnet no és vàlid.',
           metode,
           codi,
           inici,
         });
-        return;
       }
 
       if (!lotsCarregats) {
@@ -597,18 +661,19 @@ export default function EscaneigPage() {
       const textSenseConnexio = "No es pot comprovar si aquest tiquet ja s'ha utilitzat (sense connexió). Reintenta quan hi hagi xarxa.";
       let consulta;
       try {
-        consulta = await ambTempsLimit(getDocsFromServer(
+        consulta = await llegirAmbReintent(() => getDocsFromServer(
           query(collection(db, 'accessLog'), where('codiTiquet', '==', identificat.codiTiquet))
-        ));
+        ), { senyal, inici, dades: { codi, metode, codiTiquet: identificat.codiTiquet } });
       } catch (error) {
         avisSenseConnexio(textSenseConnexio, {
           codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), detall: textError(error),
         });
         return;
       }
+      if (consulta.cancellat) return CANCELLAT;
       if (consulta.esgotat) {
         avisSenseConnexio(textSenseConnexio, {
-          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), detall: 'Temps límit de lectura esgotat',
+          codi, metode, codiTiquet: identificat.codiTiquet, ms: ms(), detall: DETALL_LECTURA_ESGOTADA, intents: 2,
         });
         return;
       }
@@ -662,9 +727,30 @@ export default function EscaneigPage() {
     if (metode === 'qr' && missatgeRef.current) return undefined;
     const codi = codiOriginal.trim();
     return ambUnSolIntent(async () => {
+      const controlador = new AbortController();
+      controladorRef.current = controlador;
+      const inici = Date.now();
+      const sessionId = sessioActivaRef.current?.id;
       try {
-        await processarCodiUnic(codi, metode, Date.now());
+        const resultat = await processarCodiUnic(codi, metode, inici, controlador.signal);
+        const motiu = controlador.signal.reason;
+        const dades = {
+          codi, metode, ms: Date.now() - inici, sessionId,
+        };
+        if (resultat === CANCELLAT && motiu === 'sessio-canviada' && !missatgeRef.current) {
+          registrarErrorEscaneig('sessio-canviada', dades);
+          mostrarResultat({ tipus: 'avis', text: 'La sessió activa ha canviat. Torna a escanejar el codi.' });
+        } else if (resultat === CANCELLAT && motiu === 'desmuntat') {
+          // El component ja no hi és, però registrarErrorEscaneig només fa un
+          // addDoc independent (no s'espera ni toca estat).
+          registrarErrorEscaneig('abandonat', dades);
+        } else if (motiu === 'sessio-canviada') {
+          // La sessió ha canviat amb l'escriptura en curs: s'ha desat a la
+          // sessió inicial i es mostra el resultat normal.
+          registrarErrorEscaneig('sessio-canviada-escrit', dades);
+        }
       } finally {
+        if (controladorRef.current === controlador) controladorRef.current = null;
         // Si l'intent no ha acabat registrat ni pendent, un reintent del mateix
         // codi s'ha de processar de nou (sense el fals "ja s'ha registrat").
         if (ultimCodiRef.current.codi === codi && ultimCodiRef.current.resultat === 'en-curs') {
@@ -783,7 +869,9 @@ export default function EscaneigPage() {
         className="escaneig__contingut"
         style={{ backgroundImage: fonsContingut }}
       >
-        {!missatge && processant && <p className="escaneig__processant">Comprovant el codi…</p>}
+        {!missatge && processant && (
+          <p className="escaneig__processant" role="status" aria-live="polite">{reintentant ? 'Reintentant…' : 'Comprovant el codi…'}</p>
+        )}
 
         {!missatge && modeEntrada === 'idle' && (
           <>

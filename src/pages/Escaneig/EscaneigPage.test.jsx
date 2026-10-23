@@ -906,6 +906,322 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
       expect(escripturesAccessLog()).toHaveLength(1);
     });
+
+    it('durant el reintent d\'una lectura, la càmera no processa cap codi (ni el mateix ni un altre)', async () => {
+      const segona = diferida();
+      getDocs.mockImplementationOnce(() => new Promise(() => {})).mockImplementationOnce(() => segona.promise);
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await avancar(0);
+      await avancar(400);
+      await avancar(5000);
+      expect(screen.getByText('Reintentant…')).toBeInTheDocument();
+      expect(getDocs).toHaveBeenCalledTimes(2);
+
+      await avancar(2000);
+      codiDetectat = 'SOCI-8';
+      await avancar(2000);
+      expect(getDocs).toHaveBeenCalledTimes(2);
+      expect(registresLog()).toEqual([]);
+      expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
+
+      segona.resolve(SOCI_7());
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(getDocs).toHaveBeenCalledTimes(2);
+      expect(registresLog().map((r) => r.motiu)).toEqual(['lectura-lenta']);
+    });
+  });
+
+  describe('reintent automàtic de lectures', () => {
+    const lecturaPenjada = () => new Promise(() => {});
+
+    it('si la primera lectura esgota el temps i el reintent funciona, registra l\'entrada una vegada i deixa «lectura-lenta» al log', async () => {
+      const segona = diferida();
+      getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(() => segona.promise);
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(4900);
+      expect(screen.getByText('Comprovant el codi…')).toBeInTheDocument();
+      expect(getDocs).toHaveBeenCalledTimes(1);
+
+      await avancar(100);
+      expect(screen.getByRole('status')).toHaveTextContent('Reintentant…');
+      expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
+      expect(screen.queryByText('Comprovant el codi…')).not.toBeInTheDocument();
+      expect(getDocs).toHaveBeenCalledTimes(2);
+      expect(registresLog()).toEqual([]);
+
+      await avancar(3000);
+      segona.resolve(SOCI_7());
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText('Reintentant…')).not.toBeInTheDocument();
+      expect(screen.queryByText(/sense connexió/i)).not.toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'lectura-lenta', codi: 'SOCI-7', metode: 'manual', intents: 2, online: true, ms: 8000,
+      })]);
+    });
+
+    it('si els dos intents esgoten el temps, avisa de sense connexió als 13 s i el reescaneig es processa sense avís fals', async () => {
+      getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(lecturaPenjada).mockResolvedValue(SOCI_7());
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      expect(screen.getByText('Reintentant…')).toBeInTheDocument();
+      await avancar(7900);
+      expect(screen.queryByText(/No es pot comprovar el soci/)).not.toBeInTheDocument();
+      await avancar(100);
+
+      expect(screen.getByText('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.')).toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(0);
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'sense-connexio', codi: 'SOCI-7', intents: 2, ms: 13000, detall: expect.stringContaining('2 intents'),
+      })]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+      enviarCodiManual('SOCI-7');
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText(/ja s'ha registrat|pendent d'enviar-se/)).not.toBeInTheDocument();
+      expect(getDocs).toHaveBeenCalledTimes(3);
+      expect(escripturesAccessLog()).toHaveLength(1);
+    });
+
+    it('una lectura que arriba abans de 5 s no es reintenta ni deixa rastre al log', async () => {
+      const lectura = diferida();
+      getDocs.mockImplementationOnce(() => lectura.promise);
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(4900);
+      lectura.resolve(SOCI_7());
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      await avancar(10000);
+      expect(getDocs).toHaveBeenCalledTimes(1);
+      expect(registresLog()).toEqual([]);
+    });
+
+    it('la comprovació de tiquet repetit també es reintenta una vegada', async () => {
+      getDocsFromServer.mockImplementationOnce(lecturaPenjada).mockResolvedValueOnce({ empty: true, docs: [] });
+      mockSubscripcions();
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('T-000014');
+      await avancar(5000);
+      await avancar(0);
+      expect(screen.getByText('Entrada genèrica registrada (5€)')).toBeInTheDocument();
+      expect(getDocsFromServer).toHaveBeenCalledTimes(2);
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'lectura-lenta', codi: 'T-000014', codiTiquet: 'T-000014', intents: 2,
+      })]);
+    });
+
+    it('si la comprovació de tiquet esgota els dos intents, no el registra i ho deixa al log', async () => {
+      getDocsFromServer.mockImplementation(lecturaPenjada);
+      mockSubscripcions();
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('T-000014');
+      await avancar(13000);
+      expect(screen.getByText("No es pot comprovar si aquest tiquet ja s'ha utilitzat (sense connexió). Reintenta quan hi hagi xarxa.")).toBeInTheDocument();
+      expect(getDocsFromServer).toHaveBeenCalledTimes(2);
+      expect(escripturesAccessLog()).toHaveLength(0);
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'sense-connexio', codiTiquet: 'T-000014', intents: 2, detall: expect.stringContaining('2 intents'),
+      })]);
+    });
+
+    it('les escriptures no es reintenten: un addDoc que no es resol dona l\'avís de pendent als 8 s, sense segon addDoc', async () => {
+      getDocs.mockResolvedValue(SOCI_7());
+      addDoc.mockImplementation((col) => (col === 'accessLog' ? new Promise(() => {}) : Promise.resolve({ id: 'e' })));
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(7900);
+      expect(screen.queryByText('Reintentant…')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Sense connexió estable/)).not.toBeInTheDocument();
+      await avancar(100);
+      expect(screen.getByText(/Sense connexió estable/)).toBeInTheDocument();
+      await avancar(30000);
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(registresLog().map((r) => r.motiu)).toEqual(['timeout-escriptura']);
+    });
+
+    it('si es desmunta la pantalla durant el reintent, no escriu l\'entrada encara que la lectura arribi després (només «abandonat» al log)', async () => {
+      const segona = diferida();
+      getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(() => segona.promise);
+      const user = userEvent.setup();
+      const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      expect(screen.getByText('Reintentant…')).toBeInTheDocument();
+      unmount();
+      segona.resolve(SOCI_7());
+      await avancar(0);
+      await avancar(20000);
+      expect(escripturesAccessLog()).toHaveLength(0);
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'abandonat', codi: 'SOCI-7', metode: 'manual', ms: 5000, sessionId: 'sessio-1',
+      })]);
+    });
+
+    it('si es desmunta la pantalla durant el reintent i la lectura no arriba mai, només queda «abandonat» al log', async () => {
+      getDocs.mockImplementation(lecturaPenjada);
+      const user = userEvent.setup();
+      const { unmount } = render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      unmount();
+      await avancar(20000);
+      expect(escripturesAccessLog()).toHaveLength(0);
+      expect(registresLog().map((r) => r.motiu)).toEqual(['abandonat']);
+    });
+
+    it('si canvia la sessió activa durant el reintent, avisa, ho deixa al log i permet reescanejar de seguida', async () => {
+      const segona = diferida();
+      getDocs.mockImplementationOnce(lecturaPenjada).mockImplementationOnce(() => segona.promise)
+        .mockResolvedValue(SOCI_7());
+      let emetreSessio;
+      onSnapshot.mockImplementationOnce((...args) => {
+        emetreSessio = args.at(-1);
+        emetreSessio({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      });
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      expect(screen.getByText('Reintentant…')).toBeInTheDocument();
+      act(() => emetreSessio({ docs: [{ id: 'sessio-2', data: () => ({ titol: 'Una altra' }) }] }));
+      await avancar(0);
+      expect(screen.queryByText('Reintentant…')).not.toBeInTheDocument();
+      expect(screen.getByText('La sessió activa ha canviat. Torna a escanejar el codi.')).toBeInTheDocument();
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'sessio-canviada', codi: 'SOCI-7', metode: 'manual', ms: 5000, sessionId: 'sessio-1',
+      })]);
+
+      // La lectura tardana de l'intent abandonat no escriu res.
+      segona.resolve(SOCI_7());
+      await avancar(20000);
+      expect(escripturesAccessLog()).toHaveLength(0);
+      expect(screen.queryByText('Anna Vidal')).not.toBeInTheDocument();
+
+      // Single-flight i ultimCodiRef alliberats: el reescaneig es processa a la sessió nova.
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+      enviarCodiManual('SOCI-7');
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText(/ja s'ha registrat|pendent d'enviar-se/)).not.toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+      expect(escripturesAccessLog()[0][1].sessionId).toBe('sessio-2');
+    });
+
+    it('si canvia la sessió amb l\'escriptura en curs, mostra el resultat normal i el reescaneig no duplica l\'entrada', async () => {
+      getDocs.mockResolvedValue(SOCI_7());
+      const escriptura = diferida();
+      addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
+      let emetreSessio;
+      onSnapshot.mockImplementationOnce((...args) => {
+        emetreSessio = args.at(-1);
+        emetreSessio({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        return () => {};
+      });
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(1000);
+      expect(escripturesAccessLog()).toHaveLength(1);
+      act(() => emetreSessio({ docs: [{ id: 'sessio-2', data: () => ({ titol: 'Una altra' }) }] }));
+      await avancar(0);
+      escriptura.resolve({ id: 'log-1' });
+      await avancar(0);
+
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(screen.queryByText(/La sessió activa ha canviat/)).not.toBeInTheDocument();
+      expect(escripturesAccessLog()[0][1].sessionId).toBe('sessio-1');
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'sessio-canviada-escrit', codi: 'SOCI-7', sessionId: 'sessio-1',
+      })]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar un altre' }));
+      enviarCodiManual('SOCI-7');
+      await avancar(0);
+      expect(screen.getByText("Aquest codi ja s'ha registrat fa un moment.")).toBeInTheDocument();
+      expect(escripturesAccessLog()).toHaveLength(1);
+    });
+
+    it('si el reintent respon buit des de la caché, només queda «sense-connexio» al log (sense «lectura-lenta»)', async () => {
+      getDocs.mockImplementationOnce(lecturaPenjada)
+        .mockResolvedValueOnce({ empty: true, docs: [], metadata: { fromCache: true } });
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      await avancar(0);
+      expect(screen.getByText('No es pot comprovar el soci (sense connexió). Reintenta quan hi hagi xarxa.')).toBeInTheDocument();
+      expect(registresLog()).toEqual([expect.objectContaining({
+        motiu: 'sense-connexio', codi: 'SOCI-7', desdeCache: true, intents: 2,
+      })]);
+    });
+
+    it('en mode prova, el reintent no escriu res, ni al log', async () => {
+      getDocs.mockImplementationOnce(lecturaPenjada).mockResolvedValueOnce(SOCI_7());
+      const user = userEvent.setup();
+      render(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await user.click(screen.getByRole('button', { name: 'Mode prova: desactivat' }));
+      await obrirCodiManual(user);
+
+      vi.useFakeTimers();
+      enviarCodiManual('SOCI-7');
+      await avancar(5000);
+      await avancar(0);
+      expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
+      expect(getDocs).toHaveBeenCalledTimes(2);
+      expect(addDoc).not.toHaveBeenCalled();
+    });
   });
 
   it('si el primer intent falla per una excepció, el reintent immediat es processa sense el fals «ja registrat»', async () => {
