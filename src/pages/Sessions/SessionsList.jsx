@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
@@ -9,6 +9,7 @@ import { imatgeDeSessio } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import EstrellaActiva from '../../components/EstrellaActiva';
+import SincronitzarCalendari from './SincronitzarCalendari';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
@@ -17,6 +18,8 @@ export default function SessionsList() {
   const [resumPerSessioState, setResumPerSessioState] = useState({});
   const [moviments, setMoviments] = useState([]);
   const [socis, setSocis] = useState([]);
+  const [sincronitzant, setSincronitzant] = useState(false);
+  const tancarSincro = useCallback(() => setSincronitzant(false), []);
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), orderBy('data', 'desc'));
@@ -51,7 +54,10 @@ export default function SessionsList() {
     <div className="sessions-list">
       <div className="sessions-list__capcalera">
         <h1 className="sessions-list__titol">Sessions</h1>
-        <BotoAfegir to={ROUTES.SESSIONS_NOVA} etiqueta="Nova sessió" />
+        <div className="sessions-list__accions">
+          <button type="button" className="btn btn--outline" onClick={() => setSincronitzant(true)}>Sincronitzar el calendari</button>
+          <BotoAfegir to={ROUTES.SESSIONS_NOVA} etiqueta="Nova sessió" />
+        </div>
       </div>
       <ul className="sessions-list__graella">
         {sessions.map((s) => {
@@ -88,6 +94,7 @@ export default function SessionsList() {
           );
         })}
       </ul>
+      {sincronitzant && <SincronitzarCalendari onTancar={tancarSincro} />}
     </div>
   );
 }

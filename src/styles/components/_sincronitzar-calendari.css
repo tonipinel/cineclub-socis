@@ -1,0 +1,51 @@
+.sincro__fons {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4;
+}
+.sincro {
+  @apply flex max-h-full w-full max-w-2xl flex-col gap-4 overflow-y-auto overflow-x-hidden rounded bg-white p-4 shadow-lg outline-none sm:p-6;
+}
+.sincro__capcalera {
+  @apply flex items-center justify-between gap-2 border-b border-black/10 pb-3;
+}
+.sincro__titol {
+  @apply font-display text-2xl font-bold uppercase tracking-wide;
+}
+.sincro__tancar {
+  @apply h-10 w-10 flex-shrink-0 cursor-pointer rounded border-0 bg-transparent text-2xl leading-none text-black hover:bg-black/10;
+}
+.sincro__estat {
+  @apply text-black/70;
+}
+.sincro__error {
+  @apply flex flex-col items-start gap-3 rounded border-2 border-red-600 bg-red-50 p-3 text-red-800;
+}
+.sincro__resultat {
+  @apply rounded border border-green-600 bg-green-50 p-3 text-green-800;
+}
+.sincro__resum {
+  @apply font-bold;
+}
+.sincro__ok {
+  @apply rounded bg-green-50 p-3 font-bold text-green-800;
+}
+.sincro__seccio {
+  @apply rounded border border-black/10 p-3;
+}
+.sincro__seccio--perill {
+  @apply border-2 border-red-800 bg-red-50;
+}
+.sincro__subtitol {
+  @apply font-display text-lg font-bold uppercase;
+}
+.sincro__seccio--perill .sincro__subtitol {
+  @apply text-red-800;
+}
+.sincro__avis {
+  @apply my-1 font-bold text-red-800;
+}
+.sincro__llista {
+  @apply m-0 max-h-60 list-disc overflow-y-auto pl-5 text-sm;
+}
+.sincro__accions {
+  @apply flex flex-wrap justify-end gap-2 border-t border-black/10 pt-3;
+}

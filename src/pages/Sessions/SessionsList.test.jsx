@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../../firebase/firebase', () => ({ db: {} }));
+vi.mock('../../firebase/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn().mockResolvedValue({ data: { crear: [], actualitzar: [], esborrar: [], placeholdersConservats: [], noGestionats: 0, sessionsOmeses: [] } })) }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
@@ -123,5 +124,13 @@ describe('SessionsList', () => {
       expect(screen.getByText('Pig')).toBeInTheDocument();
       expect(imatge(container)).toBeNull();
     });
+  });
+
+  it('el botó «Sincronitzar el calendari» obre el panell', async () => {
+    render(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sincronitzar el calendari' }));
+    expect(screen.getByRole('dialog', { name: 'Sincronitzar el calendari' })).toBeInTheDocument();
+    expect(await screen.findByText('Tot sincronitzat')).toBeInTheDocument();
   });
 });

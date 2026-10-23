@@ -48,11 +48,13 @@ const AMPLADES = [375, 320];
 const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
   editar: '[aria-label="Editar dades"]',
+  calendari: '.sessions-list__accions .btn--outline',
 };
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],
   '/comptabilitat': ['filtres'],
   '/socis/s1': ['editar'],
+  '/sessions': ['calendari'],
   '/sessions/ses2': ['editar'],
   '/sessions/ses5': ['editar'],
   '/comptabilitat/m1': ['editar'],
