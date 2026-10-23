@@ -9,26 +9,27 @@ export const GRUPS_ADMIN = [
     elements: [
       { to: ROUTES.SOCIS, etiqueta: 'Socis' },
       { to: ROUTES.SOLICITUDS, etiqueta: 'Sol·licituds', comptador: 'solicituds' },
-      { to: ROUTES.TICKETS, etiqueta: 'Tiquets' },
     ],
   },
   {
-    id: 'propostes',
-    etiqueta: 'Propostes',
-    icona: 'propostes',
+    id: 'programacio',
+    etiqueta: 'Programació',
+    icona: 'sessions',
     elements: [
       { to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes', comptador: 'propostes' },
       { to: ROUTES.TANDES, etiqueta: 'Tandes' },
+      { to: ROUTES.SESSIONS, etiqueta: 'Sessions' },
       { to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' },
+      { to: ROUTES.ENTITATS, etiqueta: 'Entitats' },
     ],
   },
   {
-    id: 'sessions',
-    etiqueta: 'Sessions',
-    icona: 'sessions',
+    id: 'sala',
+    etiqueta: 'Sala',
+    icona: 'escaneig',
     elements: [
-      { to: ROUTES.SESSIONS, etiqueta: 'Sessions' },
-      { to: ROUTES.ENTITATS, etiqueta: 'Entitats' },
+      { to: ROUTES.ESCANEIG, etiqueta: 'Escaneig' },
+      { to: ROUTES.TICKETS, etiqueta: 'Tiquets' },
     ],
   },
 ];

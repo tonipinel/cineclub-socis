@@ -1,0 +1,98 @@
+/* Layout estàndard de les pantalles d'admin: 3 amplades i capçalera comuna */
+.pagina-admin {
+  @apply mx-auto p-4 sm:p-6;
+}
+.pagina-admin--llista {
+  @apply max-w-7xl;
+}
+.pagina-admin--fitxa {
+  @apply max-w-5xl;
+}
+.pagina-admin--formulari {
+  @apply max-w-3xl;
+}
+.pagina-admin__capcalera {
+  @apply mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4;
+}
+.pagina-admin__tornar {
+  @apply w-full text-sm font-semibold text-gold-dark no-underline hover:underline;
+}
+.pagina-admin__titol {
+  @apply min-w-0 font-display text-2xl font-bold uppercase tracking-wide text-black wrap-anywhere md:text-3xl;
+}
+.pagina-admin__accions {
+  @apply flex w-full flex-wrap items-center gap-2 sm:w-auto;
+}
+
+/* Textarea que creix amb el contingut */
+.textarea-automatic {
+  @apply w-full resize-y overflow-y-auto;
+  max-height: 75vh;
+}
+
+/* Selector de fitxers: input natiu ocult però focusable, l'etiqueta fa de botó */
+.selector-fitxer {
+  @apply relative flex flex-wrap items-center gap-3;
+}
+.selector-fitxer__input {
+  @apply absolute m-0 h-px w-px overflow-hidden border-0 p-0 opacity-0;
+}
+.selector-fitxer__input:focus-visible + .selector-fitxer__boto {
+  @apply outline-2 outline-offset-2 outline-black;
+}
+.selector-fitxer__boto--deshabilitat {
+  @apply cursor-not-allowed opacity-60 hover:bg-transparent hover:text-gold;
+}
+.selector-fitxer__nom {
+  @apply min-w-0 font-body text-sm text-black/70 wrap-anywhere;
+}
+
+/* Diàleg de confirmació: <dialog> modal; el contingut l'omple perquè el clic al fons arribi al <dialog> */
+.dialeg-confirmacio {
+  @apply m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border-0 bg-white p-0 text-black shadow-xl;
+}
+.dialeg-confirmacio::backdrop {
+  @apply bg-black/50;
+}
+.dialeg-confirmacio--sense-modal {
+  @apply fixed inset-0 z-50;
+}
+.dialeg-confirmacio__contingut {
+  @apply flex flex-col gap-4 p-6;
+}
+.dialeg-confirmacio__titol {
+  @apply font-display text-xl font-bold uppercase tracking-wide wrap-anywhere;
+}
+.dialeg-confirmacio__missatge {
+  @apply font-body text-base text-black/80 wrap-anywhere;
+}
+.dialeg-confirmacio__accions {
+  @apply flex flex-wrap justify-end gap-3;
+}
+/* Cancel·lar en negre: l'or sobre blanc no arriba al contrast AA (≈2,9:1) */
+.dialeg-confirmacio__accions .btn--outline {
+  @apply border-black/60 text-black hover:bg-black hover:text-white;
+}
+/* La pàgina de sota no fa scroll mentre el diàleg és obert (també al camí sense showModal) */
+body:has(.dialeg-confirmacio[open]) {
+  overflow: hidden;
+}
+
+/* Zona de perill: accions destructives al final d'una fitxa */
+.zona-perill {
+  @apply mt-8 flex flex-col gap-3 rounded-lg border-2 border-red-600 p-4 sm:p-6;
+}
+.zona-perill__titol {
+  @apply font-display text-lg font-bold uppercase tracking-wide text-red-700;
+}
+.zona-perill__descripcio {
+  @apply font-body text-sm text-black/70;
+}
+.zona-perill__accions {
+  @apply flex flex-wrap gap-3;
+}
+
+/* Títol de la pàgina només per a lectors de pantalla (escaneig i carnets, que no tenen capçalera visible). */
+.titol-ocult {
+  @apply sr-only;
+}

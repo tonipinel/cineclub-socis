@@ -16,6 +16,12 @@
 .btn-icona {
   @apply flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded border-2 border-gold bg-transparent text-gold transition hover:bg-gold hover:text-black disabled:cursor-not-allowed disabled:opacity-60;
 }
+.btn-icona__text {
+  @apply hidden whitespace-nowrap font-display text-sm font-bold sm:inline;
+}
+.btn-icona--text {
+  @apply sm:w-auto sm:gap-2 sm:px-3;
+}
 .btn-icona__icona {
   @apply h-5 w-5;
 }

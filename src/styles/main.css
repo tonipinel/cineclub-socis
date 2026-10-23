@@ -20,6 +20,7 @@
 @import "./components/_propostes-admin.css";
 @import "./components/_fitxa-sessio.css";
 @import "./components/_entitats.css";
+@import "./components/_pagina-admin.css";
 
 @theme {
   --color-gold: #BF9000;

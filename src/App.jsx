@@ -4,6 +4,7 @@ import { ROLE_ADMIN, ROLE_TAQUILLA } from './constants/roles';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import Header from './components/Header';
+import { ConfirmacioProvider } from './components/ConfirmacioProvider';
 import Accedir from './pages/Accedir';
 import SocisList from './pages/Socis/SocisList';
 import SociForm from './pages/Socis/SociForm';
@@ -43,334 +44,336 @@ function Inici() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Header />
-      <Routes>
-        <Route path={ROUTES.INICI} element={<Inici />} />
-        <Route path={ROUTES.PROPOSTES} element={<RedireccioPropostes />} />
-        <Route path={ROUTES.PROPOSTES_PROPOSAR} element={<RedireccioPropostes />} />
-        <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
-        <Route
-          path={ROUTES.SOCIS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SocisList />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOCIS_NOU}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SociForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOCIS_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SociForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOCIS_PAGAMENT}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <RegistrarPagamentPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOCIS_CARNET}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <CarnetSoci />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOCIS_CARNETS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <CarnetsLot />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SESSIONS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SessionsList />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SESSIONS_NOVA}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SessionForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SESSIONS_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SessionForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TICKETS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TicketsPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TICKETS_LOT}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TicketsLotPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.ESCANEIG}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
-                <EscaneigPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.ESCANEIG_LOG}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
-                <EscaneigLogPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.SOLICITUDS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <SolicitudsPendents />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.COMPTABILITAT}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <ComptabilitatPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.COMPTABILITAT_NOU}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <MovimentForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.COMPTABILITAT_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <MovimentForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.DASHBOARD}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <DashboardPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.CONFIGURACIO}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <ConfiguracioPage />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.DISTRIBUIDORES}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <DistribuidoresList />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.DISTRIBUIDORES_NOVA}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <DistribuidoraForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.DISTRIBUIDORES_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <DistribuidoraForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.ENTITATS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <EntitatsList />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.ENTITATS_NOVA}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <EntitatForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.ENTITATS_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <EntitatForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.PROPOSTES_PENDENTS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <PropostesPendents />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.PROPOSTES_NOVA}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <PropostesNova />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.PROPOSTES_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <PropostaForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TANDES}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TandesList />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TANDES_NOVA}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TandaForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TANDES_EDITAR}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TandaForm />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path={ROUTES.TANDES_RESULTATS}
-          element={
-            <RequireAuth>
-              <RequireRole roles={[ROLE_ADMIN]}>
-                <TandaResultats />
-              </RequireRole>
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to={ROUTES.ACCEDIR} replace />} />
-      </Routes>
+      <ConfirmacioProvider>
+        <Header />
+        <Routes>
+          <Route path={ROUTES.INICI} element={<Inici />} />
+          <Route path={ROUTES.PROPOSTES} element={<RedireccioPropostes />} />
+          <Route path={ROUTES.PROPOSTES_PROPOSAR} element={<RedireccioPropostes />} />
+          <Route path={ROUTES.ACCEDIR} element={<Accedir />} />
+          <Route
+            path={ROUTES.SOCIS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SocisList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOCIS_NOU}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SociForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOCIS_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SociForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOCIS_PAGAMENT}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <RegistrarPagamentPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOCIS_CARNET}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <CarnetSoci />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOCIS_CARNETS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <CarnetsLot />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SESSIONS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SessionsList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SESSIONS_NOVA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SessionForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SESSIONS_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SessionForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TICKETS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TicketsPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TICKETS_LOT}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TicketsLotPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.ESCANEIG}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
+                  <EscaneigPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.ESCANEIG_LOG}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
+                  <EscaneigLogPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.SOLICITUDS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <SolicitudsPendents />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.COMPTABILITAT}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <ComptabilitatPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.COMPTABILITAT_NOU}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <MovimentForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.COMPTABILITAT_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <MovimentForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.DASHBOARD}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <DashboardPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.CONFIGURACIO}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <ConfiguracioPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.DISTRIBUIDORES}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <DistribuidoresList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.DISTRIBUIDORES_NOVA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <DistribuidoraForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.DISTRIBUIDORES_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <DistribuidoraForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.ENTITATS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <EntitatsList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.ENTITATS_NOVA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <EntitatForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.ENTITATS_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <EntitatForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.PROPOSTES_PENDENTS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <PropostesPendents />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.PROPOSTES_NOVA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <PropostesNova />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.PROPOSTES_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <PropostaForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TANDES}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TandesList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TANDES_NOVA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TandaForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TANDES_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TandaForm />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.TANDES_RESULTATS}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <TandaResultats />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<Navigate to={ROUTES.ACCEDIR} replace />} />
+        </Routes>
+      </ConfirmacioProvider>
     </BrowserRouter>
   );
 }

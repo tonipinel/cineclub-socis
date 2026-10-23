@@ -7,14 +7,13 @@ import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
 import { GRUPS_ADMIN, grupActiu } from '../lib/menuAdmin';
 
-const [GRUP_SOCIS, GRUP_PROPOSTES, GRUP_SESSIONS] = GRUPS_ADMIN;
+const [GRUP_SOCIS, GRUP_PROGRAMACIO, GRUP_SALA] = GRUPS_ADMIN;
 
 // Els grups (amb `elements`) enllacen al seu primer element i tenen submenú.
 const ENLLACOS_ADMIN = [
   GRUP_SOCIS,
-  GRUP_PROPOSTES,
-  GRUP_SESSIONS,
-  { to: ROUTES.ESCANEIG, etiqueta: 'Escaneig', icona: 'escaneig' },
+  GRUP_PROGRAMACIO,
+  GRUP_SALA,
   { to: ROUTES.COMPTABILITAT, etiqueta: 'Comptabilitat', icona: 'comptabilitat' },
   { to: ROUTES.CONFIGURACIO, etiqueta: 'Configuració', icona: 'configuracio' },
 ];
@@ -28,12 +27,6 @@ const ICONES = {
     <>
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-    </>
-  ),
-  propostes: (
-    <>
-      <path d="M3 8h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8Z" />
-      <path d="M3 8l1.3-4h3L6 8M9.7 8 11 4h3l-1.3 4M16.3 8l1.3-4h3L19 8" />
     </>
   ),
   sessions: (

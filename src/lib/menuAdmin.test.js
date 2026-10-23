@@ -2,55 +2,57 @@ import { describe, it, expect } from 'vitest';
 import { GRUPS_ADMIN, grupActiu } from './menuAdmin';
 
 describe('GRUPS_ADMIN', () => {
-  it('defineix els grups Socis, Propostes i Sessions amb els seus elements en ordre', () => {
-    expect(GRUPS_ADMIN.map((g) => g.etiqueta)).toEqual(['Socis', 'Propostes', 'Sessions']);
-    expect(GRUPS_ADMIN[2].elements.map((e) => [e.etiqueta, e.to])).toEqual([
-      ['Sessions', '/sessions'], ['Entitats', '/entitats'],
+  it('defineix els grups Socis, Programació i Sala amb els seus elements en ordre', () => {
+    expect(GRUPS_ADMIN.map((g) => [g.id, g.etiqueta])).toEqual([
+      ['socis', 'Socis'], ['programacio', 'Programació'], ['sala', 'Sala'],
     ]);
-    expect(GRUPS_ADMIN[0].elements.map((e) => e.etiqueta)).toEqual(['Socis', 'Sol·licituds', 'Tiquets']);
-    expect(GRUPS_ADMIN[1].elements.map((e) => e.etiqueta)).toEqual(['Propostes', 'Tandes', 'Distribuïdores']);
+    expect(GRUPS_ADMIN[0].elements.map((e) => [e.etiqueta, e.to])).toEqual([
+      ['Socis', '/socis'], ['Sol·licituds', '/solicituds'],
+    ]);
+    expect(GRUPS_ADMIN[1].elements.map((e) => [e.etiqueta, e.to])).toEqual([
+      ['Propostes', '/propostes/pendents'], ['Tandes', '/tandes'], ['Sessions', '/sessions'],
+      ['Distribuïdores', '/distribuidores'], ['Entitats', '/entitats'],
+    ]);
+    expect(GRUPS_ADMIN[2].elements.map((e) => [e.etiqueta, e.to])).toEqual([
+      ['Escaneig', '/escaneig'], ['Tiquets', '/tickets'],
+    ]);
+  });
+
+  it('enllaça els comptadors de sol·licituds i propostes', () => {
+    expect(GRUPS_ADMIN.flatMap((g) => g.elements).filter((e) => e.comptador).map((e) => [e.etiqueta, e.comptador]))
+      .toEqual([['Sol·licituds', 'solicituds'], ['Propostes', 'propostes']]);
   });
 });
 
 describe('grupActiu', () => {
-  it('troba el grup per ruta exacta', () => {
-    expect(grupActiu('/socis').etiqueta).toBe('Socis');
-    expect(grupActiu('/solicituds').etiqueta).toBe('Socis');
-    expect(grupActiu('/tickets').etiqueta).toBe('Socis');
-    expect(grupActiu('/propostes/pendents').etiqueta).toBe('Propostes');
-    expect(grupActiu('/tandes').etiqueta).toBe('Propostes');
-    expect(grupActiu('/distribuidores').etiqueta).toBe('Propostes');
-  });
-
-  it('troba el grup per subrutes', () => {
-    expect(grupActiu('/socis/12').etiqueta).toBe('Socis');
-    expect(grupActiu('/socis/nou').etiqueta).toBe('Socis');
-    expect(grupActiu('/socis/carnets').etiqueta).toBe('Socis');
-    expect(grupActiu('/tickets/abc').etiqueta).toBe('Socis');
-    expect(grupActiu('/propostes/pendents/nova').etiqueta).toBe('Propostes');
-    expect(grupActiu('/tandes/nova').etiqueta).toBe('Propostes');
-    expect(grupActiu('/tandes/7/resultats').etiqueta).toBe('Propostes');
-    expect(grupActiu('/distribuidores/nova').etiqueta).toBe('Propostes');
-  });
-
-  it('troba el grup Sessions per Sessions i Entitats, també en subrutes', () => {
-    ['/sessions', '/sessions/s1', '/sessions/nova', '/entitats', '/entitats/e1', '/entitats/nova'].forEach((ruta) => {
-      expect(grupActiu(ruta).id).toBe('sessions');
+  const taula = {
+    socis: ['/socis', '/socis/s1', '/socis/nou', '/socis/s1/carnet', '/socis/carnets', '/socis/s1/pagament', '/solicituds'],
+    programacio: [
+      '/propostes/pendents', '/propostes/pendents/nova', '/propostes/pendents/p1',
+      '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t1/resultats',
+      '/sessions', '/sessions/nova', '/sessions/s1',
+      '/distribuidores', '/distribuidores/nova', '/distribuidores/d1',
+      '/entitats', '/entitats/nova', '/entitats/e1',
+    ],
+    sala: ['/escaneig', '/escaneig/log', '/tickets', '/tickets/lot1'],
+  };
+  Object.entries(taula).forEach(([id, rutes]) => {
+    it.each(rutes)(`${id}: %s`, (ruta) => {
+      expect(grupActiu(ruta)?.id).toBe(id);
     });
-    expect(grupActiu('/socis').id).toBe('socis');
+  });
+
+  it.each([
+    '/', '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1', '/configuracio', '/dashboard', '/accedir',
+    '/propostes', '/propostes/proposar',
+  ])('retorna null per a %s', (ruta) => {
+    expect(grupActiu(ruta)).toBeNull();
   });
 
   it('no confon prefixos que només coincideixen en els caràcters', () => {
     expect(grupActiu('/socisx')).toBeNull();
     expect(grupActiu('/tandesos')).toBeNull();
     expect(grupActiu('/ticketsfoo/1')).toBeNull();
-  });
-
-  it('retorna null per a rutes sense grup', () => {
-    expect(grupActiu('/')).toBeNull();
-    expect(grupActiu('/escaneig')).toBeNull();
-    expect(grupActiu('/propostes')).toBeNull();
-    expect(grupActiu('/propostes/proposar')).toBeNull();
-    expect(grupActiu('/comptabilitat')).toBeNull();
+    expect(grupActiu('/escaneigs')).toBeNull();
   });
 });

@@ -89,11 +89,12 @@ describe('Header', () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
-  it('la barra principal de l\'admin té 6 entrades, sense Sol·licituds, Tandes ni Tiquets', () => {
+  it('la barra principal de l\'admin té 5 entrades, sense Sol·licituds, Tandes ni Tiquets', () => {
     const { container } = renderAdmin();
     expect(entradesPrincipals(container).map((a) => a.getAttribute('aria-label'))).toEqual([
-      'Socis', 'Propostes', 'Sessions', 'Escaneig', 'Comptabilitat', 'Configuració',
+      'Socis', 'Programació', 'Sala', 'Comptabilitat', 'Configuració',
     ]);
+    expect(screen.getByRole('button', { name: 'Sortir' })).toBeInTheDocument();
   });
 
   it('«Sortir» porta el modificador que l\'empeny a la dreta, i les altres entrades no', () => {
@@ -105,31 +106,31 @@ describe('Header', () => {
   it('les entrades de grup enllacen al seu primer element', () => {
     const { container } = renderAdmin();
     expect(entrada(container, 'Socis')).toHaveAttribute('href', '/socis');
-    expect(entrada(container, 'Propostes')).toHaveAttribute('href', '/propostes/pendents');
-    expect(entrada(container, 'Sessions')).toHaveAttribute('href', '/sessions');
+    expect(entrada(container, 'Programació')).toHaveAttribute('href', '/propostes/pendents');
+    expect(entrada(container, 'Sala')).toHaveAttribute('href', '/escaneig');
   });
 
   describe('submenú dels grups', () => {
     const submenu = () => screen.queryByRole('navigation', { name: 'Submenú' });
     const etiquetes = () => within(submenu()).getAllByRole('link').map((a) => a.textContent);
 
-    it('a /tandes mostra el submenú de Propostes amb Tandes marcat', () => {
+    it('a /tandes mostra el submenú de Programació amb Tandes marcat', () => {
       const { container } = renderAdmin('/tandes');
-      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Distribuïdores']);
+      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats']);
       expect(within(submenu()).getByRole('link', { name: 'Tandes' })).toHaveClass('site-header__sublink--actiu');
       expect(within(submenu()).getByRole('link', { name: 'Propostes' })).not.toHaveClass('site-header__sublink--actiu');
-      expect(entrada(container, 'Propostes')).toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Programació')).toHaveClass('site-header__link--actiu');
       expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
     });
 
     it('a /socis/12 mostra el submenú de Socis amb Socis marcat', () => {
       const { container } = renderAdmin('/socis/12');
-      expect(etiquetes()).toEqual(['Socis', 'Sol·licituds', 'Tiquets']);
+      expect(etiquetes()).toEqual(['Socis', 'Sol·licituds']);
       expect(within(submenu()).getByRole('link', { name: 'Socis' })).toHaveClass('site-header__sublink--actiu');
       expect(entrada(container, 'Socis')).toHaveClass('site-header__link--actiu');
     });
 
-    it('a /tandes/3/resultats segueix al grup Propostes i Tandes marcat', () => {
+    it('a /tandes/3/resultats segueix al grup Programació i Tandes marcat', () => {
       renderAdmin('/tandes/3/resultats');
       expect(within(submenu()).getByRole('link', { name: 'Tandes' })).toHaveClass('site-header__sublink--actiu');
     });
@@ -149,40 +150,47 @@ describe('Header', () => {
       expect(fons.nextElementSibling).toBe(submenu());
     });
 
-    it('a /sessions mostra el submenú de Sessions amb Sessions marcat', () => {
+    it('a /sessions mostra el submenú de Programació amb Sessions marcat', () => {
       const { container } = renderAdmin('/sessions');
-      expect(etiquetes()).toEqual(['Sessions', 'Entitats']);
+      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats']);
       expect(within(submenu()).getByRole('link', { name: 'Sessions' })).toHaveClass('site-header__sublink--actiu');
-      expect(entrada(container, 'Sessions')).toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Programació')).toHaveClass('site-header__link--actiu');
       expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
-      expect(entrada(container, 'Propostes')).not.toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Sala')).not.toHaveClass('site-header__link--actiu');
     });
 
-    it('a /entitats mostra el submenú amb Sessions i Entitats, Entitats marcat', () => {
+    it('a /entitats mostra el submenú de Programació amb Entitats marcat', () => {
       const { container } = renderAdmin('/entitats');
-      expect(etiquetes()).toEqual(['Sessions', 'Entitats']);
       expect(within(submenu()).getByRole('link', { name: 'Entitats' })).toHaveClass('site-header__sublink--actiu');
       expect(within(submenu()).getByRole('link', { name: 'Sessions' })).not.toHaveClass('site-header__sublink--actiu');
-      expect(entrada(container, 'Sessions')).toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Programació')).toHaveClass('site-header__link--actiu');
     });
 
-    it('a /escaneig no hi ha submenú ni cap grup actiu', () => {
+    it('a /escaneig mostra el submenú de Sala amb Escaneig marcat', () => {
       const { container } = renderAdmin('/escaneig');
+      expect(etiquetes()).toEqual(['Escaneig', 'Tiquets']);
+      expect(within(submenu()).getByRole('link', { name: 'Escaneig' })).toHaveClass('site-header__sublink--actiu');
+      expect(entrada(container, 'Sala')).toHaveClass('site-header__link--actiu');
+      expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
+    });
+
+    it('a /dashboard no hi ha submenú ni cap grup actiu', () => {
+      const { container } = renderAdmin('/dashboard');
       expect(submenu()).not.toBeInTheDocument();
       expect(container.querySelector('.site-header__separador')).toBeNull();
       expect(container.querySelector('.site-header__fons-submenu')).toBeNull();
-      expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
-      expect(entrada(container, 'Propostes')).not.toHaveClass('site-header__link--actiu');
-      expect(entrada(container, 'Sessions')).not.toHaveClass('site-header__link--actiu');
+      ['Socis', 'Programació', 'Sala'].forEach((nom) => {
+        expect(entrada(container, nom)).not.toHaveClass('site-header__link--actiu');
+      });
     });
 
-    it('al menú mòbil els grups mostren els seus elements a sota, sempre visibles', () => {
+    it('al menú mòbil els tres grups mostren els seus elements a sota, sempre visibles', () => {
       const { container } = renderAdmin('/sessions');
       const grups = container.querySelectorAll('.site-header__nav .site-header__subgrup');
       expect([...grups].map((g) => [...g.querySelectorAll('a')].map((a) => a.textContent))).toEqual([
-        ['Socis', 'Sol·licituds', 'Tiquets'],
-        ['Propostes', 'Tandes', 'Distribuïdores'],
-        ['Sessions', 'Entitats'],
+        ['Socis', 'Sol·licituds'],
+        ['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats'],
+        ['Escaneig', 'Tiquets'],
       ]);
     });
 
@@ -200,12 +208,18 @@ describe('Header', () => {
     const signOut = vi.fn();
     mockUseAuth.mockReturnValue({ user: { uid: '2' }, role: 'taquilla', signOut });
     const user = userEvent.setup();
-    render(<MemoryRouter><Header /></MemoryRouter>);
+    const { container } = render(<MemoryRouter initialEntries={['/escaneig']}><Header /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Escaneig' })).toBeInTheDocument();
     expect(screen.queryByText('Socis')).not.toBeInTheDocument();
     expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
     expect(screen.queryByText('Comptabilitat')).not.toBeInTheDocument();
     expect(screen.queryByText('Propostes')).not.toBeInTheDocument();
+    expect(screen.queryByText('Programació')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sala')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tiquets')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Submenú' })).not.toBeInTheDocument();
+    expect(container.querySelector('.site-header__subgrup')).toBeNull();
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Escaneig']);
     const botoSortir = screen.getByRole('button', { name: 'Sortir' });
     await user.click(botoSortir);
     expect(signOut).toHaveBeenCalledTimes(1);
@@ -214,12 +228,12 @@ describe('Header', () => {
   it('marca com a actiu l\'enllaç de la pàgina en què ets', () => {
     mockUseAuth.mockReturnValue({ user: { uid: '1' }, role: 'admin', signOut: vi.fn() });
     const { container } = render(
-      <MemoryRouter initialEntries={['/sessions']}>
+      <MemoryRouter initialEntries={['/comptabilitat']}>
         <Header />
-        <Routes><Route path="/sessions" element={<p>Sessions</p>} /></Routes>
+        <Routes><Route path="/comptabilitat" element={<p>Pàgina</p>} /></Routes>
       </MemoryRouter>
     );
-    expect(entrada(container, 'Sessions')).toHaveClass('site-header__link--actiu');
+    expect(entrada(container, 'Comptabilitat')).toHaveClass('site-header__link--actiu');
     expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
   });
 
@@ -274,14 +288,14 @@ describe('Header', () => {
     emetComptador(0, 3);
     emetComptador(1, 2);
     expect(entrada(container, 'Socis')).toHaveTextContent('3');
-    expect(entrada(container, 'Propostes')).toHaveTextContent('2');
+    expect(entrada(container, 'Programació')).toHaveTextContent('2');
+    expect(entrada(container, 'Sala')).toHaveTextContent(/^Sala$/);
     const submenu = within(screen.getByRole('navigation', { name: 'Submenú' }));
     expect(submenu.getByRole('link', { name: 'Sol·licituds' })).toHaveTextContent('3');
     expect(submenu.getByRole('link', { name: 'Socis' })).not.toHaveTextContent(/\d/);
-    expect(submenu.getByRole('link', { name: 'Tiquets' })).not.toHaveTextContent(/\d/);
   });
 
-  it('el badge de Propostes apareix al submenú de Propostes', () => {
+  it('el badge de Propostes apareix al submenú de Programació', () => {
     renderAdmin('/tandes');
     emetComptador(1, 4);
     const submenu = within(screen.getByRole('navigation', { name: 'Submenú' }));
@@ -294,7 +308,7 @@ describe('Header', () => {
     emetComptador(0, 0);
     emetComptador(1, 0);
     expect(entrada(container, 'Socis')).toHaveTextContent(/^Socis$/);
-    expect(entrada(container, 'Propostes')).toHaveTextContent(/^Propostes$/);
+    expect(entrada(container, 'Programació')).toHaveTextContent(/^Programació$/);
     expect(container.querySelector('.site-header__badge')).toBeNull();
   });
 });

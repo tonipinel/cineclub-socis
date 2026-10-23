@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-export default function BotoAfegir({ to, etiqueta, desactivat = false }) {
+export default function BotoAfegir({ to, etiqueta, desactivat = false, compacte = false }) {
   const icona = (
     <svg
       className="btn-icona__icona"
@@ -16,8 +16,16 @@ export default function BotoAfegir({ to, etiqueta, desactivat = false }) {
     </svg>
   );
 
+  const classe = compacte ? 'btn-icona' : 'btn-icona btn-icona--text';
+  const contingut = compacte ? icona : (
+    <>
+      {icona}
+      <span className="btn-icona__text">{etiqueta}</span>
+    </>
+  );
+
   if (desactivat) {
-    return <button type="button" className="btn-icona" aria-label={etiqueta} disabled>{icona}</button>;
+    return <button type="button" className={classe} aria-label={etiqueta} disabled>{contingut}</button>;
   }
-  return <Link className="btn-icona" to={to} aria-label={etiqueta}>{icona}</Link>;
+  return <Link className={classe} to={to} aria-label={etiqueta}>{contingut}</Link>;
 }
