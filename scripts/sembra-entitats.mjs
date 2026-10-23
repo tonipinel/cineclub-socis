@@ -6,6 +6,9 @@
 // backups/<AAAA-MM-DD>/entitats-creades.json (ids i camins de logo) abans de cada escriptura.
 // És idempotent per `nom`. `--desfer <fitxer>` esborra NOMÉS els documents d'aquest fitxer (mai fitxers de
 // Storage), amb la mateixa guarda de còpia.
+// NOTA: la sembra inicial ja es va fer (23/10/2026). Les dades d'origen (web/src/data/entitats.json i els logos
+// de web/public/images/entitats/) s'han esborrat del repositori: queden a l'historial de git (commit anterior a
+// «eliminar el catàleg d'entitats fix»). Sense elles, el mode informe i `--apply` fallen; `--desfer` continua funcionant.
 // Credencials: GOOGLE_APPLICATION_CREDENTIALS o la clau cineclub-socis-firebase-adminsdk-*.json de l'arrel.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
