@@ -81,6 +81,8 @@ describe('portada', () => {
     expect(html).toContain('<span class="hero__tagline--white">Un espai per viure i compartir </span><br>');
     expect(html).toContain('<span class="hero__tagline--gold">cinema durant tot l&#39;any!</span>');
     expect(html).toContain('class="site-header__link site-header__link--active" href="/">Inici</a>');
+    expect(html).toContain('<a class="btn btn--outline" href="/propostes/">Veure propostes</a>');
+    expect(html).not.toContain('associacio.cineclubrodadebera.cat');
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/">');
   });
 
