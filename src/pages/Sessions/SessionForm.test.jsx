@@ -1493,3 +1493,294 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     expect(await screen.findByRole('link', { name: 'Gestionar distribuïdores' })).toHaveAttribute('href', '/distribuidores');
   });
 });
+
+describe('SessionForm — descartar canvis', () => {
+  const ENTITATS = [{ id: 'e1', nom: 'Ajuntament de Roda de Berà' }];
+  const PUBLICA = {
+    titol: 'Pig', versioTipus: 'vose', participa: ['Entitat Vella'], collabora: [], cos: '## Sinopsi\n\nText.',
+    trailerYoutubeId: 'dQw4w9WgXcQ', actualitzatEl: '2026-01-01',
+  };
+  const SESSIO = {
+    titol: 'Pig', data: '2026-10-08', hora: '19:00', activa: false, senseControl: false, slug: 'pig', publicada: false,
+    urlProgramacio: '', imatgeUrl: '', publica: PUBLICA,
+  };
+  const descartar = () => screen.getByRole('button', { name: 'Descartar canvis' });
+
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'entitats'
+      ? { docs: ENTITATS.map(({ id, ...dades }) => ({ id, data: () => dades })) }
+      : { docs: [] }));
+    updateDoc.mockReset();
+    updateDoc.mockResolvedValue(undefined);
+    addDoc.mockClear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T10:00:00Z'));
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    // Les pujades que es deixen penjades no han d'afectar els tests següents.
+    const { uploadBytes } = await import('firebase/storage');
+    uploadBytes.mockReset();
+  });
+
+  // Cada pujada queda pendent fins que el test la resol; `resol(i)` acaba la i-èsima.
+  async function pujadesControlades() {
+    const { uploadBytes } = await import('firebase/storage');
+    const pendents = [];
+    uploadBytes.mockImplementation(() => new Promise((resolve) => { pendents.push(resolve); }));
+    return { pendents, resol: (i) => pendents[i]({}) };
+  }
+  const desarBoto = () => screen.getByRole('button', { name: 'Desar' });
+
+  function carregar(sessio = SESSIO, pestanyaInicial = 'dades') {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(sessio) });
+    const user = userEvent.setup();
+    renderEnEdicio(`/sessions/1?pestanya=${pestanyaInicial}`);
+    return user;
+  }
+
+  const editarTitol = async (user, valor) => {
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), valor);
+  };
+
+  it('sense canvis no mostra «Descartar canvis»', async () => {
+    carregar();
+    await screen.findByLabelText('Títol');
+    expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+  });
+
+  it('torna als valors desats de text, select, casella, fitxa pública i entitats, i a «Sense canvis»', async () => {
+    const user = carregar();
+    const participen = await screen.findByRole('group', { name: 'Participen' });
+    await vi.waitFor(() => expect(within(participen).getAllByRole('option')).toHaveLength(2));
+    await editarTitol(user, 'Pig 2');
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.selectOptions(screen.getByLabelText('Versió'), 'vo');
+    await user.type(screen.getByLabelText('Títol públic'), ' (2021)');
+    await user.clear(screen.getByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-nou');
+    await user.selectOptions(within(participen).getByLabelText('Participen'), 'Ajuntament de Roda de Berà');
+    await user.click(within(participen).getByRole('button', { name: 'Afegir' }));
+    expect(within(participen).getAllByRole('listitem')).toHaveLength(2);
+    // Triada al desplegable però sense «Afegir»: és estat local del selector, no un canvi de la fitxa.
+    await user.selectOptions(screen.getByLabelText('Col·laboren'), 'Ajuntament de Roda de Berà');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+
+    await user.click(descartar());
+
+    expect(screen.getByLabelText('Títol')).toHaveValue('Pig');
+    expect(screen.getByRole('checkbox', { name: 'Publicada' })).not.toBeChecked();
+    expect(screen.getByLabelText('Versió')).toHaveValue('vose');
+    expect(screen.getByLabelText('Títol públic')).toHaveValue('Pig');
+    expect(screen.getByLabelText('Slug')).toHaveValue('pig');
+    const participenDespres = screen.getByRole('group', { name: 'Participen' });
+    expect(within(participenDespres).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Entitat Vella — no és al catàleg']);
+    expect(within(participenDespres).getByLabelText('Participen')).toHaveValue('');
+    expect(screen.getByLabelText('Col·laboren')).toHaveValue('');
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(pestanya('Dades')).not.toHaveTextContent(/canvis/i);
+  });
+
+  it('restaura els camps de «Continguts» i «Mitjans»', async () => {
+    const user = carregar(SESSIO, 'continguts');
+    const cos = await screen.findByLabelText('Textos editorials (Markdown)');
+    await user.type(cos, ' Més.');
+    await user.type(screen.getByLabelText('Ganxo'), 'Un ganxo');
+    await user.click(pestanya('Mitjans'));
+    await user.clear(screen.getByLabelText('Tràiler de YouTube (URL o id)'));
+    await user.type(screen.getByLabelText('Tràiler de YouTube (URL o id)'), 'xyz');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Continguts, Mitjans');
+
+    await user.click(descartar());
+
+    expect(screen.getByLabelText('Tràiler de YouTube (URL o id)')).toHaveValue('dQw4w9WgXcQ');
+    await user.click(pestanya('Continguts'));
+    expect(screen.getByLabelText('Textos editorials (Markdown)')).toHaveValue('## Sinopsi\n\nText.');
+    expect(screen.getByLabelText('Ganxo')).toHaveValue('');
+    expect(textBarra()).toBe('Sense canvis');
+  });
+
+  it('un cartell pujat i no desat es descarta (la URL torna a la desada)', async () => {
+    const { uploadBytes } = await import('firebase/storage');
+    uploadBytes.mockResolvedValue({});
+    const user = carregar(SESSIO, 'mitjans');
+    await screen.findByText('Sense cartell.');
+    await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+    await screen.findByRole('img', { name: 'Cartell' });
+    expect(screen.getByText('p.jpg: pujada')).toBeInTheDocument();
+    await user.click(descartar());
+    expect(screen.queryByRole('img', { name: 'Cartell' })).not.toBeInTheDocument();
+    expect(screen.queryByText('p.jpg: pujada')).not.toBeInTheDocument();
+    expect(screen.getByText('Sense cartell.')).toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+  });
+
+  it('mentre es puja una imatge, «Descartar canvis» i «Desar» estan desactivats', async () => {
+    const pujades = await pujadesControlades();
+    const user = carregar(SESSIO, 'mitjans');
+    const trailer = await screen.findByLabelText('Tràiler de YouTube (URL o id)');
+    await user.type(trailer, 'x');
+    expect(descartar()).toBeEnabled();
+    expect(desarBoto()).toBeEnabled();
+    await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(descartar()).toBeDisabled());
+    expect(desarBoto()).toBeDisabled();
+    pujades.resol(0);
+    await screen.findByRole('img', { name: 'Cartell' });
+    expect(descartar()).toBeEnabled();
+    expect(desarBoto()).toBeEnabled();
+  });
+
+  it('una pujada en curs continua bloquejant la barra encara que es canviï de pestanya', async () => {
+    const pujades = await pujadesControlades();
+    const user = carregar(SESSIO, 'mitjans');
+    await user.type(await screen.findByLabelText('Tràiler de YouTube (URL o id)'), 'x');
+    await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(pujades.pendents).toHaveLength(1));
+    await user.click(pestanya('Dades'));
+    expect(screen.getByLabelText('Títol')).toBeInTheDocument();
+    expect(descartar()).toBeDisabled();
+    expect(desarBoto()).toBeDisabled();
+    await user.click(pestanya('Mitjans'));
+    expect(descartar()).toBeDisabled();
+    expect(desarBoto()).toBeDisabled();
+    pujades.resol(0);
+    await vi.waitFor(() => expect(descartar()).toBeEnabled());
+    expect(desarBoto()).toBeEnabled();
+  });
+
+  it('amb dues pujades alhora, la barra no es desbloqueja fins que acaben totes dues', async () => {
+    const pujades = await pujadesControlades();
+    const user = carregar(SESSIO, 'mitjans');
+    await user.type(await screen.findByLabelText('Tràiler de YouTube (URL o id)'), 'x');
+    await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(pujades.pendents).toHaveLength(1));
+    // En tornar a «Mitjans» la pestanya és nova i deixa començar una altra pujada.
+    await user.click(pestanya('Dades'));
+    await user.click(pestanya('Mitjans'));
+    await user.upload(screen.getByLabelText('Afegir imatges a la galeria'), new File(['y'], 'g.jpg', { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(pujades.pendents).toHaveLength(2));
+    pujades.resol(0);
+    await screen.findByRole('img', { name: 'Cartell' });
+    expect(descartar()).toBeDisabled();
+    expect(desarBoto()).toBeDisabled();
+    pujades.resol(1);
+    await vi.waitFor(() => expect(descartar()).toBeEnabled());
+    expect(desarBoto()).toBeEnabled();
+  });
+
+  it('mentre es desa, «Descartar canvis» està desactivat', async () => {
+    let acabaDesat;
+    updateDoc.mockImplementation(() => new Promise((resolve) => { acabaDesat = resolve; }));
+    const user = carregar();
+    await screen.findByLabelText('Títol');
+    await editarTitol(user, 'Pig 2');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(textBarra()).toBe('Desant…');
+    expect(descartar()).toBeDisabled();
+    acabaDesat();
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+  });
+
+  it('després d\'un desat torna als valors desats, no als de la càrrega', async () => {
+    const user = carregar();
+    await screen.findByLabelText('Títol');
+    await editarTitol(user, 'Pig 2');
+    await user.selectOptions(screen.getByLabelText('Versió'), 'vo');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+    await editarTitol(user, 'Pig 3');
+    await user.selectOptions(screen.getByLabelText('Versió'), 'vosc');
+    await user.click(descartar());
+    expect(screen.getByLabelText('Títol')).toHaveValue('Pig 2');
+    expect(screen.getByLabelText('Versió')).toHaveValue('vo');
+    expect(textBarra()).toBe('Sense canvis');
+  });
+
+  it('després de canviar el slug d\'una sessió publicada conserva el nou alias desat', async () => {
+    const user = carregar({ ...SESSIO, publicada: true });
+    await screen.findByLabelText('Slug');
+    await user.clear(screen.getByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-nou');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await acceptaDialeg('Desa');
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+    await user.clear(screen.getByLabelText('Slug'));
+    await user.type(screen.getByLabelText('Slug'), 'pig-altre');
+    await user.click(descartar());
+    expect(screen.getByLabelText('Slug')).toHaveValue('pig-nou');
+    expect(screen.getByText('/programacio/2026/pig/')).toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+  });
+
+  it('després de «Marcar com a activa» descartar no la torna a inactiva', async () => {
+    const batchCommit = vi.fn().mockResolvedValue(undefined);
+    writeBatch.mockReturnValue({ update: vi.fn(), commit: batchCommit });
+    const user = carregar();
+    await user.click(await screen.findByRole('button', { name: 'Marcar com a activa' }));
+    await screen.findByRole('img', { name: 'Sessió activa' });
+    await editarTitol(user, 'Pig 2');
+    await user.click(descartar());
+    expect(screen.getByRole('img', { name: 'Sessió activa' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar com a activa' })).not.toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+  });
+
+  it('esborra els errors de validació', async () => {
+    const user = carregar({ ...SESSIO, slug: '' });
+    await screen.findByLabelText('Títol');
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByRole('alert', { name: 'No es pot publicar' });
+    expect(textBarra()).toBe("No s'ha pogut desar");
+    await user.click(descartar());
+    expect(screen.queryByRole('alert', { name: 'No es pot publicar' })).not.toBeInTheDocument();
+    expect(document.querySelector('.barra-desar__errors')).not.toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('desar després de descartar escriu només els canvis reals', async () => {
+    const user = carregar();
+    await screen.findByLabelText('Títol');
+    await editarTitol(user, 'Pig 2');
+    await user.type(screen.getByLabelText('Títol públic'), ' 2');
+    await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
+    await user.click(descartar());
+    await user.clear(screen.getByLabelText("Hora d'inici"));
+    await user.type(screen.getByLabelText("Hora d'inici"), '20:00');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ hora: '20:00' });
+  });
+
+  it('en una sessió nova torna als camps buits', async () => {
+    const user = userEvent.setup();
+    renderAmbConfirmacio(
+      <MemoryRouter initialEntries={['/sessions/nova']}>
+        <Routes>
+          <Route path="/sessions/nova" element={<SessionForm />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await user.type(screen.getByLabelText('Títol'), 'The Artist');
+    await user.type(screen.getByLabelText('Data'), '2026-03-05');
+    await user.clear(screen.getByLabelText("Hora d'inici"));
+    await user.type(screen.getByLabelText("Hora d'inici"), '21:00');
+    await user.click(descartar());
+    expect(screen.getByLabelText('Títol')).toHaveValue('');
+    expect(screen.getByLabelText('Data')).toHaveValue('');
+    expect(screen.getByLabelText("Hora d'inici")).toHaveValue('19:00');
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+});

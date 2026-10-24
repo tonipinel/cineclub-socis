@@ -10,7 +10,10 @@ import ZonaPujada from './ZonaPujada';
 const MOTIU_SENSE_SLUG = 'Cal un slug per poder pujar imatges.';
 const pujarFitxer = (cami, f) => uploadBytes(ref(storage, cami), f, { contentType: f.type });
 
-export default function MitjansSessio({ dades, form, onCanviForm, errors }) {
+// `onPujant(bool)`: avisa la fitxa quan comença i acaba una pujada (encara que s'hagi canviat de pestanya).
+export default function MitjansSessio({
+  dades, form, onCanviForm, errors, onPujant = () => {},
+}) {
   const [pujant, setPujant] = useState(false);
   const [estatsCartell, setEstatsCartell] = useState([]);
   const [estatsGaleria, setEstatsGaleria] = useState([]);
@@ -43,6 +46,7 @@ export default function MitjansSessio({ dades, form, onCanviForm, errors }) {
     const estats = fitxers.map((f) => ({ nom: f.name, estat: 'pujant' }));
     setEstats(estats);
     setPujant(true);
+    onPujant(true);
     try {
       const resultats = await pujarImatges(fitxers, {
         slug,
@@ -57,6 +61,7 @@ export default function MitjansSessio({ dades, form, onCanviForm, errors }) {
       return resultats.filter((r) => r.url).map((r) => r.url);
     } finally {
       setPujant(false);
+      onPujant(false);
     }
   };
 

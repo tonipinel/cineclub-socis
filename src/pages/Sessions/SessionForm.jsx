@@ -92,6 +92,10 @@ function FitxaSessio({ id }) {
   const [desatRecent, setDesatRecent] = useState(false);
   const [errorDesat, setErrorDesat] = useState(null);
   const [errorsBarra, setErrorsBarra] = useState([]);
+  // Pujades d'imatges en curs a «Mitjans» (n'hi pot haver més d'una si es canvia de pestanya i es torna).
+  const [pujades, setPujades] = useState(0);
+  // Cada «Descartar» remunta la pestanya perquè l'estat local dels components torni a partir dels valors desats.
+  const [versioDescart, setVersioDescart] = useState(0);
   const desantRef = useRef(false);
   const idsAEnfocar = useRef(null);
   const temporitzadorDesat = useRef(null);
@@ -160,6 +164,21 @@ function FitxaSessio({ id }) {
   const onCanviForm = (camp, valor) => {
     editat();
     setPublicaForm((f) => ({ ...f, [camp]: valor }));
+  };
+
+  const onPujant = (comenca) => setPujades((n) => n + (comenca ? 1 : -1));
+
+  // Torna a l'últim estat desat (o als camps buits d'una sessió nova): `original` i `publicaInicial` ja són
+  // la línia base actualitzada després de cada desat i de «Marcar com a activa». No esborra res de Storage.
+  const handleDescarta = () => {
+    if (desantRef.current || pujades > 0) return;
+    const { publica: _publica, ...desat } = original;
+    editat();
+    setErrorsPublica({});
+    idsAEnfocar.current = null;
+    setDades({ ...CAMPS_INICIALS, ...desat });
+    setPublicaForm(publicaInicial);
+    setVersioDescart((v) => v + 1);
   };
 
   const desar = async () => {
@@ -250,6 +269,8 @@ function FitxaSessio({ id }) {
       onAnarA={canviarPestanya}
       pestanyesAfectades={pestanyesCanviades.map((p) => ETIQUETA_PESTANYA[p])}
       missatgeError={errorDesat}
+      onDescarta={handleDescarta}
+      bloquejada={pujades > 0}
     />
   );
 
@@ -265,7 +286,7 @@ function FitxaSessio({ id }) {
         onSubmit={handleSubmit}
       >
         <div className="fitxa-sessio__contingut">
-          <TargetaSessio dades={dades} onCanviDades={onCanviDades} />
+          <TargetaSessio key={versioDescart} dades={dades} onCanviDades={onCanviDades} />
         </div>
         {barra}
       </PaginaAdmin>
@@ -304,6 +325,7 @@ function FitxaSessio({ id }) {
         ) : (
           <div className="fitxa-sessio__contingut">
             <PestanyaEdicio
+              key={versioDescart}
               dades={{ ...dades, id }}
               onCanviDades={onCanviDades}
               form={publicaForm}
@@ -316,6 +338,7 @@ function FitxaSessio({ id }) {
               distribucioDesada={{ nom: publicaInicial.suportDistribucio, id: publicaInicial.suportDistribucioId }}
               original={original}
               urlPagina={original.publicada ? urlPublica(original.data, original.slug) : ''}
+              onPujant={onPujant}
             />
           </div>
         )}
