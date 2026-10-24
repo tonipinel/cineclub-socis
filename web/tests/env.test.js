@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const carrega = async (env) => {
@@ -29,5 +30,16 @@ describe('env', () => {
   it('SITE_URL treu la barra final', async () => {
     const env = await carrega({ PUBLIC_SITE_URL: 'https://exemple.cat/' });
     expect(env.SITE_URL).toBe('https://exemple.cat');
+  });
+
+  it('.env.production fixa els valors públics de producció perquè un build des d\'un shell net sigui indexable', () => {
+    const text = readFileSync(new URL('../.env.production', import.meta.url), 'utf8');
+    expect(text).toMatch(/^PUBLIC_INDEXABLE=true$/m);
+    expect(text).toMatch(/^PUBLIC_SITE_URL=https:\/\/cineclubrodadebera\.cat$/m);
+  });
+
+  it('.env.production no està ignorat per git', () => {
+    const ignore = readFileSync(new URL('../.gitignore', import.meta.url), 'utf8');
+    expect(ignore).not.toMatch(/^\.env(\.production|\*)?$/m);
   });
 });
