@@ -31,18 +31,23 @@ export default function DistribuidoresList() {
       <ul className="distribuidores-list__llista">
         {distribuidores.map((d) => (
           <li key={d.id} className="distribuidores-list__item">
-            <Link className="enllac distribuidores-list__nom" to={ROUTES.DISTRIBUIDORES_EDITAR.replace(':id', d.id)}>{d.nom}</Link>
-            {d.web && (
-              <a className="enllac distribuidores-list__web" href={urlWeb(d.web)} target="_blank" rel="noopener noreferrer">{d.web}</a>
-            )}
-            {d.preu != null && <span className="distribuidores-list__preu">Preu per defecte: {formatEuros(d.preu)}</span>}
-            {(d.contacte || d.correu) && (
-              <span className="distribuidores-list__contacte">
-                {d.contacte}
-                {d.contacte && d.correu && ' · '}
-                {d.correu && <a className="enllac" href={`mailto:${d.correu}`}>{d.correu}</a>}
-              </span>
-            )}
+            {d.logo
+              ? <img className="distribuidores-list__logo" src={d.logo} alt="" />
+              : <span className="distribuidores-list__logo distribuidores-list__logo--buit" aria-hidden="true" />}
+            <div className="distribuidores-list__text">
+              <Link className="enllac distribuidores-list__nom" to={ROUTES.DISTRIBUIDORES_EDITAR.replace(':id', d.id)}>{d.nom}</Link>
+              {d.web && (
+                <a className="enllac distribuidores-list__web" href={urlWeb(d.web)} target="_blank" rel="noopener noreferrer">{d.web}</a>
+              )}
+              {d.preu != null && <span className="distribuidores-list__preu">Preu per defecte: {formatEuros(d.preu)}</span>}
+              {(d.contacte || d.correu) && (
+                <span className="distribuidores-list__contacte">
+                  {d.contacte}
+                  {d.contacte && d.correu && ' · '}
+                  {d.correu && <a className="enllac" href={`mailto:${d.correu}`}>{d.correu}</a>}
+                </span>
+              )}
+            </div>
           </li>
         ))}
       </ul>

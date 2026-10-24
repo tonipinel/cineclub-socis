@@ -121,21 +121,32 @@
 .distribuidores-list__llista {
   @apply m-0 flex list-none flex-col p-0;
 }
-/* La fila ocupa tot l'ample; a escriptori, columnes alineades (nom flexible, web, preu, contacte) */
+/* Logo a l'esquerra i dades apilades; a escriptori, columnes alineades (logo, nom flexible, web, preu, contacte) */
 .distribuidores-list__item {
-  @apply flex flex-col gap-1 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[minmax(0,1fr)_14rem_11rem_minmax(0,18rem)] lg:items-center lg:gap-x-4;
+  @apply flex items-start gap-3 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[3rem_minmax(0,1fr)_14rem_11rem_minmax(0,18rem)] lg:items-center lg:gap-x-4;
+}
+.distribuidores-list__logo {
+  @apply h-12 w-12 shrink-0 object-contain lg:col-start-1 lg:row-start-1;
+}
+/* Reserva l'espai del logo perquè els noms quedin alineats amb i sense logo. */
+.distribuidores-list__logo--buit {
+  @apply block;
+}
+/* A escriptori desapareix i els seus fills passen a ser columnes de la graella de la fila. */
+.distribuidores-list__text {
+  @apply flex min-w-0 flex-1 flex-col gap-1 lg:contents;
 }
 .distribuidores-list__nom {
-  @apply min-w-0 text-base font-semibold wrap-anywhere lg:row-start-1;
+  @apply min-w-0 text-base font-semibold wrap-anywhere lg:col-start-2 lg:row-start-1;
 }
 .distribuidores-list__web {
-  @apply min-w-0 wrap-anywhere lg:col-start-2 lg:row-start-1;
+  @apply min-w-0 wrap-anywhere lg:col-start-3 lg:row-start-1;
 }
 .distribuidores-list__preu {
-  @apply text-black/70 lg:col-start-3 lg:row-start-1;
+  @apply text-black/70 lg:col-start-4 lg:row-start-1;
 }
 .distribuidores-list__contacte {
-  @apply min-w-0 text-black/70 wrap-anywhere lg:col-start-4 lg:row-start-1;
+  @apply min-w-0 text-black/70 wrap-anywhere lg:col-start-5 lg:row-start-1;
 }
 .distribuidora-form {
   @apply flex flex-col gap-2;
@@ -385,4 +396,16 @@
 
 .distribuidora-form__ajuda {
   @apply text-xs text-black/60;
+}
+.distribuidora-form__logo {
+  @apply flex flex-wrap items-center gap-3;
+}
+.distribuidora-form__previsualitzacio {
+  @apply h-20 w-20 shrink-0 rounded border border-black/10 object-contain;
+}
+.distribuidora-form__sense-logo {
+  @apply text-sm text-black/60;
+}
+.distribuidora-form__treure-logo {
+  @apply self-start;
 }

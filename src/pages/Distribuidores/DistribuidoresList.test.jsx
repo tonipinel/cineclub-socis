@@ -14,6 +14,7 @@ import DistribuidoresList from './DistribuidoresList';
 const DISTRIBUIDORES = [
   {
     id: 'd2', nom: 'Surtsey Films', web: 'surtseyfilms.com', contacte: 'Marta', correu: 'marta@surtsey.test', preu: 150,
+    logo: 'https://logos.test/surtsey.png',
   },
   { id: 'd1', nom: 'Atalante', web: '', contacte: '', correu: '' },
 ];
@@ -28,6 +29,26 @@ describe('DistribuidoresList', () => {
     expect(screen.getByRole('link', { name: 'surtseyfilms.com' })).toHaveAttribute('href', 'https://surtseyfilms.com');
     expect(screen.getByRole('link', { name: 'marta@surtsey.test' })).toHaveAttribute('href', 'mailto:marta@surtsey.test');
     expect(screen.getByText('Preu per defecte: 150.00€')).toBeInTheDocument();
+  });
+
+  it('cada fila té la miniatura del logo (decorativa) o un espai buit de la mateixa mida, i el nom com a enllaç', async () => {
+    getDocs.mockResolvedValueOnce({ docs: DISTRIBUIDORES.map((d) => ({ id: d.id, data: () => d })) });
+    const { container } = render(<MemoryRouter><DistribuidoresList /></MemoryRouter>);
+    const nom = await screen.findByRole('link', { name: 'Surtsey Films' });
+    const files = container.querySelectorAll('.distribuidores-list__item');
+    expect(files).toHaveLength(2);
+    const [atalante, surtsey] = files;
+    const logo = surtsey.querySelector('img');
+    expect(logo).toHaveAttribute('src', 'https://logos.test/surtsey.png');
+    expect(logo).toHaveAttribute('alt', '');
+    expect(logo).toHaveClass('distribuidores-list__logo');
+    expect(surtsey).toContainElement(nom);
+    expect(atalante.querySelector('img')).toBeNull();
+    const buit = atalante.querySelector('.distribuidores-list__logo--buit');
+    expect(buit).toHaveClass('distribuidores-list__logo');
+    expect(buit).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
+    expect(screen.getByRole('link', { name: 'Atalante' })).toHaveAttribute('href', '/distribuidores/d1');
   });
 
   it('té un botó per afegir-ne una de nova', async () => {

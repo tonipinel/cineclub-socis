@@ -3,17 +3,24 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where,
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { ref, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import BotoEditar from '../../components/BotoEditar';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import TextareaAutomatic from '../../components/TextareaAutomatic';
+import SelectorFitxer from '../../components/SelectorFitxer';
+import { ACCEPT_IMATGE, urlStorage, validarImatge } from '../../lib/sessioPublica';
+import {
+  camiLogoDistribuidora, construirDistribuidora, sessionsQueUsen, validarUrlPublica,
+} from '../../lib/distribuidores';
 
 const CAMPS_BUITS = {
-  nom: '', web: '', contacte: '', correu: '', preu: '', condicions: '',
+  nom: '', web: '', urlPublica: '', contacte: '', correu: '', preu: '', condicions: '', logo: '',
 };
+const ERROR_PUJADA = "No s'ha pogut pujar la imatge. Torna-ho a provar.";
 
 export default function DistribuidoraForm() {
   const { id } = useParams();
@@ -22,6 +29,10 @@ export default function DistribuidoraForm() {
   const [carregant, setCarregant] = useState(editant);
   const [desbloquejat, setDesbloquejat] = useState(!editant);
   const [error, setError] = useState(null);
+  const [errorUrlPublica, setErrorUrlPublica] = useState(null);
+  const [pujant, setPujant] = useState(false);
+  // Nom desat: el guarden les sessions (amb l'id del document), per això la comprovació d'ús no fa servir el del formulari.
+  const [nomOriginal, setNomOriginal] = useState('');
   const navigate = useNavigate();
   const { confirma } = useConfirmacio();
 
@@ -34,11 +45,33 @@ export default function DistribuidoraForm() {
         return;
       }
       setDades({ ...CAMPS_BUITS, ...dadesDoc, preu: String(dadesDoc.preu ?? '') });
+      setNomOriginal(dadesDoc.nom ?? '');
       setCarregant(false);
     });
   }, [id, editant, navigate]);
 
   const handleChange = (camp) => (e) => setDades((d) => ({ ...d, [camp]: e.target.value }));
+
+  const pujarLogo = async (e) => {
+    const fitxer = e.target.files?.[0];
+    if (!fitxer) return;
+    setError(null);
+    const motiu = dades.nom.trim() ? validarImatge(fitxer) : 'Escriu primer el nom per poder pujar el logo.';
+    if (motiu) {
+      setError(motiu);
+      return;
+    }
+    setPujant(true);
+    try {
+      const cami = camiLogoDistribuidora(dades.nom, fitxer, Date.now());
+      await uploadBytes(ref(storage, cami), fitxer, { contentType: fitxer.type });
+      setDades((d) => ({ ...d, logo: urlStorage(storage.app.options.storageBucket, cami) }));
+    } catch {
+      setError(ERROR_PUJADA);
+    } finally {
+      setPujant(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,14 +80,10 @@ export default function DistribuidoraForm() {
       setError('El nom no pot estar en blanc.');
       return;
     }
-    const distribuidora = {
-      nom: dades.nom.trim(),
-      web: dades.web.trim(),
-      contacte: dades.contacte.trim(),
-      correu: dades.correu.trim(),
-      preu: dades.preu === '' ? null : Number(dades.preu),
-      condicions: dades.condicions.trim(),
-    };
+    const motiuUrl = validarUrlPublica(dades.urlPublica);
+    setErrorUrlPublica(motiuUrl);
+    if (motiuUrl) return;
+    const distribuidora = construirDistribuidora(dades);
     try {
       if (editant) await setDoc(doc(db, 'distribuidores', id), distribuidora);
       else await addDoc(collection(db, 'distribuidores'), distribuidora);
@@ -70,6 +99,13 @@ export default function DistribuidoraForm() {
       const enUs = await getDocs(query(collection(db, 'propostesInternes'), where('distribuidoraId', '==', id)));
       if (!enUs.empty) {
         setError(`No es pot eliminar: s'està fent servir en ${enUs.docs.length} proposta(es).`);
+        return;
+      }
+      const snapSessions = await getDocs(collection(db, 'sessions'));
+      const usen = sessionsQueUsen({ id, nom: nomOriginal }, snapSessions.docs.map((d) => ({ id: d.id, ...d.data() })));
+      if (usen.length) {
+        const recompte = usen.length === 1 ? "l'usa 1 sessió" : `l'usen ${usen.length} sessions`;
+        setError(`No es pot eliminar: ${recompte} (${usen.map((s) => s.titol).join(', ')})`);
         return;
       }
       if (!(await confirma({
@@ -107,6 +143,40 @@ export default function DistribuidoraForm() {
         <input id="web" className={classeCamp} value={dades.web} onChange={handleChange('web')} readOnly={!desbloquejat} />
       </div>
       <div className="form__field">
+        <label className="form__label" htmlFor="urlPublica">Pàgina web pública (enllaç des de la fitxa de la sessió)</label>
+        <input
+          id="urlPublica"
+          className={classeCamp}
+          value={dades.urlPublica}
+          onChange={(e) => {
+            setErrorUrlPublica(null);
+            handleChange('urlPublica')(e);
+          }}
+          readOnly={!desbloquejat}
+          aria-invalid={errorUrlPublica ? true : undefined}
+          aria-describedby={errorUrlPublica ? 'urlPublica-ajuda urlPublica-error' : 'urlPublica-ajuda'}
+        />
+        <p id="urlPublica-ajuda" className="distribuidora-form__ajuda">
+          Pot ser la mateixa que «Web» o una altra, p. ex. la portada. Es mostra al lloc públic.
+        </p>
+        {errorUrlPublica && <p id="urlPublica-error" className="form__error" role="alert">{errorUrlPublica}</p>}
+      </div>
+      <div className="form__field" role="group" aria-labelledby="logo-titol">
+        <span className="form__label" id="logo-titol">Logo</span>
+        <div className="distribuidora-form__logo">
+          {dades.logo && <img className="distribuidora-form__previsualitzacio" src={dades.logo} alt="Logo" />}
+          {!dades.logo && !desbloquejat && <span className="distribuidora-form__sense-logo">Sense logo</span>}
+          {desbloquejat && (
+            <SelectorFitxer id="logo" etiqueta={dades.logo ? 'Canviar el logo' : 'Pujar el logo'} accept={ACCEPT_IMATGE} onChange={pujarLogo} disabled={pujant} />
+          )}
+        </div>
+        {desbloquejat && dades.logo && (
+          <button className="btn btn--outline distribuidora-form__treure-logo" type="button" onClick={() => setDades((d) => ({ ...d, logo: '' }))}>
+            Treure el logo
+          </button>
+        )}
+      </div>
+      <div className="form__field">
         <label className="form__label" htmlFor="contacte">Persona de contacte</label>
         <input id="contacte" className={classeCamp} value={dades.contacte} onChange={handleChange('contacte')} readOnly={!desbloquejat} />
       </div>
@@ -133,8 +203,8 @@ export default function DistribuidoraForm() {
         </p>
       </div>
 
-      {error && <p className="form__error">{error}</p>}
-      {desbloquejat && <button className="btn" type="submit">Desar</button>}
+      {error && <p className="form__error" role="alert">{error}</p>}
+      {desbloquejat && <button className="btn" type="submit" disabled={pujant}>Desar</button>}
       {editant && desbloquejat && (
         <button className="btn btn--outline" type="button" onClick={handleEliminar}>Eliminar</button>
       )}
