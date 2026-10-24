@@ -161,9 +161,11 @@ function FitxaSessio({ id }) {
     editat();
     setDades((d) => ({ ...d, [camp]: valor }));
   };
+  // `valor` pot ser una funció del valor actual: una pujada que acaba tard (potser des d'una pestanya ja desmuntada)
+  // s'aplica sobre l'estat d'ara, sense perdre el que s'hagi editat mentrestant.
   const onCanviForm = (camp, valor) => {
     editat();
-    setPublicaForm((f) => ({ ...f, [camp]: valor }));
+    setPublicaForm((f) => ({ ...f, [camp]: typeof valor === 'function' ? valor(f[camp]) : valor }));
   };
 
   const onPujant = (comenca) => setPujades((n) => n + (comenca ? 1 : -1));

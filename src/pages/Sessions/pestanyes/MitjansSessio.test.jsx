@@ -28,7 +28,7 @@ function Arnes({ publica, sessio = {} }) {
       dades={{ id: '1', titol: 'Pig', data: '2026-10-08', slug: '', ...sessio }}
       onCanviDades={() => {}}
       form={form}
-      onCanviForm={(camp, valor) => setForm((f) => ({ ...f, [camp]: valor }))}
+      onCanviForm={(camp, valor) => setForm((f) => ({ ...f, [camp]: typeof valor === 'function' ? valor(f[camp]) : valor }))}
       errors={{}}
       altresSessions={[]}
       original={{}}

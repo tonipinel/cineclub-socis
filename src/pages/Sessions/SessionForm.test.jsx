@@ -1632,6 +1632,8 @@ describe('SessionForm — descartar canvis', () => {
     await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
     await vi.waitFor(() => expect(descartar()).toBeDisabled());
     expect(desarBoto()).toBeDisabled();
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Mitjans');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     pujades.resol(0);
     await screen.findByRole('img', { name: 'Cartell' });
     expect(descartar()).toBeEnabled();
@@ -1654,6 +1656,30 @@ describe('SessionForm — descartar canvis', () => {
     pujades.resol(0);
     await vi.waitFor(() => expect(descartar()).toBeEnabled());
     expect(desarBoto()).toBeEnabled();
+  });
+
+  it('una pujada a la galeria que acaba després de canviar de pestanya conserva les edicions fetes mentrestant', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(5);
+    const pujades = await pujadesControlades();
+    const ambGaleria = { ...SESSIO, publica: { ...PUBLICA, galeria: ['https://x/a.jpg', 'https://x/b.jpg', 'https://x/c.jpg'] } };
+    const user = carregar(ambGaleria, 'mitjans');
+    const imatges = () => within(screen.getByRole('list', { name: 'Galeria' })).getAllByRole('img').map((img) => img.getAttribute('src'));
+    await user.upload(await screen.findByLabelText('Afegir imatges a la galeria'), new File(['y'], 'g.jpg', { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(pujades.pendents).toHaveLength(1));
+    // La pestanya «Mitjans» es desmunta i se'n munta una de nova mentre la pujada continua.
+    await user.click(pestanya('Dades'));
+    await user.click(pestanya('Mitjans'));
+    await user.click(screen.getByRole('button', { name: 'Treure la imatge 1' }));
+    await user.click(screen.getByRole('button', { name: 'Fer cartell la imatge 2' }));
+    expect(imatges()).toEqual(['https://x/b.jpg', 'https://x/c.jpg']);
+    pujades.resol(0);
+    const nova = 'https://firebasestorage.googleapis.com/v0/b/bucket-prova/o/web%2Fsessions%2Fpig%2Fgallery-5-1.jpg?alt=media';
+    await vi.waitFor(() => expect(imatges()).toEqual(['https://x/b.jpg', 'https://x/c.jpg', nova]));
+    expect(screen.getByRole('img', { name: 'Cartell' })).toHaveAttribute('src', 'https://x/c.jpg');
+    await vi.waitFor(() => expect(desarBoto()).toBeEnabled());
+    await user.click(desarBoto());
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1].publica.galeria).toEqual(['https://x/b.jpg', 'https://x/c.jpg', nova]);
   });
 
   it('amb dues pujades alhora, la barra no es desbloqueja fins que acaben totes dues', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ref, uploadBytes } from 'firebase/storage';
 import { storage } from '../../../firebase/firebase';
 import { esSlugValid, idYoutube } from '../../../lib/sessioPublica';
@@ -11,18 +11,13 @@ const MOTIU_SENSE_SLUG = 'Cal un slug per poder pujar imatges.';
 const pujarFitxer = (cami, f) => uploadBytes(ref(storage, cami), f, { contentType: f.type });
 
 // `onPujant(bool)`: avisa la fitxa quan comença i acaba una pujada (encara que s'hagi canviat de pestanya).
+// `onCanviForm(camp, valor)` ha d'acceptar també una funció `(valorActual) => nouValor`.
 export default function MitjansSessio({
   dades, form, onCanviForm, errors, onPujant = () => {},
 }) {
   const [pujant, setPujant] = useState(false);
   const [estatsCartell, setEstatsCartell] = useState([]);
   const [estatsGaleria, setEstatsGaleria] = useState([]);
-  // La pujada acaba més tard: la galeria nova es calcula sobre l'actual, no sobre la d'abans de pujar
-  // (si no, es perdria el que s'hagi tret o reordenat mentrestant).
-  const galeriaActual = useRef(form.galeria);
-  useLayoutEffect(() => {
-    galeriaActual.current = form.galeria;
-  }, [form.galeria]);
 
   const slug = dades.slug ?? '';
   const potPujar = esSlugValid(slug) && !pujant;
@@ -72,7 +67,10 @@ export default function MitjansSessio({
 
   const pujarGaleria = async (fitxers) => {
     const urls = await pujar(fitxers, 'gallery', setEstatsGaleria);
-    if (urls.length) onCanviForm('galeria', afegirUrls(galeriaActual.current, urls));
+    // La pujada acaba més tard, potser amb aquesta pestanya ja desmuntada: les URL s'afegeixen a la galeria que
+    // té la fitxa en aquell moment (actualització funcional), no a la d'abans de pujar, i no es perd el que s'hagi
+    // tret o reordenat mentrestant.
+    if (urls.length) onCanviForm('galeria', (actual) => afegirUrls(actual, urls));
   };
 
   return (
