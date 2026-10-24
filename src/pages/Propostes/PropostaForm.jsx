@@ -37,6 +37,9 @@ const ERROR_SOCI = 'Selecciona un soci vàlid de la llista.';
 const ERROR_TRIAR = "No s'ha pogut carregar la fitxa de la pel·lícula. Torna-ho a provar.";
 const ERROR_PUJADA = "No s'ha pogut pujar la imatge. Torna-ho a provar.";
 const ERROR_ACTUALITZAR = "No s'ha pogut actualitzar la fitxa des de TMDB. Torna-ho a provar.";
+// Per què la barra no deixa desar (els mateixos textos que la nota de «Programar sessió»).
+const MOTIU_TMDB = "S'està actualitzant la fitxa des de TMDB…";
+const MOTIU_PUJADA = "S'està pujant el cartell…";
 
 const docsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 const perOrdreDePestanya = (a, b) => PESTANYES.indexOf(a) - PESTANYES.indexOf(b);
@@ -420,6 +423,7 @@ function FitxaProposta({
           onAnarA={canviarPestanya}
           onDescarta={handleDescarta}
           bloquejada={actualitzant || pujant}
+          motiuBloqueig={(actualitzant && MOTIU_TMDB) || (pujant && MOTIU_PUJADA) || undefined}
           pestanyesAfectades={pestanyesCanviades.map((p) => ETIQUETA_PESTANYA[p])}
           missatgeError={errorDesat}
         />

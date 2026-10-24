@@ -424,6 +424,8 @@ describe('PropostaForm: Pel·lícula', () => {
     await user.click(botoActualitzar());
     expect(hiHaDialegConfirmacio()).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+    // El botó desapareix: el focus passa a l'estat de la barra en comptes de perdre's.
+    expect(screen.getByText('Sense canvis', { selector: '.barra-desar__text' })).toHaveFocus();
     expect(botoActualitzar()).toBeEnabled();
     expect(assignarPellicula).not.toHaveBeenCalled();
   });
@@ -569,7 +571,10 @@ describe('PropostaForm: Pel·lícula', () => {
       expect(screen.getByLabelText('Títol')).toBeDisabled();
       expect(screen.getByLabelText('Sinopsi')).toBeDisabled();
       expect(programar()).toBeDisabled();
-      expect(programar()).toHaveAttribute('aria-describedby', screen.getByText(NOTA_TMDB).id);
+      expect(programar()).toHaveAttribute('aria-describedby', screen.getByText(NOTA_TMDB, { selector: '#programar-nota' }).id);
+      // La barra també diu per què no es pot desar, com a nota informativa.
+      expect(screen.getByText(NOTA_TMDB, { selector: '.barra-desar__nota' })).toBeInTheDocument();
+      expect(document.querySelector('.barra-desar [role="alert"]')).toBeNull();
     }
 
     function esperaDesbloquejada() {
@@ -1478,6 +1483,9 @@ describe('PropostaForm: Mitjans', () => {
       for (const nom of ['Resum', 'Pel·lícula', 'Gestió']) expect(pestanya(nom)).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Programar sessió' })).toBeDisabled();
       expect(screen.getByText("S'està pujant el cartell…", { selector: '#programar-nota' })).toBeInTheDocument();
+      // La barra diu per què «Desar» està desactivat (nota informativa, no un error).
+      expect(screen.getByText("S'està pujant el cartell…", { selector: '.barra-desar__nota' })).toBeInTheDocument();
+      expect(document.querySelector('.barra-desar [role="alert"]')).toBeNull();
       // Ni enviant el formulari a la força (el botó és deshabilitat, però el gestor també ho ha de vigilar) ni amb una segona pujada.
       fireEvent.submit(container.querySelector('form'));
       fireEvent.change(selector(), { target: { files: [fitxer('d.jpg')] } });
@@ -1492,6 +1500,7 @@ describe('PropostaForm: Mitjans', () => {
       acaba({});
       await waitFor(() => expect(screen.getByLabelText('URL del cartell')).toHaveValue(URL_ESPERADA));
       await waitFor(() => expect(botoDesar()).toBeEnabled());
+      expect(document.querySelector('.barra-desar__nota')).toBeEmptyDOMElement();
       expect(screen.getByRole('button', { name: 'Descartar canvis' })).toBeEnabled();
       expect(pestanya('Gestió')).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Programar sessió' })).toBeDisabled();

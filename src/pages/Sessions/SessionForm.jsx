@@ -273,6 +273,7 @@ function FitxaSessio({ id }) {
       missatgeError={errorDesat}
       onDescarta={handleDescarta}
       bloquejada={pujades > 0}
+      motiuBloqueig="S'està pujant una imatge…"
     />
   );
 

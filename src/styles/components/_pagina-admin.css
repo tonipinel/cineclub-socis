@@ -12,13 +12,13 @@
   @apply max-w-3xl;
 }
 /* Espai sota el contingut per a BarraDesar fixa (PaginaAdmin ambBarra), més l'àrea segura que la barra també suma.
-   Alçada màxima mesurada de la barra en error (diversos errors + missatge, a l'arnès): 205 px per sota de sm
-   (la llista d'errors té alçada màxima), 175 px de sm a lg (a 640 px) i 138 px des de lg; el padding hi deixa
-   uns 20-35 px de marge. `.espai-barra-desar` reserva el mateix espai quan el contingut continua després de
+   Alçada màxima de la barra en error (diversos errors + missatge, a l'arnès), més els 22 px de la nota de bloqueig
+   («S'està pujant una imatge…», que pot coincidir amb els errors): ~227 px per sota de sm (la llista d'errors té
+   alçada màxima), ~197 px de sm a lg (a 640 px) i ~160 px des de lg; el padding hi deixa uns 15-30 px de marge. `.espai-barra-desar` reserva el mateix espai quan el contingut continua després de
    `PaginaAdmin` (la fitxa de soci, amb seccions a tot l'ample a sota). */
 .pagina-admin--amb-barra,
 .espai-barra-desar {
-  @apply pb-[calc(15rem+env(safe-area-inset-bottom))] sm:pb-[calc(13rem+env(safe-area-inset-bottom))] lg:pb-[calc(10rem+env(safe-area-inset-bottom))];
+  @apply pb-[calc(16rem+env(safe-area-inset-bottom))] sm:pb-[calc(14rem+env(safe-area-inset-bottom))] lg:pb-[calc(11rem+env(safe-area-inset-bottom))];
 }
 .pagina-admin__capcalera {
   @apply mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4;

@@ -167,6 +167,7 @@ function FitxaEntitat({ id, carregada }) {
         onDescarta={descarta}
         missatgeError={errorDesat}
         bloquejada={pujant}
+        motiuBloqueig="S'està pujant el logo…"
       />
     </PaginaAdmin>
   );

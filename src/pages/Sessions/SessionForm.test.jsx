@@ -42,6 +42,7 @@ function renderEnEdicio(ruta = '/sessions/1') {
 
 const pestanya = (nom) => screen.getByRole('tab', { name: new RegExp(`^${nom}`) });
 const textBarra = () => document.querySelector('.barra-desar__text').textContent;
+const notaBarra = () => document.querySelector('.barra-desar__nota').textContent;
 
 describe('SessionForm — alta', () => {
   beforeEach(() => addDoc.mockClear());
@@ -1629,15 +1630,19 @@ describe('SessionForm — descartar canvis', () => {
     await user.type(trailer, 'x');
     expect(descartar()).toBeEnabled();
     expect(desarBoto()).toBeEnabled();
+    expect(notaBarra()).toBe('');
     await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
     await vi.waitFor(() => expect(descartar()).toBeDisabled());
     expect(desarBoto()).toBeDisabled();
+    // La barra diu per què no es pot desar, com a nota informativa (no és un error).
+    expect(notaBarra()).toBe("S'està pujant una imatge…");
     expect(textBarra()).toBe('Hi ha canvis sense desar · Mitjans');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     pujades.resol(0);
     await screen.findByRole('img', { name: 'Cartell' });
     expect(descartar()).toBeEnabled();
     expect(desarBoto()).toBeEnabled();
+    expect(notaBarra()).toBe('');
   });
 
   it('una pujada en curs continua bloquejant la barra encara que es canviï de pestanya', async () => {
@@ -1650,12 +1655,14 @@ describe('SessionForm — descartar canvis', () => {
     expect(screen.getByLabelText('Títol')).toBeInTheDocument();
     expect(descartar()).toBeDisabled();
     expect(desarBoto()).toBeDisabled();
+    expect(notaBarra()).toBe("S'està pujant una imatge…");
     await user.click(pestanya('Mitjans'));
     expect(descartar()).toBeDisabled();
     expect(desarBoto()).toBeDisabled();
     pujades.resol(0);
     await vi.waitFor(() => expect(descartar()).toBeEnabled());
     expect(desarBoto()).toBeEnabled();
+    expect(notaBarra()).toBe('');
   });
 
   it('una pujada a la galeria que acaba després de canviar de pestanya conserva les edicions fetes mentrestant', async () => {
@@ -1700,6 +1707,22 @@ describe('SessionForm — descartar canvis', () => {
     pujades.resol(1);
     await vi.waitFor(() => expect(descartar()).toBeEnabled());
     expect(desarBoto()).toBeEnabled();
+  });
+
+  it('amb el teclat, després de descartar el focus passa a l\'estat de la barra (no es perd al body)', async () => {
+    const user = carregar();
+    await screen.findByLabelText('Títol');
+    await editarTitol(user, 'Pig 2');
+    descartar().focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByLabelText('Títol')).toHaveValue('Pig');
+    expect(document.querySelector('.barra-desar__text')).toHaveFocus();
+    expect(textBarra()).toBe('Sense canvis');
+    // La navegació continua des de la barra: Maj+Tab torna a l'últim control del formulari, no al principi.
+    await user.tab({ shift: true });
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.querySelector('.barra-desar')).not.toContainElement(document.activeElement);
+    expect(document.querySelector('form')).toContainElement(document.activeElement);
   });
 
   it('mentre es desa, «Descartar canvis» està desactivat', async () => {

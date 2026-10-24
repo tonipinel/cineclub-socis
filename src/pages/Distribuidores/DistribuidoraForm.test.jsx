@@ -293,6 +293,8 @@ describe('DistribuidoraForm', () => {
       await user.click(screen.getByRole('button', { name: 'Treure el logo' }));
       expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+      // El botó desapareix: el focus passa a l'estat de la barra en comptes de perdre's.
+      expect(within(barra()).getByText('Sense canvis')).toHaveFocus();
       expect(web).toHaveValue('atalante.test');
       expect(screen.getByLabelText('Preu per defecte (€)')).toHaveValue(120);
       expect(previsualitzacio()).toHaveAttribute('src', 'https://logos.test/atalante.png');
@@ -617,8 +619,12 @@ describe('DistribuidoraForm', () => {
       expect(screen.getByRole('button', { name: 'Descartar canvis' })).toBeDisabled();
       expect(screen.getByLabelText('Canviar el logo')).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Eliminar' })).toBeDisabled();
+      // La barra diu per què no es pot desar (nota informativa, no un error).
+      expect(within(barra()).getByText("S'està pujant el logo…")).toHaveClass('barra-desar__nota');
+      expect(within(barra()).queryByRole('alert')).not.toBeInTheDocument();
       resol({});
       await waitFor(() => expect(previsualitzacio()).toHaveAttribute('src', URL_LOGO));
+      expect(within(barra()).queryByText("S'està pujant el logo…")).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Eliminar' })).toBeEnabled();
     });

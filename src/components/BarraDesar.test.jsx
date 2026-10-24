@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BarraDesar from './BarraDesar';
@@ -154,5 +155,93 @@ describe('BarraDesar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Descartar canvis' }));
     expect(onDesar).not.toHaveBeenCalled();
     expect(onDescarta).not.toHaveBeenCalled();
+  });
+  describe('motiu del bloqueig (motiuBloqueig)', () => {
+    const MOTIU = "S'està pujant una imatge…";
+
+    it('bloquejada: mostra el motiu com a nota informativa (polite, no alerta) i «Desar» desactivat', () => {
+      pinta({ estat: 'pendent', bloquejada: true, motiuBloqueig: MOTIU });
+      const nota = screen.getByText(MOTIU);
+      expect(nota).toHaveAttribute('aria-live', 'polite');
+      expect(nota).not.toHaveAttribute('role', 'alert');
+      expect(nota).not.toHaveClass('barra-desar__text--error');
+      expect(nota).toHaveClass('barra-desar__nota');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      // L'estat de la fitxa continua visible al costat del motiu.
+      expect(screen.getByText('Hi ha canvis sense desar')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    });
+
+    it('sense bloqueig el motiu no es mostra, però la regió viva ja hi és (buida)', () => {
+      const { container } = pinta({ estat: 'pendent', motiuBloqueig: MOTIU });
+      expect(screen.queryByText(MOTIU)).not.toBeInTheDocument();
+      const nota = container.querySelector('.barra-desar__nota');
+      expect(nota).toHaveAttribute('aria-live', 'polite');
+      expect(nota).toBeEmptyDOMElement();
+    });
+
+    it('en passar a bloquejada, el motiu apareix dins de la mateixa regió viva', () => {
+      const { container, rerender } = pinta({ estat: 'pendent', motiuBloqueig: MOTIU });
+      const nota = container.querySelector('.barra-desar__nota');
+      rerender(<BarraDesar onDesar={onDesar} onAnarA={onAnarA} estat="pendent" motiuBloqueig={MOTIU} bloquejada />);
+      expect(container.querySelector('.barra-desar__nota')).toBe(nota);
+      expect(nota).toHaveTextContent(MOTIU);
+    });
+
+    it('no substitueix el missatge d\'error: tots dos es mostren per separat', () => {
+      pinta({
+        estat: 'error', bloquejada: true, motiuBloqueig: MOTIU, missatgeError: "No s'ha pogut desar. Torna-ho a provar.",
+      });
+      expect(screen.getByRole('alert')).toHaveTextContent(/^No s'ha pogut desar\. Torna-ho a provar\.$/);
+      expect(screen.getByText(MOTIU)).not.toHaveClass('barra-desar__text--error');
+    });
+  });
+
+  describe('focus després de «Descartar canvis»', () => {
+    // La barra en una fitxa mínima: descartar torna a «Sense canvis» i el botó desapareix.
+    function FitxaAmbBarra({ onDescarta = () => {} }) {
+      const [estat, setEstat] = useState('pendent');
+      return (
+        <BarraDesar
+          estat={estat}
+          onDesar={onDesar}
+          onDescarta={() => { onDescarta(); setEstat('net'); }}
+        />
+      );
+    }
+
+    it('el focus passa al text d\'estat de la barra (no es perd al body)', async () => {
+      render(<FitxaAmbBarra />);
+      await userEvent.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+      expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+      const text = screen.getByText('Sense canvis');
+      expect(text).toHaveFocus();
+      expect(text).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('amb el teclat també: Enter a «Descartar canvis» deixa el focus a l\'estat', async () => {
+      render(<FitxaAmbBarra />);
+      screen.getByRole('button', { name: 'Descartar canvis' }).focus();
+      await userEvent.keyboard('{Enter}');
+      expect(screen.getByText('Sense canvis')).toHaveFocus();
+      // El text no entra a l'ordre de tabulació: el següent Tab no s'hi atura en tornar-hi.
+      expect(screen.getByText('Sense canvis').tabIndex).toBe(-1);
+    });
+
+    it('si el descart no treu el botó (no fa res), el focus es queda al botó', async () => {
+      render(<BarraDesar estat="pendent" onDesar={onDesar} onDescarta={vi.fn()} />);
+      const boto = screen.getByRole('button', { name: 'Descartar canvis' });
+      await userEvent.click(boto);
+      expect(boto).toHaveFocus();
+    });
+
+    it('no roba el focus en renderitzats posteriors sense descart', async () => {
+      const { rerender } = render(<BarraDesar estat="pendent" onDesar={onDesar} onDescarta={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+      screen.getByRole('button', { name: 'Descartar canvis' }).blur();
+      expect(document.body).toHaveFocus();
+      rerender(<BarraDesar estat="net" onDesar={onDesar} onDescarta={vi.fn()} />);
+      expect(screen.getByText('Sense canvis')).not.toHaveFocus();
+    });
   });
 });

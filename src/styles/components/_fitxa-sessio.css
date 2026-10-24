@@ -46,6 +46,17 @@
 .barra-desar__text--error {
   @apply font-bold text-red-700;
 }
+/* Rep el focus en descartar (tabIndex=-1): el navegador només hi posa contorn si s'hi arriba amb el teclat. */
+.barra-desar__text:focus-visible {
+  @apply rounded-sm outline-2 outline-offset-2 outline-black;
+}
+/* Motiu del bloqueig (p. ex. una pujada en curs): informatiu, no és un error. Buida, no ocupa espai. */
+.barra-desar__nota {
+  @apply m-0 font-body text-sm text-black/70 wrap-anywhere;
+}
+.barra-desar__nota:not(:empty) {
+  @apply mt-0.5 italic;
+}
 .barra-desar__errors {
   @apply m-0 mt-1 max-h-24 list-none overflow-y-auto p-0 sm:max-h-none;
 }

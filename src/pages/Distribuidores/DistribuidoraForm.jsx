@@ -203,6 +203,7 @@ function FitxaDistribuidora({ id, distribuidora }) {
         onDescarta={descarta}
         missatgeError={errorDesat}
         bloquejada={pujant}
+        motiuBloqueig="S'està pujant el logo…"
       />
     </PaginaAdmin>
   );
