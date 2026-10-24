@@ -37,7 +37,7 @@ export default function PropostesNova() {
     setError(null);
     setDesant(true);
     try {
-      await addDoc(collection(db, 'propostes'), {
+      const creada = await addDoc(collection(db, 'propostes'), {
         titol: titol.trim(),
         enllac: enllac.trim(),
         comentari: comentari.trim(),
@@ -46,7 +46,7 @@ export default function PropostesNova() {
         estat: 'pendent',
         timestamp: serverTimestamp(),
       });
-      navigate(ROUTES.PROPOSTES_PENDENTS);
+      navigate(ROUTES.PROPOSTES_EDITAR.replace(':id', creada.id), { replace: true });
     } catch {
       setDesant(false);
       setError("No s'ha pogut desar. Torna-ho a provar.");

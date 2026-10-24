@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import {
+  MemoryRouter, Routes, Route, useNavigationType, useParams,
+} from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
-  addDoc: vi.fn().mockResolvedValue({ id: 'nova' }),
+  // Un id diferent de «nova»: la ruta de la fitxa creada no ha de coincidir amb la del formulari d'alta.
+  addDoc: vi.fn().mockResolvedValue({ id: 'p42' }),
   collection: vi.fn((_, nom) => nom),
   getDocs: vi.fn().mockResolvedValue({
     docs: [{ id: 's1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 }) }],
@@ -16,12 +19,19 @@ vi.mock('firebase/firestore', () => ({
 import { addDoc } from 'firebase/firestore';
 import PropostesNova from './PropostesNova';
 
+// Fitxa de la proposta: diu quina i com s'hi ha arribat (REPLACE: «enrere» no torna al formulari d'alta).
+function FitxaProva() {
+  const { id } = useParams();
+  return <p>Fitxa de la proposta {id} ({useNavigationType()})</p>;
+}
+
 function renderPagina() {
   return render(
     <MemoryRouter initialEntries={['/propostes/pendents/nova']}>
       <Routes>
         <Route path="/propostes/pendents/nova" element={<PropostesNova />} />
         <Route path="/propostes/pendents" element={<p>Llistat de propostes</p>} />
+        <Route path="/propostes/pendents/:id" element={<FitxaProva />} />
       </Routes>
     </MemoryRouter>
   );
@@ -30,7 +40,7 @@ function renderPagina() {
 describe('PropostesNova', () => {
   beforeEach(() => addDoc.mockClear());
 
-  it('crea una proposta pendent en nom del soci trobat pel nom', async () => {
+  it('crea una proposta pendent en nom del soci trobat pel nom i obre la seva fitxa', async () => {
     const user = userEvent.setup();
     renderPagina();
     const campSoci = await screen.findByLabelText('Soci');
@@ -38,7 +48,9 @@ describe('PropostesNova', () => {
     await user.type(screen.getByLabelText('Títol'), 'L\'endemà');
     await user.click(screen.getByRole('button', { name: 'Crear proposta' }));
 
-    expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
+    expect(await screen.findByText('Fitxa de la proposta p42 (REPLACE)')).toBeInTheDocument();
+    expect(screen.queryByText('Llistat de propostes')).not.toBeInTheDocument();
+    expect(addDoc).toHaveBeenCalledTimes(1);
     const [, dadesDesades] = addDoc.mock.calls[0];
     expect(dadesDesades).toEqual({
       titol: "L'endemà", enllac: '', comentari: '', numeroSoci: 7, nomProposant: 'Anna V.', estat: 'pendent', timestamp: 'TIMESTAMP',
