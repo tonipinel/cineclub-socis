@@ -14,6 +14,9 @@
 // backups/<AAAA-MM-DD>/distribuidores-migracio.json. És idempotent. `--desfer <fitxer>` restableix els valors
 // d'aquest fitxer (esborra `logo`/`urlPublica` i els `suportDistribucioId` afegits i torna els noms antics a les
 // sessions, un update per document) amb la mateixa guarda de còpia; mai esborra fitxers de Storage.
+// NOTA: la migració ja es va fer (24/10/2026). Les dades d'origen (web/src/data/distribuidors.json i els logos de
+// web/public/images/distribuidors/) s'han esborrat del repositori: queden a l'historial de git (commit anterior a
+// «eliminar el catàleg de distribuïdores fix»). Sense elles, el mode informe i `--apply` fallen; `--desfer` continua funcionant.
 // Credencials: GOOGLE_APPLICATION_CREDENTIALS o la clau cineclub-socis-firebase-adminsdk-*.json de l'arrel.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
