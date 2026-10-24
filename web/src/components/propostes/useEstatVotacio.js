@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/client.js';
 import { triaTanda } from '../../lib/propostes/tandes.js';
-import { carregarEstat, votar } from '../../lib/propostes/votacio.js';
+import { carregarEstat } from '../../lib/propostes/votacio.js';
 import { esCarnetNoValid, missatgeError } from '../../lib/propostes/errorsVotacio.js';
 
 const TEMPS_MAXIM_CARREGA_MS = 15000;
@@ -34,8 +34,6 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
   const [estatFallit, setEstatFallit] = useState(false);
   const [versioEstat, setVersioEstat] = useState(0);
   const [error, setError] = useState(null);
-  // Vot (👍/👎) que el visitant ha començat abans d'identificar-se: s'aplica quan es coneix l'estat de la tanda.
-  const votPendentRef = useRef(null);
 
   useEffect(() => {
     getDocs(query(collection(db, 'propostes'), where('estat', 'in', ['aprovada', 'programada']))).then(
@@ -65,19 +63,7 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
     let actiu = true;
     (async () => {
       try {
-        let dades = await carregarEstat(token);
-        if (!actiu) return;
-        const pendent = votPendentRef.current;
-        votPendentRef.current = null;
-        const { tanda } = dades;
-        if (pendent && tanda && !tanda.tancada && !dades.bloquejat && tanda.propostes.includes(pendent.propostaId)) {
-          try {
-            await votar(token, tanda.id, pendent.propostaId, pendent.valor);
-            dades = { ...dades, valors: { ...dades.valors, [pendent.propostaId]: pendent.valor } };
-          } catch (errorVot) {
-            setError(missatgeError(errorVot, 'vot'));
-          }
-        }
+        const dades = await carregarEstat(token);
         if (actiu) setEstat({ dades, versio: versioEstat });
       } catch (errorEstat) {
         if (!actiu) return;
@@ -132,7 +118,6 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
     estatFallit,
     error,
     setError,
-    votPendentRef,
     recarregarEstat,
     tornarAProvar,
     tandaEstat,

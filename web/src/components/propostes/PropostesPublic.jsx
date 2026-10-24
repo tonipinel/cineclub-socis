@@ -8,65 +8,11 @@ import LectorCarnet from './LectorCarnet.jsx';
 import Carregant from './Carregant.jsx';
 import FitxaPublica from './FitxaPublica.jsx';
 import CartellPelicula from './CartellPelicula.jsx';
-import TitolLocal from './TitolLocal.jsx';
-import IconaPolze from './IconaPolze.jsx';
 import VotacioTanda from './VotacioTanda.jsx';
 import FalladaCarrega from './FalladaCarrega.jsx';
 import AvisPrivacitat from './AvisPrivacitat.jsx';
 import UltimaTanda from './UltimaTanda.jsx';
 import IdentitatLinia from './IdentitatLinia.jsx';
-
-function IconaPlay({ className }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M10 8.5v7l6-3.5-6-3.5Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function AccionsVot({ proposta, onVotar, ambText, senseTrailer }) {
-  const classeAccio = `proposta-carta__accio ${ambText ? 'proposta-carta__accio--ample' : ''}`;
-  const ambTrailer = proposta.trailerUrl && !senseTrailer;
-  if (!onVotar && !ambTrailer) return null;
-  return (
-    <div className="proposta-carta__footer">
-      {onVotar && (
-        <div className="proposta-carta__vot-bloc">
-          <button type="button" className={classeAccio} onClick={() => onVotar('like')} aria-label="M'agrada">
-            <IconaPolze className="proposta-carta__accio-icona" />
-            {ambText && <span>M&apos;agrada</span>}
-          </button>
-          <button type="button" className={classeAccio} onClick={() => onVotar('dislike')} aria-label="No m'agrada">
-            <IconaPolze className="proposta-carta__accio-icona proposta-carta__accio-icona--avall" />
-            {ambText && <span>No m&apos;agrada</span>}
-          </button>
-        </div>
-      )}
-      {ambTrailer && (
-        <a
-          className={classeAccio}
-          href={proposta.trailerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Veure tràiler"
-        >
-          <IconaPlay className="proposta-carta__accio-icona" />
-          {ambText && <span>Tràiler</span>}
-        </a>
-      )}
-    </div>
-  );
-}
 
 // El hash de la URL és l'id de la proposta oberta. '#recents' (i l'antic '#top') no n'obren cap.
 function llegirHash() {
@@ -78,10 +24,9 @@ export default function PropostesPublic() {
   const { identitat, setIdentitat } = useIdentitatPublica();
   const token = identitat?.token;
   const {
-    propostes, propostesPerId, tandaPublica, ultimaTanda, tandaFallida, estat, error, setError, votPendentRef,
+    propostes, propostesPerId, tandaPublica, ultimaTanda, tandaFallida, estat, error, setError,
     recarregarEstat, tornarAProvar, tandaEstat, votacio, carregant, carregaFallida,
   } = useEstatVotacio({ identitat, setIdentitat });
-  const [propostaPendent, setPropostaPendent] = useState(null);
   const [volProposar, setVolProposar] = useState(false);
   const [volVotar, setVolVotar] = useState(false);
   const [propostaObertaId, setPropostaObertaId] = useState(llegirHash);
@@ -99,15 +44,8 @@ export default function PropostesPublic() {
     return () => document.body.classList.remove('proposta-detall-obert-body');
   }, [propostaObertaId]);
 
-  const handleVotarClick = (proposta, valor) => {
-    setError(null);
-    setPropostaPendent({ proposta, valor });
-  };
-
   const handleIdentificat = (nova) => {
     setError(null);
-    if (propostaPendent) votPendentRef.current = { propostaId: propostaPendent.proposta.id, valor: propostaPendent.valor };
-    setPropostaPendent(null);
     setVolVotar(false);
     setIdentitat(nova);
     if (volProposar) {
@@ -150,7 +88,6 @@ export default function PropostesPublic() {
     : [];
   // Els vots del soci només es passen al rànquing si són d'aquesta mateixa tanda.
   const valorsUltimaTanda = ultimaTanda && estat?.dades?.tanda?.id === ultimaTanda.id ? estat.dades.valors : undefined;
-  const votarDetall = visitantAmbTanda && propostaOberta && tandaPublica.propostes.includes(propostaOberta.id);
 
   const obrirProposta = (id) => {
     // eslint-disable-next-line react-hooks/immutability -- pushes a shareable/history-friendly URL, mirrors the hashchange listener above
@@ -225,27 +162,18 @@ export default function PropostesPublic() {
                 </button>
               )}
               {propostesTanda.length > 0 && (
-                <ul className="propostes-public__llista">
+                <ul className="propostes-public__llista" aria-label="Pel·lícules de la tanda">
                   {propostesTanda.map((p) => (
-                    <li key={p.id} className="proposta-carta">
+                    <li key={p.id} className="cartell-tanda">
                       <button
                         type="button"
-                        className="proposta-carta__obrir"
+                        className="cartell-tanda__obrir"
+                        aria-label={p.titol}
                         onClick={() => obrirProposta(p.id)}
                       >
-                        <div className="proposta-carta__cartell-marc">
-                          <CartellPelicula proposta={p} className="proposta-carta__cartell" />
-                        </div>
-                        <div className="proposta-carta__info">
-                          <span className="proposta-carta__titol">{p.titol}</span>
-                          <TitolLocal proposta={p} className="proposta-carta__titol-local" />
-                          {p.timestamp?.toDate && (
-                            <span className="proposta-carta__data">{formatData(p.timestamp.toDate())}</span>
-                          )}
-                          {p.sinopsi && <p className="proposta-carta__sinopsi">{p.sinopsi}</p>}
-                        </div>
+                        <CartellPelicula proposta={p} className="cartell-tanda__imatge" loading="lazy" />
+                        <span className="cartell-tanda__titol">{p.titol}</span>
                       </button>
-                      <AccionsVot proposta={p} onVotar={visitantAmbTanda ? (valor) => handleVotarClick(p, valor) : undefined} />
                     </li>
                   ))}
                 </ul>
@@ -288,26 +216,16 @@ export default function PropostesPublic() {
             <div className="proposta-detall__scroll">
               <FitxaPublica proposta={propostaOberta} senseProposant />
             </div>
-            {votarDetall && (
-              <div className="proposta-detall__footer">
-                <AccionsVot
-                  proposta={propostaOberta}
-                  onVotar={(valor) => handleVotarClick(propostaOberta, valor)}
-                  ambText
-                  senseTrailer
-                />
-              </div>
-            )}
           </div>
         )}
 
-        {(propostaPendent || volProposar || volVotar) && (
+        {(volProposar || volVotar) && (
           <div className="propostes-public__overlay" role="dialog" aria-modal="true">
             <div className="propostes-public__overlay-panell">
               <button
                 type="button"
                 className="propostes-public__overlay-tancar"
-                onClick={() => { setPropostaPendent(null); setVolProposar(false); setVolVotar(false); }}
+                onClick={() => { setVolProposar(false); setVolVotar(false); }}
                 aria-label="Cancel·lar"
               >
                 ✕

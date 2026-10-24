@@ -122,6 +122,8 @@ function simulaNavegacio() {
 
 const titolTargeta = () => screen.getByRole('heading', { level: 2 }).textContent;
 const SENSE_TANDA = 'Encara no hi ha cap tanda de votació.';
+// Graella de cartells de la tanda activa: cada cartell és un botó amb el títol com a nom accessible.
+const cartellsTanda = async () => within(await screen.findByRole('list', { name: 'Pel·lícules de la tanda' })).getAllByRole('button');
 
 describe('PropostesPublic', () => {
   beforeEach(() => {
@@ -297,20 +299,50 @@ describe('PropostesPublic', () => {
       expect(carregarRankingPublic).toHaveBeenCalledTimes(1);
     });
 
-    it('si el títol no és en castellà ni català, la targeta mostra a sota el títol a Espanya entre parèntesis', async () => {
+    it('la tanda activa és una graella de cartells: només el cartell i el títol (ni títol local, ni sinopsi, ni data, ni vot)', async () => {
       mockFirestore({
         propostes: [
-          { id: 'p1', dades: { titol: 'La Haine', titolLocal: 'El odio', estat: 'aprovada', numeroSoci: 3 } },
+          {
+            id: 'p1',
+            dades: {
+              titol: 'La Haine', titolLocal: 'El odio', estat: 'aprovada', numeroSoci: 3, sinopsi: 'Tres amics de la banlieue.',
+              imatgeUrl: 'https://exemple.com/haine.jpg', trailerUrl: 'https://www.youtube.com/watch?v=abc123', timestamp: { toDate: () => new Date(2026, 0, 1) },
+            },
+          },
           { id: 'p2', dades: { titol: 'El padrí', estat: 'aprovada', numeroSoci: 5 } },
         ],
         tanda: { id: 't1', tanca: FUTUR, propostes: ['p1', 'p2'] },
       });
       renderPagina();
-      expect((await screen.findAllByText('(El odio)')).length).toBeGreaterThan(0);
-      expect(screen.queryByText(/^\(El padrí/)).not.toBeInTheDocument();
+      const cartells = await cartellsTanda();
+      expect(cartells.map((c) => c.getAttribute('aria-label'))).toEqual(['La Haine', 'El padrí']);
+      expect(screen.getByRole('button', { name: 'La Haine' })).toBe(cartells[0]);
+      expect(screen.queryByText('(El odio)')).not.toBeInTheDocument();
+      expect(screen.queryByText('Tres amics de la banlieue.')).not.toBeInTheDocument();
+      expect(screen.queryByText('01/01/2026')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /tràiler/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
+      expect(within(cartells[0]).getByText('La Haine', { selector: '.cartell-tanda__titol' })).toBeInTheDocument();
     });
 
-    it('les targetes de la tanda activa mostren la data de cada proposta, de més nova a més antiga', async () => {
+    it('el cartell amb imatge porta el títol com a alt i es carrega en diferit; sense imatge, un marcador amb el títol', async () => {
+      mockFirestore({
+        propostes: [
+          { id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/amelie.jpg' } },
+          { id: 'p2', dades: { titol: 'El padrí', estat: 'aprovada', numeroSoci: 5 } },
+        ],
+        tanda: { id: 't1', tanca: FUTUR, propostes: ['p1', 'p2'] },
+      });
+      renderPagina();
+      const [ambImatge, senseImatge] = await cartellsTanda();
+      const img = within(ambImatge).getByRole('img', { name: 'Amélie' });
+      expect(img).toHaveAttribute('src', 'https://exemple.com/amelie.jpg');
+      expect(img).toHaveAttribute('loading', 'lazy');
+      expect(senseImatge.querySelector('.proposta-carta__cartell-placeholder')).toHaveTextContent('El padrí');
+      expect(within(senseImatge).queryByRole('img')).not.toBeInTheDocument();
+    });
+
+    it('els cartells de la tanda activa van de la proposta més nova a la més antiga', async () => {
       mockFirestore({
         propostes: [
           { id: 'antiga', dades: { titol: 'Antiga', estat: 'aprovada', numeroSoci: 3, imatgeUrl: 'https://exemple.com/antiga.jpg', timestamp: { toDate: () => new Date(2026, 0, 1) } } },
@@ -319,11 +351,7 @@ describe('PropostesPublic', () => {
         tanda: { id: 't1', tanca: FUTUR, propostes: ['antiga', 'nova'] },
       });
       renderPagina();
-      await screen.findByText('Nova');
-      const titols = screen.getAllByText(/^(Antiga|Nova)$/).map((el) => el.textContent);
-      expect(titols).toEqual(['Nova', 'Antiga']);
-      expect(screen.getAllByText('01/06/2026').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('01/01/2026').length).toBeGreaterThan(0);
+      expect((await cartellsTanda()).map((c) => c.getAttribute('aria-label'))).toEqual(['Nova', 'Antiga']);
     });
 
     it('sense cap tanda ni cap proposta, també diu que encara no hi ha cap tanda', async () => {
@@ -409,8 +437,9 @@ describe('PropostesPublic', () => {
       expect(screen.getAllByText('El padrí').length).toBeGreaterThan(0);
       expect(screen.queryByText('Fora de tanda')).not.toBeInTheDocument();
       expect(getDocs).toHaveBeenCalledWith('tandes');
-      expect(screen.getAllByRole('button', { name: "M'agrada" })).toHaveLength(3);
-      expect(screen.getAllByRole('button', { name: "No m'agrada" })).toHaveLength(3);
+      expect(await cartellsTanda()).toHaveLength(3);
+      expect(screen.queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /votar/i })).toHaveLength(1);
       expect(carregarEstat).not.toHaveBeenCalled();
     });
 
@@ -424,7 +453,7 @@ describe('PropostesPublic', () => {
       renderPagina();
       expect((await screen.findAllByText('Amélie')).length).toBeGreaterThan(0);
       expect(screen.queryByText('Fora de tanda')).not.toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: "M'agrada" })).toHaveLength(2);
+      expect(await cartellsTanda()).toHaveLength(2);
     });
 
     it('una tanda oberta més antiga guanya a una de tancada que tanca més tard però ja ha passat', async () => {
@@ -437,7 +466,7 @@ describe('PropostesPublic', () => {
       renderPagina();
       expect((await screen.findAllByText('Amélie')).length).toBeGreaterThan(0);
       expect(screen.queryByText('Fora de tanda')).not.toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: "M'agrada" })).toHaveLength(1);
+      expect(await cartellsTanda()).toHaveLength(1);
     });
 
     it('mostra l\'avís de privacitat d\'una línia', async () => {
@@ -448,11 +477,11 @@ describe('PropostesPublic', () => {
       )).toBeInTheDocument();
     });
 
-    it('clicar 👍 obre el lector del carnet, amb l\'enllaç per fer-se soci/a, i no vota encara', async () => {
+    it('«Votar aquesta tanda» obre el lector del carnet, amb l\'enllaç per fer-se soci/a, i no vota res', async () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
-      await user.click((await screen.findAllByRole('button', { name: "M'agrada" }))[0]);
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
       expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Simular escaneig' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Fes-te Soci/a' })).toHaveAttribute('href', '/fes-te-socia/');
@@ -463,51 +492,37 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
-      await user.click((await screen.findAllByRole('button', { name: "No m'agrada" }))[0]);
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
       await user.click(screen.getByRole('button', { name: 'Cancel·lar' }));
       expect(screen.queryByRole('button', { name: 'Simular escaneig' })).not.toBeInTheDocument();
       expect(votar).not.toHaveBeenCalled();
     });
 
-    it('en escanejar, carrega l\'estat del soci i aplica el vot que havia començat', async () => {
+    it('en escanejar, carrega l\'estat del soci sense votar res i desa la identitat només a sessionStorage', async () => {
       mockFirestore({ tanda: tandaFirestore() });
       carregarEstat.mockResolvedValue(estatObert());
       const user = userEvent.setup();
       renderPagina();
-      // Sense dates, la llista conserva l'ordre de Firestore: p1, p2, p3.
-      const targetes = await screen.findAllByRole('listitem');
-      expect(within(targetes[1]).getByText('El padrí', { selector: 'span' })).toBeInTheDocument();
-      await user.click(within(targetes[1]).getByRole('button', { name: "No m'agrada" }));
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
       await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
 
-      await waitFor(() => expect(votar).toHaveBeenCalledWith('tok-7', 't1', 'p2', 'dislike'));
+      expect(await screen.findByText('Has votat 0 de 3')).toBeInTheDocument();
       expect(carregarEstat).toHaveBeenCalledWith('tok-7');
-      expect(await screen.findByText('Has votat 1 de 3')).toBeInTheDocument();
+      expect(votar).not.toHaveBeenCalled();
       expect(screen.queryByRole('button', { name: 'Simular escaneig' })).not.toBeInTheDocument();
       expect(JSON.parse(sessionStorage.getItem('cineclub.identitat'))).toEqual(IDENTITAT);
       expect(localStorage.length).toBe(0);
     });
 
-    it('si el vot pendent falla, mostra l\'error però deixa continuar votant', async () => {
-      mockFirestore({ tanda: tandaFirestore() });
-      carregarEstat.mockResolvedValue(estatObert());
-      votar.mockRejectedValueOnce(errorCallable('failed-precondition'));
-      const user = userEvent.setup();
-      renderPagina();
-      await user.click((await screen.findAllByRole('button', { name: "M'agrada" }))[0]);
-      await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
-      expect(await screen.findByText(/ja no es poden canviar/)).toBeInTheDocument();
-      expect(await screen.findByText('Has votat 0 de 3')).toBeInTheDocument();
-    });
-
-    it('el detall d\'una proposta de la tanda també permet votar (i obre el lector)', async () => {
+    it('el detall d\'una proposta de la tanda no té botons de vot (es vota la tanda sencera)', async () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
-      await user.click((await screen.findAllByRole('button', { name: /Amélie/ }))[0]);
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
       const dialeg = await screen.findByRole('dialog');
-      await user.click(within(dialeg).getByRole('button', { name: "M'agrada" }));
-      expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
+      expect(within(dialeg).getByRole('heading', { level: 2, name: 'Amélie' })).toBeInTheDocument();
+      expect(within(dialeg).queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
+      expect(dialeg.querySelector('.proposta-detall__footer')).toBeNull();
     });
 
     it('si la llista de tandes no es pot llegir, ho diu (sense vot ni «cap tanda») i «Tornar-ho a provar» la torna a llegir', async () => {
@@ -519,12 +534,12 @@ describe('PropostesPublic', () => {
       const user = userEvent.setup();
       renderPagina();
       expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la tanda de votació.");
-      expect(screen.queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda' })).not.toBeInTheDocument();
       expect(screen.queryByText(SENSE_TANDA)).not.toBeInTheDocument();
 
       mockFirestore({ tanda: tandaFirestore() });
       await user.click(screen.getByRole('button', { name: 'Tornar-ho a provar' }));
-      expect(await screen.findAllByRole('button', { name: "M'agrada" })).toHaveLength(3);
+      expect(await cartellsTanda()).toHaveLength(3);
     });
   });
 
@@ -821,7 +836,7 @@ describe('PropostesPublic', () => {
       renderPaginaPreIdentificat();
       await user.click(await screen.findByRole('button', { name: /^Sortir/ }));
       expect(sessionStorage.getItem('cineclub.identitat')).toBeNull();
-      expect(await screen.findAllByRole('button', { name: "M'agrada" })).toHaveLength(3);
+      expect(await cartellsTanda()).toHaveLength(3);
       expect(screen.queryByText(/Has votat/)).not.toBeInTheDocument();
     });
 
@@ -830,7 +845,7 @@ describe('PropostesPublic', () => {
       renderPaginaPreIdentificat();
       await user.click(await screen.findByRole('button', { name: /^Sortir/ }));
       expect(sessionStorage.getItem('cineclub.identitat')).toBeNull();
-      expect(await screen.findAllByRole('button', { name: "M'agrada" })).toHaveLength(3);
+      expect(await cartellsTanda()).toHaveLength(3);
     });
 
     it('la pantalla final es neteja sola als 3 minuts (la identitat s\'esborra)', async () => {
@@ -845,7 +860,7 @@ describe('PropostesPublic', () => {
       expect(sessionStorage.getItem('cineclub.identitat')).not.toBeNull();
       act(() => { vi.advanceTimersByTime(10000); });
       expect(sessionStorage.getItem('cineclub.identitat')).toBeNull();
-      expect(await screen.findAllByRole('button', { name: "M'agrada" })).toHaveLength(3);
+      expect(await cartellsTanda()).toHaveLength(3);
     });
 
     it('també es neteja als 3 minuts de veure el rànquing', async () => {
@@ -980,7 +995,7 @@ describe('PropostesPublic', () => {
       await screen.findByRole('heading', { name: 'El teu resum' });
       expect(hiHaCapcalera()).toEqual(IMMERSIU);
       await user.click(screen.getByRole('button', { name: /^Sortir/ }));
-      await screen.findAllByRole('button', { name: "M'agrada" });
+      await cartellsTanda();
       const c = hiHaCapcalera();
       expect(c.introAmagada).toBe(false);
       expect(c.proposar).toBeInTheDocument();
@@ -1097,7 +1112,7 @@ describe('PropostesPublic', () => {
       renderPaginaPreIdentificat();
       expect(await screen.findByText('Aquest carnet no és vàlid. Torna a escanejar-lo.')).toBeInTheDocument();
       expect(sessionStorage.getItem('cineclub.identitat')).toBeNull();
-      expect((await screen.findAllByRole('button', { name: "M'agrada" })).length).toBe(3);
+      expect(await cartellsTanda()).toHaveLength(3);
     });
 
     it('un error de xarxa en carregar l\'estat mostra un missatge i la llista sense vot', async () => {
@@ -1231,30 +1246,6 @@ describe('PropostesPublic', () => {
   });
 
   describe('detall obert i mode votació', () => {
-    const obreDetallIVota = async (user) => {
-      await user.click(await screen.findByRole('button', { name: /Amélie/ }));
-      const dialeg = await screen.findByRole('dialog');
-      await user.click(within(dialeg).getByRole('button', { name: "M'agrada" }));
-    };
-
-    it('un visitant que obre la fitxa, vota i s\'identifica arriba al mode votació sense el detall, amb el hash netejat i el vot aplicat', async () => {
-      mockFirestore({ tanda: tandaFirestore() });
-      carregarEstat.mockResolvedValue(estatObert());
-      votar.mockResolvedValue({ votats: 1, total: 3, completa: false });
-      const user = userEvent.setup();
-      renderPagina();
-      await obreDetallIVota(user);
-      expect(window.location.hash).toBe('#p1');
-      await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
-      expect(await screen.findByRole('progressbar')).toBeInTheDocument();
-      expect(votar).toHaveBeenCalledWith('tok-7', 't1', 'p1', 'like');
-      expect(document.querySelector('.proposta-detall')).toBeNull();
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(window.location.hash).toBe('#recents');
-      // La classe es treu en el render que segueix a netejar el hash: cal esperar-lo (abans era una cursa).
-      await waitFor(() => expect(document.body).not.toHaveClass('proposta-detall-obert-body'));
-    });
-
     it('un soci ja identificat amb tanda oberta que arriba amb /propostes/#id va directe al mode votació, sense detall', async () => {
       window.location.hash = '#p1';
       mockFirestore({ tanda: tandaFirestore() });
@@ -1372,7 +1363,19 @@ describe('PropostesPublic', () => {
       expect(screen.queryByRole('button', { name: 'Simular escaneig' })).not.toBeInTheDocument();
     });
 
-    it('en clicar una targeta de la tanda, obre el detall a pantalla completa i actualitza el hash de la URL', async () => {
+    it('amb el teclat, un cartell rep el focus i amb Retorn obre el detall', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      const [primer] = await cartellsTanda();
+      primer.focus();
+      expect(primer).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(window.location.hash).toBe('#p1');
+    });
+
+    it('en clicar un cartell de la tanda, obre el detall a pantalla completa i actualitza el hash de la URL', async () => {
       mockFirestore({
         propostes: [{ id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, sinopsi: 'Una història parisenca.' } }],
         tanda: { id: 't1', tanca: FUTUR, propostes: ['p1'] },

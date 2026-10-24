@@ -216,6 +216,27 @@ describe('estils de la votació', () => {
   });
 });
 
+describe('estils de la tanda (aspecte de landing)', () => {
+  const css = readFileSync(new URL('../src/styles/components/propostes.css', import.meta.url), 'utf8');
+  const regla = (classe) => css.match(new RegExp(`(?:^|\\n)\\${classe} \\{([^}]*)\\}`))?.[1] ?? '';
+
+  it('la intro, el títol i el text de la tanda i el botó de votar són centrats', () => {
+    expect(regla('.propostes-intro')).toMatch(/\bitems-center\b[^;]*\btext-center\b/);
+    expect(regla('.tanda-publica')).toMatch(/\bitems-center\b/);
+    expect(regla('.tanda-publica__titol')).toMatch(/\btext-center\b/);
+    expect(regla('.tanda-publica__text')).toMatch(/\btext-center\b/);
+    expect(regla('.tanda-publica__votar')).not.toMatch(/self-start/);
+  });
+
+  it('la graella és de cartells 2:3, amb el focus del teclat visible, i ja no hi ha targetes ni botons de vot', () => {
+    expect(regla('.propostes-public__llista')).toMatch(/\bgrid\b/);
+    expect(regla('.cartell-tanda__imatge')).toMatch(/aspect-\[2\/3\][^;]*object-cover/);
+    expect(regla('.cartell-tanda__obrir')).toMatch(/focus-visible:outline/);
+    expect(css).not.toMatch(/\.proposta-carta__(accio|footer|vot-bloc|sinopsi|data|info)\b/);
+    expect(css).not.toContain('.proposta-detall__footer');
+  });
+});
+
 describe('estils de l\'illa', () => {
   it('.propostes-app té fons blanc (el body de la web és fosc) i és l\'àmbit de .btn', () => {
     const css = readFileSync(new URL('../src/styles/components/propostes-public.css', import.meta.url), 'utf8');
