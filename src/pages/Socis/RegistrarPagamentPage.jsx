@@ -131,6 +131,7 @@ export default function RegistrarPagamentPage() {
           organitzacio: soci.organitzacio,
           numeroSoci,
           tokenCarnet: soci.tokenCarnet,
+          actiu: soci.actiu,
         });
       }
       batch.set(doc(collection(db, 'moviments')), {

@@ -1294,4 +1294,56 @@ describe('SociForm — regenerar carnet', () => {
     expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchCommit).not.toHaveBeenCalled();
   });
+
+  it('regenerar un soci actiu fa exactament: token nou al soci, esborra el socisPublic vell i crea el nou', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell', actiu: true });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate.mock.calls).toEqual([['1', { tokenCarnet: 'token-nou' }]]);
+    expect(__batchDelete.mock.calls).toEqual([['token-vell']]);
+    expect(__batchSet.mock.calls).toEqual([['token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
+  });
+
+  it('un soci desactivat no mostra «Regenerar carnet» (no té cap carnet vàlid per regenerar)', async () => {
+    carrega({
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell', actiu: false,
+      motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-06-01',
+    });
+    renderExistent();
+    expect(await screen.findByRole('button', { name: 'Reactivar soci' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Regenerar carnet' })).not.toBeInTheDocument();
+  });
+
+  it('en desactivar el soci des de la fitxa, «Regenerar carnet» desapareix', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' });
+    const user = userEvent.setup();
+    renderExistent();
+    expect(await screen.findByRole('button', { name: 'Regenerar carnet' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Baixa');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await acceptaDialeg('Desactiva');
+    expect(await screen.findByRole('button', { name: 'Reactivar soci' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Regenerar carnet' })).not.toBeInTheDocument();
+  });
+
+  it('en reactivar-lo, torna a mostrar «Regenerar carnet» i recrea socisPublic amb el token actual del soci', async () => {
+    carrega({
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-actual', actiu: false,
+      motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-06-01',
+    });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+    await acceptaDialeg('Reactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls).toEqual([['1', { actiu: true, motiuDesactivacio: null, dataDesactivacio: null }]]);
+    expect(__batchSet.mock.calls).toEqual([['token-actual', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
+    expect(__batchDelete).not.toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: 'Regenerar carnet' })).toBeInTheDocument();
+  });
 });

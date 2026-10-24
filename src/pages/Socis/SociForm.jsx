@@ -230,7 +230,7 @@ function FitxaSoci({ id, soci }) {
       const actualitzacio = { actiu: true, motiuDesactivacio: null, dataDesactivacio: null };
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacio);
-      sincronitzarSociPublic(batch, db, desat);
+      sincronitzarSociPublic(batch, db, { ...desat, ...actualitzacio });
       await batch.commit();
       setDesat((d) => ({ ...d, ...actualitzacio }));
     }, "No s'ha pogut desar. Torna-ho a provar.");
@@ -349,9 +349,12 @@ function FitxaSoci({ id, soci }) {
                   <Link className="soci-form-pagina__carnet" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
                     <CarnetCard soci={dades} />
                   </Link>
-                  <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet} disabled={accionsBloquejades}>
-                    Regenerar carnet
-                  </button>
+                  {/* Un soci desactivat no té carnet vàlid: en reactivar-lo es torna a publicar el token actual. */}
+                  {estaActiu(desat) && (
+                    <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet} disabled={accionsBloquejades}>
+                      Regenerar carnet
+                    </button>
+                  )}
                 </div>
               )}
 

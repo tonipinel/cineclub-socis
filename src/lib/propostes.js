@@ -1,4 +1,5 @@
 import { doc } from 'firebase/firestore';
+import { estaActiu } from './estatSoci';
 
 export const NOM_ORGANITZACIO = 'Organització Cineclub Roda de Berà';
 
@@ -11,8 +12,10 @@ export function calcularNomPublic(soci) {
   return `${soci.nom} ${cognoms.charAt(0).toUpperCase()}.`;
 }
 
+// Un soci desactivat no ha de tenir mai identitat pública (vots, propostes): qui
+// el reactivi ha de passar el soci ja amb `actiu: true`.
 export function sincronitzarSociPublic(batch, db, soci) {
-  if (!soci.numeroSoci || !soci.tokenCarnet) return;
+  if (!soci.numeroSoci || !soci.tokenCarnet || !estaActiu(soci)) return;
   batch.set(doc(db, 'socisPublic', String(soci.tokenCarnet)), {
     numeroSoci: Number(soci.numeroSoci),
     nomPublic: calcularNomPublic(soci),

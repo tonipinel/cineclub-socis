@@ -47,6 +47,23 @@ describe('sincronitzarSociPublic', () => {
     sincronitzarSociPublic(batch, db, { nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7' });
     expect(batch.set).not.toHaveBeenCalled();
   });
+
+  it('no escriu mai socisPublic per a un soci desactivat', () => {
+    const batch = { set: vi.fn(), delete: vi.fn() };
+    sincronitzarSociPublic(batch, db, {
+      nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false,
+    });
+    expect(batch.set).not.toHaveBeenCalled();
+    expect(batch.delete).not.toHaveBeenCalled();
+  });
+
+  it('escriu socisPublic per a un soci explícitament actiu', () => {
+    const batch = { set: vi.fn(), delete: vi.fn() };
+    sincronitzarSociPublic(batch, db, {
+      nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: true,
+    });
+    expect(batch.set).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
+  });
 });
 
 describe('esborrarSociPublic', () => {

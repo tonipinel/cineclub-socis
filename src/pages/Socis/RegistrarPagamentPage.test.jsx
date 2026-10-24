@@ -23,9 +23,16 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
+// Espia sobre l'helper real: el comportament no canvia, però es pot comprovar què rep.
+vi.mock('../../lib/propostes', async (importOriginal) => {
+  const original = await importOriginal();
+  return { ...original, sincronitzarSociPublic: vi.fn(original.sincronitzarSociPublic) };
+});
+
 import {
   getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchCommit,
 } from 'firebase/firestore';
+import { sincronitzarSociPublic } from '../../lib/propostes';
 import RegistrarPagamentPage from './RegistrarPagamentPage';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -269,6 +276,44 @@ describe('RegistrarPagamentPage', () => {
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).not.toHaveBeenCalledWith('tok-1', expect.anything());
     expect(__batchSet).toHaveBeenCalledTimes(1);
+  });
+
+  // Pagament d'una renovació, amb la sessió per defecte, per comprovar exactament el que s'escriu al lot.
+  async function registraPagament(soci) {
+    sincronitzarSociPublic.mockClear();
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => soci })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs.mockResolvedValueOnce({
+      docs: [{ id: 's1', data: () => ({ titol: 'Sessió de test', data: '2026-08-01' }) }],
+    });
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByDisplayValue('30');
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+  }
+
+  const ACTUALITZACIO_SOCI = { ultimPagament: expect.any(String), estatManual: null, inicPeriode: null };
+
+  it('passa a l\'helper l\'estat d\'activació real del soci, i per a un soci actiu escriu exactament el soci, socisPublic i el moviment', async () => {
+    await registraPagament({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: true });
+    expect(sincronitzarSociPublic).toHaveBeenCalledTimes(1);
+    expect(sincronitzarSociPublic.mock.calls[0][2]).toEqual(expect.objectContaining({ actiu: true, tokenCarnet: 'tok-1' }));
+    expect(__batchUpdate.mock.calls).toEqual([['1', ACTUALITZACIO_SOCI]]);
+    expect(__batchSet.mock.calls).toEqual([
+      ['tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' }],
+      ['moviments', expect.objectContaining({ numeroSoci: 7, total: 30 })],
+    ]);
+  });
+
+  it('per a un soci desactivat, el lot només porta el soci i el moviment (cap escriptura a socisPublic)', async () => {
+    await registraPagament({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false });
+    expect(__batchUpdate.mock.calls).toEqual([['1', ACTUALITZACIO_SOCI]]);
+    expect(__batchSet.mock.calls).toEqual([['moviments', expect.objectContaining({ numeroSoci: 7, total: 30 })]]);
+    // Si l'helper arribés a cridar-se, rebria `actiu: false` i el seu propi guard tampoc escriuria res.
+    sincronitzarSociPublic.mock.calls.forEach(([, , soci]) => expect(soci.actiu).toBe(false));
   });
 
   it('avisa clarament si el soci està desactivat, sense bloquejar el pagament', async () => {
