@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import SessioPagina from '../src/components/SessioPagina.astro';
 import RutaSessio from '../src/pages/programacio/[any]/[slug].astro';
 import Pagina404 from '../src/pages/404.astro';
+import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -57,6 +58,13 @@ const minima = {
   hora: '19:00',
   publica: { titolOriginal: 'Una altra', directors: ['A B'], pais: 'França', any: 2000, idioma: 'Francès', preu: 0, seccio: 'cartellera', organitza: 'cineclub', cos: 'Text.' },
 };
+
+// El catàleg de distribuïdores el carrega el middleware (Firestore); aquí s'injecta directament.
+const LOGO_ACF = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/distribuidores%2Facf.png?alt=media';
+beforeEach(() => fixaDistribuidoresDeProva({
+  'A Contracorriente Films': { logo: LOGO_ACF, url: 'https://acontracorrientefilms.com/' },
+  'Sense logo': { url: 'https://sense-logo.example/' },
+}));
 
 const render = async (sessio, sessions = [completa, minima]) => {
   const container = await AstroContainer.create();
@@ -113,10 +121,70 @@ describe('pàgina de sessió', () => {
     expect(html).toContain('class="session-gallery__prev"');
   });
 
-  it('pinta el distribuïdor amb logo i enllaç', async () => {
+  it('pinta el distribuïdor amb logo i enllaç des del catàleg', async () => {
     const html = await render(completa);
-    expect(html).toContain('src="/images/distribuidors/a-contracorriente.png"');
+    expect(html).toContain(`src="${LOGO_ACF.replaceAll('&', '&amp;')}"`);
     expect(html).toContain('href="https://acontracorrientefilms.com/"');
+    expect(html).not.toContain('/images/distribuidors/');
+  });
+
+  it('una distribuïdora del catàleg sense logo es pinta en text, com una de desconeguda', async () => {
+    const html = await render({ ...completa, publica: { ...completa.publica, suportDistribucio: 'Sense logo' } });
+    expect(html).toContain('Distribució i cessió de drets: Sense logo');
+    expect(html).not.toContain('https://sense-logo.example/');
+    expect(html.match(/class="info-item__logo"/g)).toHaveLength(1); // només la icona d'edat
+  });
+
+  describe('distribuïdora per id', () => {
+    const LOGO_BT = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/distribuidores%2Fbt.png?alt=media';
+    beforeEach(() => fixaDistribuidoresDeProva({
+      'A Contracorriente Films': { logo: LOGO_ACF, url: 'https://acontracorrientefilms.com/' },
+      'B-team': { id: 'd2', logo: LOGO_BT, url: 'https://bteampictures.es/' },
+      'Nom nou sense logo': { id: 'd3', url: 'https://d3.example/' },
+    }));
+    const ambDistribucio = (suportDistribucio, suportDistribucioId) => ({
+      ...completa, publica: { ...completa.publica, suportDistribucio, suportDistribucioId },
+    });
+
+    it('reanomenada: el text de la sessió és vell però el logo surt per l\'id', async () => {
+      const html = await render(ambDistribucio('BTeam Pictures', 'd2'));
+      expect(html).toContain(`src="${LOGO_BT.replaceAll('&', '&amp;')}"`);
+      expect(html).toContain('href="https://bteampictures.es/"');
+      expect(html).not.toContain('Distribució i cessió de drets');
+    });
+
+    it('l\'id té prioritat sobre el nom', async () => {
+      const html = await render(ambDistribucio('A Contracorriente Films', 'd2'));
+      expect(html).toContain(`src="${LOGO_BT.replaceAll('&', '&amp;')}"`);
+      expect(html).not.toContain(LOGO_ACF.replaceAll('&', '&amp;'));
+    });
+
+    it('resolta per id sense logo: el text usa el nom actual del catàleg', async () => {
+      const html = await render(ambDistribucio('Nom vell', 'd3'));
+      expect(html).toContain('Distribució i cessió de drets: Nom nou sense logo');
+      expect(html).not.toContain('Nom vell');
+      expect(html).not.toContain('https://d3.example/');
+    });
+
+    it('resolta per id encara que la sessió no tingui el nom en text', async () => {
+      const html = await render(ambDistribucio(undefined, 'd2'));
+      expect(html).toContain(`src="${LOGO_BT.replaceAll('&', '&amp;')}"`);
+    });
+
+    it('un id desconegut o heretat torna a resoldre pel nom', async () => {
+      for (const id of ['no-hi-es', 'constructor', '__proto__']) {
+        const html = await render(ambDistribucio('A Contracorriente Films', id));
+        expect(html).toContain(`src="${LOGO_ACF.replaceAll('&', '&amp;')}"`);
+        const desconeguda = await render(ambDistribucio('<b>Nom</b>', id));
+        expect(desconeguda).toContain('Distribució i cessió de drets: &lt;b&gt;Nom&lt;/b&gt;');
+      }
+    });
+
+    it('sense id ni nom no es pinta la distribució', async () => {
+      const html = await render(ambDistribucio(undefined, undefined));
+      expect(html).not.toContain('Distribució i cessió de drets');
+      expect(html.match(/class="info-item__logo"/g)).toHaveLength(1); // només la icona d'edat
+    });
   });
 
   it('pinta el tràiler només si hi ha trailerYoutubeId', async () => {

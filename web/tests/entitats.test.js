@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  entitatPerNom, distribuidoraPerNom, carregaEntitats, fixaEntitatsDeProva, entitatsCarregades,
+  entitatPerNom, carregaEntitats, fixaEntitatsDeProva, entitatsCarregades,
   ESPERA_REINTENT_MS, TIMEOUT_ENTITATS_MS,
 } from '../src/lib/entitats.js';
 import { reiniciaMemos } from '../src/lib/memo.js';
@@ -20,16 +20,6 @@ const dbFals = (docs) => {
   };
   return db;
 };
-
-describe('distribuïdores', () => {
-  it('troba una distribuïdora pel nom i retorna null si no existeix', () => {
-    expect(distribuidoraPerNom('BTeam Pictures')).toEqual({
-      logo: '/images/distribuidors/bteam-pictures.png',
-      url: 'https://bteampictures.es/',
-    });
-    expect(distribuidoraPerNom('Ningú')).toBeNull();
-  });
-});
 
 describe('entitats (catàleg de Firestore)', () => {
   // Rellotge controlat per a l'espera de reintent.

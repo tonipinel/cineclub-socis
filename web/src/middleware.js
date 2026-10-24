@@ -1,4 +1,5 @@
 import { CACHE_CLIENT, cacheControlFor } from './lib/cache.js';
+import { carregaDistribuidores, distribuidoresCarregades } from './lib/distribuidores.js';
 import { carregaEntitats, entitatsCarregades } from './lib/entitats.js';
 import { INDEXABLE } from './lib/env.js';
 import { SLUGS_PAGINES, paginaPerSlug } from './lib/pagines.js';
@@ -19,7 +20,7 @@ const CARTELL = /^\/programacio\/[^/]+\/[^/]+\/cartell\.html$/;
 const IMATGE = /\.(?:jpg|jpeg|png|webp)$/;
 
 // Les pàgines HTML acaben en barra (trailingSlash: 'always') o són el cartell: les úniques que pinten
-// entitats. Els estàtics, les imatges i els endpoints de dades (.xml, .txt, .webp, .jpg) no hi passen.
+// entitats i distribuïdores. Els estàtics, les imatges i els endpoints de dades (.xml, .txt, .webp, .jpg) no hi passen.
 const esPaginaHtml = (pathname) => pathname.endsWith('/') || CARTELL.test(pathname);
 
 const redirect301 = (desti) => new Response(null, { status: 301, headers: { Location: desti } });
@@ -46,8 +47,11 @@ export const onRequest = async (context, next) => {
   let response;
   const html = esPaginaHtml(pathname);
   if (html) {
-    // carregaEntitats no llança; si ho fes, la pàgina es pinta amb l'últim catàleg.
-    try { await carregaEntitats(); } catch (err) { console.error('error en carregar les entitats', err); }
+    // Els carregadors no llancen; si ho fessin, la pàgina es pinta amb l'últim catàleg de cadascun.
+    await Promise.all([
+      carregaEntitats().catch((err) => console.error('error en carregar les entitats', err)),
+      carregaDistribuidores().catch((err) => console.error('error en carregar les distribuïdores', err)),
+    ]);
   }
   try {
     response = await (CARTELL.test(pathname) ? next(`${pathname}/`) : next());
@@ -61,9 +65,9 @@ export const onRequest = async (context, next) => {
   }
   const headers = new Headers(response.headers);
   if (response.status !== 200 || !headers.has('Cache-Control')) headers.set('Cache-Control', cacheControlFor(response.status));
-  // Sense catàleg d'entitats (mai llegit en aquesta instància) la pàgina surt sense logos: el CDN no la
-  // pot guardar gaire.
-  if (html && response.status === 200 && !entitatsCarregades()) headers.set('Cache-Control', CACHE_CLIENT);
+  // Si falta algun catàleg (entitats o distribuïdores mai llegits en aquesta instància) la pàgina pot sortir
+  // sense logos: el CDN no la pot guardar gaire.
+  if (html && response.status === 200 && !(entitatsCarregades() && distribuidoresCarregades())) headers.set('Cache-Control', CACHE_CLIENT);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Security-Policy', "frame-ancestors 'self'");
   if (!INDEXABLE) headers.set('X-Robots-Tag', 'noindex');

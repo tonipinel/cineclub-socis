@@ -2,7 +2,7 @@
 import Icon from './Icon.astro';
 import InfoItem from './InfoItem.astro';
 import { resizedUrl } from '../lib/images.js';
-import { distribuidoraPerNom } from '../lib/entitats.js';
+import { distribuidoraPerId, distribuidoraPerNom } from '../lib/distribuidores.js';
 import { titolSessio, urlTerme } from '../lib/sessio-camps.js';
 import { escapaHtml } from '../lib/xml.js';
 
@@ -11,7 +11,11 @@ import { escapaHtml } from '../lib/xml.js';
 const { sessio } = Astro.props;
 const p = sessio.publica ?? {};
 const nomImatge = p.titolOriginal || titolSessio(sessio);
-const distribuidora = p.suportDistribucio ? distribuidoraPerNom(p.suportDistribucio) : null;
+// La distribuïdora es resol per l'id del document (resisteix els canvis de nom) i, si no, pel nom en text de
+// les sessions antigues. El text de reserva usa el nom actual del catàleg si s'ha resolt per id.
+const perId = p.suportDistribucioId ? distribuidoraPerId(p.suportDistribucioId) : null;
+const distribuidora = perId ?? (p.suportDistribucio ? distribuidoraPerNom(p.suportDistribucio) : null);
+const nomDistribuidora = perId?.nom ?? p.suportDistribucio;
 const termes = (clau) => (p[clau] ?? []).map((nom) => ({ nom, url: urlTerme(clau, nom) }));
 const camps = [
   ['Títol a Espanya', p.titolEspanya],
@@ -41,9 +45,9 @@ const camps = [
           <button type="button" class="poster-modal__close" aria-label="Tancar"><Icon name="x-mark" /></button>
           <img class="poster-modal__image" src={resizedUrl(p.cartell, 1400)} alt={nomImatge} />
         </dialog>
-        {p.suportDistribucio && (distribuidora
+        {nomDistribuidora && (distribuidora?.logo
           ? <InfoItem logo={distribuidora.logo} href={distribuidora.url} external={true} />
-          : <InfoItem icon="film" caption={`Distribució i cessió de drets: ${escapaHtml(p.suportDistribucio)}`} />)}
+          : <InfoItem icon="film" caption={`Distribució i cessió de drets: ${escapaHtml(nomDistribuidora)}`} />)}
       </div>
     )}
     <dl class="session-fitxa__details">

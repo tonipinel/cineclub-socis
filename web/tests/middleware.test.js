@@ -2,12 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Les sessions (Firestore) es substitueixen per un mock: el middleware només les llegeix quan una
 // petició acaba en 404, per comprovar si és un alias de Hugo.
-const { sessionsMock, paginaMock, entitatsMock, carregadesMock } = vi.hoisted(() => ({
-  sessionsMock: vi.fn(), paginaMock: vi.fn(), entitatsMock: vi.fn(), carregadesMock: vi.fn(),
+const {
+  sessionsMock, paginaMock, entitatsMock, carregadesMock, distribuidoresMock, distribuidoresCarregadesMock,
+} = vi.hoisted(() => ({
+  sessionsMock: vi.fn(),
+  paginaMock: vi.fn(),
+  entitatsMock: vi.fn(),
+  carregadesMock: vi.fn(),
+  distribuidoresMock: vi.fn(),
+  distribuidoresCarregadesMock: vi.fn(),
 }));
 vi.mock('../src/lib/sessions.js', () => ({ sessionsPubliques: sessionsMock }));
 // El catàleg d'entitats es carrega (Firestore) abans de renderitzar cada pàgina HTML.
 vi.mock('../src/lib/entitats.js', () => ({ carregaEntitats: entitatsMock, entitatsCarregades: carregadesMock }));
+// I també el de distribuïdores (logo de la fitxa de la sessió).
+vi.mock('../src/lib/distribuidores.js', () => ({ carregaDistribuidores: distribuidoresMock, distribuidoresCarregades: distribuidoresCarregadesMock }));
 vi.mock('../src/lib/pagines.js', async (importOriginal) => ({ ...(await importOriginal()), paginaPerSlug: paginaMock }));
 
 const carrega = async (indexable) => {
@@ -30,6 +39,10 @@ describe('middleware', () => {
     entitatsMock.mockResolvedValue(undefined);
     carregadesMock.mockReset();
     carregadesMock.mockReturnValue(true);
+    distribuidoresMock.mockReset();
+    distribuidoresMock.mockResolvedValue(undefined);
+    distribuidoresCarregadesMock.mockReset();
+    distribuidoresCarregadesMock.mockReturnValue(true);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -290,7 +303,9 @@ describe('middleware', () => {
       const { onRequest } = await carrega(true);
       const { CACHE_CLIENT, CACHE_OK, CACHE_AVUI, CACHE_NOT_FOUND, CACHE_REDIRECT } = await import('../src/lib/cache.js');
       carregadesMock.mockReturnValue(false);
+      distribuidoresCarregadesMock.mockReturnValue(false);
       entitatsMock.mockRejectedValue(new Error('caiguda'));
+      distribuidoresMock.mockRejectedValue(new Error('caiguda'));
       const res = await onRequest(context('/programacio/2026/pig/'), ok);
       expect(res.status).toBe(200);
       expect(await res.text()).toBe('<p>hola</p>');
@@ -321,6 +336,48 @@ describe('middleware', () => {
         await onRequest(context(cami), ok);
       }
       expect(entitatsMock).not.toHaveBeenCalled();
+      expect(distribuidoresMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('catàleg de distribuïdores', () => {
+    it('es carrega, amb el d\'entitats, abans de next() per a les pàgines HTML', async () => {
+      const { onRequest } = await carrega(true);
+      const ordre = [];
+      entitatsMock.mockImplementation(async () => { ordre.push('entitats'); });
+      distribuidoresMock.mockImplementation(async () => { ordre.push('distribuidores'); });
+      for (const cami of ['/', '/programacio/2026/pig/cartell.html']) {
+        await onRequest(context(cami), () => { ordre.push('next'); return ok(); });
+      }
+      expect(ordre).toEqual(['entitats', 'distribuidores', 'next', 'entitats', 'distribuidores', 'next']);
+    });
+
+    it('la fallada d\'un catàleg no afecta la resposta ni la càrrega de l\'altre', async () => {
+      const { onRequest } = await carrega(true);
+      distribuidoresMock.mockRejectedValue(new Error('caiguda'));
+      const res = await onRequest(context('/programacio/2026/pig/'), ok);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('<p>hola</p>');
+      expect(entitatsMock).toHaveBeenCalledTimes(1);
+      entitatsMock.mockRejectedValue(new Error('caiguda'));
+      distribuidoresMock.mockResolvedValue(undefined);
+      const res2 = await onRequest(context('/programacio/2026/pig/'), ok);
+      expect(res2.status).toBe(200);
+      expect(distribuidoresMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('la caché normal només s\'aplica si els dos catàlegs s\'han carregat; si en falta un, la curta', async () => {
+      const { onRequest } = await carrega(true);
+      const { CACHE_CLIENT, CACHE_OK } = await import('../src/lib/cache.js');
+      const cache = async (entitats, distribuidores) => {
+        carregadesMock.mockReturnValue(entitats);
+        distribuidoresCarregadesMock.mockReturnValue(distribuidores);
+        return (await onRequest(context('/programacio/2026/pig/'), ok)).headers.get('Cache-Control');
+      };
+      expect(await cache(true, true)).toBe(CACHE_OK);
+      expect(await cache(true, false)).toBe(CACHE_CLIENT);
+      expect(await cache(false, true)).toBe(CACHE_CLIENT);
+      expect(await cache(false, false)).toBe(CACHE_CLIENT);
     });
   });
 });
