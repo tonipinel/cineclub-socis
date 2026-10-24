@@ -119,4 +119,14 @@ async function gestionarRanking(db, dades, ara) {
   return { tancada, files: calcularRanking(vots.docs.map((doc) => doc.data()), efectives) };
 }
 
-module.exports = { gestionarEstat, gestionarVot, gestionarRanking };
+// Públic (sense token): només les tandes tancades, i només propostaId i percentatge.
+async function gestionarRankingPublic(db, dades, ara) {
+  const tanda = await carregarTanda(db, dades.tandaId);
+  if (!estaTancada(tanda, ara)) throw error('failed-precondition', 'La tanda encara està oberta.');
+  const efectives = await carregarEfectives(db, tanda);
+  const vots = await db.collection(`tandes/${tanda.id}/vots`).get();
+  const files = calcularRanking(vots.docs.map((doc) => doc.data()), efectives);
+  return { files: files.map(({ propostaId, percentatge }) => ({ propostaId, percentatge })) };
+}
+
+module.exports = { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic };

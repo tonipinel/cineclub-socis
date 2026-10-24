@@ -6,7 +6,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
-const { gestionarEstat, gestionarVot, gestionarRanking } = require('./votacio-handlers');
+const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic } = require('./votacio-handlers');
 const { credencialsCalendari } = require('./calendari');
 const { clientCalendari } = require('./calendari-google');
 const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
@@ -176,6 +176,7 @@ function votacio(gestor) {
 exports.estatVotacio = votacio(gestionarEstat);
 exports.votarProposta = votacio(gestionarVot);
 exports.rankingTanda = votacio(gestionarRanking);
+exports.rankingPublic = votacio(gestionarRankingPublic);
 
 let calendari;
 const obtenirCalendari = () => (calendari ??= clientCalendari(credencialsCalendari({

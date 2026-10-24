@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import handlers from './votacio-handlers.js';
 
-const { gestionarEstat, gestionarVot, gestionarRanking } = handlers;
+const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic } = handlers;
 
 function ms(valor) {
   if (valor?.toDate) return valor.toDate().getTime();
@@ -353,5 +353,56 @@ describe('gestionarRanking', () => {
 
   it('tanda inexistent -> not-found', async () => {
     expect(await codi(gestionarRanking(escenari(), { ...dades, tandaId: 'zzz' }, ara))).toBe('not-found');
+  });
+});
+
+describe('gestionarRankingPublic', () => {
+  const dades = { tandaId: 't1' };
+
+  function ambEspia(db) {
+    const lectures = [];
+    const original = db.collection;
+    db.collection = (ruta) => {
+      lectures.push(ruta);
+      return original(ruta);
+    };
+    return lectures;
+  }
+
+  it('tancada retorna les mateixes files que gestionarRanking, sense token', async () => {
+    const db = escenari({ 'tandes/t1/vots/7': vot({ p1: 'like', p2: 'like', p3: 'like' }) });
+    const publica = await gestionarRankingPublic(db, dades, dema);
+    expect((await gestionarRanking(db, { token: 'tok', ...dades }, dema)).files).toEqual(publica.files);
+    expect(publica.files).toHaveLength(3);
+  });
+
+  it('oberta -> failed-precondition sense llegir la subcol·lecció vots', async () => {
+    const db = escenari({ 'tandes/t1/vots/7': vot({ p1: 'like', p2: 'like', p3: 'like' }) });
+    const lectures = ambEspia(db);
+    expect(await codi(gestionarRankingPublic(db, dades, ara))).toBe('failed-precondition');
+    expect(lectures.filter((ruta) => ruta.includes('vots'))).toEqual([]);
+  });
+
+  it('id invàlid -> invalid-argument; inexistent -> not-found', async () => {
+    const db = escenari();
+    for (const tandaId of ['', 'a/b', '..', undefined]) {
+      expect(await codi(gestionarRankingPublic(db, { tandaId }, dema))).toBe('invalid-argument');
+    }
+    expect(await codi(gestionarRankingPublic(db, { tandaId: 'zzz' }, dema))).toBe('not-found');
+  });
+
+  it('menys de 5 vots -> percentatge null', async () => {
+    const db = escenari({ 'tandes/t1/vots/7': vot({ p1: 'like', p2: 'like', p3: 'like' }) });
+    const { files } = await gestionarRankingPublic(db, dades, dema);
+    expect(files.every((fila) => fila.percentatge === null)).toBe(true);
+  });
+
+  it('només retorna files amb propostaId i percentatge', async () => {
+    const vots = {};
+    for (let soci = 1; soci <= 6; soci += 1) vots[`tandes/t1/vots/${soci}`] = vot({ p1: 'like', p2: 'dislike', p3: 'like' });
+    const resposta = await gestionarRankingPublic(escenari(vots), dades, dema);
+    expect(Object.keys(resposta)).toEqual(['files']);
+    for (const fila of resposta.files) expect(Object.keys(fila).sort()).toEqual(['percentatge', 'propostaId']);
+    expect(resposta.files.some((fila) => typeof fila.percentatge === 'number')).toBe(true);
   });
 });
