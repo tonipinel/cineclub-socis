@@ -11,7 +11,11 @@ const PERMESOS = {
   'src/lib/desarSessio.js': { 'nou.imatgeUrl': 1 },
   // Propostes (no sessions): el cartell de la proposta, que passa a `publica.cartell` en programar-la.
   'src/lib/sessioPublica.js': { 'proposta.imatgeUrl': 1 },
-  'src/pages/Propostes/PropostaForm.jsx': { 'dades.imatgeUrl': 5 },
+  'src/pages/Propostes/CapcaleraProposta.jsx': { 'proposta.imatgeUrl': 2 },
+  // La miniatura de la pel·lícula triada al cercador de la pestanya Pel·lícula.
+  'src/pages/Propostes/pestanyes/PelliculaProposta.jsx': { 'proposta.imatgeUrl': 1 },
+  // El cartell de la proposta a la pestanya Mitjans: vista prèvia i text del selector (valor del formulari, no d'una sessió).
+  'src/pages/Propostes/pestanyes/MitjansProposta.jsx': { 'valors.imatgeUrl': 3 },
   // El cartell de la proposta a la targeta per triar-la en una tanda.
   'src/components/CartaPropostaTanda.jsx': { 'proposta.imatgeUrl': 1 },
 };

@@ -48,6 +48,9 @@ export const RUTES = [
   '/distribuidores', '/distribuidores/nova', '/distribuidores/d1',
   '/propostes/pendents', '/propostes/pendents?vista=tandes', '/propostes/pendents?estat=aprovada&tanda=cap',
   '/propostes/pendents/nova', '/propostes/pendents/p1',
+  '/propostes/pendents/p1?pestanya=pellicula', '/propostes/pendents/p1?pestanya=gestio', '/propostes/pendents/p1?pestanya=mitjans',
+  '/propostes/pendents/p23', '/propostes/pendents/p23?pestanya=gestio', '/propostes/pendents/p23?pestanya=pellicula', '/propostes/pendents/p23?pestanya=mitjans',
+  '/propostes/pendents/p24', '/propostes/pendents/p24?pestanya=pellicula', '/propostes/pendents/p24?pestanya=gestio', '/propostes/pendents/p24?pestanya=mitjans',
   '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t1/resultats',
 ];
 const AMPLADES = [375, 320];
@@ -85,7 +88,16 @@ const ESTATS_PER_RUTA = {
   '/comptabilitat/m1': ['editar'],
   '/configuracio': ['editar'],
   '/distribuidores/d1': ['editar'],
-  '/propostes/pendents/p1': ['editar'],
+  // Fitxa de proposta: la barra fixa «Desar» és a les pestanyes editables (no al Resum, la pestanya per defecte).
+  '/propostes/pendents/p1?pestanya=pellicula': ['desar'],
+  '/propostes/pendents/p1?pestanya=gestio': ['desar'],
+  '/propostes/pendents/p1?pestanya=mitjans': ['desar'],
+  '/propostes/pendents/p23?pestanya=gestio': ['desar'],
+  '/propostes/pendents/p23?pestanya=pellicula': ['desar'],
+  '/propostes/pendents/p24?pestanya=pellicula': ['desar'],
+  '/propostes/pendents/p24?pestanya=gestio': ['desar'],
+  '/propostes/pendents/p23?pestanya=mitjans': ['desar'],
+  '/propostes/pendents/p24?pestanya=mitjans': ['desar'],
   '/propostes/pendents': ['filtres'],
   '/propostes/pendents?vista=tandes': ['filtres'],
   '/propostes/pendents?estat=aprovada&tanda=cap': ['filtres'],

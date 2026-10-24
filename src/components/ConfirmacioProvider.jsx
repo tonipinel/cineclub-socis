@@ -23,6 +23,7 @@ function VigilaRuta({ onCanvi }) {
   return null;
 }
 
+// `confirma` resol true (acceptar), false (cancel·lar) o 'secundaria' si s'ha triat `accioSecundaria`.
 // Cua de peticions: només se'n mostra una alhora, la primera; la següent s'obre en tancar-se.
 // En canviar de ruta o desmuntar-se, totes les pendents es resolen amb `false`.
 export function ConfirmacioProvider({ children }) {
@@ -75,7 +76,9 @@ export function ConfirmacioProvider({ children }) {
           etiquetaCancellar={actual.opcions.etiquetaCancellar ?? 'Cancel·lar'}
           perill={actual.opcions.perill ?? false}
           avis={actual.avis}
+          accioSecundaria={actual.avis ? null : (actual.opcions.accioSecundaria ?? null)}
           onAcceptar={() => respon(actual.id, true)}
+          onSecundaria={() => respon(actual.id, 'secundaria')}
           onCancellar={() => respon(actual.id, false)}
         />
       )}

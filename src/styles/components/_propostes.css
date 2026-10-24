@@ -1,34 +1,9 @@
-/* Fitxa d'una pel·lícula (pantalla d'admin): mateix estil que la fitxa de les sessions del lloc principal. */
-.fitxa-pellicula {
-  @apply flex flex-col gap-3;
-}
-.fitxa-pellicula__titol {
-  @apply font-display text-2xl font-bold text-black;
-}
-.fitxa-pellicula__lema {
-  @apply font-body text-base italic text-gold-dark;
-}
-.fitxa-pellicula__dades {
-  @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] content-start gap-x-4 gap-y-2 text-sm;
-}
-.fitxa-pellicula__etiqueta {
-  @apply font-display font-bold uppercase tracking-wide text-gold-dark;
-}
-.fitxa-pellicula__valor {
-  @apply m-0 text-black;
-}
-.fitxa-pellicula__sinopsi {
-  @apply font-body text-base text-black/80;
-}
-.fitxa-pellicula__tmdb {
-  @apply text-sm;
-}
 /* Cercador de pel·lícules de TMDB */
 .cercador-pellicula {
   @apply flex flex-col gap-2;
 }
 .cercador-pellicula__estat {
-  @apply text-sm text-black/60;
+  @apply text-sm text-black/70;
 }
 .cercador-pellicula__etiqueta {
   @apply sr-only;
@@ -61,11 +36,11 @@
   @apply bg-black/10;
 }
 .cercador-pellicula__nom {
-  @apply flex-1 font-semibold;
+  @apply min-w-0 flex-1 wrap-anywhere font-semibold;
 }
 .cercador-pellicula__local {
-  @apply block text-xs font-normal text-black/50;
+  @apply block text-xs font-normal text-black/70;
 }
 .cercador-pellicula__canviar {
-  @apply cursor-pointer border-0 bg-transparent text-xs font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted;
+  @apply shrink-0 cursor-pointer border-0 bg-transparent text-xs font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted;
 }

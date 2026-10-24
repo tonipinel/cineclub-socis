@@ -67,6 +67,33 @@ describe('BarraDesar', () => {
     expect(onDesar).toHaveBeenCalledTimes(1);
   });
 
+  describe('Descartar canvis (onDescarta)', () => {
+    it('sense onDescarta no hi ha botó de descartar', () => {
+      pinta({ estat: 'pendent' });
+      expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+    });
+
+    it.each(['net', 'desat'])('amb estat %s (sense canvis) no es mostra', (estat) => {
+      pinta({ estat, onDescarta: vi.fn() });
+      expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+    });
+
+    it.each(['pendent', 'error'])('amb estat %s es mostra i crida onDescarta', async (estat) => {
+      const onDescarta = vi.fn();
+      pinta({ estat, onDescarta });
+      const boto = screen.getByRole('button', { name: 'Descartar canvis' });
+      expect(boto).toHaveAttribute('type', 'button');
+      await userEvent.click(boto);
+      expect(onDescarta).toHaveBeenCalledTimes(1);
+      expect(onDesar).not.toHaveBeenCalled();
+    });
+
+    it('mentre es desa es mostra deshabilitat', () => {
+      pinta({ estat: 'desant', onDescarta: vi.fn() });
+      expect(screen.getByRole('button', { name: 'Descartar canvis' })).toBeDisabled();
+    });
+  });
+
   describe('error', () => {
     const errors = [
       { pestanya: 'dades', etiquetaPestanya: 'Dades', missatge: 'Falta el títol' },
@@ -97,5 +124,16 @@ describe('BarraDesar', () => {
       expect(screen.getByText('Sense canvis')).toBeInTheDocument();
       expect(screen.queryByText('Error vell')).not.toBeInTheDocument();
     });
+  });
+
+  it('bloquejada: «Desar» i «Descartar canvis» desactivats encara que hi hagi canvis', async () => {
+    const onDescarta = vi.fn();
+    pinta({ estat: 'pendent', onDescarta, bloquejada: true });
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Descartar canvis' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Desar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+    expect(onDesar).not.toHaveBeenCalled();
+    expect(onDescarta).not.toHaveBeenCalled();
   });
 });

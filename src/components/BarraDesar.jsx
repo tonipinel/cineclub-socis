@@ -6,8 +6,9 @@ const TEXTOS = {
   error: 'No s\'ha pogut desar',
 };
 
+// `bloquejada`: desactiva «Desar» i «Descartar canvis» mentre la pàgina fa una altra operació sobre la fitxa.
 export default function BarraDesar({
-  estat, onDesar, errors = [], onAnarA, pestanyesAfectades = [], missatgeError,
+  estat, onDesar, onDescarta, errors = [], onAnarA, pestanyesAfectades = [], missatgeError, bloquejada = false,
 }) {
   let text = estat === 'error' && missatgeError ? missatgeError : TEXTOS[estat];
   if (estat === 'pendent' && pestanyesAfectades.length > 0) {
@@ -37,15 +38,22 @@ export default function BarraDesar({
             </ul>
           )}
         </div>
-        <button
-          type={onDesar ? 'button' : 'submit'}
-          className="btn"
-          disabled={estat === 'net' || estat === 'desant' || estat === 'desat'}
-          aria-busy={estat === 'desant'}
-          onClick={onDesar}
-        >
-          Desar
-        </button>
+        <div className="barra-desar__accions">
+          {onDescarta && ['pendent', 'error', 'desant'].includes(estat) && (
+            <button type="button" className="btn barra-desar__descartar" disabled={bloquejada || estat === 'desant'} onClick={onDescarta}>
+              Descartar canvis
+            </button>
+          )}
+          <button
+            type={onDesar ? 'button' : 'submit'}
+            className="btn"
+            disabled={bloquejada || estat === 'net' || estat === 'desant' || estat === 'desat'}
+            aria-busy={estat === 'desant'}
+            onClick={onDesar}
+          >
+            Desar
+          </button>
+        </div>
       </div>
     </div>
   );

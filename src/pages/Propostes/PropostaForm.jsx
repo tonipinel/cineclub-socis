@@ -1,224 +1,275 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ref, uploadBytes } from 'firebase/storage';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, setDoc, updateDoc, where,
+  collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, where, writeBatch,
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { db, storage } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
-import { formatData } from '../../lib/data';
 import { sessionsPerProposta } from '../../lib/tandes';
 import { infoTanda, ordenarTandes } from '../../lib/propostesLlistat';
-import { construirSessioDesDeProposta } from '../../lib/sessioPublica';
+import {
+  EXTENSIONS_IMATGE, construirSessioDesDeProposta, urlStorage, validarImatge,
+} from '../../lib/sessioPublica';
+import {
+  CAMPS_PELLICULA, ETIQUETES_CAMPS, esCampEditat, fitxaAFormulari, prepararDesatFitxa,
+} from '../../lib/fitxaProposta';
 import { assignarPellicula } from '../../lib/pellicules';
+import useFitxaEditable from '../../lib/useFitxaEditable';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
-import BotoEditar from '../../components/BotoEditar';
-import CercadorPellicula from '../../components/CercadorPellicula';
-import FitxaPellicula from '../../components/FitxaPellicula';
+import Pestanyes from '../../components/Pestanyes';
+import BarraDesar from '../../components/BarraDesar';
 import PaginaAdmin from '../../components/PaginaAdmin';
-import TextareaAutomatic from '../../components/TextareaAutomatic';
-import { GestioInternaCamps, GestioInternaVista, INTERNA_BUIDA } from '../../components/GestioInternaProposta';
-
-const CLASSE_ESTAT = {
-  pendent: 'badge--pendent', aprovada: 'badge--al-dia', rebutjada: 'badge--vencut', programada: 'badge--nou-registre',
-};
+import {
+  CAMPS_INTERNS, ETIQUETA_PESTANYA, PESTANYA_DEL_CAMP, PESTANYES,
+} from './campsProposta';
+import CapcaleraProposta from './CapcaleraProposta';
+import ResumProposta from './pestanyes/ResumProposta';
+import GestioProposta from './pestanyes/GestioProposta';
+import PelliculaProposta from './pestanyes/PelliculaProposta';
+import MitjansProposta from './pestanyes/MitjansProposta';
 
 const ERROR_NO_APROVADA = 'Aquesta proposta ja no és aprovada.';
+const ERROR_SOCI = 'Selecciona un soci vàlid de la llista.';
+const ERROR_TRIAR = "No s'ha pogut carregar la fitxa de la pel·lícula. Torna-ho a provar.";
+const ERROR_PUJADA = "No s'ha pogut pujar la imatge. Torna-ho a provar.";
+const ERROR_ACTUALITZAR = "No s'ha pogut actualitzar la fitxa des de TMDB. Torna-ho a provar.";
 
-const IDIOMES_SINOPSI = { es: 'castellà', en: 'anglès' };
+const docsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+const perOrdreDePestanya = (a, b) => PESTANYES.indexOf(a) - PESTANYES.indexOf(b);
+const pestanyaDe = (camp) => PESTANYA_DEL_CAMP[camp] ?? 'gestio';
 
-const ESTATS = [
-  ['pendent', 'Pendent'],
-  ['aprovada', 'Aprovada'],
-  ['rebutjada', 'Rebutjada'],
-  ['programada', 'Programada'],
-];
+const internaAFormulari = (interna) => ({
+  preu: String(interna?.preu ?? ''),
+  condicions: interna?.condicions ?? '',
+  distribuidoraId: interna?.distribuidoraId ?? '',
+});
 
-export default function PropostaForm() {
-  const { id } = useParams();
-  const [dades, setDades] = useState(null);
-  const [socis, setSocis] = useState(null);
-  const [etiquetaSociTriat, setEtiquetaSociTriat] = useState('');
-  const [error, setError] = useState(null);
-  const [editant, setEditant] = useState(false);
-  const [sinopsiCarregada, setSinopsiCarregada] = useState('');
-  const [interna, setInterna] = useState(INTERNA_BUIDA);
-  const [distribuidores, setDistribuidores] = useState([]);
+const sociDeLaProposta = (socis, proposta) => socis.find((s) => Number(s.numeroSoci) === Number(proposta.numeroSoci));
+
+// Errors de validació agrupats per pestanya (en ordre), amb els ids dels camps afectats (id = nom del camp).
+function errorsPerPestanya(errors) {
+  const grups = {};
+  for (const [camp, missatge] of Object.entries(errors)) {
+    const pestanya = pestanyaDe(camp);
+    grups[pestanya] ??= { missatges: [], ids: [] };
+    if (!grups[pestanya].missatges.includes(missatge)) grups[pestanya].missatges.push(missatge);
+    grups[pestanya].ids.push(camp);
+  }
+  return Object.keys(grups).sort(perOrdreDePestanya).map((pestanya) => ({
+    pestanya,
+    etiquetaPestanya: ETIQUETA_PESTANYA[pestanya],
+    missatge: grups[pestanya].missatges.join(' '),
+    ids: grups[pestanya].ids,
+  }));
+}
+
+function FitxaProposta({
+  id, carregada, tandes, sessio,
+}) {
+  const { socis, distribuidores } = carregada;
+  const internaDisponible = carregada.interna !== null;
+  const [proposta, setProposta] = useState(carregada.proposta);
+  const [interna, setInterna] = useState(internaDisponible ? internaAFormulari(carregada.interna) : null);
+  const [inicial] = useState(() => {
+    const soci = sociDeLaProposta(socis, carregada.proposta);
+    return {
+      ...fitxaAFormulari(carregada.proposta),
+      estat: carregada.proposta.estat ?? 'pendent',
+      soci: soci ? etiquetaSoci(soci) : '',
+      comentari: carregada.proposta.comentari ?? '',
+      ...internaAFormulari(carregada.interna),
+    };
+  });
+  // Línia base dels valors desats (la del hook no és accessible): `prepararDesatFitxa` hi compara els camps de la pel·lícula.
+  const base = useRef(inicial);
+  const idsAEnfocar = useRef(null);
   const [programant, setProgramant] = useState(false);
-  const [tandes, setTandes] = useState([]);
-  const [sessioId, setSessioId] = useState(null);
-  const [sessioTitol, setSessioTitol] = useState('');
+  const [errorProgramar, setErrorProgramar] = useState(null);
+  const [errorEliminar, setErrorEliminar] = useState(null);
+  // `actualitzant`: la crida a TMDB és en curs (la fitxa queda bloquejada). `actualitzantRef`: des que comença
+  // (inclòs el diàleg de confirmació) fins que acaba; bloqueja «Programar», desar i descartar.
+  const [actualitzant, setActualitzant] = useState(false);
+  const actualitzantRef = useRef(false);
+  const [errorTmdb, setErrorTmdb] = useState(null);
+  // `pujant`: el cartell s'està pujant a Storage (la URL arriba després i entra com a canvi pendent). Bloqueja, com
+  // `actualitzant`, desar, descartar, canviar de pestanya, TMDB i programar fins que acaba.
+  const [pujant, setPujant] = useState(false);
+  const pujantRef = useRef(false);
+  const [errorPujada, setErrorPujada] = useState(null);
+  // Canviar la clau torna el cercador a la pel·lícula desada (després d'un error en triar-ne una).
+  const [clauCercador, setClauCercador] = useState(0);
   // Bloqueja un segon «Programar» mentre el diàleg de confirmació és obert.
   const programantRef = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { confirma, avisa } = useConfirmacio();
 
-  const carregar = useCallback(() => {
-    Promise.all([
-      getDoc(doc(db, 'propostes', id)),
-      getDocs(collection(db, 'socis')),
-    ]).then(([propostaSnap, socisSnap]) => {
-      const socisCarregats = socisSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const dadesProposta = {
-        imatgeUrl: '', trailerUrl: '', sinopsi: '', comentari: '', ...propostaSnap.data(),
-      };
-      setDades(dadesProposta);
-      setSinopsiCarregada(dadesProposta.sinopsi);
-      setSocis(socisCarregats);
-      const sociActual = socisCarregats.find((s) => Number(s.numeroSoci) === Number(dadesProposta.numeroSoci));
-      setEtiquetaSociTriat(sociActual ? etiquetaSoci(sociActual) : '');
-    });
-  }, [id]);
+  const demanada = searchParams.get('pestanya');
+  const pestanya = PESTANYES.includes(demanada) ? demanada : 'resum';
+  const canviarPestanya = (nova) => setSearchParams({ pestanya: nova }, { replace: true });
 
-  useEffect(() => { carregar(); }, [carregar]);
+  // Només escriu els camps canviats: a `propostes` els de la pel·lícula (via `prepararDesatFitxa`) i els de gestió;
+  // a `propostesInternes`, el document sencer i només si n'ha canviat algun camp.
+  const onDesar = async ({ valors: v, canviats }) => {
+    const { errors: errorsFitxa, payload } = prepararDesatFitxa({ form: v, base: base.current, proposta });
+    const errors = { ...errorsFitxa };
+    const aProposta = { ...payload };
+    if (canviats.includes('estat')) aProposta.estat = v.estat;
+    if (v.comentari.trim() !== base.current.comentari.trim()) aProposta.comentari = v.comentari.trim();
+    if (canviats.includes('soci')) {
+      const soci = socis.find((s) => etiquetaSoci(s) === v.soci);
+      if (soci) {
+        aProposta.numeroSoci = soci.numeroSoci;
+        aProposta.nomProposant = calcularNomPublic(soci);
+      } else {
+        errors.soci = ERROR_SOCI;
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      const [primer] = errorsPerPestanya(errors);
+      idsAEnfocar.current = { pestanya: primer.pestanya, ids: primer.ids };
+      canviarPestanya(primer.pestanya);
+      return { errors };
+    }
+    const aInterna = internaDisponible && CAMPS_INTERNS.some((camp) => canviats.includes(camp))
+      ? { preu: v.preu === '' ? null : Number(v.preu), condicions: v.condicions.trim(), distribuidoraId: v.distribuidoraId }
+      : null;
+    const hiHaProposta = Object.keys(aProposta).length > 0;
+    // Tot o res: les dues escriptures van en un sol lot, i l'estat local només canvia si el commit ha anat bé.
+    if (hiHaProposta || aInterna) {
+      const lot = writeBatch(db);
+      if (hiHaProposta) lot.update(doc(db, 'propostes', id), aProposta);
+      if (aInterna) lot.set(doc(db, 'propostesInternes', id), aInterna);
+      await lot.commit();
+    }
+    if (hiHaProposta) setProposta((p) => ({ ...p, ...aProposta }));
+    if (aInterna) setInterna(internaAFormulari(aInterna));
+    base.current = v;
+    return undefined;
+  };
 
-  // Les dades internes (preu, condicions, distribuïdora) viuen en un document
-  // apart i admin-only; si no es poden llegir, la fitxa es mostra igualment.
-  const carregarInterna = useCallback(() => {
-    Promise.all([
-      getDoc(doc(db, 'propostesInternes', id)),
-      getDocs(collection(db, 'distribuidores')),
-    ]).then(([internaSnap, distribuidoresSnap]) => {
-      const dadesInternes = internaSnap.data() ?? {};
-      setInterna({ ...INTERNA_BUIDA, ...dadesInternes, preu: String(dadesInternes.preu ?? '') });
-      setDistribuidores(
-        distribuidoresSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => a.nom.localeCompare(b.nom, 'ca'))
-      );
-    }).catch(() => {
-      // Sense dades internes: la resta de la fitxa es mostra igualment.
-    });
-  }, [id]);
-
-  useEffect(() => { carregarInterna(); }, [carregarInterna]);
-
-  // Només lectura i opcional: si falla, les files «Tandes» i «Sessió» mostren «—».
+  const {
+    valors, canvia, canviats, hiHaCanvis, estat, desa, descarta, errorDesat, errors, reinicia,
+  } = useFitxaEditable({ inicial, onDesar });
+  const ambCanvisPendents = hiHaCanvis || estat === 'desant';
+  // Valors de l'últim render, per als gestors que continuen després d'un `await`.
+  const propostaRef = useRef(proposta);
+  const ambCanvisPendentsRef = useRef(ambCanvisPendents);
   useEffect(() => {
-    getDocs(collection(db, 'tandes')).then((snap) => {
-      setTandes(
-        snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((t) => Array.isArray(t.propostes) && t.propostes.includes(id))
-          .map((t) => infoTanda(t))
-          .sort(ordenarTandes),
-      );
-    }).catch(() => {});
-    getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id))).then((snap) => {
-      const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const triada = sessionsPerProposta(sessions)[id];
-      setSessioId(triada ?? null);
-      setSessioTitol(sessions.find((s) => s.id === triada)?.titol ?? '');
-    }).catch(() => {});
-  }, [id]);
+    propostaRef.current = proposta;
+    ambCanvisPendentsRef.current = ambCanvisPendents;
+  });
 
-  const handleCanviInterna = (camp) => (e) => setInterna((i) => ({ ...i, [camp]: e.target.value }));
+  // TMDB recarrega la fitxa: no es pot amb canvis pendents (el reinici els perdria) ni mentre es programa.
+  const potCarregarDeTmdb = () => !actualitzantRef.current && !programantRef.current && !pujantRef.current && !ambCanvisPendentsRef.current;
 
-  const handleCancellar = () => {
-    setError(null);
-    setEditant(false);
-    carregar();
-    carregarInterna();
-  };
-
-  const handleActualitzarTmdb = async () => {
-    setError(null);
+  // Carrega la fitxa de TMDB al servidor (que ja respecta `campsEditats`), hi fusiona els valors efectius que torna
+  // i reinicia el formulari des de la proposta nova. Cal haver agafat `actualitzantRef` abans.
+  const carregaDeTmdb = async (crida, missatgeError, enFallar) => {
+    setActualitzant(true);
+    setErrorTmdb(null);
     try {
-      const fitxa = await assignarPellicula(id, dades.tmdbId);
-      setDades((d) => ({ ...d, ...fitxa }));
-      setSinopsiCarregada(fitxa.sinopsi ?? '');
+      const fitxa = await crida();
+      const nouFormulari = { ...base.current, ...fitxaAFormulari({ ...propostaRef.current, ...fitxa }) };
+      setProposta((p) => ({ ...p, ...fitxa }));
+      base.current = nouFormulari;
+      reinicia(nouFormulari);
     } catch {
-      setError("No s'ha pogut actualitzar la fitxa des de TMDB. Torna-ho a provar.");
+      setErrorTmdb(missatgeError);
+      enFallar?.();
+    } finally {
+      setActualitzant(false);
     }
   };
 
-  const handleChange = (camp) => (e) => {
-    setDades((d) => ({ ...d, [camp]: e.target.value }));
-  };
-
-  // Tria la pel·lícula de TMDB: el servidor en torna a agafar la fitxa
-  // sencera (títol, any, cartell, sinopsi…) i aquí només actualitzem el que
-  // es veu al formulari.
   const handleTriarPellicula = async (pellicula) => {
-    if (!pellicula) return;
-    setError(null);
+    if (!potCarregarDeTmdb()) return;
+    actualitzantRef.current = true;
     try {
-      const fitxa = await assignarPellicula(id, pellicula.tmdbId);
-      setDades((d) => ({ ...d, ...fitxa }));
-      setSinopsiCarregada(fitxa.sinopsi ?? '');
-    } catch {
-      setError("No s'ha pogut carregar la fitxa de la pel·lícula. Torna-ho a provar.");
+      await carregaDeTmdb(() => assignarPellicula(id, pellicula.tmdbId), ERROR_TRIAR, () => setClauCercador((c) => c + 1));
+    } finally {
+      actualitzantRef.current = false;
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    const sociTriat = socis.find((s) => etiquetaSoci(s) === etiquetaSociTriat);
-    if (!sociTriat) {
-      setError('Selecciona un soci vàlid de la llista.');
-      return;
-    }
+  const handleActualitzar = async () => {
+    if (!potCarregarDeTmdb()) return;
+    actualitzantRef.current = true;
     try {
-      await updateDoc(doc(db, 'propostes', id), {
-        estat: dades.estat,
-        imatgeUrl: dades.imatgeUrl,
-        trailerUrl: dades.trailerUrl,
-        sinopsi: dades.sinopsi,
-        comentari: dades.comentari.trim(),
-        // Si l'admin ha canviat el text (p. ex. traduint-lo), queda marcat
-        // com a català i les actualitzacions des de TMDB ja no el trepitgen.
-        ...(dades.sinopsi !== sinopsiCarregada ? { sinopsiIdioma: 'ca' } : {}),
-        numeroSoci: sociTriat.numeroSoci,
-        nomProposant: calcularNomPublic(sociTriat),
-      });
-      await setDoc(doc(db, 'propostesInternes', id), {
-        preu: interna.preu === '' ? null : Number(interna.preu),
-        condicions: interna.condicions.trim(),
-        distribuidoraId: interna.distribuidoraId,
-      });
-      navigate(ROUTES.PROPOSTES_PENDENTS);
-    } catch {
-      setError("No s'ha pogut desar. Torna-ho a provar.");
+      await confirmaIActualitza();
+    } finally {
+      actualitzantRef.current = false;
     }
   };
 
-  // Crea la sessió (sense publicar ni data) i passa la proposta a «programada»
-  // dins d'una transacció amb id determinista, perquè dos admins alhora no
-  // puguin crear-ne dues. Si la proposta ja té sessió, només hi navega.
+  const confirmaIActualitza = async () => {
+    const editats = CAMPS_PELLICULA.filter((camp) => esCampEditat(proposta, camp));
+    const resposta = await confirma(editats.length > 0
+      ? {
+        titol: 'Actualitzar des de TMDB',
+        missatge: `Es mantindran els camps que has editat: ${editats.map((camp) => ETIQUETES_CAMPS[camp]).join(', ')}.`,
+        etiquetaAcceptar: 'Actualitza (conserva els meus canvis)',
+        accioSecundaria: { etiqueta: 'Actualitza i sobreescriu-ho tot', perill: true },
+      }
+      : {
+        titol: 'Actualitzar des de TMDB',
+        missatge: "No hi ha cap camp editat a mà: s'actualitzarà tota la fitxa.",
+        etiquetaAcceptar: 'Actualitza',
+      });
+    // Si mentrestant hi ha hagut canvis (no hauria de passar amb el diàleg modal), el reinici els perdria.
+    if (ambCanvisPendentsRef.current) return;
+    if (resposta === true) await carregaDeTmdb(() => assignarPellicula(id, proposta.tmdbId), ERROR_ACTUALITZAR);
+    else if (resposta === 'secundaria') {
+      await carregaDeTmdb(() => assignarPellicula(id, proposta.tmdbId, { sobreescriure: true }), ERROR_ACTUALITZAR);
+    }
+  };
+
+  // Després d'un error de validació, focus al primer camp invàlid quan la seva pestanya ja és visible (un sol intent).
+  useEffect(() => {
+    if (!idsAEnfocar.current || idsAEnfocar.current.pestanya !== pestanya) return;
+    const elements = idsAEnfocar.current.ids.map((idCamp) => document.getElementById(idCamp)).filter(Boolean);
+    idsAEnfocar.current = null;
+    elements.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+    elements[0]?.focus();
+  });
+
+  // Crea la sessió (sense publicar ni data) i passa la proposta a «programada» dins d'una transacció amb id determinista,
+  // perquè dos admins alhora no puguin crear-ne dues. Si la proposta ja té sessió, només hi navega.
   const handleProgramar = async () => {
-    if (programant || programantRef.current) return;
+    if (programant || programantRef.current || actualitzantRef.current || pujantRef.current || hiHaCanvis || estat === 'desant') return;
     programantRef.current = true;
     const confirmat = await confirma({
-      missatge: `Vols programar una sessió amb "${dades.titol}"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».`,
+      missatge: `Vols programar una sessió amb "${proposta.titol}"? Es crearà una sessió sense publicar i la proposta passarà a «Programada».`,
       etiquetaAcceptar: 'Programa',
     });
     if (!confirmat) {
       programantRef.current = false;
       return;
     }
-    setError(null);
+    setErrorProgramar(null);
     setProgramant(true);
     try {
       const trobades = await getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id)));
       const sessioId = trobades.docs[0]?.id ?? `proposta-${id}`;
       const propostaRef = doc(db, 'propostes', id);
       const sessioRef = doc(db, 'sessions', sessioId);
-      const { sessio } = construirSessioDesDeProposta(dades, { propostaId: id, avui: new Date() });
+      const { sessio: novaSessio } = construirSessioDesDeProposta(proposta, { propostaId: id, avui: new Date() });
       const existia = await runTransaction(db, async (tx) => {
-        const estat = (await tx.get(propostaRef)).data()?.estat;
+        const estatTx = (await tx.get(propostaRef)).data()?.estat;
         const existeix = (await tx.get(sessioRef)).exists();
-        if (!existeix && estat !== 'aprovada') throw new Error(ERROR_NO_APROVADA);
-        if (!existeix) tx.set(sessioRef, sessio);
-        if (estat === 'aprovada') tx.update(propostaRef, { estat: 'programada' });
+        if (!existeix && estatTx !== 'aprovada') throw new Error(ERROR_NO_APROVADA);
+        if (!existeix) tx.set(sessioRef, novaSessio);
+        if (estatTx === 'aprovada') tx.update(propostaRef, { estat: 'programada' });
         return existeix;
       });
       if (existia) await avisa({ missatge: 'Aquesta proposta ja té una sessió: s\'obre per editar-la.' });
       navigate(ROUTES.SESSIONS_EDITAR.replace(':id', sessioId));
     } catch (e) {
-      setError(e.message === ERROR_NO_APROVADA ? ERROR_NO_APROVADA : "No s'ha pogut programar la sessió. Torna-ho a provar.");
+      setErrorProgramar(e.message === ERROR_NO_APROVADA ? ERROR_NO_APROVADA : "No s'ha pogut programar la sessió. Torna-ho a provar.");
       setProgramant(false);
       programantRef.current = false;
     }
@@ -226,203 +277,216 @@ export default function PropostaForm() {
 
   const handleEliminar = async () => {
     const confirmat = await confirma({
-      missatge: `Segur que vols eliminar definitivament la proposta "${dades.titol}"? Aquesta acció no es pot desfer.`,
+      missatge: `Segur que vols eliminar definitivament la proposta "${proposta.titol}"? Aquesta acció no es pot desfer.`,
       perill: true,
       etiquetaAcceptar: 'Elimina',
     });
     if (!confirmat) return;
-    setError(null);
+    setErrorEliminar(null);
     try {
       await deleteDoc(doc(db, 'propostes', id));
       await deleteDoc(doc(db, 'propostesInternes', id));
       navigate(ROUTES.PROPOSTES_PENDENTS);
     } catch {
-      setError("No s'ha pogut eliminar. Torna-ho a provar.");
+      setErrorEliminar("No s'ha pogut eliminar. Torna-ho a provar.");
     }
   };
 
-  if (!dades || !socis) return <Carregant />;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!actualitzantRef.current && !pujantRef.current) desa();
+  };
 
-  if (!editant) {
-    return (
-      <PaginaAdmin amplada="fitxa" className="proposta-fitxa">
-        <Link className="pagina-admin__tornar" to={ROUTES.PROPOSTES_PENDENTS}>← Propostes</Link>
-        <header className="proposta-fitxa__hero">
-          <div className="proposta-fitxa__barra">
-            <BotoEditar onClick={() => setEditant(true)} />
-          </div>
-          <h1 className="proposta-fitxa__titol">{dades.titol}</h1>
-          {dades.lema && <p className="proposta-fitxa__lema">{dades.lema}</p>}
-        </header>
+  const handleDescarta = () => {
+    if (!actualitzantRef.current && !pujantRef.current) descarta();
+  };
 
-        <div className="proposta-fitxa__fitxa-contenidor">
-          <div className="proposta-fitxa__fitxa">
-            <div className="proposta-fitxa__cartell-col">
-              {dades.imatgeUrl ? (
-                <img className="proposta-fitxa__cartell" src={dades.imatgeUrl} alt={dades.titol} />
-              ) : (
-                <div className="proposta-fitxa__cartell proposta-fitxa__cartell--buit">{dades.titol}</div>
-              )}
-            </div>
-            <div className="proposta-fitxa__dades">
-              <FitxaPellicula proposta={dades} ambTitol={false} />
-              {!dades.tmdbId && (
-                <p className="proposta-fitxa__avis">
-                  Aquesta proposta encara no té pel·lícula de TMDB associada: edita-la per triar-la i omplir la fitxa.
-                </p>
-              )}
-              <dl className="proposta-fitxa__gestio">
-                <dt className="fitxa-pellicula__etiqueta">Proposada per</dt>
-                <dd className="fitxa-pellicula__valor">
-                  {etiquetaSociTriat || dades.nomProposant || '—'}
-                  {dades.timestamp?.toDate && ` · ${formatData(dades.timestamp.toDate())}`}
-                </dd>
-                <dt className="fitxa-pellicula__etiqueta">Estat</dt>
-                <dd className="fitxa-pellicula__valor">
-                  <span className={`badge ${CLASSE_ESTAT[dades.estat] ?? ''}`}>
-                    {ESTATS.find(([valor]) => valor === dades.estat)?.[1] ?? dades.estat}
-                  </span>
-                </dd>
-                <dt className="fitxa-pellicula__etiqueta">Tandes</dt>
-                <dd className="fitxa-pellicula__valor">
-                  {tandes.length === 0 ? '—' : (
-                    <ul className="proposta-fitxa__tandes">
-                      {tandes.map((t) => (
-                        <li key={t.id}>
-                          <Link className="enllac" to={ROUTES.TANDES_EDITAR.replace(':id', t.id)}>{t.nom}</Link>
-                          {t.oberta && ' (oberta)'}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </dd>
-                <dt className="fitxa-pellicula__etiqueta">Sessió</dt>
-                <dd className="fitxa-pellicula__valor">
-                  {sessioId
-                    ? <Link className="enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', sessioId)}>{sessioTitol || 'Sessió'}</Link>
-                    : '—'}
-                </dd>
-                {dades.comentari && (
-                  <>
-                    <dt className="fitxa-pellicula__etiqueta">Comentari del soci</dt>
-                    <dd className="fitxa-pellicula__valor proposta-fitxa__comentari">{dades.comentari}</dd>
-                  </>
-                )}
-                {dades.trailerUrl && (
-                  <>
-                    <dt className="fitxa-pellicula__etiqueta">Tràiler</dt>
-                    <dd className="fitxa-pellicula__valor">
-                      <a className="enllac" href={dades.trailerUrl} target="_blank" rel="noopener noreferrer">Veure tràiler</a>
-                    </dd>
-                  </>
-                )}
-              </dl>
-              {error && <p className="form__error" role="alert">{error}</p>}
-              {dades.estat === 'aprovada' && (
-                <button className="btn proposta-fitxa__programar" type="button" disabled={programant} onClick={handleProgramar}>
-                  Programar sessió
-                </button>
-              )}
-              {dades.tmdbId && (
-                <button className="btn btn--outline proposta-fitxa__actualitzar" type="button" onClick={handleActualitzarTmdb}>
-                  Actualitzar fitxa des de TMDB
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+  // Puja el cartell (una sola pujada alhora) i en posa la URL com a canvi pendent. Mai s'esborra cap fitxer de Storage.
+  const handlePujarCartell = async (fitxer) => {
+    if (pujantRef.current || actualitzantRef.current) return;
+    const errorFitxer = validarImatge(fitxer);
+    setErrorPujada(errorFitxer);
+    if (errorFitxer) return;
+    const cami = `web/propostes/${id}/cartell-${Date.now()}.${EXTENSIONS_IMATGE[fitxer.type]}`;
+    pujantRef.current = true;
+    setPujant(true);
+    try {
+      await uploadBytes(ref(storage, cami), fitxer, { contentType: fitxer.type });
+      canvia('imatgeUrl', urlStorage(storage.app.options.storageBucket, cami));
+    } catch {
+      setErrorPujada(ERROR_PUJADA);
+    } finally {
+      pujantRef.current = false;
+      setPujant(false);
+    }
+  };
 
-        <GestioInternaVista interna={interna} distribuidores={distribuidores} />
-
-        {dades.sinopsi && (
-          <div className="proposta-fitxa__sinopsi">
-            <p>{dades.sinopsi}</p>
-            {IDIOMES_SINOPSI[dades.sinopsiIdioma] && (
-              <p className="proposta-fitxa__traduccio">
-                Aquesta sinopsi és en {IDIOMES_SINOPSI[dades.sinopsiIdioma]}: tradueix-la editant la proposta.
-              </p>
-            )}
-          </div>
-        )}
-      </PaginaAdmin>
-    );
-  }
+  const ambBarra = pestanya !== 'resum';
+  const pestanyesCanviades = [...new Set(canviats.map(pestanyaDe))].sort(perOrdreDePestanya);
+  const sociDesat = sociDeLaProposta(socis, proposta);
 
   return (
     <PaginaAdmin
       as="form"
       amplada="fitxa"
-      className="proposta-form"
-      titol={dades.titol}
-      tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
+      className={ambBarra ? 'fitxa-proposta fitxa-proposta--amb-barra' : 'fitxa-proposta'}
       onSubmit={handleSubmit}
     >
-      {dades.enllac && (
-        <p><a className="enllac" href={dades.enllac} target="_blank" rel="noopener noreferrer">{dades.enllac}</a></p>
+      <div className="fitxa-proposta__contingut">
+        <CapcaleraProposta
+          proposta={proposta}
+          tandes={tandes}
+          sessio={sessio}
+          onProgramar={handleProgramar}
+          programant={programant}
+          // Programar treballa amb les dades desades: amb canvis pendents (o desant) es perdrien en navegar.
+          ambCanvisPendents={ambCanvisPendents}
+          actualitzant={actualitzant}
+          pujant={pujant}
+          errorProgramar={errorProgramar}
+        />
+        <Pestanyes
+          pestanyes={PESTANYES.map((p) => ({ id: p, etiqueta: ETIQUETA_PESTANYA[p], avis: pestanyesCanviades.includes(p) }))}
+          actual={pestanya}
+          onCanvi={canviarPestanya}
+          etiqueta="Seccions de la proposta"
+          desactivades={actualitzant || pujant}
+        />
+      </div>
+      <div
+        role="tabpanel"
+        id={`panell-${pestanya}`}
+        aria-labelledby={`pestanya-${pestanya}`}
+        aria-busy={actualitzant}
+        className="fitxa-proposta__panell"
+      >
+        {/* Mentre es recarrega des de TMDB, cap camp ni botó de la pestanya no es pot fer servir. */}
+        <fieldset className="fitxa-proposta__bloqueig" disabled={actualitzant}>
+          {pestanya === 'resum' && (
+            <ResumProposta
+              proposta={proposta}
+              proposant={sociDesat ? etiquetaSoci(sociDesat) : ''}
+              tandes={tandes}
+              sessio={sessio}
+              interna={interna}
+              distribuidores={distribuidores}
+            />
+          )}
+          {pestanya === 'gestio' && (
+            <GestioProposta
+              valors={valors}
+              canvia={canvia}
+              errors={errors}
+              socis={socis}
+              distribuidores={distribuidores}
+              internaDisponible={internaDisponible}
+              onEliminar={handleEliminar}
+              errorEliminar={errorEliminar}
+            />
+          )}
+          {pestanya === 'pellicula' && (
+            <PelliculaProposta
+              proposta={proposta}
+              valors={valors}
+              canvia={canvia}
+              errors={errors}
+              ambCanvisPendents={ambCanvisPendents}
+              actualitzant={actualitzant}
+              pujant={pujant}
+              onTriar={handleTriarPellicula}
+              onActualitzar={handleActualitzar}
+              errorTmdb={errorTmdb}
+              clauCercador={clauCercador}
+            />
+          )}
+          {pestanya === 'mitjans' && (
+            <MitjansProposta
+              proposta={proposta}
+              valors={valors}
+              canvia={canvia}
+              errors={errors}
+              pujant={pujant}
+              errorPujada={errorPujada}
+              onPujar={handlePujarCartell}
+            />
+          )}
+        </fieldset>
+      </div>
+      {ambBarra && (
+        <BarraDesar
+          estat={estat}
+          errors={errorsPerPestanya(errors)}
+          onAnarA={canviarPestanya}
+          onDescarta={handleDescarta}
+          bloquejada={actualitzant || pujant}
+          pestanyesAfectades={pestanyesCanviades.map((p) => ETIQUETA_PESTANYA[p])}
+          missatgeError={errorDesat}
+        />
       )}
-      {dades.comentari && <p className="proposta-form__comentari">"{dades.comentari}"</p>}
-
-      <div className="form__field">
-        <CercadorPellicula
-          valorInicial={dades.titol}
-          triadaInicial={dades.tmdbId
-            ? { tmdbId: dades.tmdbId, titol: dades.titol, any: dades.any ?? '', posterUrl: dades.imatgeUrl || null }
-            : null}
-          onTriar={handleTriarPellicula}
-        />
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="soci">Soci</label>
-        <input
-          id="soci"
-          list="proposta-form-socis-datalist"
-          className="form__input"
-          value={etiquetaSociTriat}
-          onChange={(e) => setEtiquetaSociTriat(e.target.value)}
-        />
-        <datalist id="proposta-form-socis-datalist">
-          {socis.map((s) => <option key={s.id} value={etiquetaSoci(s)} />)}
-        </datalist>
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="estat">Estat</label>
-        <select id="estat" className="form__input" value={dades.estat} onChange={handleChange('estat')}>
-          {ESTATS.map(([valor, etiqueta]) => (
-            <option key={valor} value={valor}>{etiqueta}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="imatgeUrl">URL del cartell</label>
-        <input id="imatgeUrl" className="form__input" value={dades.imatgeUrl} onChange={handleChange('imatgeUrl')} />
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="trailerUrl">URL del tràiler</label>
-        <input id="trailerUrl" className="form__input" value={dades.trailerUrl} onChange={handleChange('trailerUrl')} />
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="sinopsi">Sinopsi</label>
-        <TextareaAutomatic id="sinopsi" mida="llarg" value={dades.sinopsi} onChange={handleChange('sinopsi')} />
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="comentari">Comentari del soci</label>
-        <TextareaAutomatic id="comentari" mida="curt" value={dades.comentari} onChange={handleChange('comentari')} />
-      </div>
-
-      <GestioInternaCamps interna={interna} distribuidores={distribuidores} onChange={handleCanviInterna} />
-
-      {error && <p className="form__error">{error}</p>}
-      <div className="proposta-form__accions">
-        <button className="btn" type="submit">Desar</button>
-        <button className="btn btn--outline" type="button" onClick={handleCancellar}>Cancel·lar</button>
-        <button className="btn btn--perill" type="button" onClick={handleEliminar}>Eliminar proposta</button>
-      </div>
     </PaginaAdmin>
   );
+}
+
+// Carrega la proposta (obligatòria) i, amb fallada silenciosa, els socis, les dades internes, les distribuïdores,
+// les tandes i les sessions. La fitxa es munta quan hi ha les dades del formulari: el hook només llegeix `inicial` en muntar.
+function CarregaProposta({ id }) {
+  const [carregada, setCarregada] = useState(null);
+  const [tandes, setTandes] = useState([]);
+  // `undefined` fins que s'han llegit les sessions; després, la sessió o `null` (també si la lectura falla).
+  const [sessio, setSessio] = useState(undefined);
+
+  useEffect(() => {
+    let actiu = true;
+    const silenciosa = (promesa, perDefecte) => promesa.catch(() => perDefecte);
+    Promise.all([
+      getDoc(doc(db, 'propostes', id)).then((snap) => snap.data()),
+      silenciosa(getDocs(collection(db, 'socis')).then(docsDe), []),
+      // `null`: no s'han pogut llegir (no és el mateix que no tenir-ne, `{}`).
+      silenciosa(getDoc(doc(db, 'propostesInternes', id)).then((snap) => snap.data() ?? {}), null),
+      silenciosa(getDocs(collection(db, 'distribuidores'))
+        .then((snap) => docsDe(snap).sort((a, b) => String(a.nom ?? '').localeCompare(String(b.nom ?? ''), 'ca'))), []),
+    ]).then(([proposta, socis, interna, distribuidores]) => {
+      if (actiu) setCarregada(proposta ? { proposta, socis, interna, distribuidores } : { error: true });
+    }).catch(() => {
+      if (actiu) setCarregada({ error: true });
+    });
+    return () => { actiu = false; };
+  }, [id]);
+
+  // Només lectura i opcional: si falla, el Resum mostra «—» i la capçalera no en mostra res.
+  useEffect(() => {
+    let actiu = true;
+    getDocs(collection(db, 'tandes')).then((snap) => {
+      if (!actiu) return;
+      setTandes(docsDe(snap)
+        .filter((t) => Array.isArray(t.propostes) && t.propostes.includes(id))
+        .map((t) => infoTanda(t))
+        .sort(ordenarTandes));
+    }).catch(() => {});
+    getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id))).then((snap) => {
+      if (!actiu) return;
+      const sessions = docsDe(snap);
+      const triada = sessionsPerProposta(sessions)[id];
+      setSessio(triada ? { id: triada, titol: sessions.find((s) => s.id === triada)?.titol ?? '' } : null);
+    }).catch(() => {
+      if (actiu) setSessio(null);
+    });
+    return () => { actiu = false; };
+  }, [id]);
+
+  if (!carregada) return <Carregant />;
+  if (carregada.error) {
+    return (
+      <PaginaAdmin amplada="fitxa" titol="Proposta" tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}>
+        <p className="form__error" role="alert">No s&apos;ha pogut carregar la proposta.</p>
+      </PaginaAdmin>
+    );
+  }
+  return <FitxaProposta id={id} carregada={carregada} tandes={tandes} sessio={sessio} />;
+}
+
+// Clau per proposta: en canviar de proposta, l'estat del formulari comença de nou.
+export default function PropostaForm() {
+  const { id } = useParams();
+  return <CarregaProposta key={id} id={id} />;
 }

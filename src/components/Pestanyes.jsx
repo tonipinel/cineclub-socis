@@ -1,5 +1,7 @@
-export default function Pestanyes({ pestanyes, actual, onCanvi, etiqueta }) {
+// `desactivades`: cap pestanya es pot triar (p. ex. mentre es recarrega la fitxa).
+export default function Pestanyes({ pestanyes, actual, onCanvi, etiqueta, desactivades = false }) {
   function alTeclat(e, index) {
+    if (desactivades) return;
     const darrer = pestanyes.length - 1;
     let destí;
     if (e.key === 'ArrowRight') destí = index === darrer ? 0 : index + 1;
@@ -25,6 +27,7 @@ export default function Pestanyes({ pestanyes, actual, onCanvi, etiqueta }) {
             aria-selected={activa}
             aria-controls={`panell-${p.id}`}
             tabIndex={activa ? 0 : -1}
+            disabled={desactivades}
             className={`pestanyes__pestanya${activa ? ' pestanyes__pestanya--activa' : ''}`}
             onClick={() => onCanvi(p.id)}
             onKeyDown={(e) => alTeclat(e, index)}

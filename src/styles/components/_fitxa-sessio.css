@@ -28,6 +28,13 @@
 .barra-desar__estat {
   @apply min-w-0 flex-1;
 }
+.barra-desar__accions {
+  @apply flex shrink-0 flex-wrap items-center justify-end gap-2;
+}
+/* Acció secundària: text negre sobre blanc (el daurat de .btn--outline no arriba a 4,5:1) */
+.barra-desar__descartar {
+  @apply border-2 border-black/60 bg-white text-black hover:bg-black/5 hover:text-black;
+}
 .barra-desar__text {
   @apply m-0 font-body text-sm text-black/70;
 }

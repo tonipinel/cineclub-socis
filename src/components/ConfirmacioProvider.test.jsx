@@ -272,6 +272,74 @@ describe('ConfirmacioProvider (camí sense showModal, com a jsdom)', () => {
     expect(onResultat).toHaveBeenCalledWith(false);
   });
 
+  describe('acció secundària', () => {
+    const opcions = {
+      missatge: 'Actualitzar?',
+      etiquetaAcceptar: 'Conserva',
+      accioSecundaria: { etiqueta: 'Sobreescriu', perill: true },
+    };
+
+    it('mostra Cancel·lar, l\'acció principal i la secundària (amb perill), en aquest ordre', async () => {
+      pinta(<Prova opcions={opcions} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Obrir' }));
+      const dialeg = screen.getByRole('alertdialog', { name: 'Actualitzar?' });
+      const botons = Array.from(dialeg.querySelectorAll('button'));
+      expect(botons.map((b) => b.textContent)).toEqual(['Cancel·lar', 'Conserva', 'Sobreescriu']);
+      expect(botons.map((b) => b.className)).toEqual(['btn btn--outline', 'btn', 'btn btn--perill']);
+      expect(botons[0]).toHaveFocus();
+    });
+
+    it('la secundària resol «secundaria»; la principal, true; Cancel·lar i ESC, false', async () => {
+      const onResultat = vi.fn();
+      pinta(<Prova opcions={opcions} onResultat={onResultat} />);
+      const obrir = screen.getByRole('button', { name: 'Obrir' });
+      await userEvent.click(obrir);
+      await userEvent.click(screen.getByRole('button', { name: 'Sobreescriu' }));
+      await waitFor(() => expect(onResultat).toHaveBeenLastCalledWith('secundaria'));
+      await userEvent.click(obrir);
+      await userEvent.click(screen.getByRole('button', { name: 'Conserva' }));
+      await waitFor(() => expect(onResultat).toHaveBeenLastCalledWith(true));
+      await userEvent.click(obrir);
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel·lar' }));
+      await waitFor(() => expect(onResultat).toHaveBeenLastCalledWith(false));
+      await userEvent.click(obrir);
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(onResultat).toHaveBeenCalledTimes(4));
+      expect(onResultat).toHaveBeenLastCalledWith(false);
+    });
+
+    it('la secundària tampoc no fa res durant el període de gràcia ni amb el segon clic d\'un doble clic', async () => {
+      const onResultat = vi.fn();
+      pinta(<Prova opcions={opcions} onResultat={onResultat} />);
+      avanc = 0;
+      await userEvent.click(screen.getByRole('button', { name: 'Obrir' }));
+      const secundaria = screen.getByRole('button', { name: 'Sobreescriu' });
+      await userEvent.click(secundaria);
+      ara += GRACIA_ACCEPTAR_MS;
+      fireEvent.click(secundaria, { detail: 2 });
+      expect(onResultat).not.toHaveBeenCalled();
+      await userEvent.click(secundaria);
+      await waitFor(() => expect(onResultat).toHaveBeenCalledWith('secundaria'));
+    });
+
+    it('amb acció secundària, els botons van apilats; sense, la fila de sempre', async () => {
+      pinta(<Prova opcions={opcions} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Obrir' }));
+      expect(screen.getByRole('button', { name: 'Conserva' }).parentElement)
+        .toHaveClass('dialeg-confirmacio__accions', 'dialeg-confirmacio__accions--apilades');
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel·lar' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Avisar' }));
+      expect(screen.getByRole('button', { name: 'Entesos' }).parentElement.className).toBe('dialeg-confirmacio__accions');
+    });
+
+    it('sense perill a cap acció, el diàleg és un dialog normal', async () => {
+      pinta(<Prova opcions={{ missatge: 'Tria', accioSecundaria: { etiqueta: 'Altra' } }} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Obrir' }));
+      expect(screen.getByRole('dialog', { name: 'Tria' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Altra' }).className).toBe('btn');
+    });
+  });
+
   it('perill: true fa servir role="alertdialog" amb aria-modal', async () => {
     pinta(<Prova opcions={{ missatge: 'Eliminar?', perill: true }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Obrir' }));

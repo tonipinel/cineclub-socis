@@ -295,9 +295,33 @@ export function dadesInicials() {
     condicions: '',
   };
   d['propostesInternes/p22'] = { preu: null, condicions: null, distribuidoraId: 'd7' };
+  // Fitxa de proposta: una de TMDB amb camps editats a mà, en dues tandes i amb sessió (p23), i una feta a mà
+  // sense pel·lícula de TMDB, aprovada i sense sessió («Programar sessió» i l'avís del Resum) (p24).
+  d['propostes/p23'] = {
+    ...d['propostes/p1'],
+    titol: `${TITOLS[2]}: edició restaurada amb un subtítol llarguíssim que ocupa més de dues línies a la capçalera`,
+    estat: 'programada',
+    numeroSoci: 1003,
+    tmdbId: 1023,
+    tmdbUrl: 'https://www.themoviedb.org/movie/1023',
+    directors: ['Jacques Demy', 'Directora afegida a mà'],
+    campsEditats: ['directors'],
+    imatgeUrl: CARTELL_VERTICAL,
+    timestamp: ts(3),
+  };
+  d['propostesInternes/p23'] = { preu: 250, condicions: 'Còpia DCP: cal retornar-la abans de 15 dies.', distribuidoraId: 'd2' };
+  d['propostes/p24'] = {
+    titol: 'Proposta feta a mà sense TMDB',
+    estat: 'aprovada',
+    numeroSoci: 1004,
+    nomProposant: `${NOMS[4 % NOMS.length]} ${COGNOMS[4 % COGNOMS.length]}`,
+    comentari: `La vam veure al festival. ${URL_LLARGA}`,
+    timestamp: ts(2),
+  };
   // Sessions vinculades a propostes (a més de ses2 → p2).
   d['sessions/ses4'].propostaId = 'p4';
   d['sessions/ses6'].propostaId = 'p12';
+  d['sessions/ses8'].propostaId = 'p23';
 
   // --- Tandes de votació.
   const idsPropostes = Array.from({ length: 20 }, (_, i) => `p${i + 1}`);
@@ -307,7 +331,8 @@ export function dadesInicials() {
     tanca: ts(-10),
     creada: ts(5),
   };
-  d['tandes/t2'] = { nom: 'Tanda de primavera', propostes: idsPropostes.slice(0, 4), tanca: ts(100), creada: ts(130) };
+  d['tandes/t2'] = { nom: 'Tanda de primavera', propostes: [...idsPropostes.slice(0, 4), 'p23'], tanca: ts(100), creada: ts(130) };
+  d['tandes/t1'].propostes = [...idsPropostes, 'p23'];
   // Tandes tancades amb 8 i 12 propostes efectives, per comprovar l'amplada de la taula de resultats.
   const efectives = idsPropostes.filter((_, k) => ![5, 7, 10, 14, 15, 20].includes(k + 1));
   d['tandes/t3'] = { nom: 'Tanda de 8 pel·lícules', propostes: efectives.slice(0, 8), tanca: ts(200), creada: ts(230) };

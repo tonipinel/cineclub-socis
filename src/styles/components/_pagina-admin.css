@@ -69,6 +69,10 @@
 .dialeg-confirmacio__accions {
   @apply flex flex-wrap justify-end gap-3;
 }
+/* Tres accions (acció secundària): una sota l'altra, a tot l'ample, en l'ordre del focus */
+.dialeg-confirmacio__accions--apilades {
+  @apply flex-col items-stretch;
+}
 /* Cancel·lar en negre: l'or sobre blanc no arriba al contrast AA (≈2,9:1) */
 .dialeg-confirmacio__accions .btn--outline {
   @apply border-black/60 text-black hover:bg-black hover:text-white;

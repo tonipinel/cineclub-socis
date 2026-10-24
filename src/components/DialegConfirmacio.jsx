@@ -8,9 +8,10 @@ export const GRACIA_ACCEPTAR_MS = 300;
 
 // Diàleg modal accessible sobre <dialog> natiu. Si el navegador (o jsdom) no té showModal,
 // es mostra amb l'atribut `open` i els rols ARIA explícits.
+// `accioSecundaria` ({ etiqueta, perill }) afegeix una tercera opció després d'«Acceptar» (`onSecundaria`).
 export default function DialegConfirmacio({
   obert, titol, missatge, etiquetaAcceptar = 'Accepta', etiquetaCancellar = 'Cancel·lar',
-  perill = false, avis = false, onAcceptar, onCancellar,
+  perill = false, avis = false, accioSecundaria = null, onAcceptar, onSecundaria, onCancellar,
 }) {
   const dialegRef = useRef(null);
   const segurRef = useRef(null);
@@ -69,6 +70,13 @@ export default function DialegConfirmacio({
     onAcceptar();
   };
 
+  const secundaria = (e) => {
+    if (e.detail > 1 || dinsGracia()) return;
+    onSecundaria();
+  };
+
+  const ambPerill = perill || Boolean(accioSecundaria?.perill);
+
   // Evita que el navegador el tanqui pel seu compte: el tancament el decideix React.
   const cancel = (e) => {
     e.preventDefault();
@@ -80,7 +88,7 @@ export default function DialegConfirmacio({
       ref={dialegRef}
       className={`dialeg-confirmacio${modalNatiu ? '' : ' dialeg-confirmacio--sense-modal'}`}
       open={modalNatiu ? undefined : true}
-      role={perill ? 'alertdialog' : modalNatiu ? undefined : 'dialog'}
+      role={ambPerill ? 'alertdialog' : modalNatiu ? undefined : 'dialog'}
       aria-modal={modalNatiu ? undefined : 'true'}
       aria-labelledby={titol ? idTitol : idMissatge}
       aria-describedby={titol ? idMissatge : undefined}
@@ -92,7 +100,7 @@ export default function DialegConfirmacio({
       <div className="dialeg-confirmacio__contingut">
         {titol && <h2 id={idTitol} className="dialeg-confirmacio__titol">{titol}</h2>}
         <div id={idMissatge} className="dialeg-confirmacio__missatge">{missatge}</div>
-        <div className="dialeg-confirmacio__accions">
+        <div className={`dialeg-confirmacio__accions${accioSecundaria && !avis ? ' dialeg-confirmacio__accions--apilades' : ''}`}>
           {avis ? (
             <button ref={segurRef} type="button" className="btn" onClick={accepta}>
               {etiquetaAcceptar}
@@ -105,6 +113,11 @@ export default function DialegConfirmacio({
               <button type="button" className={perill ? 'btn btn--perill' : 'btn'} onClick={accepta}>
                 {etiquetaAcceptar}
               </button>
+              {accioSecundaria && (
+                <button type="button" className={accioSecundaria.perill ? 'btn btn--perill' : 'btn'} onClick={secundaria}>
+                  {accioSecundaria.etiqueta}
+                </button>
+              )}
             </>
           )}
         </div>

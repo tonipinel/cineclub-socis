@@ -80,4 +80,14 @@ describe('Pestanyes', () => {
     expect(screen.getByRole('tab', { name: 'Dades' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Entrades' })).toBeInTheDocument();
   });
+
+  it('desactivades: cap pestanya respon al clic ni al teclat', async () => {
+    const onCanvi = vi.fn();
+    render(<Pestanyes pestanyes={pestanyes} actual="dades" etiqueta="Seccions" onCanvi={onCanvi} desactivades />);
+    for (const tab of screen.getAllByRole('tab')) expect(tab).toBeDisabled();
+    await userEvent.click(screen.getByRole('tab', { name: /Entrades/ }));
+    screen.getByRole('tab', { name: 'Dades' }).focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(onCanvi).not.toHaveBeenCalled();
+  });
 });

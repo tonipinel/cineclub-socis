@@ -1,0 +1,150 @@
+/* Fitxa de proposta (pages/Propostes/PropostaForm.jsx): capçalera, pestanyes i targetes, dins de .pagina-admin--fitxa.
+   Mateix patró que la fitxa de sessió (_fitxa-sessio.css). */
+.fitxa-proposta {
+  @apply flex flex-col gap-6;
+}
+/* Espai per a la barra de desar fixa; doble classe per guanyar al padding de .pagina-admin. */
+.pagina-admin.fitxa-proposta--amb-barra {
+  @apply pb-40;
+}
+.fitxa-proposta__contingut {
+  @apply flex w-full min-w-0 flex-col gap-4;
+}
+.fitxa-proposta__capcalera {
+  @apply flex flex-col gap-3;
+}
+.fitxa-proposta__capcalera-cos {
+  @apply flex min-w-0 items-start gap-4;
+}
+.fitxa-proposta__cartell {
+  @apply aspect-[2/3] w-16 shrink-0 rounded object-cover sm:w-24;
+}
+.fitxa-proposta__capcalera-text {
+  @apply flex min-w-0 flex-col gap-2;
+}
+/* Mida de títol estàndard (com .pagina-admin__titol), com a molt en dues línies */
+.fitxa-proposta__titol {
+  @apply m-0 line-clamp-2 min-w-0 wrap-anywhere font-display text-2xl font-bold uppercase tracking-wide text-black md:text-3xl;
+}
+.fitxa-proposta__lema {
+  @apply m-0 font-body text-sm italic text-black/70;
+}
+.fitxa-proposta__insignies {
+  @apply flex flex-wrap gap-2;
+}
+/* Els noms de tanda poden ser llargs: la insígnia es parteix en lloc de desbordar */
+.fitxa-proposta__insignia-tanda {
+  @apply max-w-full wrap-anywhere normal-case tracking-normal;
+}
+.fitxa-proposta__accions {
+  @apply flex flex-wrap items-center gap-3 empty:hidden;
+}
+/* Acció secundària: text negre sobre blanc (el daurat de .btn--outline no arriba a 4,5:1) */
+.fitxa-proposta__boto-secundari {
+  @apply border-2 border-black/60 bg-white text-black no-underline hover:bg-black/5 hover:text-black;
+}
+.fitxa-proposta__panell {
+  @apply min-w-0;
+}
+.fitxa-proposta__targetes {
+  @apply flex flex-col gap-6;
+}
+.fitxa-proposta__targeta {
+  @apply m-0 flex min-w-0 flex-col gap-2 rounded border border-black/10 p-4;
+}
+.fitxa-proposta__targeta--privada {
+  @apply border-gold-dark/40 bg-gold/5;
+}
+.fitxa-proposta__targeta-titol,
+.fitxa-proposta__llegenda {
+  @apply m-0 mb-2 flex flex-wrap items-center gap-2 font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+/* Flotada, la llegenda deixa de seure sobre la vora del fieldset i va dins la targeta com un títol més */
+.fitxa-proposta__llegenda {
+  @apply float-left w-full p-0;
+}
+.fitxa-proposta__privat {
+  @apply rounded-full bg-black px-3 py-0.5 font-body text-xs font-semibold normal-case tracking-normal text-white;
+}
+.fitxa-proposta__graella {
+  @apply grid grid-cols-1 gap-x-4 md:grid-cols-2;
+}
+.fitxa-proposta__dades {
+  @apply m-0 grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-y-3;
+}
+.fitxa-proposta__etiqueta {
+  @apply font-semibold text-black/70;
+}
+.fitxa-proposta__valor {
+  @apply m-0 mb-2 min-w-0 wrap-anywhere sm:mb-0;
+}
+.fitxa-proposta__valor--linies {
+  @apply whitespace-pre-line;
+}
+.fitxa-proposta__contacte {
+  @apply mt-1 block text-black/70;
+}
+.fitxa-proposta__per-defecte {
+  @apply text-xs italic text-black/70;
+}
+.fitxa-proposta__tandes {
+  @apply m-0 flex list-none flex-col gap-1 p-0;
+}
+.fitxa-proposta__sinopsi {
+  @apply m-0 whitespace-pre-line wrap-anywhere font-body text-sm text-black/80;
+}
+.fitxa-proposta__avis {
+  @apply m-0 rounded border border-gold bg-gold/10 p-3 text-sm text-black/80;
+}
+.fitxa-proposta__nota {
+  @apply m-0 text-sm italic text-black/70;
+}
+.fitxa-proposta__afegir {
+  @apply self-start text-xs;
+}
+.fitxa-proposta__ajuda {
+  @apply text-xs text-black/70;
+}
+
+/* Pestanya Pel·lícula */
+/* Fieldsets només per deshabilitar-ne el contingut: sense vora ni marges propis */
+.fitxa-proposta__cercador,
+.fitxa-proposta__camps {
+  @apply m-0 min-w-0 border-0 p-0;
+}
+.fitxa-proposta__etiqueta-camp {
+  @apply flex flex-wrap items-center gap-2;
+}
+/* Insígnia «Editat a mà»: text negre sobre daurat clar (contrast > 4,5:1) */
+.fitxa-proposta__editat {
+  @apply rounded-full border border-gold-dark/60 bg-gold/15 px-2 py-0.5 font-body text-xs font-semibold text-black;
+}
+.fitxa-proposta__tmdb {
+  @apply mb-2 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm;
+}
+.fitxa-proposta__valoracio {
+  @apply m-0 flex items-center gap-2;
+}
+.fitxa-proposta__actualitzar {
+  @apply flex flex-col items-start gap-1 sm:ml-auto sm:items-end;
+}
+.fitxa-proposta__bloqueig {
+  @apply m-0 min-w-0 border-0 p-0;
+}
+
+/* Pestanya Mitjans: cartell (vista prèvia + pujada) i tràiler responsiu 16:9 */
+.fitxa-proposta__mitjans-cartell {
+  @apply grid grid-cols-1 items-start gap-4 sm:grid-cols-[10rem_minmax(0,1fr)];
+}
+.fitxa-proposta__mitjans-cartell-imatge {
+  @apply aspect-[2/3] w-40 rounded object-cover;
+}
+.fitxa-proposta__mitjans-cartell-imatge--buit {
+  @apply border border-dashed border-black/30 bg-black/5;
+}
+.fitxa-proposta__mitjans-cartell-camps {
+  @apply flex min-w-0 flex-col gap-2;
+}
+.fitxa-proposta__trailer {
+  @apply aspect-video w-full max-w-xl rounded border-0;
+}
