@@ -265,12 +265,12 @@ describe('IllaVotar (/propostes/votar/)', () => {
       render(<IllaVotar />);
       expect(await screen.findByText('Ara mateix no hi ha cap votació oberta.')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Veure les propostes' })).toHaveAttribute('href', '/propostes/');
-      await userEvent.click(screen.getByRole('button', { name: 'Veure el rànquing de la darrera tanda' }));
-      expect(await screen.findByRole('heading', { name: 'Rànquing de la darrera tanda' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Veure el rànquing de la darrera tanda de pel·lícules' }));
+      expect(await screen.findByRole('heading', { name: 'Rànquing de la darrera tanda de pel·lícules' })).toBeInTheDocument();
       expect(carregarRanking).toHaveBeenCalledWith('tok-7', 't1');
       expect(screen.getByText('El padrí')).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Tancar el rànquing' }));
-      expect(screen.getByRole('button', { name: 'Veure el rànquing de la darrera tanda' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Veure el rànquing de la darrera tanda de pel·lícules' })).toBeInTheDocument();
     });
 
     it('si falla l\'estat mostra l\'error amb «Tornar a provar» i «Sortir», i no diu que no hi ha votació', async () => {

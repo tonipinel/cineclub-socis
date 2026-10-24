@@ -121,7 +121,7 @@ function simulaNavegacio() {
 }
 
 const titolTargeta = () => screen.getByRole('heading', { level: 2 }).textContent;
-const SENSE_TANDA = 'Encara no hi ha cap tanda de votació.';
+const SENSE_TANDA = 'Encara no hi ha cap tanda de pel·lícules.';
 // Graella de cartells de la tanda activa: cada cartell és un botó amb el títol com a nom accessible.
 const cartellsTanda = async () => within(await screen.findByRole('list', { name: 'Pel·lícules de la tanda' })).getAllByRole('button');
 
@@ -186,8 +186,8 @@ describe('PropostesPublic', () => {
     it('amb tanda activa: títol, aclariment amb la data de tancament i les targetes de la tanda; no demana cap rànquing', async () => {
       mockFirestore({ tanda: { id: 't1', nom: 'Tanda de tardor', tanca: new Date(2099, 0, 15, 20, 0), propostes: ['p1', 'p2', 'p3'] } });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Tanda activa: Tanda de tardor' })).toBeInTheDocument();
-      expect(screen.getByText('Aquesta és la tanda que es pot votar ara, fins al 15/01/2099.')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Tanda de pel·lícules activa: Tanda de tardor' })).toBeInTheDocument();
+      expect(screen.getByText('Aquesta és la tanda de pel·lícules que es pot votar ara, fins al 15/01/2099.')).toBeInTheDocument();
       expect(screen.getAllByRole('listitem')).toHaveLength(3);
       expect(screen.queryByText('Fora de tanda')).not.toBeInTheDocument();
       expect(screen.queryByText(/Última tanda/)).not.toBeInTheDocument();
@@ -198,9 +198,9 @@ describe('PropostesPublic', () => {
     it('amb tanda activa sense cap proposta carregable (p. ex. retirades), ho diu i no ofereix votar-la', async () => {
       mockFirestore({ tanda: { id: 't1', nom: 'Buida', tanca: FUTUR, propostes: ['retirada'] } });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Tanda activa: Buida' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Tanda de pel·lícules activa: Buida' })).toBeInTheDocument();
       expect(screen.getByText('Aquesta tanda encara no té pel·lícules per votar.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda de pel·lícules' })).not.toBeInTheDocument();
       expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
     });
 
@@ -208,7 +208,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: { id: 't1', nom: 'Buida', tanca: FUTUR, propostes: [] } });
       renderPagina();
       expect(await screen.findByText('Aquesta tanda encara no té pel·lícules per votar.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda de pel·lícules' })).not.toBeInTheDocument();
     });
 
     it('mentre es llegeixen les tandes (soci identificat fora de votació), la càrrega és una regió role="status"', async () => {
@@ -226,7 +226,7 @@ describe('PropostesPublic', () => {
       carregarEstat.mockResolvedValue(estatObert());
       const user = userEvent.setup();
       renderPagina();
-      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
       expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
       expect(await screen.findByText('Has votat 0 de 3')).toBeInTheDocument();
@@ -236,8 +236,8 @@ describe('PropostesPublic', () => {
     it('sense tanda activa, mostra l\'última tancada amb l\'aclariment i el rànquing públic carregat sol, sense vot', async () => {
       mockFirestore({ tanda: { id: 't1', nom: 'Tanda d\'estiu', tanca: new Date(2020, 2, 10, 21, 0), propostes: ['p1', 'p3'] } });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda: Tanda d\'estiu' })).toBeInTheDocument();
-      expect(screen.getByText('Aquesta va ser l\'última tanda; va tancar el 10/03/2020.')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda de pel·lícules: Tanda d\'estiu' })).toBeInTheDocument();
+      expect(screen.getByText('Aquesta va ser l\'última tanda de pel·lícules; va tancar el 10/03/2020.')).toBeInTheDocument();
       expect(await screen.findByText('90 %')).toBeInTheDocument();
       expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
       expect(carregarRanking).not.toHaveBeenCalled();
@@ -267,7 +267,7 @@ describe('PropostesPublic', () => {
       let resol;
       carregarRankingPublic.mockReturnValue(new Promise((r) => { resol = r; }));
       renderPagina();
-      await screen.findByRole('heading', { level: 2, name: /^Última tanda/ });
+      await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / });
       expect(within(screen.getByRole('status')).getByAltText('Carregant…')).toBeInTheDocument();
       await act(async () => { resol({ files: [{ propostaId: 'p1', percentatge: 50 }] }); });
       expect(await screen.findByText('50 %')).toBeInTheDocument();
@@ -294,7 +294,7 @@ describe('PropostesPublic', () => {
         ],
       });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda: Recent' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda de pel·lícules: Recent' })).toBeInTheDocument();
       await waitFor(() => expect(carregarRankingPublic).toHaveBeenCalledWith('recent'));
       expect(carregarRankingPublic).toHaveBeenCalledTimes(1);
     });
@@ -384,7 +384,7 @@ describe('PropostesPublic', () => {
       expect(within(files[0]).getByText("El teu vot: no m'agrada")).toBeInTheDocument();
       expect(within(files[1]).getByText("El teu vot: m'agrada")).toBeInTheDocument();
       expect(screen.getAllByText(/El teu vot: /)).toHaveLength(2);
-      expect(screen.getByText('Gràcies per participar! Aquest és el resultat final de la tanda.')).toBeInTheDocument();
+      expect(screen.getByText('Gràcies per participar! Aquest és el resultat final de la tanda de pel·lícules.')).toBeInTheDocument();
     });
 
     it('els vots del soci d\'una altra tanda no es mostren al rànquing de l\'última', async () => {
@@ -481,7 +481,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
-      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
       expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Simular escaneig' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Fes-te Soci/a' })).toHaveAttribute('href', '/fes-te-socia/');
@@ -492,7 +492,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
-      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
       await user.click(screen.getByRole('button', { name: 'Cancel·lar' }));
       expect(screen.queryByRole('button', { name: 'Simular escaneig' })).not.toBeInTheDocument();
       expect(votar).not.toHaveBeenCalled();
@@ -503,7 +503,7 @@ describe('PropostesPublic', () => {
       carregarEstat.mockResolvedValue(estatObert());
       const user = userEvent.setup();
       renderPagina();
-      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda' }));
+      await user.click(await screen.findByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
       await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
 
       expect(await screen.findByText('Has votat 0 de 3')).toBeInTheDocument();
@@ -514,7 +514,7 @@ describe('PropostesPublic', () => {
       expect(localStorage.length).toBe(0);
     });
 
-    it('el detall d\'una proposta de la tanda no té botons de vot (es vota la tanda sencera)', async () => {
+    it('el detall d\'una proposta de la tanda no té botons de vot individuals (es vota la tanda sencera)', async () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
@@ -522,7 +522,69 @@ describe('PropostesPublic', () => {
       const dialeg = await screen.findByRole('dialog');
       expect(within(dialeg).getByRole('heading', { level: 2, name: 'Amélie' })).toBeInTheDocument();
       expect(within(dialeg).queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
-      expect(dialeg.querySelector('.proposta-detall__footer')).toBeNull();
+    });
+
+    it('el detall d\'una proposta de la tanda té un peu flotant amb «Votar aquesta tanda de pel·lícules»', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const dialeg = await screen.findByRole('dialog');
+      const peu = dialeg.querySelector('.proposta-detall__peu');
+      expect(peu).not.toBeNull();
+      const boto = within(peu).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' });
+      expect(boto).toHaveAttribute('type', 'button');
+      // El peu no és dins la zona que fa scroll: no en tapa el final.
+      expect(dialeg.querySelector('.proposta-detall__scroll')).not.toContainElement(peu);
+    });
+
+    it('el botó del peu del detall obre el lector del carnet i, un cop escanejat, tanca el detall i entra a votar', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      carregarEstat.mockResolvedValue(estatObert());
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const dialeg = await screen.findByRole('dialog');
+      await user.click(within(dialeg).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
+      expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
+      expect(votar).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
+      expect(await screen.findByText('Has votat 0 de 3')).toBeInTheDocument();
+      expect(carregarEstat).toHaveBeenCalledWith('tok-7');
+      expect(document.querySelector('.proposta-detall')).toBeNull();
+      await waitFor(() => expect(window.location.hash).toBe('#recents'));
+    });
+
+    it('el botó del peu del detall també es fa servir amb el teclat', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const boto = within(await screen.findByRole('dialog')).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' });
+      boto.focus();
+      await user.keyboard('{Enter}');
+      expect(screen.getByText('Escaneja el teu carnet per votar')).toBeInTheDocument();
+    });
+
+    it('el detall d\'una proposta que no és de la tanda activa no té el peu de votar', async () => {
+      window.location.hash = '#p4';
+      mockFirestore({ tanda: tandaFirestore() });
+      renderPagina();
+      const dialeg = await screen.findByRole('dialog');
+      expect(within(dialeg).getByRole('heading', { level: 2, name: 'Fora de tanda' })).toBeInTheDocument();
+      expect(within(dialeg).queryByRole('button', { name: /Votar aquesta tanda/ })).not.toBeInTheDocument();
+      expect(dialeg.querySelector('.proposta-detall__peu')).toBeNull();
+    });
+
+    it('sense tanda activa (l\'última ja ha tancat), el detall no té el peu de votar', async () => {
+      window.location.hash = '#p1';
+      mockFirestore({ tanda: tandaFirestore(PASSAT) });
+      renderPagina();
+      const dialeg = await screen.findByRole('dialog');
+      expect(within(dialeg).getByRole('heading', { level: 2, name: 'Amélie' })).toBeInTheDocument();
+      expect(within(dialeg).queryByRole('button', { name: /Votar aquesta tanda/ })).not.toBeInTheDocument();
+      expect(dialeg.querySelector('.proposta-detall__peu')).toBeNull();
     });
 
     it('si la llista de tandes no es pot llegir, ho diu (sense vot ni «cap tanda») i «Tornar-ho a provar» la torna a llegir', async () => {
@@ -533,8 +595,8 @@ describe('PropostesPublic', () => {
       ));
       const user = userEvent.setup();
       renderPagina();
-      expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la tanda de votació.");
-      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda' })).not.toBeInTheDocument();
+      expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la tanda de pel·lícules.");
+      expect(screen.queryByRole('button', { name: 'Votar aquesta tanda de pel·lícules' })).not.toBeInTheDocument();
       expect(screen.queryByText(SENSE_TANDA)).not.toBeInTheDocument();
 
       mockFirestore({ tanda: tandaFirestore() });
@@ -1148,7 +1210,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       await user.click(screen.getByRole('button', { name: "M'agrada" }));
       expect(await screen.findByText(/tancada o els teus vots ja estan bloquejats/)).toBeInTheDocument();
-      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda/ })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / })).toBeInTheDocument();
       expect(await screen.findByText('90 %')).toBeInTheDocument();
       expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
       expect(carregarEstat).toHaveBeenCalledTimes(2);
@@ -1189,7 +1251,7 @@ describe('PropostesPublic', () => {
       const confirmar = await screen.findByRole('button', { name: 'Confirmar i veure el rànquing' });
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       await user.click(confirmar);
-      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda/ })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / })).toBeInTheDocument();
       expect(carregarEstat).toHaveBeenCalledTimes(2);
       expect(screen.getByText(/tancada o els teus vots ja estan bloquejats/)).toBeInTheDocument();
     });
@@ -1264,6 +1326,8 @@ describe('PropostesPublic', () => {
       renderPaginaPreIdentificat();
       expect(await screen.findByRole('button', { name: 'Tornar al llistat' })).toBeInTheDocument();
       expect(window.location.hash).toBe('#p1');
+      expect(screen.queryByRole('button', { name: /Votar aquesta tanda/ })).not.toBeInTheDocument();
+      expect(document.querySelector('.proposta-detall__peu')).toBeNull();
     });
   });
 

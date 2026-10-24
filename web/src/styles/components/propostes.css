@@ -116,6 +116,19 @@ body.proposta-detall-obert-body {
 .proposta-detall__scroll {
   @apply relative flex-1 overflow-y-auto;
 }
+/*
+  Web: peu flotant del detall amb «Votar aquesta tanda de pel·lícules» (visitant, proposta de la tanda activa).
+  És l'últim fill de la columna flex, fora de `__scroll`: sempre visible a baix i sense tapar el final de la
+  fitxa. z-10 queda sota el modal de la galeria (z-50) i tot el detall (z-30) sota el lector del carnet (z-40).
+*/
+.proposta-detall__peu {
+  @apply relative z-10 flex flex-shrink-0 justify-center border-t border-black/10 bg-white px-4 pt-3;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+.proposta-detall__votar {
+  @apply min-h-12 w-full max-w-md px-6 text-base uppercase tracking-wide shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold-dark sm:text-lg;
+}
 .proposta-detall__tancar {
   @apply flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-0 bg-white/15 font-display text-lg text-white hover-real:bg-white/25;
 }

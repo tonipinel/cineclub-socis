@@ -63,6 +63,7 @@ export default function PropostesPublic() {
   };
 
   const visitantAmbTanda = !identitat && !!tandaPublica;
+  const iniciarVot = () => { setError(null); setVolVotar(true); };
 
   // Mode votació immersiu: res més que la fitxa (sense la intro ni el botó de proposar), també mentre
   // es carrega l'estat d'un soci identificat, perquè no parpellegi.
@@ -86,6 +87,8 @@ export default function PropostesPublic() {
   const propostesTanda = propostes && tandaPublica
     ? ordenarPerData(propostes.filter((p) => tandaPublica.propostes.includes(p.id)))
     : [];
+  // El visitant pot votar la tanda (botó del bloc i peu del detall) si té propostes per votar.
+  const potVotarTanda = !identitat && propostesTanda.length > 0;
   // Els vots del soci només es passen al rànquing si són d'aquesta mateixa tanda.
   const valorsUltimaTanda = ultimaTanda && estat?.dades?.tanda?.id === ultimaTanda.id ? estat.dades.valors : undefined;
 
@@ -144,21 +147,21 @@ export default function PropostesPublic() {
             <div className="tanda-publica__carregant" role="status"><Carregant /></div>
           ) : tandaFallida ? (
             <div className="tanda-publica tanda-publica__fallada">
-              <p className="form__error" role="alert">No s&apos;ha pogut carregar la tanda de votació.</p>
+              <p className="form__error" role="alert">No s&apos;ha pogut carregar la tanda de pel·lícules.</p>
               <button type="button" className="btn" onClick={tornarAProvar}>Tornar-ho a provar</button>
             </div>
           ) : tandaPublica ? (
             <section className="tanda-publica" aria-labelledby="tanda-publica-titol">
-              <h2 className="tanda-publica__titol" id="tanda-publica-titol">Tanda activa: {tandaPublica.nom}</h2>
+              <h2 className="tanda-publica__titol" id="tanda-publica-titol">Tanda de pel·lícules activa: {tandaPublica.nom}</h2>
               <p className="tanda-publica__text">
-                Aquesta és la tanda que es pot votar ara, fins al {formatData(tandaPublica.tanca)}.
+                Aquesta és la tanda de pel·lícules que es pot votar ara, fins al {formatData(tandaPublica.tanca)}.
               </p>
               {propostesTanda.length === 0 && (
                 <p className="tanda-publica__text">Aquesta tanda encara no té pel·lícules per votar.</p>
               )}
-              {!identitat && propostesTanda.length > 0 && (
-                <button type="button" className="btn tanda-publica__votar" onClick={() => { setError(null); setVolVotar(true); }}>
-                  Votar aquesta tanda
+              {potVotarTanda && (
+                <button type="button" className="btn tanda-publica__votar" onClick={iniciarVot}>
+                  Votar aquesta tanda de pel·lícules
                 </button>
               )}
               {propostesTanda.length > 0 && (
@@ -182,7 +185,7 @@ export default function PropostesPublic() {
           ) : ultimaTanda ? (
             <UltimaTanda tanda={ultimaTanda} propostesPerId={propostesPerId} valors={valorsUltimaTanda} />
           ) : (
-            <p className="propostes-public__buit">Encara no hi ha cap tanda de votació.</p>
+            <p className="propostes-public__buit">Encara no hi ha cap tanda de pel·lícules.</p>
           )
         )}
 
@@ -216,6 +219,13 @@ export default function PropostesPublic() {
             <div className="proposta-detall__scroll">
               <FitxaPublica proposta={propostaOberta} senseProposant />
             </div>
+            {potVotarTanda && propostesTanda.some((p) => p.id === propostaOberta.id) && (
+              <div className="proposta-detall__peu">
+                <button type="button" className="btn proposta-detall__votar" onClick={iniciarVot}>
+                  Votar aquesta tanda de pel·lícules
+                </button>
+              </div>
+            )}
           </div>
         )}
 

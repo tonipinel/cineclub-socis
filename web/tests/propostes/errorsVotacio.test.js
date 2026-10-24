@@ -12,11 +12,11 @@ describe('missatgeError', () => {
   });
 
   it('failed-precondition: tanda tancada o vots bloquejats', () => {
-    expect(missatgeError({ code: 'functions/failed-precondition' })).toMatch(/tancada o .*bloquejats/);
+    expect(missatgeError({ code: 'functions/failed-precondition' })).toMatch(/^La tanda de pel·lícules és tancada o .*bloquejats/);
   });
 
   it('invalid-argument i not-found: proposta o tanda que ja no existeix', () => {
-    expect(missatgeError({ code: 'functions/invalid-argument' })).toMatch(/ja no està disponible/);
+    expect(missatgeError({ code: 'functions/invalid-argument' })).toMatch(/proposta o tanda de pel·lícules ja no està disponible/);
     expect(missatgeError({ code: 'functions/not-found' })).toMatch(/ja no està disponible/);
   });
 

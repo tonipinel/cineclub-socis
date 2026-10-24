@@ -24,9 +24,9 @@ export default function UltimaTanda({ tanda, propostesPerId, valors }) {
 
   return (
     <section className="tanda-publica" aria-labelledby="tanda-publica-titol">
-      <h2 className="tanda-publica__titol" id="tanda-publica-titol">Última tanda: {tanda.nom}</h2>
+      <h2 className="tanda-publica__titol" id="tanda-publica-titol">Última tanda de pel·lícules: {tanda.nom}</h2>
       <p className="tanda-publica__text">
-        Aquesta va ser l&apos;última tanda; va tancar el {formatData(tanda.tanca)}.
+        Aquesta va ser l&apos;última tanda de pel·lícules; va tancar el {formatData(tanda.tanca)}.
       </p>
       {fallida && (
         <div className="tanda-publica__fallada">

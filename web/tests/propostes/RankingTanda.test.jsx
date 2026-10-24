@@ -63,7 +63,7 @@ describe('RankingTanda', () => {
 
   it('amb agraiment="final" (tanda tancada) mostra només el text d\'agraïment del resultat final', () => {
     render(<RankingTanda files={files} propostes={propostes} agraiment="final" />);
-    expect(screen.getByText('Gràcies per participar! Aquest és el resultat final de la tanda.')).toBeInTheDocument();
+    expect(screen.getByText('Gràcies per participar! Aquest és el resultat final de la tanda de pel·lícules.')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
   });
 

@@ -35,7 +35,7 @@ describe('/propostes/', () => {
     expect(extreuTitol(html)).toBe('Propostes de programació · Cineclub Roda de Berà');
     const descripcio = extreuDescripcio(html);
     expect(descripcio).toMatch(/persones sòcies .*proposen pel·lícules/);
-    expect(descripcio).toMatch(/👍 o 👎/);
+    expect(descripcio).toMatch(/👍 o 👎 a cada tanda de pel·lícules/);
     expect(descripcio).toMatch(/programació del proper trimestre/);
     expect(descripcio).not.toMatch(/vota les que vols veure/);
     expect(descripcio.length).toBeLessThanOrEqual(160);
@@ -234,6 +234,16 @@ describe('estils de la tanda (aspecte de landing)', () => {
     expect(regla('.cartell-tanda__obrir')).toMatch(/focus-visible:outline/);
     expect(css).not.toMatch(/\.proposta-carta__(accio|footer|vot-bloc|sinopsi|data|info)\b/);
     expect(css).not.toContain('.proposta-detall__footer');
+  });
+
+  it('el peu del detall queda fix a baix (fora del scroll), centrat, amb el marge de l\'àrea segura i sota el lector', () => {
+    const peu = regla('.proposta-detall__peu');
+    expect(peu).toMatch(/\bflex-shrink-0\b/);
+    expect(peu).toMatch(/\bjustify-center\b/);
+    expect(peu).toMatch(/env\(safe-area-inset-bottom\)/);
+    expect(peu).toMatch(/\bz-10\b/);
+    expect(regla('.propostes-public__overlay')).toMatch(/\bz-40\b/);
+    expect(regla('.proposta-detall__votar')).toMatch(/focus-visible:outline/);
   });
 });
 

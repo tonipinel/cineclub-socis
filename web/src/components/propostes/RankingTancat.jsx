@@ -21,13 +21,13 @@ export default function RankingTancat({ token, tandaId, propostesPerId, valors, 
   if (!files) {
     return (
       <button type="button" className="btn propostes-public__ranking-boto" onClick={handleVeure}>
-        Veure el rànquing de la darrera tanda
+        Veure el rànquing de la darrera tanda de pel·lícules
       </button>
     );
   }
   return (
     <div className="propostes-public__ranking">
-      <h2 className="propostes-public__ranking-titol">Rànquing de la darrera tanda</h2>
+      <h2 className="propostes-public__ranking-titol">Rànquing de la darrera tanda de pel·lícules</h2>
       <RankingTanda
         files={files}
         propostes={propostesPerId}

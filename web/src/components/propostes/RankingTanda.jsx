@@ -6,7 +6,7 @@ const AGRAIMENTS = {
     titol: 'Gràcies per participar!',
     text: 'Els teus vots ja són definitius i ens ajudaran a triar les properes pel·lícules del Cineclub.',
   },
-  final: { text: 'Gràcies per participar! Aquest és el resultat final de la tanda.' },
+  final: { text: 'Gràcies per participar! Aquest és el resultat final de la tanda de pel·lícules.' },
 };
 
 const ETIQUETA_VOT = {
