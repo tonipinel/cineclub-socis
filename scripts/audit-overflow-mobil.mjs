@@ -35,7 +35,7 @@ const PORT = Number(process.env.PORT_ARNES ?? 6201);
 export const RUTES = [
   '/accedir?anonim',
   '/dashboard',
-  '/socis', '/socis/nou', '/socis/s1', '/socis/s11', '/socis/s1/carnet', '/socis/carnets?ids=s1,s2,s3', '/socis/s1/pagament',
+  '/socis', '/socis/nou', '/socis/s1', '/socis/s11', '/socis/s12', '/socis/s13', '/socis/s14', '/socis/s1/carnet', '/socis/carnets?ids=s1,s2,s3', '/socis/s1/pagament',
   '/solicituds',
   '/sessions', '/sessions/nova', '/sessions/ses2', '/sessions/ses5',
   '/sessions/ses2?pestanya=dades', '/sessions/ses2?pestanya=continguts', '/sessions/ses2?pestanya=mitjans',
@@ -75,10 +75,14 @@ const ESTATS = {
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],
   '/comptabilitat': ['filtres'],
-  // Fitxa de soci: barra fixa «Desar» en donar d'alta, amb tots els camps extrems (s1) i desactivat amb un motiu llarg (s11).
+  // Fitxa de soci: barra fixa «Desar» en donar d'alta, amb tots els camps extrems (s1) i desactivat amb un motiu llarg (s11);
+  // a la capçalera, «Trucar» i «Escriure un correu» tots dos (s1), només el correu (s12), només trucar (s13) o cap (s14).
   '/socis/nou': ['desar'],
   '/socis/s1': ['desar'],
   '/socis/s11': ['desar'],
+  '/socis/s12': ['desar'],
+  '/socis/s13': ['desar'],
+  '/socis/s14': ['desar'],
   '/sessions': ['calendari'],
   // Fitxa de sessió: la barra fixa «Desar» és a les pestanyes d'edició (no a Estadístiques).
   '/sessions/nova': ['desar'],

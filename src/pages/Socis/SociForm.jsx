@@ -4,7 +4,9 @@ import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } fr
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
-import { teNumeroSoci } from '../../lib/socis';
+import {
+  hrefCorreu, hrefTelefon, primeraAdrecaCorreu, teNumeroSoci,
+} from '../../lib/socis';
 import {
   calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic,
 } from '../../lib/propostes';
@@ -48,6 +50,30 @@ const ETIQUETES_ESTAT = {
 
 const COLOR_ASSISTEIX = '#16a34a';
 const COLOR_NO_ASSISTEIX = '#d4d4d4';
+
+const atributsIcona = {
+  className: 'btn-icona__icona',
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: '1.6',
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': 'true',
+};
+
+const IconaTelefon = () => (
+  <svg {...atributsIcona}>
+    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+  </svg>
+);
+
+const IconaCorreu = () => (
+  <svg {...atributsIcona}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </svg>
+);
 
 const ERROR_CARREGA = "No s'ha pogut carregar el soci. Torna-ho a provar.";
 const TORNAR = { to: ROUTES.SOCIS, etiqueta: 'Socis' };
@@ -211,6 +237,9 @@ function FitxaSoci({ id, soci }) {
   };
 
   const accionsBloquejades = desant || operant;
+  // Trucar i escriure fan servir les dades desades (no els canvis pendents): l'enllaç sempre és el que hi ha a la fitxa.
+  const telTelefon = hrefTelefon(desat.telefon);
+  const mailtoCorreu = hrefCorreu(desat.correuElectronic);
 
   const estatSoci = dades.ultimPagament ? calcularEstatSoci(dades) : ESTAT_NOU_REGISTRE;
   const venciment = dades.ultimPagament ? calcularVenciment(dades) : null;
@@ -245,9 +274,23 @@ function FitxaSoci({ id, soci }) {
         titol={editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}
         tornar={TORNAR}
         accions={editant && (
-          <span className="soci-form__pagament-mobil">
-            <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
-          </span>
+          <>
+            {telTelefon && (
+              <a className="btn-icona soci-form__contacte" href={telTelefon} aria-label={`Trucar al ${desat.telefon.trim()}`}>
+                <IconaTelefon />
+                <span className="btn-icona__text">Trucar</span>
+              </a>
+            )}
+            {mailtoCorreu && (
+              <a className="btn-icona soci-form__contacte" href={mailtoCorreu} aria-label={`Escriure un correu a ${primeraAdrecaCorreu(desat.correuElectronic)}`}>
+                <IconaCorreu />
+                <span className="btn-icona__text">Escriure un correu</span>
+              </a>
+            )}
+            <span className="soci-form__pagament-mobil">
+              <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
+            </span>
+          </>
         )}
       >
         <div className="soci-form-pagina">

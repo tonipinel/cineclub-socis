@@ -94,6 +94,14 @@
 .soci-form {
   @apply flex max-w-xl flex-1 flex-col gap-2;
 }
+/* Trucar / Escriure un correu a la capçalera de la fitxa: botó d'icona amb el text sempre visible (també al mòbil),
+   en negre perquè l'or sobre blanc no arriba al contrast AA. */
+.soci-form__contacte {
+  @apply w-auto max-w-full gap-2 px-3 text-black;
+}
+.soci-form__contacte .btn-icona__text {
+  @apply inline;
+}
 .soci-form__pagament-mobil {
   @apply md:hidden;
 }

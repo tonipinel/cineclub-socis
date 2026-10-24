@@ -62,8 +62,9 @@ export function dadesInicials() {
       nom,
       cognoms,
       dni: `${String(10000000 + i * 7919).slice(0, 8)}Z`,
-      telefon: '+34 600 000 000 / +34 977 000 000 (només tardes)',
-      correuElectronic: i === 1 ? CORREU_LLARG : `soci${i}.${nom.split(' ')[0].toLowerCase()}@exemple.cat`,
+      // Contacte (botons «Trucar» i «Escriure un correu»): s12 només correu, s13 només telèfon, s14 cap dels dos.
+      telefon: [12, 14].includes(i) ? '' : '+34 600 000 000 / +34 977 000 000 (només tardes)',
+      correuElectronic: [13, 14].includes(i) ? '' : (i === 1 ? CORREU_LLARG : `soci${i}.${nom.split(' ')[0].toLowerCase()}@exemple.cat`),
       poblacio: 'Roda de Berà (Urbanització Costa Daurada, sector de Ponent)',
       codiPostal: '43883',
       organitzacio: i % 5 === 0 ? 'Associació Cultural i Recreativa de Veïns i Veïnes de la Platja Llarga' : '',

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix, resumDashboardSocis, etiquetaSoci } from './socis';
+import {
+  filtrarSocis, ordenarSocis, teNumeroSoci, cercaCoincideix, resumDashboardSocis, etiquetaSoci, hrefTelefon, hrefCorreu, primeraAdrecaCorreu,
+} from './socis';
 
 const socis = [
   { numeroSoci: 1, nom: 'Anna', cognoms: 'Vidal', ultimPagament: '2026-01-01' },
@@ -197,5 +199,85 @@ describe('resumDashboardSocis', () => {
 describe('etiquetaSoci', () => {
   it('combina el nom, els cognoms i el número de soci', () => {
     expect(etiquetaSoci({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 })).toBe('Anna Vidal — núm. 7');
+  });
+});
+
+describe('hrefTelefon', () => {
+  it('treu espais, punts, guions i parèntesis', () => {
+    expect(hrefTelefon('600 11 22 33')).toBe('tel:600112233');
+    expect(hrefTelefon('600.11.22.33')).toBe('tel:600112233');
+    expect(hrefTelefon('600-11-22-33')).toBe('tel:600112233');
+    expect(hrefTelefon('(977) 12 34 56')).toBe('tel:977123456');
+  });
+
+  it('conserva el + inicial del prefix', () => {
+    expect(hrefTelefon('+34 600 11 22 33')).toBe('tel:+34600112233');
+    expect(hrefTelefon('  +34 600 11 22 33  ')).toBe('tel:+34600112233');
+  });
+
+  it('els números sense prefix queden tal com s\'han escrit (només les xifres)', () => {
+    expect(hrefTelefon('977123456')).toBe('tel:977123456');
+  });
+
+  it('s\'atura al primer caràcter que no és una xifra ni un separador (extensions, notes, segon número)', () => {
+    expect(hrefTelefon('977 12 34 56 ext. 21')).toBe('tel:977123456');
+    expect(hrefTelefon('+34 600 000 000 / +34 977 000 000 (només tardes)')).toBe('tel:+34600000000');
+  });
+
+  it('sense cap xifra no hi ha enllaç', () => {
+    expect(hrefTelefon('')).toBeNull();
+    expect(hrefTelefon('   ')).toBeNull();
+    expect(hrefTelefon('+')).toBeNull();
+    expect(hrefTelefon('no en té')).toBeNull();
+    expect(hrefTelefon('ext.')).toBeNull();
+    expect(hrefTelefon('ext. 21')).toBeNull();
+    expect(hrefTelefon(null)).toBeNull();
+    expect(hrefTelefon(undefined)).toBeNull();
+  });
+});
+
+describe('hrefCorreu', () => {
+  it('fa un mailto amb l\'adreça retallada, sense assumpte ni cos', () => {
+    expect(hrefCorreu('anna@exemple.cat')).toBe('mailto:anna@exemple.cat');
+    expect(hrefCorreu('  anna@exemple.cat ')).toBe('mailto:anna@exemple.cat');
+  });
+
+  it('codifica els caràcters que trencarien l\'enllaç, però no l\'arrova', () => {
+    expect(hrefCorreu('anna+cine@exemple.cat')).toBe('mailto:anna%2Bcine@exemple.cat');
+    expect(hrefCorreu('a?b&c@exemple.cat')).toBe('mailto:a%3Fb%26c@exemple.cat');
+  });
+
+  it('amb diverses adreces (separades per comes, punts i comes o espais) fa servir la primera', () => {
+    expect(hrefCorreu('a@b.cat, c@d.cat')).toBe('mailto:a@b.cat');
+    expect(hrefCorreu('a@b.cat;c@d.cat')).toBe('mailto:a@b.cat');
+    expect(hrefCorreu('a@b.cat c@d.cat')).toBe('mailto:a@b.cat');
+    expect(hrefCorreu('feina: a@b.cat')).toBe('mailto:a@b.cat');
+  });
+
+  it('amb el format «Nom <adreça>» fa servir l\'adreça de dins', () => {
+    expect(hrefCorreu('Anna <a@b.cat>')).toBe('mailto:a@b.cat');
+    expect(primeraAdrecaCorreu('Anna Vidal <a@b.cat>, c@d.cat')).toBe('a@b.cat');
+  });
+
+  it('sense cap @, o sense res abans o després de l\'@, no hi ha enllaç', () => {
+    expect(hrefCorreu('no en té')).toBeNull();
+    expect(hrefCorreu('anna.exemple.cat')).toBeNull();
+    expect(hrefCorreu('@exemple.cat')).toBeNull();
+    expect(hrefCorreu('anna@')).toBeNull();
+    expect(hrefCorreu('Anna <>')).toBeNull();
+  });
+
+  it('els caràcters que podrien afegir capçaleres o cos al mailto queden codificats', () => {
+    expect(hrefCorreu('a@b.cat?cc=x@y.z')).toBe('mailto:a@b.cat%3Fcc%3Dx@y.z');
+    expect(hrefCorreu('a@b.cat&body=hola')).toBe('mailto:a@b.cat%26body%3Dhola');
+    expect(hrefCorreu('a%0Acc@b.cat')).toBe('mailto:a%250Acc@b.cat');
+    expect(hrefCorreu('a@b.cat\nBcc: x@y.z')).toBe('mailto:a@b.cat');
+  });
+
+  it('sense adreça no hi ha enllaç', () => {
+    expect(hrefCorreu('')).toBeNull();
+    expect(hrefCorreu('   ')).toBeNull();
+    expect(hrefCorreu(null)).toBeNull();
+    expect(hrefCorreu(undefined)).toBeNull();
   });
 });

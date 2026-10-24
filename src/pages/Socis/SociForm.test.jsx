@@ -438,6 +438,122 @@ describe('SociForm — accions', () => {
   });
 });
 
+describe('SociForm — trucar i escriure un correu', () => {
+  beforeEach(() => reiniciaEscriptures());
+  afterEach(() => vi.restoreAllMocks());
+
+  const SOCI_CONTACTE = { nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: true };
+  const trucar = () => screen.queryByRole('link', { name: /^Trucar al / });
+  const escriure = () => screen.queryByRole('link', { name: /^Escriure un correu a / });
+
+  it('amb telèfon i correu, mostra tots dos enllaços a la capçalera, amb el text visible', async () => {
+    carrega({ ...SOCI_CONTACTE, telefon: '+34 600 11 22 33', correuElectronic: 'anna@exemple.cat' });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    const capcalera = document.querySelector('.pagina-admin__capcalera');
+    const enllacTrucar = within(capcalera).getByRole('link', { name: 'Trucar al +34 600 11 22 33' });
+    const enllacCorreu = within(capcalera).getByRole('link', { name: 'Escriure un correu a anna@exemple.cat' });
+    expect(enllacTrucar).toHaveAttribute('href', 'tel:+34600112233');
+    expect(enllacTrucar).toHaveTextContent('Trucar');
+    expect(enllacTrucar).not.toHaveAttribute('target');
+    expect(enllacCorreu).toHaveAttribute('href', 'mailto:anna@exemple.cat');
+    expect(enllacCorreu).toHaveTextContent('Escriure un correu');
+    expect(enllacCorreu).not.toHaveAttribute('target');
+  });
+
+  it('només amb telèfon, mostra només «Trucar»', async () => {
+    carrega({ ...SOCI_CONTACTE, telefon: '(977) 12 34 56' });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(trucar()).toHaveAttribute('href', 'tel:977123456');
+    expect(escriure()).not.toBeInTheDocument();
+  });
+
+  it('només amb correu, mostra només «Escriure un correu»', async () => {
+    carrega({ ...SOCI_CONTACTE, correuElectronic: ' anna@exemple.cat ' });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(trucar()).not.toBeInTheDocument();
+    expect(escriure()).toHaveAttribute('href', 'mailto:anna@exemple.cat');
+    expect(escriure()).toHaveAccessibleName('Escriure un correu a anna@exemple.cat');
+  });
+
+  it('sense telèfon ni correu (o només amb espais o sense xifres), no en mostra cap', async () => {
+    carrega({ ...SOCI_CONTACTE, telefon: '   ', correuElectronic: '  ' });
+    const { unmount } = renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(trucar()).not.toBeInTheDocument();
+    expect(escriure()).not.toBeInTheDocument();
+    unmount();
+
+    carrega({ ...SOCI_CONTACTE, telefon: 'no en té', correuElectronic: null });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(trucar()).not.toBeInTheDocument();
+    expect(escriure()).not.toBeInTheDocument();
+  });
+
+  it('amb un correu sense @ no mostra «Escriure un correu»; amb diverses adreces, enllaça la primera', async () => {
+    carrega({ ...SOCI_CONTACTE, correuElectronic: 'no en té' });
+    const { unmount } = renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(escriure()).not.toBeInTheDocument();
+    unmount();
+
+    carrega({ ...SOCI_CONTACTE, correuElectronic: 'Anna <a@b.cat>; c@d.cat' });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(escriure()).toHaveAttribute('href', 'mailto:a@b.cat');
+    expect(escriure()).toHaveAccessibleName('Escriure un correu a a@b.cat');
+  });
+
+  it('sense els camps al document, no en mostra cap', async () => {
+    carrega(SOCI_CONTACTE);
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(trucar()).not.toBeInTheDocument();
+    expect(escriure()).not.toBeInTheDocument();
+  });
+
+  it('els enllaços fan servir les dades desades: editar sense desar no els canvia, desar sí', async () => {
+    carrega({ ...SOCI_CONTACTE, telefon: '600112233', correuElectronic: 'anna@exemple.cat' });
+    const user = userEvent.setup();
+    renderExistent();
+    const telefon = await screen.findByLabelText('Telèfon');
+    const correu = screen.getByLabelText('Correu electrònic');
+    await user.clear(telefon);
+    await user.type(telefon, '977 00 11 22');
+    await user.clear(correu);
+    expect(trucar()).toHaveAttribute('href', 'tel:600112233');
+    expect(escriure()).toHaveAttribute('href', 'mailto:anna@exemple.cat');
+
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(trucar()).toHaveAttribute('href', 'tel:977001122');
+    expect(trucar()).toHaveAccessibleName('Trucar al 977 00 11 22');
+    expect(escriure()).not.toBeInTheDocument();
+  });
+
+  it('«Descartar canvis» no toca els enllaços', async () => {
+    carrega({ ...SOCI_CONTACTE, telefon: '600112233' });
+    const user = userEvent.setup();
+    renderExistent();
+    const telefon = await screen.findByLabelText('Telèfon');
+    await user.clear(telefon);
+    await user.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+    expect(trucar()).toHaveAttribute('href', 'tel:600112233');
+  });
+
+  it('en donar d\'alta un soci nou no surten, ni després d\'escriure telèfon i correu', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    await user.type(screen.getByLabelText('Telèfon'), '600112233');
+    await user.type(screen.getByLabelText('Correu electrònic'), 'anna@exemple.cat');
+    expect(trucar()).not.toBeInTheDocument();
+    expect(escriure()).not.toBeInTheDocument();
+  });
+});
+
 describe('SociForm — pagaments de la quota', () => {
   beforeEach(() => {
     getDocs.mockReset();

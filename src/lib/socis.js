@@ -9,6 +9,32 @@ export function teNumeroSoci(soci) {
   return Boolean(soci.numeroSoci);
 }
 
+// Enllaç `tel:` amb el telèfon desat: el + inicial i les xifres fins al primer caràcter que no és una xifra ni un
+// separador (espais, punts, guions, parèntesis), perquè una extensió, una nota o un segon número no s'hi enganxin.
+export function hrefTelefon(telefon) {
+  const [numero] = (telefon ?? '').trim().match(/^\+?[\d\s.()-]*/);
+  const xifres = numero.replace(/[^\d]/g, '');
+  if (!xifres) return null;
+  return `tel:${numero.startsWith('+') ? '+' : ''}${xifres}`;
+}
+
+// El camp és text lliure: l'adreça de dins de «Nom <adreça>» o, si no n'hi ha, la primera paraula (separades per comes,
+// punts i comes o espais) que tingui una @ amb text a banda i banda.
+export function primeraAdrecaCorreu(correu) {
+  const text = correu ?? '';
+  const entreAngles = text.match(/<([^<>\s]*@[^<>\s]*)>/);
+  const adreca = entreAngles ? entreAngles[1] : text.split(/[\s,;]+/).find((paraula) => paraula.includes('@'));
+  if (!adreca) return null;
+  const arrova = adreca.indexOf('@');
+  return arrova > 0 && arrova < adreca.length - 1 ? adreca : null;
+}
+
+export function hrefCorreu(correu) {
+  const adreca = primeraAdrecaCorreu(correu);
+  if (!adreca) return null;
+  return `mailto:${encodeURIComponent(adreca).replace(/%40/g, '@')}`;
+}
+
 export function etiquetaSoci(soci) {
   return `${soci.nom} ${soci.cognoms} — núm. ${soci.numeroSoci}`;
 }
