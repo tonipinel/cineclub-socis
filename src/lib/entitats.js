@@ -14,13 +14,13 @@ const urlValida = (url) => {
 export function validarEntitat({ nom, url }, altres, idPropi) {
   const errors = {};
   const net = normalitzar(nom);
-  if (!net) errors.nom = 'Cal un nom.';
+  if (!net) errors.nom = 'El nom no pot estar en blanc.';
   else if (net.includes(',')) errors.nom = 'El nom no pot contenir comes.';
   else if (altres.some((a) => a.id !== idPropi && normalitzar(a.nom) === net)) {
     errors.nom = 'Ja hi ha una entitat amb aquest nom.';
   }
   const u = String(url ?? '').trim();
-  if (u && !urlValida(u)) errors.url = 'La URL ha de començar per http:// o https://.';
+  if (u && !urlValida(u)) errors.url = "L'adreça ha de començar per http:// o https://.";
   return { valid: Object.keys(errors).length === 0, errors };
 }
 

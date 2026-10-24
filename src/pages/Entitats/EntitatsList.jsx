@@ -37,15 +37,15 @@ export default function EntitatsList() {
       accions={<BotoAfegir to={ROUTES.ENTITATS_NOVA} etiqueta="Nova entitat" />}
     >
       {entitats.length === 0 && <p>Encara no hi ha cap entitat.</p>}
-      <ul className="entitats-list__llista">
+      <ul className="llista-cataleg">
         {entitats.map((e) => (
-          <li key={e.id} className="entitats-list__item">
+          <li key={e.id} className="llista-cataleg__item">
             {e.logo
-              ? <img className="entitats-list__logo" src={e.logo} alt={e.nom} />
-              : <span className="entitats-list__logo entitats-list__logo--buit" data-testid="logo-buit" aria-hidden="true" />}
-            <div className="entitats-list__text">
-              <Link className="enllac entitats-list__nom" to={ROUTES.ENTITATS_EDITAR.replace(':id', e.id)}>{e.nom}</Link>
-              {e.url && <a className="enllac entitats-list__url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
+              ? <img className="llista-cataleg__logo" src={e.logo} alt="" />
+              : <span className="llista-cataleg__logo llista-cataleg__logo--buit" data-testid="logo-buit" aria-hidden="true" />}
+            <div className="llista-cataleg__text">
+              <Link className="enllac llista-cataleg__nom" to={ROUTES.ENTITATS_EDITAR.replace(':id', e.id)}>{e.nom}</Link>
+              {e.url && <a className="enllac llista-cataleg__web" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
             </div>
           </li>
         ))}

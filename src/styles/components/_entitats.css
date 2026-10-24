@@ -1,39 +1,6 @@
 /* Entitats (organitzadors i col·laboradors) */
-.entitats-list__llista {
-  @apply m-0 flex list-none flex-col p-0;
-}
-/* La fila ocupa tot l'ample; a escriptori, nom a l'esquerra i URL en una columna a la dreta */
-.entitats-list__item {
-  @apply flex items-center gap-3 border-b border-black/10 py-3 text-sm;
-}
-.entitats-list__logo {
-  @apply h-12 w-12 shrink-0 object-contain;
-}
-/* Reserva l'espai del logo perquè els noms quedin alineats amb i sense logo. */
-.entitats-list__logo--buit {
-  @apply block;
-}
-.entitats-list__text {
-  @apply flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4;
-}
-.entitats-list__nom {
-  @apply min-w-0 text-base font-semibold wrap-anywhere sm:flex-1;
-}
-.entitats-list__url {
-  @apply min-w-0 wrap-anywhere sm:w-72 sm:shrink-0 lg:w-96;
-}
-
 .entitat-form {
   @apply flex flex-col gap-2;
-}
-.entitat-form__input--nomes-lectura {
-  @apply bg-black/5 text-black/70;
-}
-.entitat-form__logo {
-  @apply flex flex-wrap items-center gap-3;
-}
-.entitat-form__previsualitzacio {
-  @apply h-20 w-20 shrink-0 rounded border border-black/10 object-contain;
 }
 
 /* Selector d'entitats de la fitxa de sessió */

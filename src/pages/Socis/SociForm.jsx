@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -16,11 +16,12 @@ import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/m
 import { avui, formatData } from '../../lib/data';
 import { imatgeDeSessio } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
-import BotoEditar from '../../components/BotoEditar';
+import BarraDesar from '../../components/BarraDesar';
 import BotoAfegir from '../../components/BotoAfegir';
 import CarnetCard from '../../components/CarnetCard';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
+import useFitxaEditable from '../../lib/useFitxaEditable';
 
 const CAMPS_INICIALS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
@@ -48,15 +49,23 @@ const ETIQUETES_ESTAT = {
 const COLOR_ASSISTEIX = '#16a34a';
 const COLOR_NO_ASSISTEIX = '#d4d4d4';
 
-export default function SociForm() {
-  const { id } = useParams();
+const ERROR_CARREGA = "No s'ha pogut carregar el soci. Torna-ho a provar.";
+const TORNAR = { to: ROUTES.SOCIS, etiqueta: 'Socis' };
+
+// Valors editables: els camps del formulari i la casella d'organització.
+const valorsInicials = (soci) => ({
+  ...Object.fromEntries(CAMPS_FORMULARI.map(([camp]) => [camp, soci[camp] ?? ''])),
+  organitzacio: Boolean(soci.organitzacio),
+});
+
+// `soci`: el document desat amb els camps buits del formulari (com abans), o els camps buits si es crea.
+function FitxaSoci({ id, soci }) {
   const editant = Boolean(id);
-  const [dades, setDades] = useState(CAMPS_INICIALS);
-  const [carregant, setCarregant] = useState(editant);
-  const [error, setError] = useState(null);
+  const [desat, setDesat] = useState(soci);
+  const [inicial] = useState(() => valorsInicials(soci));
   const [errorEstat, setErrorEstat] = useState(null);
-  const [desbloquejat, setDesbloquejat] = useState(!editant);
-  const [organitzacioInicial, setOrganitzacioInicial] = useState(false);
+  const [operant, setOperant] = useState(false);
+  const operantRef = useRef(false);
   const [assistencies, setAssistencies] = useState([]);
   const [pagaments, setPagaments] = useState([]);
   const [motiuDesactivacio, setMotiuDesactivacio] = useState('');
@@ -64,73 +73,86 @@ export default function SociForm() {
   const navigate = useNavigate();
   const { confirma } = useConfirmacio();
 
-  useEffect(() => {
-    if (!editant) return;
-    getDoc(doc(db, 'socis', id)).then((snap) => {
-      setDades({ ...CAMPS_INICIALS, ...snap.data() });
-      setOrganitzacioInicial(Boolean(snap.data()?.organitzacio));
-      setCarregant(false);
-    });
-  }, [id, editant]);
+  // Escriu el document desat amb només els camps canviats (els no tocats es conserven tal com eren, `null` inclòs).
+  const onDesar = async ({ valors: v, canviats }) => {
+    const escrit = { ...desat, ...Object.fromEntries(canviats.map((camp) => [camp, v[camp]])) };
+    if (!editant) {
+      const data = avui();
+      const creat = await addDoc(collection(db, 'socis'), {
+        ...escrit,
+        dataAlta: data,
+        ultimPagament: data,
+        actiu: true,
+        tokenCarnet: crypto.randomUUID(),
+      });
+      navigate(ROUTES.SOCIS_EDITAR.replace(':id', creat.id), { replace: true });
+      return undefined;
+    }
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'socis', id), escrit);
+    if (estaActiu(escrit)) sincronitzarSociPublic(batch, db, escrit);
+    // El nom amb què es mostren les seves propostes es desa a cada
+    // proposta: si canvia el fet de ser de l'organització, s'hi propaga.
+    if (Boolean(escrit.organitzacio) !== Boolean(desat.organitzacio) && escrit.numeroSoci) {
+      const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(escrit.numeroSoci))));
+      propostes.docs.forEach((p) => batch.update(p.ref, { nomProposant: calcularNomPublic(escrit) }));
+    }
+    await batch.commit();
+    setDesat(escrit);
+    return undefined;
+  };
+
+  const {
+    valors, canvia, estat, desa, descarta, errorDesat,
+  } = useFitxaEditable({ inicial, onDesar });
+  const desant = estat === 'desant';
+  // Per mostrar: el document desat amb els canvis pendents del formulari.
+  const dades = { ...desat, ...valors };
 
   useEffect(() => {
-    if (!editant || !dades.numeroSoci) return;
+    if (!editant || !desat.numeroSoci) return;
     Promise.all([
       getDocs(collection(db, 'sessions')),
-      getDocs(query(collection(db, 'accessLog'), where('numeroSoci', '==', Number(dades.numeroSoci)))),
+      getDocs(query(collection(db, 'accessLog'), where('numeroSoci', '==', Number(desat.numeroSoci)))),
     ]).then(([sessionsSnap, accessLogSnap]) => {
       const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.data && s.data <= avui());
       const entradesSoci = accessLogSnap.docs.map((d) => d.data());
       setAssistencies(assistenciaPerSessio(sessions, entradesSoci));
     });
-  }, [editant, dades.numeroSoci]);
+  }, [editant, desat.numeroSoci]);
 
   useEffect(() => {
-    if (!editant || !dades.numeroSoci) return;
+    if (!editant || !desat.numeroSoci) return;
     getDocs(query(
       collection(db, 'moviments'),
       where('categoria', '==', CATEGORIA_QUOTA_SOCI),
-      where('numeroSoci', '==', Number(dades.numeroSoci))
+      where('numeroSoci', '==', Number(desat.numeroSoci))
     )).then((snap) => {
       const llista = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''));
       setPagaments(llista);
     });
-  }, [editant, dades.numeroSoci]);
+  }, [editant, desat.numeroSoci]);
 
-  const handleChange = (camp) => (e) => {
-    setDades((d) => ({ ...d, [camp]: e.target.value }));
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!operantRef.current) desa();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+  // Les accions del soci (estat, carnet) escriuen el document desat al moment, sense els canvis pendents del
+  // formulari; mentre n'hi ha una en curs, «Desar» queda bloquejat (i a l'inrevés) perquè no es trepitgin.
+  const opera = async (accio, missatgeError) => {
+    operantRef.current = true;
+    setOperant(true);
+    setErrorEstat(null);
     try {
-      if (editant) {
-        const batch = writeBatch(db);
-        batch.update(doc(db, 'socis', id), dades);
-        if (estaActiu(dades)) sincronitzarSociPublic(batch, db, dades);
-        // El nom amb què es mostren les seves propostes es desa a cada
-        // proposta: si canvia el fet de ser de l'organització, s'hi propaga.
-        if (Boolean(dades.organitzacio) !== organitzacioInicial && dades.numeroSoci) {
-          const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(dades.numeroSoci))));
-          propostes.docs.forEach((p) => batch.update(p.ref, { nomProposant: calcularNomPublic(dades) }));
-        }
-        await batch.commit();
-      } else {
-        const data = avui();
-        await addDoc(collection(db, 'socis'), {
-          ...dades,
-          dataAlta: data,
-          ultimPagament: data,
-          actiu: true,
-          tokenCarnet: crypto.randomUUID(),
-        });
-      }
-      navigate(ROUTES.SOCIS);
+      await accio();
     } catch {
-      setError("No s'ha pogut desar. Torna-ho a provar.");
+      setErrorEstat(missatgeError);
+    } finally {
+      operantRef.current = false;
+      setOperant(false);
     }
   };
 
@@ -145,19 +167,16 @@ export default function SociForm() {
       etiquetaAcceptar: 'Desactiva',
     });
     if (!confirmat) return;
-    setErrorEstat(null);
-    try {
+    await opera(async () => {
       const actualitzacio = { actiu: false, motiuDesactivacio: motiuDesactivacio.trim(), dataDesactivacio: avui() };
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacio);
-      esborrarSociPublic(batch, db, dades.tokenCarnet);
+      esborrarSociPublic(batch, db, desat.tokenCarnet);
       await batch.commit();
-      setDades((d) => ({ ...d, ...actualitzacio }));
+      setDesat((d) => ({ ...d, ...actualitzacio }));
       setMotiuDesactivacio('');
       setMostrarFormDesactivacio(false);
-    } catch {
-      setErrorEstat("No s'ha pogut desar. Torna-ho a provar.");
-    }
+    }, "No s'ha pogut desar. Torna-ho a provar.");
   };
 
   const handleRegenerarCarnet = async () => {
@@ -167,37 +186,31 @@ export default function SociForm() {
       etiquetaAcceptar: 'Regenera',
     });
     if (!confirmat) return;
-    setErrorEstat(null);
-    try {
+    await opera(async () => {
       const nouToken = crypto.randomUUID();
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), { tokenCarnet: nouToken });
-      esborrarSociPublic(batch, db, dades.tokenCarnet);
-      sincronitzarSociPublic(batch, db, { ...dades, tokenCarnet: nouToken });
+      esborrarSociPublic(batch, db, desat.tokenCarnet);
+      sincronitzarSociPublic(batch, db, { ...desat, tokenCarnet: nouToken });
       await batch.commit();
-      setDades((d) => ({ ...d, tokenCarnet: nouToken }));
-    } catch {
-      setErrorEstat("No s'ha pogut regenerar el carnet. Torna-ho a provar.");
-    }
+      setDesat((d) => ({ ...d, tokenCarnet: nouToken }));
+    }, "No s'ha pogut regenerar el carnet. Torna-ho a provar.");
   };
 
   const handleReactivar = async () => {
     const confirmat = await confirma({ missatge: 'Segur que vols reactivar aquest soci?', etiquetaAcceptar: 'Reactiva' });
     if (!confirmat) return;
-    setErrorEstat(null);
-    try {
+    await opera(async () => {
       const actualitzacio = { actiu: true, motiuDesactivacio: null, dataDesactivacio: null };
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacio);
-      sincronitzarSociPublic(batch, db, dades);
+      sincronitzarSociPublic(batch, db, desat);
       await batch.commit();
-      setDades((d) => ({ ...d, ...actualitzacio }));
-    } catch {
-      setErrorEstat("No s'ha pogut desar. Torna-ho a provar.");
-    }
+      setDesat((d) => ({ ...d, ...actualitzacio }));
+    }, "No s'ha pogut desar. Torna-ho a provar.");
   };
 
-  if (carregant) return <Carregant />;
+  const accionsBloquejades = desant || operant;
 
   const estatSoci = dades.ultimPagament ? calcularEstatSoci(dades) : ESTAT_NOU_REGISTRE;
   const venciment = dades.ultimPagament ? calcularVenciment(dades) : null;
@@ -223,22 +236,22 @@ export default function SociForm() {
     { name: 'No hi ha assistit', value: sessionsNoAssistidesPeriodeActual.length, color: COLOR_NO_ASSISTEIX },
   ].filter((d) => d.value > 0);
 
+  // Les seccions de pagaments i sessions van després de `PaginaAdmin` (a tot l'ample): l'espai per a la barra
+  // fixa es reserva al final de tot.
   return (
-    <>
+    <div className="espai-barra-desar">
       <PaginaAdmin
         amplada="fitxa"
         titol={editant ? 'Fitxa del soci/a' : "Donar d'alta un/a soci/a"}
+        tornar={TORNAR}
         accions={editant && (
-          <>
-            <span className="soci-form__pagament-mobil">
-              <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
-            </span>
-            {!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
-          </>
+          <span className="soci-form__pagament-mobil">
+            <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
+          </span>
         )}
       >
         <div className="soci-form-pagina">
-          <form className="soci-form" onSubmit={handleSubmit}>
+          <form className="soci-form" onSubmit={handleSubmit} noValidate>
             {editant && (
               <div className="soci-form__dades-clau">
                 <p className="soci-form__numero">
@@ -260,10 +273,9 @@ export default function SociForm() {
                 <label className="form__label" htmlFor={camp}>{etiqueta}</label>
                 <input
                   id={camp}
-                  className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
-                  value={dades[camp] ?? ''}
-                  onChange={handleChange(camp)}
-                  readOnly={!desbloquejat}
+                  className="form__input"
+                  value={valors[camp]}
+                  onChange={(e) => canvia(camp, e.target.value)}
                 />
               </div>
             ))}
@@ -273,9 +285,8 @@ export default function SociForm() {
                 <input
                   id="organitzacio"
                   type="checkbox"
-                  checked={Boolean(dades.organitzacio)}
-                  onChange={(e) => setDades((d) => ({ ...d, organitzacio: e.target.checked }))}
-                  disabled={!desbloquejat}
+                  checked={valors.organitzacio}
+                  onChange={(e) => canvia('organitzacio', e.target.checked)}
                 />
                 Persona de l'organització del Cineclub
               </label>
@@ -284,9 +295,7 @@ export default function SociForm() {
               </p>
             </div>
 
-            {error && <p className="form__error">{error}</p>}
-
-            {desbloquejat && <button className="btn" type="submit">Desar</button>}
+            <BarraDesar estat={estat} onDescarta={descarta} missatgeError={errorDesat} bloquejada={operant} />
           </form>
 
           {editant && (
@@ -297,7 +306,7 @@ export default function SociForm() {
                   <Link className="soci-form-pagina__carnet" to={ROUTES.SOCIS_CARNET.replace(':id', id)}>
                     <CarnetCard soci={dades} />
                   </Link>
-                  <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet}>
+                  <button type="button" className="soci-form__accio-petita" onClick={handleRegenerarCarnet} disabled={accionsBloquejades}>
                     Regenerar carnet
                   </button>
                 </div>
@@ -318,7 +327,7 @@ export default function SociForm() {
                       Desactivat el {formatData(dades.dataDesactivacio)}
                       {dades.motiuDesactivacio ? `: ${dades.motiuDesactivacio}` : ''}
                     </p>
-                    <button type="button" className="soci-form__accio-petita" onClick={handleReactivar}>Reactivar soci</button>
+                    <button type="button" className="soci-form__accio-petita" onClick={handleReactivar} disabled={accionsBloquejades}>Reactivar soci</button>
                   </>
                 ) : mostrarFormDesactivacio ? (
                   <>
@@ -331,10 +340,10 @@ export default function SociForm() {
                         onChange={(e) => setMotiuDesactivacio(e.target.value)}
                       />
                     </div>
-                    <button type="button" className="btn btn--outline" onClick={handleDesactivar}>Confirmar desactivació</button>
+                    <button type="button" className="btn btn--outline" onClick={handleDesactivar} disabled={accionsBloquejades}>Confirmar desactivació</button>
                   </>
                 ) : (
-                  <button type="button" className="soci-form__accio-petita" onClick={() => setMostrarFormDesactivacio(true)}>
+                  <button type="button" className="soci-form__accio-petita" onClick={() => setMostrarFormDesactivacio(true)} disabled={accionsBloquejades}>
                     Desactivar soci
                   </button>
                 )}
@@ -440,6 +449,45 @@ export default function SociForm() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
+}
+
+// Si s'edita, carrega el soci; la fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
+function CarregaSoci({ id }) {
+  const [soci, setSoci] = useState(null);
+  const [errorCarrega, setErrorCarrega] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!id) return undefined;
+    let actiu = true;
+    getDoc(doc(db, 'socis', id)).then((snap) => {
+      if (!actiu) return;
+      const dadesDoc = snap.data();
+      if (!dadesDoc) {
+        navigate(ROUTES.SOCIS, { replace: true });
+        return;
+      }
+      setSoci({ ...CAMPS_INICIALS, ...dadesDoc });
+    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    return () => { actiu = false; };
+  }, [id, navigate]);
+
+  if (!id) return <FitxaSoci soci={CAMPS_INICIALS} />;
+  if (errorCarrega) {
+    return (
+      <PaginaAdmin amplada="fitxa" titol="Fitxa del soci/a" tornar={TORNAR}>
+        <p className="form__error" role="alert">{errorCarrega}</p>
+      </PaginaAdmin>
+    );
+  }
+  if (!soci) return <Carregant />;
+  return <FitxaSoci id={id} soci={soci} />;
+}
+
+// Clau per soci: en passar de l'alta a la fitxa del soci creat, l'estat comença de nou.
+export default function SociForm() {
+  const { id } = useParams();
+  return <CarregaSoci key={id ?? 'nou'} id={id} />;
 }

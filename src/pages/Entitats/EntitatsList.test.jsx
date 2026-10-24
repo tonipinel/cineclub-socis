@@ -28,24 +28,31 @@ describe('EntitatsList', () => {
     expect(noms[1]).toHaveAttribute('href', '/entitats/e2');
   });
 
-  it('mostra la miniatura del logo amb el nom com a alt, i res si no n\'hi ha', async () => {
+  it('cada fila té la miniatura del logo (decorativa, el nom ja és a l\'enllaç) o un espai buit de la mateixa mida', async () => {
     getDocs.mockResolvedValueOnce(resposta(ENTITATS));
-    render(<MemoryRouter><EntitatsList /></MemoryRouter>);
-    const logo = await screen.findByRole('img', { name: 'Ateneu Rodenc' });
+    const { container } = render(<MemoryRouter><EntitatsList /></MemoryRouter>);
+    const nom = await screen.findByRole('link', { name: 'Ateneu Rodenc' });
+    const files = container.querySelectorAll('.llista-cataleg__item');
+    expect(files).toHaveLength(3);
+    const ateneu = files[1];
+    const logo = ateneu.querySelector('img');
     expect(logo).toHaveAttribute('src', 'https://logos.test/ateneu.png');
-    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(logo).toHaveAttribute('alt', '');
+    expect(logo).toHaveClass('llista-cataleg__logo');
+    expect(ateneu).toContainElement(nom);
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
   });
 
   it('les files sense logo reserven l\'espai del logo (amagat per a lectors) perquè els noms quedin alineats', async () => {
     getDocs.mockResolvedValueOnce(resposta(ENTITATS));
     render(<MemoryRouter><EntitatsList /></MemoryRouter>);
-    await screen.findByRole('img', { name: 'Ateneu Rodenc' });
+    await screen.findByRole('link', { name: 'Ateneu Rodenc' });
     const sense = ENTITATS.filter((e) => !e.logo).length;
     const buits = screen.getAllByTestId('logo-buit');
     expect(buits).toHaveLength(sense);
     buits.forEach((b) => {
       expect(b).toHaveAttribute('aria-hidden', 'true');
-      expect(b).toHaveClass('entitats-list__logo');
+      expect(b).toHaveClass('llista-cataleg__logo', 'llista-cataleg__logo--buit');
     });
   });
 
@@ -56,6 +63,7 @@ describe('EntitatsList', () => {
     expect(url).toHaveAttribute('href', 'https://agora.test/');
     expect(url).toHaveAttribute('target', '_blank');
     expect(url).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(url).toHaveClass('enllac', 'llista-cataleg__web');
   });
 
   it('buit: avisa i ofereix crear-ne una', async () => {

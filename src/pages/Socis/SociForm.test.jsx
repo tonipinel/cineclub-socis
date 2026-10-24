@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import {
+  MemoryRouter, Routes, Route, useLocation, useNavigationType,
+} from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 vi.mock('qrcode', () => ({
@@ -14,7 +16,7 @@ vi.mock('firebase/firestore', () => {
   const batchCommit = vi.fn().mockResolvedValue(undefined);
   const writeBatch = vi.fn(() => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }));
   return {
-    addDoc: vi.fn().mockResolvedValue({ id: 'nou' }),
+    addDoc: vi.fn().mockResolvedValue({ id: 's9' }),
     getDoc: vi.fn(),
     getDocs: vi.fn().mockResolvedValue({ docs: [] }),
     collection: vi.fn((_, nom) => nom),
@@ -37,173 +39,391 @@ import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
 } from '../../test/confirmacio';
 
-describe('SociForm — alta', () => {
-  beforeEach(() => addDoc.mockClear());
+// Ruta actual i tipus de l'última navegació (per comprovar el `replace` en crear).
+function Ubicacio() {
+  const { pathname } = useLocation();
+  return <p data-testid="ubicacio">{`${pathname} ${useNavigationType()}`}</p>;
+}
 
-  it('crea un soci nou amb dataAlta i ultimPagament iguals', async () => {
+function renderNou() {
+  return renderAmbConfirmacio(
+    <MemoryRouter initialEntries={['/socis/nou']}>
+      <Routes>
+        <Route path="/socis/nou" element={<SociForm />} />
+        <Route path="/socis/:id" element={<p>Fitxa del soci creat</p>} />
+        <Route path="/socis" element={<p>Llistat de socis</p>} />
+      </Routes>
+      <Ubicacio />
+    </MemoryRouter>
+  );
+}
+
+function renderExistent() {
+  return renderAmbConfirmacio(
+    <MemoryRouter initialEntries={['/socis/1']}>
+      <Routes>
+        <Route path="/socis/:id" element={<SociForm />} />
+        <Route path="/socis" element={<p>Llistat de socis</p>} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
+const barra = () => document.querySelector('.barra-desar');
+const carrega = (dades) => getDoc.mockResolvedValueOnce({ data: () => dades });
+const CAMPS_BUITS = {
+  numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
+  telefon: '', correuElectronic: '', dni: '', grupWhatsapp: '',
+};
+const ETIQUETES_CAMPS = ['Nom', 'Cognoms', 'Població', 'Codi postal', 'Telèfon', 'Correu electrònic', 'DNI', 'Grup WhatsApp'];
+// Soci desat amb camps que el formulari no mostra (s'han de conservar tal qual en desar).
+const SOCI_COMPLET = {
+  numeroSoci: 7,
+  nom: 'Anna',
+  cognoms: 'Vidal',
+  poblacio: 'Roda de Berà',
+  codiPostal: '43883',
+  telefon: '600000000',
+  correuElectronic: 'anna@exemple.cat',
+  dni: '12345678Z',
+  grupWhatsapp: null,
+  dataAlta: '2026-02-15',
+  ultimPagament: '2026-08-29',
+  inicPeriode: '2026-09-01',
+  tokenCarnet: 'tok-1',
+  actiu: true,
+  estatManual: 'pendent',
+  motiuDesactivacio: '',
+};
+
+function reiniciaEscriptures() {
+  addDoc.mockClear();
+  writeBatch.mockClear();
+  __batchSet.mockClear();
+  __batchUpdate.mockClear();
+  __batchDelete.mockClear();
+  __batchCommit.mockClear();
+  __batchCommit.mockResolvedValue(undefined);
+}
+
+// Després de desar un soci existent, es queda a la fitxa amb «Desat ✓».
+async function esperaDesat() {
+  expect(await within(barra()).findByText('Desat ✓')).toBeInTheDocument();
+  expect(screen.queryByText('Llistat de socis')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Fitxa del soci/a' })).toBeInTheDocument();
+}
+
+describe('SociForm — alta', () => {
+  beforeEach(() => {
+    reiniciaEscriptures();
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-alta');
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('crea un soci nou amb dataAlta i ultimPagament iguals, actiu i amb token de carnet, i passa a la fitxa nova', async () => {
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/nou']}>
-        <Routes>
-          <Route path="/socis/nou" element={<SociForm />} />
-          <Route path="/socis" element={<p>Llistat de socis</p>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderNou();
     await user.type(screen.getByLabelText('Nom'), 'Anna');
     await user.type(screen.getByLabelText('Cognoms'), 'Vidal');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(await screen.findByText('Llistat de socis')).toBeInTheDocument();
-    const [, dadesDesades] = addDoc.mock.calls[0];
-    expect(dadesDesades.nom).toBe('Anna');
-    expect(dadesDesades.dataAlta).toBe(dadesDesades.ultimPagament);
+    expect(await screen.findByText('Fitxa del soci creat')).toBeInTheDocument();
+    expect(screen.getByTestId('ubicacio')).toHaveTextContent('/socis/s9 REPLACE');
+    expect(addDoc).toHaveBeenCalledTimes(1);
+    const [colleccio, dadesDesades] = addDoc.mock.calls[0];
+    expect(colleccio).toBe('socis');
+    expect(dadesDesades).toEqual({
+      ...CAMPS_BUITS,
+      nom: 'Anna',
+      cognoms: 'Vidal',
+      dataAlta: dadesDesades.dataAlta,
+      ultimPagament: dadesDesades.dataAlta,
+      actiu: true,
+      tokenCarnet: 'token-alta',
+    });
+    expect(dadesDesades.dataAlta).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(writeBatch).not.toHaveBeenCalled();
   });
 
-  it('mostra un error i no navega si la creació falla', async () => {
+  it('desa tots els camps escrits i, si es marca, que és de l\'organització', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    const valors = ['Anna', 'Vidal', 'Roda', '43883', '600', 'a@b.cat', '1Z', 'Grup 1'];
+    for (const [i, etiqueta] of ETIQUETES_CAMPS.entries()) {
+      await user.type(screen.getByLabelText(etiqueta), valors[i]);
+    }
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await screen.findByText('Fitxa del soci creat');
+    const [, dadesDesades] = addDoc.mock.calls[0];
+    expect(dadesDesades).toEqual({
+      numeroSoci: '',
+      nom: 'Anna',
+      cognoms: 'Vidal',
+      poblacio: 'Roda',
+      codiPostal: '43883',
+      telefon: '600',
+      correuElectronic: 'a@b.cat',
+      dni: '1Z',
+      grupWhatsapp: 'Grup 1',
+      organitzacio: true,
+      dataAlta: dadesDesades.dataAlta,
+      ultimPagament: dadesDesades.dataAlta,
+      actiu: true,
+      tokenCarnet: 'token-alta',
+    });
+  });
+
+  it('mostra l\'error a la barra i es queda a l\'alta amb els valors si la creació falla', async () => {
     addDoc.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/nou']}>
-        <Routes>
-          <Route path="/socis/nou" element={<SociForm />} />
-          <Route path="/socis" element={<p>Llistat de socis</p>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderNou();
     await user.type(screen.getByLabelText('Nom'), 'Anna');
     await user.type(screen.getByLabelText('Cognoms'), 'Vidal');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
-    expect(screen.queryByText('Llistat de socis')).not.toBeInTheDocument();
+    expect(await within(barra()).findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    expect(screen.queryByText('Fitxa del soci creat')).not.toBeInTheDocument();
+    expect(screen.getByTestId('ubicacio')).toHaveTextContent('/socis/nou');
+    expect(screen.getByLabelText('Nom')).toHaveValue('Anna');
   });
 
-  it('en crear un soci nou, es genera un token de carnet', async () => {
+  it('en crear, un doble clic a «Desar» escriu un sol document', async () => {
+    let resol;
+    addDoc.mockImplementationOnce(() => new Promise((r) => { resol = r; }));
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/nou']}>
-        <Routes>
-          <Route path="/socis/nou" element={<SociForm />} />
-          <Route path="/socis" element={<p>Llistat de socis</p>} />
-        </Routes>
-      </MemoryRouter>
-    );
+    renderNou();
     await user.type(screen.getByLabelText('Nom'), 'Anna');
-    await user.type(screen.getByLabelText('Cognoms'), 'Vidal');
-    await user.click(screen.getByRole('button', { name: 'Desar' }));
-    await screen.findByText('Llistat de socis');
-    const [, dadesDesades] = addDoc.mock.calls[0];
-    expect(typeof dadesDesades.tokenCarnet).toBe('string');
-    expect(dadesDesades.tokenCarnet.length).toBeGreaterThan(0);
+    await user.dblClick(screen.getByRole('button', { name: 'Desar' }));
+    expect(within(barra()).getByText('Desant…')).toBeInTheDocument();
+    resol({ id: 's9' });
+    expect(await screen.findByText('Fitxa del soci creat')).toBeInTheDocument();
+    expect(addDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('sense cap canvi, «Desar» està deshabilitat i no es crea res', () => {
+    renderNou();
+    expect(within(barra()).getByText('Sense canvis')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
+  it('«Descartar canvis» buida el que s\'ha escrit', async () => {
+    const user = userEvent.setup();
+    renderNou();
+    await user.type(screen.getByLabelText('Nom'), 'Anna');
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+    expect(screen.getByLabelText('Nom')).toHaveValue('');
+    expect(screen.getByLabelText("Persona de l'organització del Cineclub")).not.toBeChecked();
+    expect(within(barra()).getByText('Sense canvis')).toBeInTheDocument();
   });
 });
 
 describe('SociForm — layout', () => {
-  it("l'alta usa el layout de fitxa amb un únic h1", () => {
+  it("l'alta usa el layout de fitxa amb un únic h1, l'enllaç «← Socis» i la barra de desar", () => {
     const { container } = renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/nou']}>
         <Routes><Route path="/socis/nou" element={<SociForm />} /></Routes>
       </MemoryRouter>
     );
-    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(container.querySelector('.pagina-admin')).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
     const titols = screen.getAllByRole('heading', { level: 1 });
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent("Donar d'alta un/a soci/a");
+    expect(screen.getByRole('link', { name: '← Socis' })).toHaveAttribute('href', '/socis');
+    expect(barra()).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' }).closest('form')).toHaveAttribute('novalidate');
   });
 
-  it('la fitxa usa el layout de fitxa amb un únic h1 i el botó Editar a la capçalera', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    const { container } = renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    const editar = await screen.findByRole('button', { name: 'Editar dades' });
-    expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+  it('la fitxa usa el layout de fitxa amb un únic h1, l\'enllaç «← Socis» i sense botó «Editar»', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' });
+    const { container } = renderExistent();
+    await screen.findByLabelText('Nom');
+    expect(container.querySelector('.pagina-admin')).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
     const titols = screen.getAllByRole('heading', { level: 1 });
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent('Fitxa del soci/a');
-    expect(editar.closest('.pagina-admin__accions')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '← Socis' })).toHaveAttribute('href', '/socis');
+    expect(screen.queryByRole('button', { name: /^Editar/ })).not.toBeInTheDocument();
+  });
+
+  it('reserva l\'espai de la barra al final de tota la fitxa (també sota les seccions de pagaments i sessions)', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' });
+    const { container } = renderExistent();
+    await screen.findByText('Pagaments de la quota');
+    expect(container.firstChild).toHaveClass('espai-barra-desar');
+    expect(container.firstChild).toContainElement(screen.getByText('Pagaments de la quota'));
+  });
+
+  it('si la càrrega falla, mostra un avís (no el carregador) i l\'enllaç a la llista', async () => {
+    getDoc.mockRejectedValueOnce(new Error('xarxa'));
+    renderExistent();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el soci. Torna-ho a provar.");
+    expect(screen.getByRole('link', { name: '← Socis' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument();
+  });
+
+  it('un soci inexistent torna al llistat', async () => {
+    carrega(undefined);
+    renderExistent();
+    expect(await screen.findByText('Llistat de socis')).toBeInTheDocument();
   });
 });
 
-describe('SociForm — mode lectura/edició', () => {
-  it('en editar un soci existent, els camps són de només lectura per defecte', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    expect(await screen.findByLabelText('Nom')).toHaveAttribute('readonly');
-    expect(screen.queryByRole('button', { name: 'Desar' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Editar dades' })).toBeInTheDocument();
+describe('SociForm — edició directa', () => {
+  beforeEach(() => reiniciaEscriptures());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('en obrir un soci existent, els camps són editables directament, «Sense canvis» i «Desar» deshabilitat', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' });
+    renderExistent();
+    await screen.findByLabelText('Nom');
+    ETIQUETES_CAMPS.forEach((etiqueta) => {
+      const camp = screen.getByLabelText(etiqueta);
+      expect(camp).not.toHaveAttribute('readonly');
+    });
+    expect(screen.getByLabelText("Persona de l'organització del Cineclub")).toBeEnabled();
+    expect(within(barra()).getByText('Sense canvis')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
   });
 
-  it('en clicar "Editar dades", els camps es tornen editables i apareix Desar', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+  it('desa el document complet (inclosos els camps que el formulari no mostra) i es queda a la fitxa', async () => {
+    carrega(SOCI_COMPLET);
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    expect(screen.getByLabelText('Nom')).not.toHaveAttribute('readonly');
-    expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchCommit).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...SOCI_COMPLET, telefon: '6000000001' });
+    expect(__batchSet).toHaveBeenCalledTimes(1);
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
+  it('afegeix al document els camps del formulari que no hi eren (buits), com abans', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: true });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('DNI'), '1Z');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate).toHaveBeenCalledWith('1', {
+      ...CAMPS_BUITS, nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: true, dni: '1Z',
+    });
+  });
+
+  it('després de desar continua editable i un segon desat escriu tots dos canvis', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    await user.type(screen.getByLabelText('Grup WhatsApp'), 'Grup A');
+    expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { ...SOCI_COMPLET, telefon: '6000000001', grupWhatsapp: 'Grup A' }]);
+  });
+
+  it('un doble clic a «Desar» fa una sola escriptura', async () => {
+    carrega(SOCI_COMPLET);
+    let resol;
+    __batchCommit.mockImplementationOnce(() => new Promise((r) => { resol = r; }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.dblClick(screen.getByRole('button', { name: 'Desar' }));
+    expect(within(barra()).getByText('Desant…')).toBeInTheDocument();
+    resol();
+    await esperaDesat();
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('«Descartar canvis» torna als valors desats sense escriure', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    const nom = await screen.findByLabelText('Nom');
+    await user.clear(nom);
+    await user.type(nom, 'Joana');
+    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    await user.click(screen.getByRole('button', { name: 'Descartar canvis' }));
+    expect(nom).toHaveValue('Anna');
+    expect(screen.getByLabelText("Persona de l'organització del Cineclub")).not.toBeChecked();
+    expect(within(barra()).getByText('Sense canvis')).toBeInTheDocument();
+    expect(__batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('si l\'escriptura falla, la barra ho diu i els canvis es conserven', async () => {
+    carrega(SOCI_COMPLET);
+    __batchCommit.mockRejectedValueOnce(new Error('xarxa'));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await within(barra()).findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    expect(screen.getByLabelText('Telèfon')).toHaveValue('6000000001');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+  });
+
+  it('amb canvis sense desar, sortir per l\'enllaç demana confirmació', async () => {
+    carrega(SOCI_COMPLET);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('link', { name: '← Socis' }));
+    expect(confirm).toHaveBeenCalledWith('Hi ha canvis sense desar. Vols sortir igualment?');
+    expect(screen.queryByText('Llistat de socis')).not.toBeInTheDocument();
+  });
+
+  it('sense canvis, sortir per l\'enllaç no demana confirmació', async () => {
+    carrega(SOCI_COMPLET);
+    const confirm = vi.spyOn(window, 'confirm');
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('link', { name: '← Socis' }));
+    expect(await screen.findByText('Llistat de socis')).toBeInTheDocument();
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it('mostra la data de sol·licitud i la de l\'últim pagament, sense poder-les editar directament', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({
-        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', dataAlta: '2026-02-15', ultimPagament: '2026-08-29',
-      }),
+    carrega({
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', dataAlta: '2026-02-15', ultimPagament: '2026-08-29',
     });
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
+    renderExistent();
     expect(await screen.findByText('Data de sol·licitud: 15/02/2026')).toBeInTheDocument();
     expect(screen.getByText('Últim pagament: 29/08/2026')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('2026-02-15')).not.toBeInTheDocument();
   });
 
   it('mostra la data d\'activació del carnet (inicPeriode) quan ja s\'ha fixat', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({
-        nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', inicPeriode: '2026-08-06',
-      }),
+    carrega({
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', inicPeriode: '2026-08-06',
     });
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
+    renderExistent();
     expect(await screen.findByText('Activació del carnet: 06/08/2026')).toBeInTheDocument();
   });
 
   it('indica que encara no s\'ha activat el carnet quan no hi ha inicPeriode', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23' }),
-    });
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23' });
+    renderExistent();
     expect(await screen.findByText('Activació del carnet: Encara no ha escanejat des del pagament')).toBeInTheDocument();
   });
 
   it('en crear un soci nou, els camps ja són editables sense cal clicar res', () => {
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/nou']}>
-        <Routes><Route path="/socis/nou" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
+    renderNou();
     expect(screen.getByLabelText('Nom')).not.toHaveAttribute('readonly');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar dades' })).not.toBeInTheDocument();
   });
 });
+
 
 describe('SociForm — accions', () => {
   it('mostra a la columna d\'accions un enllaç per registrar un pagament', async () => {
@@ -670,134 +890,239 @@ describe('SociForm — cancel·lar les confirmacions de desactivar i reactivar',
   });
 });
 
-describe('SociForm — sincronització de socisPublic en desar', () => {
-  beforeEach(() => {
-    writeBatch.mockClear();
-    __batchSet.mockClear();
-    __batchUpdate.mockClear();
-    __batchCommit.mockClear();
-    __batchCommit.mockResolvedValue(undefined);
-  });
 
-  it('en editar un soci amb numeroSoci i tokenCarnet, sincronitza socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1' }),
-    });
+describe('SociForm — sincronització de socisPublic en desar', () => {
+  beforeEach(() => reiniciaEscriptures());
+
+  it('en editar un soci amb numeroSoci i tokenCarnet, sincronitza socisPublic dins del mateix lot', async () => {
+    carrega({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1' });
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate).toHaveBeenCalledWith('1', {
+      ...CAMPS_BUITS, nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', telefon: '600',
+    });
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
   });
 
-  it('en editar un soci sense numeroSoci encara, no toca socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '', tokenCarnet: 'tok-1' }),
-    });
+  it('un canvi de nom es reflecteix al nom públic que es desa', async () => {
+    carrega({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1' });
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Cognoms'));
+    await user.type(screen.getByLabelText('Cognoms'), 'Puig');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel P.' });
+  });
+
+  it('en editar un soci sense numeroSoci encara, no toca socisPublic', async () => {
+    carrega({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '', tokenCarnet: 'tok-1' });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).not.toHaveBeenCalled();
   });
 
   it('en editar un soci desactivat, no torna a escriure socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
-      data: () => ({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false }),
-    });
+    carrega({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false });
     const user = userEvent.setup();
-    renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate).toHaveBeenCalledWith('1', expect.objectContaining({ actiu: false, telefon: '600' }));
     expect(__batchSet).not.toHaveBeenCalled();
   });
 });
 
 describe('SociForm — persona de l\'organització', () => {
   beforeEach(() => {
-    writeBatch.mockClear();
-    __batchSet.mockClear();
-    __batchUpdate.mockClear();
-    __batchCommit.mockClear();
-    __batchCommit.mockResolvedValue(undefined);
+    reiniciaEscriptures();
     getDocs.mockClear();
   });
+  afterEach(() => getDocs.mockResolvedValue({ docs: [] }));
 
   const SOCI = { nom: 'Toni', cognoms: 'Pinel', numeroSoci: '9', tokenCarnet: 'tok-9' };
-
-  function renderSoci() {
-    return renderAmbConfirmacio(
-      <MemoryRouter initialEntries={['/socis/1']}>
-        <Routes><Route path="/socis/:id" element={<SociForm />} /></Routes>
-      </MemoryRouter>
-    );
-  }
+  const ORGANITZACIO = "Persona de l'organització del Cineclub";
 
   it('en marcar-lo com a persona de l\'organització, el seu nom públic passa a ser el de l\'organització', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => SOCI });
+    carrega(SOCI);
     const user = userEvent.setup();
-    renderSoci();
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    renderExistent();
+    await user.click(await screen.findByLabelText(ORGANITZACIO));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).toHaveBeenCalledWith('tok-9', { numeroSoci: 9, nomPublic: 'Organització Cineclub Roda de Berà' });
-    expect(__batchUpdate.mock.calls[0][1]).toMatchObject({ organitzacio: true });
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { ...CAMPS_BUITS, ...SOCI, organitzacio: true }]);
   });
 
   it('el canvi es propaga al nom que mostren les propostes que ja havia fet', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => SOCI });
+    carrega(SOCI);
     const referencia = { id: 'p1' };
     getDocs.mockImplementation(async () => ({ docs: [{ ref: referencia, data: () => ({}) }] }));
     const user = userEvent.setup();
-    renderSoci();
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    renderExistent();
+    await user.click(await screen.findByLabelText(ORGANITZACIO));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Organització Cineclub Roda de Berà' });
-    getDocs.mockResolvedValue({ docs: [] });
   });
 
   it('en deixar de ser-ho, les seves propostes tornen a mostrar el seu nom', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI, organitzacio: true }) });
+    carrega({ ...SOCI, organitzacio: true });
     const referencia = { id: 'p1' };
     getDocs.mockImplementation(async () => ({ docs: [{ ref: referencia, data: () => ({}) }] }));
     const user = userEvent.setup();
-    renderSoci();
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
-    await user.click(screen.getByLabelText("Persona de l'organització del Cineclub"));
+    renderExistent();
+    await user.click(await screen.findByLabelText(ORGANITZACIO));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Toni P.' });
-    getDocs.mockResolvedValue({ docs: [] });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: false });
   });
 
   it('si no es canvia, no es toquen les propostes', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI, organitzacio: true }) });
+    carrega({ ...SOCI, organitzacio: true });
     const user = userEvent.setup();
-    renderSoci();
-    await user.click(await screen.findByRole('button', { name: 'Editar dades' }));
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchUpdate).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: true, telefon: '600' });
+  });
+
+  it('un soci sense el camp organitzacio no el rep en desar un altre canvi', async () => {
+    carrega(SOCI);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '600');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls[0][1]).not.toHaveProperty('organitzacio');
+  });
+
+  it('després de desar, la comparació es fa amb el valor desat: desmarcar-lo i tornar a desar torna a propagar', async () => {
+    carrega(SOCI);
+    const referencia = { id: 'p1' };
+    getDocs.mockImplementation(async () => ({ docs: [{ ref: referencia, data: () => ({}) }] }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByLabelText(ORGANITZACIO));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    await user.click(screen.getByLabelText(ORGANITZACIO));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Organització Cineclub Roda de Berà' });
+    expect(__batchUpdate).toHaveBeenLastCalledWith(referencia, { nomProposant: 'Toni P.' });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: false });
   });
 });
+
+describe('SociForm — accions de la fitxa amb canvis pendents', () => {
+  beforeEach(() => {
+    reiniciaEscriptures();
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-nou');
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('desactivar amb canvis pendents no els desa ni els perd, i el desat posterior conserva la desactivació', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Baixa');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await acceptaDialeg('Desactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    const [, desactivacio] = __batchUpdate.mock.calls[0];
+    expect(desactivacio).toEqual({ actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: expect.any(String) });
+    expect(await screen.findByText('Desactivat')).toBeInTheDocument();
+    expect(screen.getByLabelText('Telèfon')).toHaveValue('6000000001');
+    expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', {
+      ...SOCI_COMPLET, telefon: '6000000001', actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: desactivacio.dataDesactivacio,
+    }]);
+    expect(__batchSet).not.toHaveBeenCalled();
+  });
+
+  it('regenerar el carnet amb un nom pendent sincronitza socisPublic amb el nom desat, i el desat posterior porta el token nou', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Cognoms'));
+    await user.type(screen.getByLabelText('Cognoms'), 'Puig');
+    await user.click(screen.getByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { tokenCarnet: 'token-nou' }]);
+    expect(__batchDelete).toHaveBeenCalledWith('tok-1');
+    expect(__batchSet).toHaveBeenCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' });
+    expect(screen.getByLabelText('Cognoms')).toHaveValue('Puig');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { ...SOCI_COMPLET, cognoms: 'Puig', tokenCarnet: 'token-nou' }]);
+    expect(__batchSet).toHaveBeenLastCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna P.' });
+  });
+
+  it('reactivar amb canvis pendents sincronitza socisPublic amb les dades desades', async () => {
+    carrega({
+      ...SOCI_COMPLET, actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-06-01',
+    });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Cognoms'));
+    await user.type(screen.getByLabelText('Cognoms'), 'Puig');
+    await user.click(screen.getByRole('button', { name: 'Reactivar soci' }));
+    await acceptaDialeg('Reactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { actiu: true, motiuDesactivacio: null, dataDesactivacio: null }]);
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
+    expect(screen.getByLabelText('Cognoms')).toHaveValue('Puig');
+  });
+
+  it('mentre es desa, les accions del soci queden deshabilitades', async () => {
+    carrega(SOCI_COMPLET);
+    let resol;
+    __batchCommit.mockImplementationOnce(() => new Promise((r) => { resol = r; }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(screen.getByRole('button', { name: 'Regenerar carnet' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Desactivar soci' })).toBeDisabled();
+    resol();
+    await esperaDesat();
+    expect(screen.getByRole('button', { name: 'Regenerar carnet' })).toBeEnabled();
+  });
+
+  it('mentre es regenera el carnet, «Desar» queda bloquejat', async () => {
+    carrega(SOCI_COMPLET);
+    let resol;
+    __batchCommit.mockImplementationOnce(() => new Promise((r) => { resol = r; }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Desactivar soci' })).toBeDisabled();
+    resol();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled());
+  });
+});
+
 
 describe('SociForm — regenerar carnet', () => {
   beforeEach(() => {

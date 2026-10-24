@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  urlWeb, camiLogoDistribuidora, validarUrlPublica, sessionsQueUsen, construirDistribuidora, opcionsDistribucio,
+  urlWeb, camiLogoDistribuidora, validarUrlPublica, validarCorreu, validarPreu, sessionsQueUsen, construirDistribuidora, opcionsDistribucio,
 } from './distribuidores';
 
 const MISSATGE = "L'adreça ha de començar per http:// o https://.";
@@ -163,5 +163,37 @@ describe('construirDistribuidora', () => {
     const existent = { nom: 'Filmin', web: 'filmin.es', contacte: '', correu: '', preu: 10, condicions: '', logo: 'web/distribuidores/filmin-1.png', urlPublica: 'https://f.cat' };
     const r = construirDistribuidora({ ...existent, preu: String(existent.preu) });
     expect(r).toEqual(existent);
+  });
+});
+
+describe('validarCorreu', () => {
+  it('és opcional i accepta adreces vàlides amb espais al voltant', () => {
+    expect(validarCorreu('')).toBeNull();
+    expect(validarCorreu('   ')).toBeNull();
+    expect(validarCorreu(undefined)).toBeNull();
+    expect(validarCorreu(' pere@atalante.test ')).toBeNull();
+    expect(validarCorreu('a.b+c@sub.domini.cat')).toBeNull();
+  });
+
+  it('rebutja el que el navegador rebutjaria en un camp de correu', () => {
+    ['pere', 'pere@', '@atalante.test', 'pere atalante@x.test', 'pere@@x.test', 'pere@-x.test'].forEach((v) => {
+      expect(validarCorreu(v)).toBe('El correu electrònic no és vàlid.');
+    });
+  });
+});
+
+describe('validarPreu', () => {
+  it('és opcional i accepta números iguals o més grans que 0', () => {
+    expect(validarPreu('')).toBeNull();
+    expect(validarPreu('  ')).toBeNull();
+    expect(validarPreu('0')).toBeNull();
+    expect(validarPreu('90.5')).toBeNull();
+    expect(validarPreu('120')).toBeNull();
+  });
+
+  it('rebutja negatius i textos que no són números', () => {
+    ['-5', '-0.01', 'abc', '12a', 'Infinity'].forEach((v) => {
+      expect(validarPreu(v)).toBe('El preu ha de ser un número igual o més gran que 0.');
+    });
   });
 });

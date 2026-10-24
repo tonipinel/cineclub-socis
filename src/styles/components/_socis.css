@@ -104,9 +104,6 @@
 .soci-form__data-clau {
   @apply font-body text-sm text-black/70;
 }
-.form__input--nomes-lectura {
-  @apply cursor-default bg-black/5 text-black/70;
-}
 .soci-form__seccio {
   @apply w-full;
 }

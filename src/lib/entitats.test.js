@@ -9,7 +9,7 @@ describe('validarEntitat', () => {
   it('exigeix un nom', () => {
     const r = validarEntitat({ nom: '  ', url: '' }, []);
     expect(r.valid).toBe(false);
-    expect(r.errors.nom).toBeTruthy();
+    expect(r.errors.nom).toBe('El nom no pot estar en blanc.');
   });
 
   it('no admet comes al nom', () => {
@@ -29,7 +29,7 @@ describe('validarEntitat', () => {
   it('valida la URL', () => {
     const dolent = validarEntitat({ nom: 'X', url: 'ftp://x' }, []);
     expect(dolent.valid).toBe(false);
-    expect(dolent.errors.url).toBeTruthy();
+    expect(dolent.errors.url).toBe("L'adreça ha de començar per http:// o https://.");
     expect(validarEntitat({ nom: 'X', url: '' }, [])).toEqual({ valid: true, errors: {} });
     expect(validarEntitat({ nom: 'X', url: 'https://x.cat/' }, [])).toEqual({ valid: true, errors: {} });
   });

@@ -35,23 +35,23 @@ const PORT = Number(process.env.PORT_ARNES ?? 6201);
 export const RUTES = [
   '/accedir?anonim',
   '/dashboard',
-  '/socis', '/socis/nou', '/socis/s1', '/socis/s1/carnet', '/socis/carnets?ids=s1,s2,s3', '/socis/s1/pagament',
+  '/socis', '/socis/nou', '/socis/s1', '/socis/s11', '/socis/s1/carnet', '/socis/carnets?ids=s1,s2,s3', '/socis/s1/pagament',
   '/solicituds',
   '/sessions', '/sessions/nova', '/sessions/ses2', '/sessions/ses5',
   '/sessions/ses2?pestanya=dades', '/sessions/ses2?pestanya=continguts', '/sessions/ses2?pestanya=mitjans',
   '/sessions/ses5?pestanya=dades',
-  '/entitats', '/entitats/nova', '/entitats/e1',
+  '/entitats', '/entitats/nova', '/entitats/e1', '/entitats/e2',
   '/tickets', '/tickets/lot1',
   '/escaneig', '/escaneig/log',
-  '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1',
+  '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/nou?sessionId=ses2', '/comptabilitat/m1', '/comptabilitat/m4', '/comptabilitat/m7', '/comptabilitat/m9',
   '/configuracio',
-  '/distribuidores', '/distribuidores/nova', '/distribuidores/d1',
+  '/distribuidores', '/distribuidores/nova', '/distribuidores/d1', '/distribuidores/d2', '/distribuidores/d7',
   '/propostes/pendents', '/propostes/pendents?vista=tandes', '/propostes/pendents?estat=aprovada&tanda=cap',
   '/propostes/pendents/nova', '/propostes/pendents/p1',
   '/propostes/pendents/p1?pestanya=pellicula', '/propostes/pendents/p1?pestanya=gestio', '/propostes/pendents/p1?pestanya=mitjans',
   '/propostes/pendents/p23', '/propostes/pendents/p23?pestanya=gestio', '/propostes/pendents/p23?pestanya=pellicula', '/propostes/pendents/p23?pestanya=mitjans',
   '/propostes/pendents/p24', '/propostes/pendents/p24?pestanya=pellicula', '/propostes/pendents/p24?pestanya=gestio', '/propostes/pendents/p24?pestanya=mitjans',
-  '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t1/resultats',
+  '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t3', '/tandes/t1/resultats',
 ];
 const AMPLADES = [375, 320];
 const AMPLADA_ESCRIPTORI = 1440;
@@ -69,14 +69,16 @@ const SENSE_PAGINA_ADMIN = {
 // botó, falla; si una ruta té el botó però no és a la llista, s'avisa perquè s'hi afegeixi.
 const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
-  editar: '[aria-label="Editar dades"]',
   desar: '.barra-desar button[type="submit"]',
   calendari: '.pagina-admin__accions [aria-label="Sincronitzar el calendari"]',
 };
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],
   '/comptabilitat': ['filtres'],
-  '/socis/s1': ['editar'],
+  // Fitxa de soci: barra fixa «Desar» en donar d'alta, amb tots els camps extrems (s1) i desactivat amb un motiu llarg (s11).
+  '/socis/nou': ['desar'],
+  '/socis/s1': ['desar'],
+  '/socis/s11': ['desar'],
   '/sessions': ['calendari'],
   // Fitxa de sessió: la barra fixa «Desar» és a les pestanyes d'edició (no a Estadístiques).
   '/sessions/nova': ['desar'],
@@ -85,9 +87,16 @@ const ESTATS_PER_RUTA = {
   '/sessions/ses2?pestanya=continguts': ['desar'],
   '/sessions/ses2?pestanya=mitjans': ['desar'],
   '/sessions/ses5?pestanya=dades': ['desar'],
-  '/comptabilitat/m1': ['editar'],
-  '/configuracio': ['editar'],
-  '/distribuidores/d1': ['editar'],
+  // Fitxa de moviment: barra fixa «Desar» en crear, venint d'una sessió (errors de camp a la barra), amb concepte i
+  // imports extrems (m1), quota bloquejada (m4), amb document adjunt de nom llarg (m7) i traspàs (m9).
+  '/comptabilitat/nou': ['desar'],
+  '/comptabilitat/nou?sessionId=ses2': ['desar'],
+  '/comptabilitat/m1': ['desar'],
+  '/comptabilitat/m4': ['desar'],
+  '/comptabilitat/m7': ['desar'],
+  '/comptabilitat/m9': ['desar'],
+  // Configuració: barra fixa «Desar» sempre visible (pàgina d'un sol document, sense mode «Editar»).
+  '/configuracio': ['desar'],
   // Fitxa de proposta: la barra fixa «Desar» és a les pestanyes editables (no al Resum, la pestanya per defecte).
   '/propostes/pendents/p1?pestanya=pellicula': ['desar'],
   '/propostes/pendents/p1?pestanya=gestio': ['desar'],
@@ -98,6 +107,19 @@ const ESTATS_PER_RUTA = {
   '/propostes/pendents/p24?pestanya=gestio': ['desar'],
   '/propostes/pendents/p23?pestanya=mitjans': ['desar'],
   '/propostes/pendents/p24?pestanya=mitjans': ['desar'],
+  // Fitxa de tanda: barra fixa «Desar» en crear, en una d'oberta amb vots (t1) i en una de tancada (t3).
+  '/tandes/nova': ['desar'],
+  '/tandes/t1': ['desar'],
+  '/tandes/t3': ['desar'],
+  // Fitxa d'entitat: barra fixa «Desar» en crear, amb un nom llarg sense logo (e1) i amb logo (e2).
+  '/entitats/nova': ['desar'],
+  '/entitats/e1': ['desar'],
+  '/entitats/e2': ['desar'],
+  // Fitxa de distribuïdora: barra fixa «Desar» en crear, amb textos llargs i logo (d1), amb logo ample (d2) i amb nom molt llarg (d7).
+  '/distribuidores/nova': ['desar'],
+  '/distribuidores/d1': ['desar'],
+  '/distribuidores/d2': ['desar'],
+  '/distribuidores/d7': ['desar'],
   '/propostes/pendents': ['filtres'],
   '/propostes/pendents?vista=tandes': ['filtres'],
   '/propostes/pendents?estat=aprovada&tanda=cap': ['filtres'],

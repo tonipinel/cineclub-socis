@@ -45,6 +45,33 @@ describe('useFitxaEditable', () => {
     expect(result.current.estat).toBe('net');
   });
 
+  it('valorsInicials: comença amb valors diferents de la línia base (canvis pendents des del primer moment)', async () => {
+    const { result, onDesar } = munta(undefined, { valorsInicials: { ...INICIAL, any: '1960' } });
+    expect(result.current.valors).toEqual({ titol: 'Vertigo', any: '1960' });
+    expect(result.current.canviats).toEqual(['any']);
+    expect(result.current.estat).toBe('pendent');
+    // Descartar torna als valors inicials (el preomplert), que continuen pendents de desar.
+    act(() => result.current.canvia('titol', 'Psycho'));
+    act(() => result.current.descarta());
+    expect(result.current.valors).toEqual({ titol: 'Vertigo', any: '1960' });
+    expect(result.current.estat).toBe('pendent');
+    await act(() => result.current.desa());
+    expect(onDesar).toHaveBeenCalledTimes(1);
+    // Després d'un desat, la línia base és el desat i descartar hi torna.
+    act(() => result.current.canvia('titol', 'Psycho'));
+    act(() => result.current.descarta());
+    expect(result.current.valors).toEqual({ titol: 'Vertigo', any: '1960' });
+    expect(result.current.hiHaCanvis).toBe(false);
+  });
+
+  it('valorsInicials: després de reinicia, descartar torna a la nova línia base', () => {
+    const { result } = munta(undefined, { valorsInicials: { ...INICIAL, any: '1960' } });
+    act(() => result.current.reinicia({ titol: 'Rope', any: '1948' }));
+    act(() => result.current.canvia('titol', 'Psycho'));
+    act(() => result.current.descarta());
+    expect(result.current.valors).toEqual({ titol: 'Rope', any: '1948' });
+  });
+
   it('canvia marca canviats, hiHaCanvis i estat pendent', () => {
     const { result } = munta();
     act(() => result.current.canvia('titol', 'Psycho'));

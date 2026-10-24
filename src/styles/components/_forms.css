@@ -13,6 +13,10 @@
 .form__input {
   @apply rounded border border-black/20 px-3 py-2 font-body text-base;
 }
+/* Camp que no es pot canviar (només lectura o deshabilitat) */
+.form__input--bloquejat {
+  @apply cursor-default bg-black/5 text-black/70;
+}
 .form__checkbox-label {
   @apply flex items-start gap-2 font-body text-sm;
 }

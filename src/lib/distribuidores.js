@@ -15,6 +15,23 @@ export function validarUrlPublica(valor) {
   return "L'adreça ha de començar per http:// o https://.";
 }
 
+// La mateixa comprovació que fa el navegador en un `type="email"` (la fitxa no fa la validació nativa).
+const CORREU_VALID = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+export function validarCorreu(valor) {
+  const text = String(valor ?? '').trim();
+  if (!text || CORREU_VALID.test(text)) return null;
+  return 'El correu electrònic no és vàlid.';
+}
+
+export function validarPreu(valor) {
+  const text = String(valor ?? '').trim();
+  if (!text) return null;
+  const preu = Number(text);
+  if (Number.isFinite(preu) && preu >= 0) return null;
+  return 'El preu ha de ser un número igual o més gran que 0.';
+}
+
 // Sessions que referencien la distribuïdora pel seu id (`publica.suportDistribucioId`) o pel nom exacte
 // (`publica.suportDistribucio`, el de les sessions antigues).
 export const sessionsQueUsen = ({ id, nom }, sessions) =>

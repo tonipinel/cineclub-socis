@@ -1,85 +1,128 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import BarraDesar from '../../components/BarraDesar';
 import Carregant from '../../components/Carregant';
-import BotoEditar from '../../components/BotoEditar';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import useFitxaEditable from '../../lib/useFitxaEditable';
 
-const CAMPS_INICIALS = { quotaAnual: '30', numeroCompte: '' };
+const QUOTA_PER_DEFECTE = '30';
+const ERROR_CARREGA = "No s'ha pogut carregar la configuració. Torna-ho a provar.";
+const ERROR_QUOTA = 'La quota ha de ser un número igual o superior a 0.';
 
-const CAMPS_FORMULARI = [
-  ['quotaAnual', 'Quota anual (€)', 'number'],
-  ['numeroCompte', 'Número de compte (IBAN)', 'text'],
-];
+// Valida la quota: en blanc, no numèrica o negativa és un error (abans es desava com a 0 sense avisar).
+// Sense validació nativa, un text que el navegador no pot llegir com a número («12e») arriba com a ''.
+const validarQuota = (text, illegible) => {
+  if (illegible || !String(text).trim()) return ERROR_QUOTA;
+  const quota = Number(text);
+  return Number.isFinite(quota) && quota >= 0 ? null : ERROR_QUOTA;
+};
 
-export default function ConfiguracioPage() {
-  const [dades, setDades] = useState(CAMPS_INICIALS);
-  const [carregant, setCarregant] = useState(true);
-  const [error, setError] = useState(null);
-  const [desat, setDesat] = useState(false);
-  const [desbloquejat, setDesbloquejat] = useState(false);
+function FitxaConfiguracio({ dadesDesades }) {
+  // Camps que el formulari no coneix, però que són al document: es tornen a escriure tal qual.
+  const { quotaAnual, numeroCompte, ...extres } = dadesDesades;
+  const [inicial] = useState(() => ({
+    quotaAnual: String(quotaAnual ?? QUOTA_PER_DEFECTE),
+    numeroCompte: numeroCompte ?? '',
+  }));
+  const quotaRef = useRef(null);
 
-  useEffect(() => {
-    getDoc(doc(db, 'configuracio', 'associacio')).then((snap) => {
-      if (snap.exists()) setDades({ ...CAMPS_INICIALS, ...snap.data() });
-      setCarregant(false);
+  const onDesar = async ({ valors: v }) => {
+    const motiu = validarQuota(v.quotaAnual, quotaRef.current?.validity?.badInput);
+    if (motiu) return { errors: { quotaAnual: motiu } };
+    await setDoc(doc(db, 'configuracio', 'associacio'), {
+      ...extres,
+      quotaAnual: Number(v.quotaAnual),
+      numeroCompte: v.numeroCompte.trim(),
     });
-  }, []);
-
-  const handleChange = (camp) => (e) => {
-    setDesat(false);
-    setDades((d) => ({ ...d, [camp]: e.target.value }));
+    return undefined;
   };
 
-  const handleSubmit = async (e) => {
+  const {
+    valors, canvia, estat, desa, descarta, errorDesat, errors,
+  } = useFitxaEditable({ inicial, onDesar });
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError(null);
-    try {
-      await setDoc(doc(db, 'configuracio', 'associacio'), {
-        ...dades,
-        quotaAnual: Number(dades.quotaAnual) || 0,
-      });
-      setDesbloquejat(false);
-      setDesat(true);
-    } catch {
-      setError("No s'ha pogut desar. Torna-ho a provar.");
-    }
+    desa();
   };
 
-  if (carregant) return <Carregant />;
+  const errorsBarra = errors.quotaAnual
+    ? [{ pestanya: 'quotaAnual', etiquetaPestanya: 'Quota anual', missatge: errors.quotaAnual }]
+    : [];
 
   return (
     <PaginaAdmin
       as="form"
       amplada="formulari"
+      ambBarra
       className="configuracio-form"
       onSubmit={handleSubmit}
+      noValidate
       titol="Configuració de l'associació"
-      accions={!desbloquejat && <BotoEditar onClick={() => setDesbloquejat(true)} />}
     >
-
       <p className="configuracio-form__ajuda">
         Aquestes dades s'utilitzen, per exemple, al correu de benvinguda que reben les noves sol·licituds d'alta.
       </p>
 
-      {CAMPS_FORMULARI.map(([camp, etiqueta, tipus]) => (
-        <div className="form__field" key={camp}>
-          <label className="form__label" htmlFor={camp}>{etiqueta}</label>
-          <input
-            id={camp}
-            type={tipus}
-            className={desbloquejat ? 'form__input' : 'form__input form__input--nomes-lectura'}
-            value={dades[camp] ?? ''}
-            onChange={handleChange(camp)}
-            readOnly={!desbloquejat}
-          />
-        </div>
-      ))}
+      <div className="form__field">
+        <label className="form__label" htmlFor="quotaAnual">Quota anual (€)</label>
+        <input
+          id="quotaAnual"
+          ref={quotaRef}
+          type="number"
+          step="any"
+          min="0"
+          className="form__input"
+          value={valors.quotaAnual}
+          onChange={(e) => canvia('quotaAnual', e.target.value)}
+          aria-invalid={errors.quotaAnual ? true : undefined}
+          aria-describedby={errors.quotaAnual ? 'quotaAnual-error' : undefined}
+        />
+        {errors.quotaAnual && <p id="quotaAnual-error" className="form__error">{errors.quotaAnual}</p>}
+      </div>
+      <div className="form__field">
+        <label className="form__label" htmlFor="numeroCompte">Número de compte (IBAN)</label>
+        <input
+          id="numeroCompte"
+          type="text"
+          className="form__input"
+          value={valors.numeroCompte}
+          onChange={(e) => canvia('numeroCompte', e.target.value)}
+        />
+      </div>
 
-      {error && <p className="form__error">{error}</p>}
-      {desat && <p className="configuracio-form__confirmacio">Desat correctament.</p>}
-
-      {desbloquejat && <button className="btn" type="submit">Desar</button>}
+      <BarraDesar
+        estat={estat}
+        errors={errorsBarra}
+        onAnarA={(nom) => document.getElementById(nom)?.focus()}
+        onDescarta={descarta}
+        missatgeError={errorDesat}
+      />
     </PaginaAdmin>
   );
+}
+
+// La fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
+export default function ConfiguracioPage() {
+  const [dadesDesades, setDadesDesades] = useState(null);
+  const [errorCarrega, setErrorCarrega] = useState(null);
+
+  useEffect(() => {
+    let actiu = true;
+    getDoc(doc(db, 'configuracio', 'associacio')).then((snap) => {
+      if (actiu) setDadesDesades(snap.exists() ? snap.data() : {});
+    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    return () => { actiu = false; };
+  }, []);
+
+  if (errorCarrega) {
+    return (
+      <PaginaAdmin amplada="formulari" titol="Configuració de l'associació">
+        <p className="form__error" role="alert">{errorCarrega}</p>
+      </PaginaAdmin>
+    );
+  }
+  if (!dadesDesades) return <Carregant />;
+  return <FitxaConfiguracio dadesDesades={dadesDesades} />;
 }

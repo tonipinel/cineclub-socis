@@ -9,10 +9,16 @@ const igual = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 // Cicle d'edició d'una fitxa amb la barra «Desar»: valors, canvis respecte de la línia base, desat i errors.
 // `inicial` només es llegeix en muntar; per a recàrregues cal `reinicia(nouInicial)`.
+// `valorsInicials` (opcional): valors amb què comença la fitxa si no són la línia base (p. ex. un alta preomplerta
+// per URL, que ja és un canvi pendent). «Descartar» hi torna fins al primer desat o `reinicia`; després, a la línia base.
 // La UI ha de desactivar «Descartar» mentre `estat === 'desant'`.
-export default function useFitxaEditable({ inicial, onDesar, avisSortida = true }) {
+export default function useFitxaEditable({
+  inicial, valorsInicials = inicial, onDesar, avisSortida = true,
+}) {
   const [base, setBase] = useState(inicial);
-  const [valors, setValors] = useState(inicial);
+  const [valors, setValors] = useState(valorsInicials);
+  // Valors als quals torna «Descartar».
+  const restaurar = useRef(valorsInicials);
   const [desant, setDesant] = useState(false);
   const [desatRecent, setDesatRecent] = useState(false);
   const [errorDesat, setErrorDesat] = useState(null);
@@ -83,6 +89,7 @@ export default function useFitxaEditable({ inicial, onDesar, avisSortida = true 
       }
       // El desat és la nova línia base; el que s'hagi escrit mentre es desava continua pendent.
       setBase(instantania);
+      restaurar.current = instantania;
       setDesatRecent(true);
       temporitzador.current = setTimeout(() => setDesatRecent(false), DURADA_DESAT);
     } catch {
@@ -101,13 +108,14 @@ export default function useFitxaEditable({ inicial, onDesar, avisSortida = true 
 
   const descarta = () => {
     neteja();
-    setValors(base);
+    setValors(restaurar.current);
   };
 
   const reinicia = (nouInicial) => {
     generacio.current += 1;
     neteja();
     setBase(nouInicial);
+    restaurar.current = nouInicial;
     setValors(nouInicial);
   };
 
