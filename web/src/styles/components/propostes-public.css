@@ -88,7 +88,7 @@ body:has(.propostes-app) > main {
   1.25rem, sense estats de desactivat, `:hover` també en tocar la pantalla), així que aquesta còpia només
   s'aplica dins l'illa de React (`<div class="propostes-app">`) perquè no canviï els botons de la resta de
   la web. `:where()` manté l'especificitat de `.btn` (0,1,0), com a l'administració, perquè
-  `.propostes-public__proposar-boto` (propostes.css, que va després) pugui sobreescriure'l. Afegeix
+  `.propostes-intro__boto` (propostes.css, que va després) pugui sobreescriure'l. Afegeix
   `font-size: inherit` per anul·lar la mida de la web i, sense ratolí, torna als colors de repòs perquè no
   es quedi enganxat l'estat `:hover` de button.css de la web.
 */

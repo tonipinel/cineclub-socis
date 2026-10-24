@@ -13,6 +13,9 @@ export const votar = (token, tandaId, propostaId, valor) =>
 
 export const carregarRanking = (token, tandaId) => cridar('rankingTanda', { token, tandaId });
 
+// Rànquing d'una tanda tancada, per a tothom (sense carnet): només ordre i percentatge.
+export const carregarRankingPublic = (tandaId) => cridar('rankingPublic', { tandaId });
+
 function xmur3(text) {
   let h = 1779033703 ^ text.length;
   for (let i = 0; i < text.length; i++) {

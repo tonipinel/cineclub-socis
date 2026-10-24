@@ -34,8 +34,9 @@ describe('/propostes/', () => {
     expect(status).toBe(200);
     expect(extreuTitol(html)).toBe('Propostes de programació · Cineclub Roda de Berà');
     const descripcio = extreuDescripcio(html);
-    expect(descripcio).toMatch(/pel·lícules que proposen les persones sòcies/);
-    expect(descripcio).toMatch(/👍 o 👎 quan hi ha una tanda oberta/);
+    expect(descripcio).toMatch(/persones sòcies .*proposen pel·lícules/);
+    expect(descripcio).toMatch(/👍 o 👎/);
+    expect(descripcio).toMatch(/programació del proper trimestre/);
     expect(descripcio).not.toMatch(/vota les que vols veure/);
     expect(descripcio.length).toBeLessThanOrEqual(160);
     expect(extreuCanonical(html)).toBe('https://cineclubrodadebera.cat/propostes/');
@@ -52,6 +53,31 @@ describe('/propostes/', () => {
     const { html } = await renderitza('/propostes/');
     expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaPropostes[^"]*"[^>]*client="only"[^>]*><\/astro-island><\/div><\/main>/);
     expect(html).toMatch(/renderer-url="[^"]+"/);
+  });
+
+  it('renderitza al servidor un únic h1 «Propostes» i l\'explicació de com funcionen les propostes, fora de l\'illa', async () => {
+    const { html } = await renderitza('/propostes/');
+    expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
+    expect(html).toMatch(/<h1 class="propostes-intro__titol">Propostes<\/h1>/);
+    const intro = html.match(/<section class="propostes-intro"[\s\S]*?<\/section>/)?.[0];
+    expect(intro).toBeDefined();
+    expect(intro).toContain('Les persones sòcies podeu proposar pel·lícules.');
+    expect(intro).toMatch(/La junta busca la distribuïdora de cada proposta/);
+    expect(intro).toMatch(/pressupost, disponibilitat/);
+    expect(intro).toMatch(/propera tanda de pel·lícules/);
+    expect(intro).toMatch(/programació del proper trimestre/);
+    expect(intro).not.toContain('astro-island');
+    // El botó gran el porta l'illa a aquest contenidor, que ja en reserva l'alçada.
+    expect(intro).toContain('<div class="propostes-intro__accio" id="propostes-intro-accio"></div>');
+    expect(html).not.toMatch(/vota les que vols veure/);
+    expect(html.indexOf('class="propostes-intro"')).toBeLessThan(html.indexOf('<astro-island'));
+  });
+
+  it('en mode immersiu la intro s\'amaga amb la classe del cos; si ja hi ha identitat, s\'amaga abans de muntar l\'illa', async () => {
+    const css = readFileSync(new URL('../src/styles/components/propostes.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/body\.propostes-immersiu-body \.propostes-intro\s*\{\s*@apply hidden;/);
+    const { html } = await renderitza('/propostes/');
+    expect(html).toMatch(/<script>[^<]*sessionStorage\.getItem\('cineclub\.identitat'\)[^<]*classList\.add\('propostes-immersiu-body'\)/);
   });
 
   it('marca «Propostes» com a activa al menú d\'escriptori i al mòbil', async () => {

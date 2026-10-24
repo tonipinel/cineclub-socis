@@ -6,7 +6,7 @@ vi.mock('firebase/functions', () => ({
 }));
 vi.mock('../../src/firebase/client.js', () => ({ functions: {} }));
 
-import { carregarEstat, votar, carregarRanking, ordreBarrejat } from '../../src/lib/propostes/votacio.js';
+import { carregarEstat, votar, carregarRanking, carregarRankingPublic, ordreBarrejat } from '../../src/lib/propostes/votacio.js';
 
 describe('crides als callables', () => {
   beforeEach(() => {
@@ -29,6 +29,12 @@ describe('crides als callables', () => {
     crides.rankingTanda = vi.fn().mockResolvedValue({ data: { tancada: false, files: [] } });
     await expect(carregarRanking('tok', 't1')).resolves.toEqual({ tancada: false, files: [] });
     expect(crides.rankingTanda).toHaveBeenCalledWith({ token: 'tok', tandaId: 't1' });
+  });
+
+  it('carregarRankingPublic crida rankingPublic només amb la tanda (sense token)', async () => {
+    crides.rankingPublic = vi.fn().mockResolvedValue({ data: { files: [{ propostaId: 'p1', percentatge: 80 }] } });
+    await expect(carregarRankingPublic('t1')).resolves.toEqual({ files: [{ propostaId: 'p1', percentatge: 80 }] });
+    expect(crides.rankingPublic).toHaveBeenCalledWith({ tandaId: 't1' });
   });
 });
 

@@ -2,12 +2,24 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import IllaPropostes from '../../components/propostes/IllaPropostes.jsx';
 
-const descripcio = "Descobreix les pel·lícules que proposen les persones sòcies del Cineclub Roda de Berà i vota amb un 👍 o 👎 quan hi ha una tanda oberta. Cal tenir el carnet.";
+const descripcio = "Les persones sòcies del Cineclub Roda de Berà proposen pel·lícules i, amb un 👍 o 👎 a cada tanda, triem entre totes la programació del proper trimestre.";
 ---
 <BaseLayout titol="Propostes de programació" descripcio={descripcio}>
   <!-- Només aquesta pàgina carrega Inter 700 (el `<b>` de «Proposada per» del detall, com a l'administració); afegir-lo a tot el web canviaria l'amplada de textos en negreta d'altres pàgines. -->
   <link slot="head" href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
   <div class="propostes-app">
+    <section class="propostes-intro">
+      <h1 class="propostes-intro__titol">Propostes</h1>
+      <p class="propostes-intro__text">
+        Les persones sòcies podeu proposar pel·lícules. La junta busca la distribuïdora de cada proposta i
+        les que s'ajusten a les nostres possibilitats (pressupost, disponibilitat, etc.) entren a la propera
+        tanda de pel·lícules. Totes les persones sòcies votem la tanda i, amb el resultat, creem la
+        programació del proper trimestre.
+      </p>
+      <div class="propostes-intro__accio" id="propostes-intro-accio"></div>
+    </section>
+    <!-- Amb identitat, l'illa comença en mode immersiu (carrega l'estat del soci): s'amaga la intro abans de pintar perquè no parpellegi; l'illa la torna a mostrar si no hi ha votació. -->
+    <script is:inline>try { if (sessionStorage.getItem('cineclub.identitat')) document.body.classList.add('propostes-immersiu-body'); } catch {}</script>
     <IllaPropostes client:only="react" />
   </div>
 </BaseLayout>

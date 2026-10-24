@@ -3,7 +3,7 @@
   Tailwind 4 natiu. Només s'hi han fet els canvis imprescindibles per al context de la web (marcats amb
   «Web:»). La variant `hover-real:` està definida a propostes-public.css, que s'importa abans (com
   _public.css abans de _propostes.css a l'administració: l'ordre decideix els empats d'especificitat,
-  p. ex. `.btn` i `.propostes-public__proposar-boto`).
+  p. ex. `.btn` i `.propostes-intro__boto`).
 */
 
 .propostes-public {
@@ -12,35 +12,57 @@
 .propostes-public--immersiu {
   @apply pt-4;
 }
-.propostes-public__capcalera {
-  @apply sticky top-0 z-10 flex flex-col gap-2 bg-white pt-3;
-}
-.propostes-public__capcalera-fila {
-  @apply flex items-center justify-between gap-3;
-}
-.propostes-public__marca {
-  @apply font-display text-lg font-bold uppercase tracking-wide text-black md:text-[2rem];
-}
-.propostes-public__proposar-boto {
-  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-lg p-0 font-display text-2xl leading-none;
-}
-.propostes-hero {
-  @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-8 text-center text-white;
+/*
+  Web: la intro (h1 i explicació) es renderitza al servidor a index.astro; l'illa hi porta el botó gran amb
+  un portal a `__accio`, que ja reserva l'alçada del botó perquè no salti res en muntar-se. En mode
+  immersiu l'illa posa `propostes-immersiu-body` al cos i la intro s'amaga.
+*/
+.propostes-intro {
+  @apply mb-4 flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-8 pt-8 text-center text-white;
   background-image: url('/images/cinema-pattern.jpg');
   background-repeat: repeat;
   background-color: #4d4d4d;
   background-blend-mode: multiply;
 }
-.propostes-hero__title {
+.propostes-intro__titol {
   @apply font-display text-5xl font-bold uppercase text-gold;
   line-height: 1;
   text-shadow: 2px 2px 2px black;
 }
-.propostes-hero__hook {
-  @apply mt-2 flex max-w-xl flex-col gap-2 font-body text-base text-white/80 sm:text-lg;
+.propostes-intro__text {
+  @apply mt-2 max-w-xl font-body text-base text-white/80 sm:text-lg;
+}
+.propostes-intro__accio {
+  @apply mt-3 flex min-h-12 justify-center;
+}
+.propostes-intro__boto {
+  @apply min-h-12 px-8 text-lg uppercase tracking-wide shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:text-xl;
+}
+body.propostes-immersiu-body .propostes-intro {
+  @apply hidden;
 }
 .propostes-public__buit {
   @apply px-4 font-body text-black/70;
+}
+/* Web: bloc de la tanda sota la intro (la activa amb les targetes o l'última amb el rànquing públic). */
+.tanda-publica {
+  @apply flex flex-col gap-3;
+}
+.tanda-publica__titol {
+  @apply m-0 px-4 font-display text-2xl font-bold uppercase tracking-wide text-black sm:text-3xl;
+  overflow-wrap: anywhere;
+}
+.tanda-publica__text {
+  @apply m-0 px-4 font-body text-base text-black/70;
+}
+.tanda-publica__votar {
+  @apply mx-4 self-start;
+}
+.tanda-publica__fallada {
+  @apply flex flex-col items-center gap-3 py-6 text-center;
+}
+.tanda-publica .ranking-tanda {
+  @apply px-4;
 }
 .propostes-public__llista {
   @apply grid list-none grid-cols-2 gap-3 p-0 px-4 sm:grid-cols-3 lg:grid-cols-4;

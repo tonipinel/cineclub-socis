@@ -7,16 +7,16 @@ import { esCarnetNoValid, missatgeError } from '../../lib/propostes/errorsVotaci
 
 const TEMPS_MAXIM_CARREGA_MS = 15000;
 
-// Tanda oberta de Firestore per al visitant sense identificar, triada amb el mateix criteri que el
-// servidor (`triaTanda`). Torna null si no n'hi ha cap d'oberta.
-async function llegirTandaOberta() {
+// Tanda de Firestore triada amb el mateix criteri que el servidor (`triaTanda`): la oberta (`oberta`) o, si
+// no n'hi ha cap, la darrera tancada (`ultima`). Cap de les dues si no hi ha cap tanda.
+async function llegirTandes() {
   const snap = await getDocs(collection(db, 'tandes'));
   const ara = new Date();
   const tanda = triaTanda(snap.docs.map((d) => ({ id: d.id, ...d.data() })), ara);
-  if (!tanda) return null;
+  if (!tanda) return { oberta: null, ultima: null };
   const tanca = typeof tanda.tanca?.toDate === 'function' ? tanda.tanca.toDate() : new Date(tanda.tanca);
-  if (!(tanca > ara)) return null;
-  return { id: tanda.id, nom: tanda.nom, propostes: tanda.propostes ?? [] };
+  const dades = { id: tanda.id, nom: tanda.nom, tanca, propostes: tanda.propostes ?? [] };
+  return tanca > ara ? { oberta: dades, ultima: null } : { oberta: null, ultima: dades };
 }
 
 // Càrrega i estat de la votació compartits per /propostes/ i /propostes/votar/: les propostes
@@ -27,8 +27,8 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
   const [propostesFallides, setPropostesFallides] = useState(false);
   const [tempsExhaurit, setTempsExhaurit] = useState(false);
   const [versioCarrega, setVersioCarrega] = useState(0);
-  // undefined mentre es llegeix; null si no hi ha cap tanda oberta.
-  const [tandaPublica, setTandaPublica] = useState(undefined);
+  // undefined mentre es llegeix; després { oberta, ultima } (cadascuna null si no n'hi ha).
+  const [tandes, setTandes] = useState(undefined);
   const [tandaFallida, setTandaFallida] = useState(false);
   const [estat, setEstat] = useState(null);
   const [estatFallit, setEstatFallit] = useState(false);
@@ -44,14 +44,17 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
     );
   }, [versioCarrega]);
 
+  // Es torna a llegir amb l'estat del soci (p. ex. si la tanda s'ha tancat mentre votava) i amb «Tornar a provar».
   useEffect(() => {
     setTandaFallida(false);
-    setTandaPublica(undefined);
-    llegirTandaOberta().then(setTandaPublica, () => {
-      setTandaPublica(null);
+    setTandes(undefined);
+    llegirTandes().then(setTandes, () => {
+      setTandes({ oberta: null, ultima: null });
       setTandaFallida(true);
     });
-  }, [versioCarrega]);
+  }, [versioEstat]);
+  const tandaPublica = tandes === undefined ? undefined : tandes.oberta;
+  const ultimaTanda = tandes === undefined ? undefined : tandes.ultima;
 
   useEffect(() => {
     setEstatFallit(false);
@@ -123,6 +126,7 @@ export function useEstatVotacio({ identitat, setIdentitat }) {
     propostes,
     propostesPerId,
     tandaPublica,
+    ultimaTanda,
     tandaFallida,
     estat,
     estatFallit,
