@@ -6,6 +6,7 @@ import { useAuth } from '../auth/useAuth';
 import { ROLE_ADMIN, ROLE_TAQUILLA } from '../constants/roles';
 import * as ROUTES from '../constants/routes';
 import { GRUPS_ADMIN, grupActiu } from '../lib/menuAdmin';
+import { NOM_ORGANITZACIO } from '../lib/propostes';
 
 const [GRUP_SOCIS, GRUP_PROGRAMACIO, GRUP_SALA] = GRUPS_ADMIN;
 
@@ -114,7 +115,10 @@ export default function Header() {
     const qSolicituds = query(collection(db, 'solicituds'), where('estat', '==', 'pendent'));
     const unsubSolicituds = onSnapshot(qSolicituds, (snap) => setComptadorSolicituds(snap.size));
     const qPropostes = query(collection(db, 'propostes'), where('estat', '==', 'pendent'));
-    const unsubPropostes = onSnapshot(qPropostes, (snap) => setComptadorPropostes(snap.size));
+    const unsubPropostes = onSnapshot(qPropostes, (snap) => {
+      // Les de l'organització són de l'equip: no cal revisar-les, així que no compten al badge.
+      setComptadorPropostes(snap.docs.filter((d) => d.data().nomProposant !== NOM_ORGANITZACIO).length);
+    });
     return () => { unsubSolicituds(); unsubPropostes(); };
   }, [role]);
 

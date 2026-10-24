@@ -15,9 +15,16 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import Header from './Header';
+import { NOM_ORGANITZACIO } from '../lib/propostes';
 
 function emetComptador(cridada, mida) {
   act(() => { mockOnSnapshot.mock.calls[cridada][1]({ size: mida }); });
+}
+
+// Les propostes arriben com a documents: el comptador n'exclou les de l'organització.
+function emetPropostes(proposants) {
+  const docs = proposants.map((nomProposant) => ({ data: () => ({ nomProposant }) }));
+  act(() => { mockOnSnapshot.mock.calls[1][1]({ size: docs.length, docs }); });
 }
 
 // Entrades de primer nivell de la barra (les dels grups i les soltes), sense Sortir.
@@ -286,7 +293,7 @@ describe('Header', () => {
   it('el badge del grup suma els comptadors dels seus elements i cada element del submenú mostra el seu', () => {
     const { container } = renderAdmin('/socis');
     emetComptador(0, 3);
-    emetComptador(1, 2);
+    emetPropostes(['Anna P.', 'Joan M.']);
     expect(entrada(container, 'Socis')).toHaveTextContent('3');
     expect(entrada(container, 'Programació')).toHaveTextContent('2');
     expect(entrada(container, 'Sala')).toHaveTextContent(/^Sala$/);
@@ -297,16 +304,29 @@ describe('Header', () => {
 
   it('el badge de Propostes apareix al submenú de Programació', () => {
     renderAdmin('/tandes');
-    emetComptador(1, 4);
+    emetPropostes(['A', 'B', 'C', 'D']);
     const submenu = within(screen.getByRole('navigation', { name: 'Submenú' }));
     expect(submenu.getByRole('link', { name: 'Propostes' })).toHaveTextContent('4');
     expect(submenu.getByRole('link', { name: 'Tandes' })).not.toHaveTextContent(/\d/);
   });
 
+  it('el badge de propostes no compta les pendents de l\'organització', () => {
+    renderAdmin('/tandes');
+    emetPropostes([NOM_ORGANITZACIO, 'Anna P.', NOM_ORGANITZACIO, 'Joan M.', NOM_ORGANITZACIO]);
+    const submenu = within(screen.getByRole('navigation', { name: 'Submenú' }));
+    expect(submenu.getByRole('link', { name: 'Propostes' })).toHaveTextContent('2');
+  });
+
+  it('no mostra cap badge de propostes si totes les pendents són de l\'organització', () => {
+    const { container } = renderAdmin('/tandes');
+    emetPropostes([NOM_ORGANITZACIO, NOM_ORGANITZACIO]);
+    expect(container.querySelector('.site-header__badge')).toBeNull();
+  });
+
   it('no mostra el badge quan no hi ha elements pendents', () => {
     const { container } = renderAdmin('/socis');
     emetComptador(0, 0);
-    emetComptador(1, 0);
+    emetPropostes([]);
     expect(entrada(container, 'Socis')).toHaveTextContent(/^Socis$/);
     expect(entrada(container, 'Programació')).toHaveTextContent(/^Programació$/);
     expect(container.querySelector('.site-header__badge')).toBeNull();
