@@ -69,6 +69,17 @@ describe('PaginaAdmin', () => {
     expect(container.querySelector('header')).toBeNull();
   });
 
+  it('ambBarra reserva l\'espai de la barra de desar amb la classe compartida', () => {
+    const { container } = pinta(<PaginaAdmin amplada="fitxa" ambBarra titol="Sessió">x</PaginaAdmin>);
+    expect(container.firstChild.className).toBe('pagina-admin pagina-admin--fitxa pagina-admin--amb-barra');
+  });
+
+  it('sense ambBarra no reserva espai per a la barra', () => {
+    const { container } = pinta(<PaginaAdmin amplada="fitxa" ambBarra={false} titol="Sessió">x</PaginaAdmin>);
+    expect(container.firstChild).not.toHaveClass('pagina-admin--amb-barra');
+    expect(container.firstChild).not.toHaveAttribute('ambBarra');
+  });
+
   it('AMPLADES té les 3 claus amb la seva classe', () => {
     expect(AMPLADES).toEqual({
       llista: 'pagina-admin--llista',

@@ -3,10 +3,6 @@
 .fitxa-proposta {
   @apply flex flex-col gap-6;
 }
-/* Espai per a la barra de desar fixa; doble classe per guanyar al padding de .pagina-admin. */
-.pagina-admin.fitxa-proposta--amb-barra {
-  @apply pb-40;
-}
 .fitxa-proposta__contingut {
   @apply flex w-full min-w-0 flex-col gap-4;
 }

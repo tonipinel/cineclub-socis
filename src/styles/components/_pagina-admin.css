@@ -11,6 +11,15 @@
 .pagina-admin--formulari {
   @apply max-w-3xl;
 }
+/* Espai sota el contingut per a BarraDesar fixa (PaginaAdmin ambBarra), més l'àrea segura que la barra també suma.
+   Alçada màxima mesurada de la barra en error (diversos errors + missatge, a l'arnès): 205 px per sota de sm
+   (la llista d'errors té alçada màxima), 175 px de sm a lg (a 640 px) i 138 px des de lg; el padding hi deixa
+   uns 20-35 px de marge. `.espai-barra-desar` reserva el mateix espai quan el contingut continua després de
+   `PaginaAdmin` (la fitxa de soci, amb seccions a tot l'ample a sota). */
+.pagina-admin--amb-barra,
+.espai-barra-desar {
+  @apply pb-[calc(15rem+env(safe-area-inset-bottom))] sm:pb-[calc(13rem+env(safe-area-inset-bottom))] lg:pb-[calc(10rem+env(safe-area-inset-bottom))];
+}
 .pagina-admin__capcalera {
   @apply mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4;
 }
@@ -99,4 +108,41 @@ body:has(.dialeg-confirmacio[open]) {
 /* Títol de la pàgina només per a lectors de pantalla (escaneig i carnets, que no tenen capçalera visible). */
 .titol-ocult {
   @apply sr-only;
+}
+
+/* Bloc «Logo» de les fitxes de catàleg (entitats i distribuïdores) */
+.camp-logo__fila {
+  @apply flex flex-wrap items-center gap-3;
+}
+.camp-logo__previsualitzacio {
+  @apply h-20 w-20 shrink-0 rounded border border-black/10 object-contain;
+}
+.camp-logo__treure {
+  @apply self-start;
+}
+
+/* Llistes de catàleg (entitats i distribuïdores): logo a l'esquerra i dades apilades; a escriptori, una graella
+   amb columnes alineades encara que a una fila li falti algun camp (logo, nom flexible, web i les columnes pròpies). */
+.llista-cataleg {
+  @apply m-0 flex list-none flex-col p-0;
+}
+.llista-cataleg__item {
+  @apply flex items-start gap-3 border-b border-black/10 py-3 text-sm lg:grid lg:grid-cols-[3rem_minmax(0,1fr)_18rem] lg:items-center lg:gap-x-4;
+}
+.llista-cataleg__logo {
+  @apply h-12 w-12 shrink-0 object-contain lg:col-start-1 lg:row-start-1;
+}
+/* Reserva l'espai del logo perquè els noms quedin alineats amb i sense logo. */
+.llista-cataleg__logo--buit {
+  @apply block;
+}
+/* A escriptori desapareix i els seus fills passen a ser columnes de la graella de la fila. */
+.llista-cataleg__text {
+  @apply flex min-w-0 flex-1 flex-col gap-1 lg:contents;
+}
+.llista-cataleg__nom {
+  @apply min-w-0 text-base font-semibold wrap-anywhere lg:col-start-2 lg:row-start-1;
+}
+.llista-cataleg__web {
+  @apply min-w-0 wrap-anywhere lg:col-start-3 lg:row-start-1;
 }

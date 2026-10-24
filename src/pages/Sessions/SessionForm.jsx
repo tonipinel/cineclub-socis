@@ -258,7 +258,8 @@ function FitxaSessio({ id }) {
       <PaginaAdmin
         as="form"
         amplada="fitxa"
-        className="fitxa-sessio fitxa-sessio--amb-barra"
+        ambBarra
+        className="fitxa-sessio"
         titol="Nova sessió"
         tornar={{ to: ROUTES.SESSIONS, etiqueta: 'Sessions' }}
         onSubmit={handleSubmit}
@@ -277,7 +278,8 @@ function FitxaSessio({ id }) {
     <PaginaAdmin
       as="form"
       amplada="fitxa"
-      className={pestanya === 'estadistiques' ? 'fitxa-sessio' : 'fitxa-sessio fitxa-sessio--amb-barra'}
+      ambBarra={pestanya !== 'estadistiques'}
+      className="fitxa-sessio"
       onSubmit={handleSubmit}
     >
       <div className="fitxa-sessio__contingut">

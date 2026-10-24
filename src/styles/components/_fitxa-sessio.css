@@ -1,6 +1,7 @@
 /* Pestanyes accessibles (components/Pestanyes.jsx). En mòbil la llista fa scroll horitzontal sense barra visible. */
+/* relative: el text sr-only («amb canvis») queda dins del scroll de la llista i no eixampla la pàgina a 320 px. */
 .pestanyes__llista {
-  @apply flex overflow-x-auto whitespace-nowrap border-b-2 border-gold/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  @apply relative flex overflow-x-auto whitespace-nowrap border-b-2 border-gold/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
 }
 .pestanyes__pestanya {
   @apply -mb-0.5 inline-flex cursor-pointer items-center gap-2 border-0 border-b-2 border-transparent bg-transparent px-4 py-3 font-display font-bold text-black transition hover:text-gold-dark;
@@ -23,13 +24,17 @@
   @apply fixed inset-x-0 bottom-0 z-10 border-t border-black/10 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgb(0_0_0/0.08)] print:hidden;
 }
 .barra-desar__contingut {
-  @apply mx-auto flex max-w-5xl items-center justify-between gap-4 p-3;
+  @apply mx-auto flex max-w-5xl flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4;
 }
+/* Per sota de sm l'estat i els errors ocupen tota l'amplada i els botons van a sota, en una fila. */
 .barra-desar__estat {
-  @apply min-w-0 flex-1;
+  @apply min-w-0 sm:flex-1;
 }
 .barra-desar__accions {
-  @apply flex shrink-0 flex-wrap items-center justify-end gap-2;
+  @apply flex flex-wrap items-center justify-end gap-2 sm:shrink-0;
+}
+.barra-desar__accions .btn {
+  @apply flex-auto whitespace-nowrap px-4 sm:flex-none sm:px-6;
 }
 /* Acció secundària: text negre sobre blanc (el daurat de .btn--outline no arriba a 4,5:1) */
 .barra-desar__descartar {
@@ -54,10 +59,6 @@
 /* Fitxa de sessió (pages/Sessions/SessionForm.jsx): capçalera, pestanyes i targetes, dins de .pagina-admin--fitxa. */
 .fitxa-sessio {
   @apply flex flex-col gap-6;
-}
-/* Espai per a la barra de desar fixa; doble classe per guanyar al padding de .pagina-admin (importat després). */
-.pagina-admin.fitxa-sessio--amb-barra {
-  @apply pb-40;
 }
 .fitxa-sessio__contingut {
   @apply flex w-full min-w-0 flex-col gap-4;

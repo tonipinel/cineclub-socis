@@ -329,7 +329,8 @@ function FitxaProposta({
     <PaginaAdmin
       as="form"
       amplada="fitxa"
-      className={ambBarra ? 'fitxa-proposta fitxa-proposta--amb-barra' : 'fitxa-proposta'}
+      ambBarra={ambBarra}
+      className="fitxa-proposta"
       onSubmit={handleSubmit}
     >
       <div className="fitxa-proposta__contingut">

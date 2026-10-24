@@ -7,8 +7,10 @@ export const AMPLADES = {
   formulari: 'pagina-admin--formulari',
 };
 
+// `ambBarra`: la pàgina té `BarraDesar` fixa a sota i reserva l'espai perquè no tapi el final del contingut.
 export default function PaginaAdmin({
   amplada = 'llista',
+  ambBarra = false,
   titol,
   tornar,
   accions,
@@ -18,7 +20,7 @@ export default function PaginaAdmin({
   ...resta
 }) {
   return (
-    <Element className={['pagina-admin', AMPLADES[amplada] ?? AMPLADES.llista, className].filter(Boolean).join(' ')} {...resta}>
+    <Element className={['pagina-admin', AMPLADES[amplada] ?? AMPLADES.llista, ambBarra && 'pagina-admin--amb-barra', className].filter(Boolean).join(' ')} {...resta}>
       {titol != null && titol !== false && titol !== '' && (
         <header className="pagina-admin__capcalera">
           {tornar && (

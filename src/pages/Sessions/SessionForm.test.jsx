@@ -1110,12 +1110,12 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     await user.click(pestanya('Continguts'));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     const enllac = await screen.findByRole('button', { name: 'Dades: Cal un slug.' });
-    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true'));
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'publica-slug'));
     expect(updateDoc).not.toHaveBeenCalled();
     await user.click(pestanya('Mitjans'));
     await user.click(enllac);
-    expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true'));
   });
 
   it('després de desar un alies, un segon desat el conserva', async () => {
@@ -1165,10 +1165,10 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('link', { name: '← Sessions' })).toHaveClass('pagina-admin__tornar');
     // Amb la barra de desar es reserva espai a sota; a Estadístiques (sense barra), no.
-    expect(arrel).toHaveClass('fitxa-sessio--amb-barra');
+    expect(arrel).toHaveClass('pagina-admin--amb-barra');
     const user = userEvent.setup();
     await user.click(pestanya('Estadístiques'));
-    expect(arrel).not.toHaveClass('fitxa-sessio--amb-barra');
+    expect(arrel).not.toHaveClass('pagina-admin--amb-barra');
   });
 
   it('«Nova sessió» fa servir l\'amplada de fitxa, un sol h1 i l\'enllaç «← Sessions»', () => {
@@ -1180,7 +1180,7 @@ describe('SessionForm — pestanyes i barra de desar', () => {
       </MemoryRouter>
     );
     const titol = screen.getByRole('heading', { level: 1, name: 'Nova sessió' });
-    expect(titol.closest('form')).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
+    expect(titol.closest('form')).toHaveClass('pagina-admin', 'pagina-admin--fitxa', 'pagina-admin--amb-barra');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('link', { name: '← Sessions' })).toHaveAttribute('href', '/sessions');
   });

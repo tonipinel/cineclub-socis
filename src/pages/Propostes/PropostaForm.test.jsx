@@ -153,7 +153,7 @@ describe('PropostaForm: càrrega, capçalera i pestanyes', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(container.firstChild.tagName).toBe('FORM');
     expect(container.firstChild).toHaveClass('pagina-admin', 'pagina-admin--fitxa');
-    expect(container.firstChild).not.toHaveClass('fitxa-proposta--amb-barra');
+    expect(container.firstChild).not.toHaveClass('pagina-admin--amb-barra');
     expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
     expect(screen.queryByRole('button', { name: 'Editar dades' })).not.toBeInTheDocument();
   });
@@ -171,7 +171,7 @@ describe('PropostaForm: càrrega, capçalera i pestanyes', () => {
     expect(pestanya('Gestió')).toHaveAttribute('aria-selected', 'true');
     expect(botoDesar()).toBeDisabled();
     expect(botoDesar()).toHaveAttribute('type', 'submit');
-    expect(container.firstChild).toHaveClass('fitxa-proposta--amb-barra');
+    expect(container.firstChild).toHaveClass('pagina-admin--amb-barra');
     expect(container.firstChild).toContainElement(botoDesar());
   });
 

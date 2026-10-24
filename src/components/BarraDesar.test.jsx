@@ -126,6 +126,25 @@ describe('BarraDesar', () => {
     });
   });
 
+  it('ordre accessible: estat, errors (botons), «Descartar canvis» i «Desar»', () => {
+    const errors = [
+      { pestanya: 'dades', etiquetaPestanya: 'Dades', missatge: 'Falta el títol' },
+      { pestanya: 'mitjans', etiquetaPestanya: 'Mitjans', missatge: 'Tràiler no vàlid' },
+    ];
+    pinta({ estat: 'error', errors, onDescarta: vi.fn(), missatgeError: "No s'ha pogut desar. Torna-ho a provar." });
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveAttribute('aria-live', 'polite');
+    const botons = screen.getAllByRole('button');
+    expect(botons.map((b) => b.textContent)).toEqual([
+      'Dades: Falta el títol', 'Mitjans: Tràiler no vàlid', 'Descartar canvis', 'Desar',
+    ]);
+    botons.forEach((b) => expect(b).toHaveAttribute('type', 'button'));
+    // L'estat (i els errors) van abans dels botons en l'ordre del document, i els errors no són dins de l'alerta.
+    expect(alerta.compareDocumentPosition(botons[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(alerta).not.toContainElement(botons[0]);
+    expect(screen.getByRole('list')).not.toContainElement(botons[2]);
+  });
+
   it('bloquejada: «Desar» i «Descartar canvis» desactivats encara que hi hagi canvis', async () => {
     const onDescarta = vi.fn();
     pinta({ estat: 'pendent', onDescarta, bloquejada: true });
