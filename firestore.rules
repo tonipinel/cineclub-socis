@@ -83,7 +83,9 @@ service cloud.firestore {
     // un cop aprovades.
     match /propostes/{id} {
       allow create: if request.resource.data.keys().hasAll(['titol', 'numeroSoci', 'estat'])
-        && request.resource.data.estat == 'pendent';
+        && request.resource.data.estat == 'pendent'
+        // `campsEditats` el posa només l'admin en editar la fitxa (protegeix camps de TMDB).
+        && !request.resource.data.keys().hasAny(['campsEditats']);
       allow read: if resource.data.estat != 'pendent' || isAdmin();
       allow update, delete: if isAdmin();
 

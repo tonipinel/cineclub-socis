@@ -3,13 +3,14 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
 const { gestionarEstat, gestionarVot, gestionarRanking } = require('./votacio-handlers');
 const { credencialsCalendari } = require('./calendari');
 const { clientCalendari } = require('./calendari-google');
 const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
+const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
 
 initializeApp();
 
@@ -103,60 +104,17 @@ exports.notificarNovaSolicitud = onDocumentCreated('solicituds/{id}', async (eve
   }
 });
 
-// Tota la ficha de la proposta (títol, any, cartell, sinopsi, durada,
-// repartiment, director, tràiler, etc.) surt de TMDB. Els títols es deixen
-// en versió original; la sinopsi arriba en català si n'hi ha i, si no, en
-// castellà o anglès (`sinopsiIdioma`) perquè l'admin la tradueixi a mà. El cartell es descarrega i es desa a
-// Storage perquè no depenguem de cap web externa que ens pugui bloquejar la
-// imatge.
-async function desarFitxa(propostaId, tmdbId) {
-  const pellicula = await detallPellicula(tmdbId, TMDB_API_KEY.value());
-  const canvis = {
-    tmdbId: pellicula.tmdbId,
-    titol: pellicula.titol,
-    titolLocal: pellicula.titolLocal,
-    any: pellicula.any,
-    sinopsi: pellicula.sinopsi,
-    sinopsiIdioma: pellicula.sinopsiIdioma,
-    durada: pellicula.durada,
-    directors: pellicula.directors,
-    generes: pellicula.generes,
-    imatges: pellicula.escenes,
-    guionistes: pellicula.guionistes,
-    repartiment: pellicula.repartiment,
-    lema: pellicula.lema,
-    paisos: pellicula.paisos,
-    idiomes: pellicula.idiomes,
-    valoracio: pellicula.valoracio,
-    tmdbUrl: pellicula.tmdbUrl,
-  };
-  if (pellicula.trailerUrl) canvis.trailerUrl = pellicula.trailerUrl;
-  if (pellicula.posterPath) {
-    const { contingut, contentType } = await descarregarCartell(pellicula.posterPath);
-    const bucket = getStorage().bucket();
-    // Ruta nova a cada actualització: el cartell es serveix amb una caché d'un
-    // any, així que reutilitzar la ruta faria veure el cartell antic.
-    const ruta = `carteils/${propostaId}-${Date.now()}.jpg`;
-    await bucket.file(ruta).save(contingut, { contentType, metadata: { cacheControl: 'public, max-age=31536000' } });
-    canvis.cartellPath = ruta;
-    canvis.imatgeUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(ruta)}?alt=media`;
-  }
-  const referencia = getFirestore().doc(`propostes/${propostaId}`);
-  // Si l'admin ja ha revisat/traduït la sinopsi d'aquesta mateixa pel·lícula
-  // (la desa amb sinopsiIdioma 'ca'), no la tornem a trepitjar.
-  const actual = (await referencia.get()).data();
-  if (actual.tmdbId === pellicula.tmdbId && actual.sinopsi && actual.sinopsiIdioma === 'ca') {
-    delete canvis.sinopsi;
-    delete canvis.sinopsiIdioma;
-  }
-  await referencia.update(canvis);
-  if (canvis.cartellPath) {
-    // El cartell anterior ja no es fa servir (inclòs el de la ruta antiga, sense marca de temps).
-    const bucket = getStorage().bucket();
-    const anteriors = [actual.cartellPath, `carteils/${propostaId}.jpg`].filter((ruta) => ruta && ruta !== canvis.cartellPath);
-    await Promise.all(anteriors.map((ruta) => bucket.file(ruta).delete({ ignoreNotFound: true }).catch(() => {})));
-  }
-  return { ...canvis, sinopsi: canvis.sinopsi ?? actual.sinopsi, sinopsiIdioma: canvis.sinopsiIdioma ?? actual.sinopsiIdioma };
+// La lògica (camps editats a mà, cartell a Storage) és a `fitxa-proposta.js`; aquí només s'hi injecten les
+// dependències reals.
+function desarFitxa(propostaId, tmdbId, opcions) {
+  return desarFitxaAmbDependencies({
+    db: getFirestore(),
+    bucket: getStorage().bucket(),
+    detallPellicula: (id) => detallPellicula(id, TMDB_API_KEY.value()),
+    descarregarCartell,
+    FieldValue,
+    ara: () => Date.now(),
+  }, propostaId, tmdbId, opcions);
 }
 
 exports.desarFitxaNovaProposta = onDocumentCreated(
@@ -165,7 +123,9 @@ exports.desarFitxaNovaProposta = onDocumentCreated(
     const dades = event.data.data();
     if (!dades.tmdbId) return;
     try {
-      await desarFitxa(event.params.id, dades.tmdbId);
+      // Les propostes es poden crear sense autenticar-se, així que en crear-les no es respecta cap camp
+      // marcat com a editat: s'agafa tota la fitxa de TMDB i es buida `campsEditats` si n'hi hagués.
+      await desarFitxa(event.params.id, dades.tmdbId, { sobreescriure: true });
     } catch (error) {
       logger.error('No s\'ha pogut desar la fitxa de la proposta', event.params.id, error);
     }
@@ -188,12 +148,18 @@ exports.cercarPellicules = onCall({ secrets: SECRETS }, async (request) => {
 });
 
 // L'admin tria a mà la pel·lícula d'una proposta ja existent (p. ex. les
-// anteriors al cercador): se'n torna a agafar tota la fitxa de TMDB.
+// anteriors al cercador): se'n torna a agafar la fitxa de TMDB, respectant els camps editats a mà
+// tret que demani `sobreescriure`.
 exports.assignarPellicula = onCall({ secrets: SECRETS }, async (request) => {
   if (request.auth?.token?.role !== 'admin') throw new HttpsError('permission-denied', 'Només l\'admin.');
-  const { propostaId, tmdbId } = request.data ?? {};
+  const { propostaId, tmdbId, sobreescriure } = request.data ?? {};
   if (!propostaId || !tmdbId) throw new HttpsError('invalid-argument', 'Falten dades.');
-  return desarFitxa(propostaId, tmdbId);
+  try {
+    return await desarFitxa(propostaId, tmdbId, { sobreescriure: sobreescriure === true });
+  } catch (error) {
+    if (error.codi === 'not-found') throw new HttpsError('not-found', error.message);
+    throw error;
+  }
 });
 
 function votacio(gestor) {

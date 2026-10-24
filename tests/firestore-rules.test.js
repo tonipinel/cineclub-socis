@@ -297,6 +297,22 @@ describe('firestore.rules — propostes', () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
     await assertSucceeds(setDoc(doc(adminDb, 'propostes/1'), PROPOSTA_VALIDA));
   });
+
+  it('impedeix crear una proposta amb campsEditats', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(anonDb, 'propostes/1'), { ...PROPOSTA_VALIDA, tmdbId: 10, campsEditats: ['titol'] }));
+  });
+
+  it('permet a un visitant crear una proposta pendent amb tmdbId', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(setDoc(doc(anonDb, 'propostes/1'), { ...PROPOSTA_VALIDA, tmdbId: 10 }));
+  });
+
+  it('permet a un admin actualitzar campsEditats', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'propostes/1'), PROPOSTA_VALIDA);
+    await assertSucceeds(updateDoc(doc(adminDb, 'propostes/1'), { directors: ['Meu'], campsEditats: ['directors'] }));
+  });
 });
 
 describe('firestore.rules — propostes/{id}/vots (sistema antic, tancat)', () => {
