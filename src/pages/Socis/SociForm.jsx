@@ -282,7 +282,7 @@ function FitxaSoci({ id, soci }) {
               </a>
             )}
             {mailtoCorreu && (
-              <a className="btn-icona soci-form__contacte" href={mailtoCorreu} aria-label={`Escriure un correu a ${primeraAdrecaCorreu(desat.correuElectronic)}`}>
+              <a className="btn-icona soci-form__contacte" href={mailtoCorreu} target="_blank" rel="noopener noreferrer" aria-label={`Escriure un correu a ${primeraAdrecaCorreu(desat.correuElectronic)}`}>
                 <IconaCorreu />
                 <span className="btn-icona__text">Escriure un correu</span>
               </a>

@@ -458,7 +458,8 @@ describe('SociForm — trucar i escriure un correu', () => {
     expect(enllacTrucar).not.toHaveAttribute('target');
     expect(enllacCorreu).toHaveAttribute('href', 'mailto:anna@exemple.cat');
     expect(enllacCorreu).toHaveTextContent('Escriure un correu');
-    expect(enllacCorreu).not.toHaveAttribute('target');
+    expect(enllacCorreu).toHaveAttribute('target', '_blank');
+    expect(enllacCorreu).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('només amb telèfon, mostra només «Trucar»', async () => {
