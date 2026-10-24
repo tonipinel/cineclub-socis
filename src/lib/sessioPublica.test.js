@@ -422,6 +422,17 @@ describe('formulari de la pàgina pública', () => {
     expect(netejarPublica(publica)).toEqual(netejarPublica(PUBLICA));
   });
 
+  it('porta l\'id i el nom de la distribuïdora d\'anada i tornada; buits, desapareixen', () => {
+    const form = publicaAFormulari({ suportDistribucio: 'Atalante', suportDistribucioId: 'd1' });
+    expect(form.suportDistribucio).toBe('Atalante');
+    expect(form.suportDistribucioId).toBe('d1');
+    expect(netejarPublica(formulariAPublica(form).publica)).toMatchObject({ suportDistribucio: 'Atalante', suportDistribucioId: 'd1' });
+    expect(publicaAFormulari(undefined).suportDistribucioId).toBe('');
+    const buida = netejarPublica(formulariAPublica({ ...form, suportDistribucio: '', suportDistribucioId: '' }).publica);
+    expect(buida).not.toHaveProperty('suportDistribucio');
+    expect(buida).not.toHaveProperty('suportDistribucioId');
+  });
+
   it('un formulari sense publica és buit i torna una publica neta sense camps', () => {
     const form = publicaAFormulari(undefined);
     expect(form.titol).toBe('');

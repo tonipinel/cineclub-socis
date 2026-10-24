@@ -195,7 +195,7 @@ export const ERROR_DESCRIPCIO = `La descripció no pot passar de ${MAX_DESCRIPCI
 export const CAMPS_TEXT_PUBLICA = [
   'titol', 'titolOriginal', 'titolTraduit', 'titolEspanya', 'sinopsiCartell', 'guio', 'pais', 'any', 'idioma',
   'versioIdiomatica', 'fotografia', 'muntatge', 'musica', 'produccio', 'premisDestacats', 'versioTipus', 'queInclou',
-  'suportDistribucio', 'seccio', 'organitza', 'descripcio', 'hook', 'trailerYoutubeId', 'cos',
+  'suportDistribucio', 'suportDistribucioId', 'seccio', 'organitza', 'descripcio', 'hook', 'trailerYoutubeId', 'cos',
 ];
 
 // Text del formulari: llistes separades per comes i números com a text.

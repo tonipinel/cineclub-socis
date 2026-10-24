@@ -25,7 +25,6 @@ export const GESTIO = [
   ['preu', "Preu d'entrada (€)", '0 = entrada gratuïta; buit = sense preu'],
   ['queInclou', 'Què inclou'],
   ['edatMinimaRecomanada', 'Edat mínima recomanada', '0 = tots els públics'],
-  ['suportDistribucio', 'Suport de distribució'],
 ];
 
 export const VERSIONS = [
@@ -47,7 +46,7 @@ export const PESTANYA_DEL_CAMP = {
   ...de(['titol', 'data', 'hora', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl', 'versioTipus', 'seccio'], 'dades'),
   ...de(FITXA.map(([camp]) => camp), 'dades'),
   ...de(GESTIO.map(([camp]) => camp), 'dades'),
-  ...de(['organitza', 'participa', 'collabora'], 'dades'),
+  ...de(['suportDistribucio', 'suportDistribucioId', 'organitza', 'participa', 'collabora'], 'dades'),
   ...de(['descripcio', 'hook', 'sinopsiCartell', 'cos'], 'continguts'),
   ...de(['cartell', 'galeria', 'trailerYoutubeId'], 'mitjans'),
 };

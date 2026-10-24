@@ -41,6 +41,17 @@ const ID_CAMP_PUBLICAR = {
 
 const sessionsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+// Documents d'un catàleg amb nom, ordenats pel nom; buit si no es pot llegir.
+async function carregarCataleg(coleccio) {
+  try {
+    const snap = await getDocs(collection(db, coleccio));
+    const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => typeof e.nom === 'string' && e.nom.trim());
+    return llista.sort((a, b) => a.nom.localeCompare(b.nom, 'ca'));
+  } catch {
+    return [];
+  }
+}
+
 const perOrdreDePestanya = (a, b) => PESTANYES.indexOf(a) - PESTANYES.indexOf(b);
 
 // Errors de `prepararDesat` agrupats per pestanya (en ordre), amb els ids dels camps afectats.
@@ -73,6 +84,7 @@ function FitxaSessio({ id }) {
   const [publicaInicial, setPublicaInicial] = useState(publicaForm);
   const [altresSessions, setAltresSessions] = useState([]);
   const [entitats, setEntitats] = useState([]);
+  const [distribuidores, setDistribuidores] = useState([]);
   const [errorsPublica, setErrorsPublica] = useState({});
   const [carregant, setCarregant] = useState(editant);
   const [errorActiva, setErrorActiva] = useState(null);
@@ -109,18 +121,12 @@ function FitxaSessio({ id }) {
     getDocs(collection(db, 'sessions')).then((snap) => setAltresSessions(sessionsDe(snap)));
   }, [editant]);
 
-  // Catàleg d'entitats per als selectors de «Dades»; si no es pot llegir, queda buit i la fitxa funciona igual.
+  // Catàlegs d'entitats i de distribuïdores per als selectors de «Dades»; si no es poden llegir, queden buits
+  // i la fitxa funciona igual.
   useEffect(() => {
     if (!editant) return;
-    (async () => {
-      try {
-        const snap = await getDocs(collection(db, 'entitats'));
-        const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((e) => typeof e.nom === 'string' && e.nom.trim());
-        setEntitats(llista.sort((a, b) => a.nom.localeCompare(b.nom, 'ca')));
-      } catch {
-        setEntitats([]);
-      }
-    })();
+    carregarCataleg('entitats').then(setEntitats);
+    carregarCataleg('distribuidores').then(setDistribuidores);
   }, [editant]);
 
   useEffect(() => () => clearTimeout(temporitzadorDesat.current), []);
@@ -304,6 +310,8 @@ function FitxaSessio({ id }) {
               altresSessions={altresSessions}
               entitats={entitats}
               organitzaDesat={publicaInicial.organitza}
+              distribuidores={distribuidores}
+              distribucioDesada={{ nom: publicaInicial.suportDistribucio, id: publicaInicial.suportDistribucioId }}
               original={original}
               urlPagina={original.publicada ? urlPublica(original.data, original.slug) : ''}
             />

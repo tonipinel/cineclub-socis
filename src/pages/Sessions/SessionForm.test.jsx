@@ -1111,7 +1111,7 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     const enllac = await screen.findByRole('button', { name: 'Dades: Cal un slug.' });
     expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
-    expect(document.activeElement).toHaveAttribute('id', 'publica-slug');
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'publica-slug'));
     expect(updateDoc).not.toHaveBeenCalled();
     await user.click(pestanya('Mitjans'));
     await user.click(enllac);
@@ -1301,5 +1301,195 @@ describe('SessionForm — entitats del catàleg', () => {
     const participen = await screen.findByRole('group', { name: 'Participen' });
     await vi.waitFor(() => expect(within(within(participen).getByLabelText('Participen')).getAllByRole('option')
       .map((o) => o.textContent)).toEqual(['— Tria una entitat —', 'Ajuntament de Roda de Berà', "L'Ateneu Rodenc"]));
+  });
+});
+
+describe('SessionForm — distribuïdores del catàleg', () => {
+  const DISTRIBUIDORES = [
+    { id: 'd2', nom: 'B-team' },
+    { id: 'd1', nom: 'A Contracorriente' },
+  ];
+  const SESSIO = {
+    titol: 'Pig', data: '2026-10-08', hora: '19:00', activa: false, senseControl: false, slug: 'pig', publicada: false,
+    urlProgramacio: '', imatgeUrl: '',
+    publica: { titol: 'Pig', suportDistribucio: 'A Contracorriente Films', actualitzatEl: '2026-01-01' },
+  };
+  const docsDe = (llista) => ({ docs: llista.map(({ id, ...dades }) => ({ id, data: () => dades })) });
+
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'distribuidores' ? docsDe(DISTRIBUIDORES) : { docs: [] }));
+    updateDoc.mockClear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T10:00:00Z'));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  function carregar(sessio = SESSIO) {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(sessio) });
+    const user = userEvent.setup();
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    return user;
+  }
+
+  const opcions = (select) => within(select).getAllByRole('option').map((o) => o.textContent);
+
+  it('carrega el catàleg ordenat per nom i mostra el nom antic com a «no és al catàleg»', async () => {
+    carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(opcions(select))
+      .toEqual(['—', 'A Contracorriente Films (no és al catàleg)', 'A Contracorriente', 'B-team']));
+    expect(screen.getByRole('option', { name: 'A Contracorriente Films (no és al catàleg)' }).selected).toBe(true);
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+  });
+
+  it('canviar només el títol desa exactament el títol, sense tocar publica', async () => {
+    const user = carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('una sessió sense publica no la crea si només es canvia el títol', async () => {
+    const { publica: _publica, ...senseP } = SESSIO;
+    const user = carregar(senseP);
+    await screen.findByLabelText('Suport de distribució');
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  // Camps de `publica` desada que difereixen de l'original (una llista buida equival a absent).
+  const campsDiferents = (desada, original) => [...new Set([...Object.keys(desada), ...Object.keys(original)])]
+    .filter((camp) => JSON.stringify(desada[camp] ?? []) !== JSON.stringify(original[camp] ?? []))
+    .sort();
+  const triada = (select) => within(select).getAllByRole('option').find((o) => o.selected).textContent;
+
+  it('triar una distribuïdora del catàleg desa només el seu nom i el seu id a publica', async () => {
+    const user = carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'A Contracorriente' })).toBeInTheDocument());
+    await user.selectOptions(select, 'A Contracorriente');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const canvis = updateDoc.mock.calls[0][1];
+    expect(Object.keys(canvis)).toEqual(['publica']);
+    expect(canvis.publica).toMatchObject({ titol: 'Pig', suportDistribucio: 'A Contracorriente', suportDistribucioId: 'd1' });
+    expect(campsDiferents(canvis.publica, SESSIO.publica)).toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId']);
+  });
+
+  it('una sessió sense publica la crea només amb el nom i l\'id de la distribuïdora triada', async () => {
+    const { publica: _publica, ...senseP } = SESSIO;
+    const user = carregar(senseP);
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
+    await user.selectOptions(select, 'B-team');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(campsDiferents(updateDoc.mock.calls[0][1].publica, {}))
+      .toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId']);
+    expect(updateDoc.mock.calls[0][1].publica).toMatchObject({ suportDistribucio: 'B-team', suportDistribucioId: 'd2' });
+  });
+
+  it('triar «—» buida el nom i l\'id', async () => {
+    const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'B-team', suportDistribucioId: 'd2' } });
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(select).toHaveValue('d2'));
+    await user.selectOptions(select, '—');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const { publica } = updateDoc.mock.calls[0][1];
+    expect(publica).not.toHaveProperty('suportDistribucio');
+    expect(publica).not.toHaveProperty('suportDistribucioId');
+    expect(publica.titol).toBe('Pig');
+  });
+
+  it('tornar a triar el nom antic després de canviar-lo deixa la fitxa sense canvis', async () => {
+    const user = carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
+    await user.selectOptions(select, 'B-team');
+    expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
+    await user.selectOptions(select, 'A Contracorriente Films (no és al catàleg)');
+    expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+  });
+
+  it('amb el nom al catàleg (sense id) el mostra triat, sense avís i sense marcar la fitxa com a modificada', async () => {
+    const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'B-team' } });
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(screen.getByRole('option', { name: 'B-team', selected: true })).toBeInTheDocument());
+    expect(select).toHaveValue('d2');
+    expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+    expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('amb l\'id al catàleg mostra el nom actual, no marca canvis i desar el títol no toca publica', async () => {
+    const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'Nom vell', suportDistribucioId: 'd1' } });
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(select).toHaveValue('d1'));
+    expect(triada(select)).toBe('A Contracorriente');
+    expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
+    expect(textBarra()).toBe('Sense canvis');
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('un id que ja no és al catàleg es conserva en desar un altre camp de publica', async () => {
+    const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'Esborrada', suportDistribucioId: 'dX' } });
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
+    expect(triada(select)).toBe('Esborrada (no és al catàleg)');
+    await user.type(screen.getByLabelText('Títol públic'), ' 2');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    const { publica } = updateDoc.mock.calls[0][1];
+    expect(publica).toMatchObject({ titol: 'Pig 2', suportDistribucio: 'Esborrada', suportDistribucioId: 'dX' });
+  });
+
+  it('si el catàleg no es pot llegir, la fitxa es mostra igualment amb el nom antic', async () => {
+    getDocs.mockImplementation((q) => (q === 'distribuidores' ? Promise.reject(new Error('xarxa')) : Promise.resolve({ docs: [] })));
+    const user = carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    expect(opcions(select)).toEqual(['—', 'A Contracorriente Films (no és al catàleg)']);
+    expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
+    await user.clear(screen.getByLabelText('Títol'));
+    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+  });
+
+  it('una distribuïdora sense nom no buida el catàleg', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'distribuidores'
+      ? docsDe([{ id: 'x', web: 'x.example' }, { id: 'y', nom: '  ' }, ...DISTRIBUIDORES])
+      : { docs: [] }));
+    carregar();
+    const select = await screen.findByLabelText('Suport de distribució');
+    await vi.waitFor(() => expect(opcions(select))
+      .toEqual(['—', 'A Contracorriente Films (no és al catàleg)', 'A Contracorriente', 'B-team']));
+  });
+
+  it('enllaça a «Gestionar distribuïdores»', async () => {
+    carregar();
+    expect(await screen.findByRole('link', { name: 'Gestionar distribuïdores' })).toHaveAttribute('href', '/distribuidores');
   });
 });

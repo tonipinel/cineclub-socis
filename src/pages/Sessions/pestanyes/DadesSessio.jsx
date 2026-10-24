@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { generarSlug, slugDisponible, validarPublicable } from '../../../lib/sessioPublica';
 import { llistaDeText, nomAlCataleg, textDeLlista } from '../../../lib/entitats';
+import { opcionsDistribucio } from '../../../lib/distribuidores';
 import * as ROUTES from '../../../constants/routes';
 import SelectorEntitats from '../../../components/SelectorEntitats';
 import { FITXA, GESTIO, SECCIONS, VERSIONS } from '../camps';
@@ -45,6 +46,7 @@ export function TargetaSessio({ dades, onCanviDades }) {
 
 export default function DadesSessio({
   dades, onCanviDades, form, onCanviForm, errors, altresSessions, urlPagina, entitats = [], organitzaDesat = '',
+  distribuidores = [], distribucioDesada = { nom: '', id: '' },
 }) {
   const slug = dades.slug ?? '';
   const any = typeof dades.data === 'string' ? dades.data.slice(0, 4) : '';
@@ -61,6 +63,17 @@ export default function DadesSessio({
   const alies = Object.fromEntries(valorsOrganitza
     .filter((v) => !nomsCataleg.includes(v) && nomAlCataleg(v, nomsCataleg))
     .map((v) => [nomAlCataleg(v, nomsCataleg), v]));
+  // «Suport de distribució»: el valor és l'id; triar-ne una escriu el nom i l'id i res més (sense àlies).
+  const distribucio = opcionsDistribucio(
+    distribuidores,
+    { nom: form.suportDistribucio, id: form.suportDistribucioId },
+    distribucioDesada,
+  );
+  const triarDistribucio = (valor) => {
+    const { nom, id } = distribucio.opcions.find((o) => o.valor === valor);
+    onCanviForm('suportDistribucio', nom);
+    onCanviForm('suportDistribucioId', id);
+  };
   const selector = (camp, etiqueta) => (
     <SelectorEntitats
       id={`publica-${camp}`}
@@ -157,6 +170,16 @@ export default function DadesSessio({
             </select>
           </Camp>
           {GESTIO.map(([camp, etiqueta, ajuda]) => <Camp key={camp} camp={camp} etiqueta={etiqueta} ajuda={ajuda} {...props} />)}
+          <Camp camp="suportDistribucio" etiqueta="Suport de distribució" {...props}>
+            <select
+              id="publica-suportDistribucio"
+              className="form__input"
+              value={distribucio.valor}
+              onChange={(e) => triarDistribucio(e.target.value)}
+            >
+              {distribucio.opcions.map((o) => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}
+            </select>
+          </Camp>
           <Camp camp="organitza" etiqueta="Organitza" {...props}>
             <select id="publica-organitza" className="form__input" value={form.organitza} onChange={(e) => onCanviForm('organitza', e.target.value)}>
               <option value="">—</option>
@@ -167,7 +190,10 @@ export default function DadesSessio({
           {selector('participa', 'Participen')}
           {selector('collabora', 'Col·laboren')}
         </div>
-        <Link className="enllac selector-entitats__gestionar" to={ROUTES.ENTITATS}>Gestionar entitats</Link>
+        <div className="selector-entitats__enllacos">
+          <Link className="enllac selector-entitats__gestionar" to={ROUTES.ENTITATS}>Gestionar entitats</Link>
+          <Link className="enllac selector-entitats__gestionar" to={ROUTES.DISTRIBUIDORES}>Gestionar distribuïdores</Link>
+        </div>
       </section>
 
       <section className="fitxa-sessio__targeta" aria-labelledby="targeta-avancat">

@@ -109,11 +109,16 @@ export function dadesInicials() {
         any: 1964,
         durada: 91,
         cartell: i % 2 === 0 ? CARTELL_AMPLE : '',
+        suportDistribucio: 'Distribuïdora 3',
+        // ses3 referencia d1 per id amb un nom vell: el selector ha de mostrar el nom llarg actual del catàleg.
+        ...(i === 3 && { suportDistribucio: 'Nom antic de la distribuïdora', suportDistribucioId: 'd1' }),
         // ses2 (activa) estressa les pestanyes Continguts i Mitjans: galeria, cos llarg i títol llarguíssim.
         ...(i === 2 && {
           titol: `${titol} ${PARAULA_LLARGA} ${PARAULA_LLARGA}`,
           // Selectors d'entitats: organitzador antic fora del catàleg i un nom llarg antic + un del catàleg.
           organitza: 'cineclub',
+          // Suport de distribució antic (llarg) que no és al catàleg de distribuïdores.
+          suportDistribucio: 'Distribuïdora Antiga de Cinema d\'Autor i Clàssics Restaurats de la Mediterrània Occidental',
           participa: [
             'Associació Cultural i Recreativa de Veïns i Veïnes de la Platja Llarga',
             'Associació Cultural i Recreativa de Veïns i Amics del Cinema Independent de la Costa Daurada i el Camp de Tarragona',
@@ -220,6 +225,8 @@ export function dadesInicials() {
   d['distribuidores/d1'] = {
     nom: 'Distribuïdora de Cinema Independent i Clàssic del Mediterrani, Societat Limitada',
     web: URL_LLARGA,
+    urlPublica: URL_LLARGA,
+    logo: '/logo-cineclub.png',
     contacte: 'Maria Montserrat Immaculada Puigdollers-Vallverdú i Casademunt de la Torre',
     correu: CORREU_LLARG,
     preu: 350,
@@ -228,6 +235,9 @@ export function dadesInicials() {
   for (let i = 2; i <= 6; i += 1) {
     d[`distribuidores/d${i}`] = { nom: `Distribuïdora ${i}`, web: `distribuidora${i}.example`, contacte: 'Joan', correu: `joan${i}@example.com`, preu: i * 50, condicions: '' };
   }
+  // Una amb logo ample (no quadrat) i pàgina pública curta; la resta sense logo.
+  d['distribuidores/d2'].logo = CARTELL_AMPLE;
+  d['distribuidores/d2'].urlPublica = 'https://distribuidora2.example/';
 
   // --- Entitats (una amb nom molt llarg i sense logo).
   d['entitats/e1'] = {

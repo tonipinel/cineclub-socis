@@ -24,8 +24,14 @@ const ENTITATS = [
   { id: 'c', nom: 'Ajuntament de Roda de Berà' },
 ];
 
+const DISTRIBUIDORES = [
+  { id: 'd1', nom: 'A Contracorriente' },
+  { id: 'd2', nom: 'B-team' },
+];
+
 function Arnes({
   publica, sessio = {}, altresSessions = [], urlPagina = '', errors = {}, entitats = ENTITATS, onCanviForm, organitzaDesat,
+  distribuidores = DISTRIBUIDORES,
 }) {
   const [form, setForm] = useState(publicaAFormulari(publica));
   const [dades, setDades] = useState({ titol: 'Pig', data: '2026-10-08', hora: '19:00', slug: '', publicada: false, ...sessio });
@@ -49,6 +55,8 @@ function Arnes({
         urlPagina={urlPagina}
         entitats={entitats}
         organitzaDesat={organitzaDesat ?? publicaAFormulari(publica).organitza}
+        distribuidores={distribuidores}
+        distribucioDesada={{ nom: publicaAFormulari(publica).suportDistribucio, id: publicaAFormulari(publica).suportDistribucioId }}
       />
     </MemoryRouter>
   );
@@ -105,8 +113,8 @@ describe('DadesSessio', () => {
 
   it('enllaça a la URL de la pàgina pública desada si n\'hi ha', () => {
     const { unmount } = render(<Arnes sessio={{ slug: 'pig' }} />);
-    // Migrada: ara sempre hi ha l'enllaç «Gestionar entitats»; només aquest.
-    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Gestionar entitats']);
+    // Migrada: ara sempre hi ha els enllaços «Gestionar entitats» i «Gestionar distribuïdores»; només aquests.
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Gestionar entitats', 'Gestionar distribuïdores']);
     unmount();
     render(<Arnes sessio={{ slug: 'pig', publicada: true }} urlPagina="https://cineclubrodadebera.cat/programacio/2026/pig/" />);
     const enllac = screen.getByRole('link', { name: 'https://cineclubrodadebera.cat/programacio/2026/pig/' });
@@ -191,5 +199,82 @@ describe('DadesSessio', () => {
   it('enllaça a «Gestionar entitats»', () => {
     render(<Arnes />);
     expect(screen.getByRole('link', { name: 'Gestionar entitats' })).toHaveAttribute('href', '/entitats');
+  });
+
+  const opcionsDe = (select) => within(select).getAllByRole('option').map((o) => o.textContent);
+  const triada = (select) => within(select).getAllByRole('option').find((o) => o.selected).textContent;
+
+  it('«Suport de distribució» és un desplegable del catàleg (valor = id) que conserva un nom antic que no hi és', async () => {
+    const onCanviForm = vi.fn();
+    const user = userEvent.setup();
+    render(<Arnes publica={{ suportDistribucio: 'A Contracorriente Films' }} onCanviForm={onCanviForm} />);
+    const select = screen.getByLabelText('Suport de distribució');
+    expect(select).toHaveAttribute('id', 'publica-suportDistribucio');
+    expect(opcionsDe(select)).toEqual(['—', 'A Contracorriente Films (no és al catàleg)', 'A Contracorriente', 'B-team']);
+    expect(screen.getByRole('option', { name: 'A Contracorriente' })).toHaveValue('d1');
+    expect(screen.getByRole('option', { name: 'B-team' })).toHaveValue('d2');
+    expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
+    expect(onCanviForm).not.toHaveBeenCalled();
+    await user.selectOptions(select, 'A Contracorriente');
+    expect(onCanviForm.mock.calls).toEqual([['suportDistribucio', 'A Contracorriente'], ['suportDistribucioId', 'd1']]);
+    expect(canvis.form).toMatchObject({ suportDistribucio: 'A Contracorriente', suportDistribucioId: 'd1' });
+    expect(select).toHaveValue('d1');
+    // El nom desat continua disponible per tornar-hi.
+    onCanviForm.mockClear();
+    await user.selectOptions(select, 'A Contracorriente Films (no és al catàleg)');
+    expect(onCanviForm.mock.calls).toEqual([['suportDistribucio', 'A Contracorriente Films'], ['suportDistribucioId', '']]);
+    expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
+    onCanviForm.mockClear();
+    await user.selectOptions(select, '—');
+    expect(onCanviForm.mock.calls).toEqual([['suportDistribucio', ''], ['suportDistribucioId', '']]);
+    expect(canvis.form).toMatchObject({ suportDistribucio: '', suportDistribucioId: '' });
+  });
+
+  it('«Suport de distribució» amb un nom del catàleg el mostra triat sense escriure res ni afegir «no és al catàleg»', () => {
+    const onCanviForm = vi.fn();
+    render(<Arnes publica={{ suportDistribucio: 'B-team' }} onCanviForm={onCanviForm} />);
+    expect(screen.getByLabelText('Suport de distribució')).toHaveValue('d2');
+    expect(screen.queryByRole('option', { name: /no és al catàleg/ })).not.toBeInTheDocument();
+    expect(onCanviForm).not.toHaveBeenCalled();
+  });
+
+  it('«Suport de distribució» amb l\'id del catàleg mostra el nom actual encara que el de la sessió sigui vell', () => {
+    const onCanviForm = vi.fn();
+    render(<Arnes publica={{ suportDistribucio: 'A Contracorriente Films', suportDistribucioId: 'd1' }} onCanviForm={onCanviForm} />);
+    const select = screen.getByLabelText('Suport de distribució');
+    expect(select).toHaveValue('d1');
+    expect(triada(select)).toBe('A Contracorriente');
+    expect(opcionsDe(select)).toEqual(['—', 'A Contracorriente', 'B-team']);
+    expect(onCanviForm).not.toHaveBeenCalled();
+  });
+
+  it('«Suport de distribució» amb un id que ja no és al catàleg el conserva com «no és al catàleg»', async () => {
+    const onCanviForm = vi.fn();
+    const user = userEvent.setup();
+    render(<Arnes publica={{ suportDistribucio: 'B-team', suportDistribucioId: 'esborrada' }} onCanviForm={onCanviForm} />);
+    const select = screen.getByLabelText('Suport de distribució');
+    expect(triada(select)).toBe('B-team (no és al catàleg)');
+    await user.selectOptions(select, 'B-team');
+    expect(onCanviForm.mock.calls).toEqual([['suportDistribucio', 'B-team'], ['suportDistribucioId', 'd2']]);
+    onCanviForm.mockClear();
+    await user.selectOptions(select, 'B-team (no és al catàleg)');
+    expect(onCanviForm.mock.calls).toEqual([['suportDistribucio', 'B-team'], ['suportDistribucioId', 'esborrada']]);
+  });
+
+  it('«Suport de distribució» no fa servir l\'àlies «cineclub» d\'«Organitza»', () => {
+    render(<Arnes publica={{ suportDistribucio: 'cineclub' }} distribuidores={[{ id: 'd', nom: 'Cineclub Roda de Berà' }]} />);
+    expect(screen.getByRole('option', { name: 'cineclub (no és al catàleg)' }).selected).toBe(true);
+  });
+
+  it('sense catàleg de distribuïdores, el nom desat es mostra com «no és al catàleg»', () => {
+    render(<Arnes publica={{ suportDistribucio: 'A Contracorriente Films', suportDistribucioId: 'd1' }} distribuidores={[]} />);
+    const select = screen.getByLabelText('Suport de distribució');
+    expect(opcionsDe(select)).toEqual(['—', 'A Contracorriente Films (no és al catàleg)']);
+    expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
+  });
+
+  it('enllaça a «Gestionar distribuïdores»', () => {
+    render(<Arnes />);
+    expect(screen.getByRole('link', { name: 'Gestionar distribuïdores' })).toHaveAttribute('href', '/distribuidores');
   });
 });
