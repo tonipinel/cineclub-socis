@@ -8,7 +8,7 @@ export async function cercarPellicules(consulta, token) {
   return data;
 }
 
-export async function assignarPellicula(propostaId, tmdbId) {
-  const { data } = await httpsCallable(functions, 'assignarPellicula')({ propostaId, tmdbId });
+export async function assignarPellicula(propostaId, tmdbId, { sobreescriure = false } = {}) {
+  const { data } = await httpsCallable(functions, 'assignarPellicula')({ propostaId, tmdbId, sobreescriure });
   return data;
 }
