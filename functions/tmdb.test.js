@@ -258,6 +258,14 @@ describe('detallPellicula', () => {
   });
 });
 
+describe('detallPellicula: identificador', () => {
+  it.each(['../x', '1?x=2', '5', 1.5, 0, -1, 1e12, null])('rebutja %s sense cridar TMDB', async (tmdbId) => {
+    const fetchFn = vi.fn();
+    await expect(detallPellicula(tmdbId, 'clau', fetchFn)).rejects.toThrow('no vàlid');
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
 describe('descarregarCartell', () => {
   it('descarrega la imatge i en retorna el contingut i el tipus', async () => {
     const fetchFn = vi.fn().mockResolvedValue({

@@ -5,13 +5,14 @@ const { logger } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
-const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
-const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria } = require('./votacio-handlers');
+const { cercarPellicules, detallPellicula, descarregarCartell, esTmdbIdValid } = require('./tmdb');
+const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria, sociDelToken } = require('./votacio-handlers');
 const { credencialsCalendari } = require('./calendari');
 const { clientCalendari } = require('./calendari-google');
 const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
 const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
 const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicituds');
+const { crearPropostaAmbDependencies } = require('./proposta');
 
 initializeApp();
 
@@ -65,10 +66,10 @@ exports.desarFitxaNovaProposta = onDocumentCreated(
   { document: 'propostes/{id}', secrets: SECRETS, maxInstances: MAX_DISPARADORS },
   async (event) => {
     const dades = event.data.data();
-    if (!dades.tmdbId) return;
+    if (!esTmdbIdValid(dades.tmdbId)) return;
     try {
-      // Les propostes es poden crear sense autenticar-se, així que en crear-les no es respecta cap camp
-      // marcat com a editat: s'agafa tota la fitxa de TMDB i es buida `campsEditats` si n'hi hagués.
+      // En crear-la no es respecta cap camp marcat com a editat: s'agafa tota la fitxa de TMDB i es buida
+      // `campsEditats` si n'hi hagués.
       await desarFitxa(event.params.id, dades.tmdbId, { sobreescriure: true });
     } catch (error) {
       logger.error('No s\'ha pogut desar la fitxa de la proposta', event.params.id, error);
@@ -84,9 +85,12 @@ exports.cercarPellicules = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABLE
   if (consulta.length < 2) return [];
   const esAdmin = request.auth?.token?.role === 'admin';
   if (!esAdmin) {
-    const token = request.data?.token;
-    const soci = token ? await getFirestore().doc(`socisPublic/${token}`).get() : null;
-    if (!soci?.exists) throw new HttpsError('permission-denied', 'Identifica\'t amb el carnet per cercar pel·lícules.');
+    try {
+      await sociDelToken(getFirestore(), request.data?.token);
+    } catch (error) {
+      if (error.codi === 'permission-denied') throw new HttpsError('permission-denied', 'Identifica\'t amb el carnet per cercar pel·lícules.');
+      throw error;
+    }
   }
   return cercarPellicules(consulta, TMDB_API_KEY.value());
 });
@@ -97,7 +101,7 @@ exports.cercarPellicules = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABLE
 exports.assignarPellicula = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABLES }, async (request) => {
   if (request.auth?.token?.role !== 'admin') throw new HttpsError('permission-denied', 'Només l\'admin.');
   const { propostaId, tmdbId, sobreescriure } = request.data ?? {};
-  if (!propostaId || !tmdbId) throw new HttpsError('invalid-argument', 'Falten dades.');
+  if (!propostaId || !esTmdbIdValid(tmdbId)) throw new HttpsError('invalid-argument', 'Falten dades.');
   try {
     return await desarFitxa(propostaId, tmdbId, { sobreescriure: sobreescriure === true });
   } catch (error) {
@@ -122,6 +126,10 @@ exports.votarProposta = votacio(gestionarVot);
 exports.rankingTanda = votacio(gestionarRanking);
 // Sense token i amb una tanda tancada que ja no canvia: es desa uns minuts per no rellegir tots els vots.
 exports.rankingPublic = votacio(ambMemoria(gestionarRankingPublic));
+
+// Proposta d'un soci des de la web pública, identificat amb el token del carnet (vegeu `proposta.js`).
+exports.crearProposta = votacio((db, dades, ara) =>
+  crearPropostaAmbDependencies({ db, marcaTemps: () => FieldValue.serverTimestamp() }, dades, ara));
 
 let calendari;
 const obtenirCalendari = () => (calendari ??= clientCalendari(credencialsCalendari({

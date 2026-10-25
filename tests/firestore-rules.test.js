@@ -373,19 +373,15 @@ describe('firestore.rules — socisPublic', () => {
 const PROPOSTA_VALIDA = { titol: 'El padrí', numeroSoci: 7, estat: 'pendent' };
 
 describe('firestore.rules — propostes', () => {
-  it('permet a un visitant no autenticat crear una proposta pendent', async () => {
+  it('impedeix a un visitant no autenticat crear una proposta (la web passa per la Cloud Function)', async () => {
     const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(anonDb, 'propostes/1'), PROPOSTA_VALIDA));
+    await assertFails(setDoc(doc(anonDb, 'propostes/1'), PROPOSTA_VALIDA));
+    await assertFails(setDoc(doc(anonDb, 'propostes/2'), { ...PROPOSTA_VALIDA, tmdbId: 10 }));
   });
 
-  it('impedeix crear una proposta sense titol, numeroSoci o estat', async () => {
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(anonDb, 'propostes/1'), { titol: 'Sense soci', estat: 'pendent' }));
-  });
-
-  it('impedeix crear una proposta que no sigui pendent', async () => {
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(anonDb, 'propostes/1'), { ...PROPOSTA_VALIDA, estat: 'aprovada' }));
+  it('impedeix a un usuari autenticat que no és admin crear una proposta', async () => {
+    const taquillaDb = testEnv.authenticatedContext('t-uid', { role: 'taquilla' }).firestore();
+    await assertFails(setDoc(doc(taquillaDb, 'propostes/1'), PROPOSTA_VALIDA));
   });
 
   it('impedeix a un visitant no autenticat llegir una proposta pendent', async () => {
@@ -487,14 +483,9 @@ describe('firestore.rules — propostes', () => {
     await assertSucceeds(setDoc(doc(adminDb, 'propostes/1'), PROPOSTA_VALIDA));
   });
 
-  it('impedeix crear una proposta amb campsEditats', async () => {
+  it('impedeix a un visitant crear una proposta amb campsEditats', async () => {
     const anonDb = testEnv.unauthenticatedContext().firestore();
     await assertFails(setDoc(doc(anonDb, 'propostes/1'), { ...PROPOSTA_VALIDA, tmdbId: 10, campsEditats: ['titol'] }));
-  });
-
-  it('permet a un visitant crear una proposta pendent amb tmdbId', async () => {
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(anonDb, 'propostes/1'), { ...PROPOSTA_VALIDA, tmdbId: 10 }));
   });
 
   it('permet a un admin actualitzar campsEditats', async () => {
@@ -562,27 +553,32 @@ describe('firestore.rules — tandes/{id}/vots', () => {
 describe('firestore.rules — propostesActivitat', () => {
   const ACTIVITAT = { tipus: 'vot', propostaId: '1', numeroSoci: 7, timestamp: new Date() };
 
-  it("permet a un visitant no autenticat crear un registre d'activitat", async () => {
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(anonDb, 'propostesActivitat/1'), ACTIVITAT));
+  // Només l'escriu la Cloud Function `crearProposta` (Admin SDK); aquí es prepara sense regles.
+  const crearAmbAdminSdk = () => testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'propostesActivitat/1'), ACTIVITAT);
+  });
+
+  it("impedeix a qualsevol client crear un registre d'activitat (anònim, taquilla i admin)", async () => {
+    await assertFails(setDoc(doc(testEnv.unauthenticatedContext().firestore(), 'propostesActivitat/1'), ACTIVITAT));
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('t-uid', { role: 'taquilla' }).firestore(), 'propostesActivitat/1'), ACTIVITAT));
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore(), 'propostesActivitat/1'), ACTIVITAT));
   });
 
   it("impedeix a un visitant no autenticat llegir l'activitat", async () => {
-    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'propostesActivitat/1'), ACTIVITAT);
+    await crearAmbAdminSdk();
     const anonDb = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(anonDb, 'propostesActivitat/1')));
   });
 
   it("permet a un admin llegir l'activitat", async () => {
+    await crearAmbAdminSdk();
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'propostesActivitat/1'), ACTIVITAT);
     await assertSucceeds(getDoc(doc(adminDb, 'propostesActivitat/1')));
   });
 
   it("impedeix modificar o esborrar l'activitat fins i tot a un admin", async () => {
+    await crearAmbAdminSdk();
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'propostesActivitat/1'), ACTIVITAT);
     await assertFails(updateDoc(doc(adminDb, 'propostesActivitat/1'), { tipus: 'desvot' }));
     await assertFails(deleteDoc(doc(adminDb, 'propostesActivitat/1')));
   });

@@ -100,19 +100,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Propostes de pel·lícules dels socis: es creen sense autenticar-se
-    // (identificació pel carnet físic, no per Firebase Auth) — o per un
-    // admin en nom d'un soci que l'hi ha proposat de viva veu, amb la
-    // mateixa forma de document — però només queden visibles públicament
+    // Propostes de pel·lícules dels socis: la web pública les crea amb la
+    // Cloud Function `crearProposta` (identificació pel token del carnet,
+    // Admin SDK), i l'admin des de l'app en nom d'un soci que l'hi ha
+    // proposat de viva veu, amb la mateixa forma de document. Cap client
+    // anònim les pot crear directament. Només queden visibles públicament
     // les aprovades o programades. És una llista blanca: les pendents i les
     // rebutjades (amb el número de soci i el comentari) no es veuen mai.
     // La web les consulta amb `where('estat', 'in', ['aprovada', 'programada'])`
     // (useEstatVotacio.js); qualsevol consulta que pugui tornar-ne d'altres es denega.
     match /propostes/{id} {
-      allow create: if request.resource.data.keys().hasAll(['titol', 'numeroSoci', 'estat'])
-        && request.resource.data.estat == 'pendent'
-        // `campsEditats` el posa només l'admin en editar la fitxa (protegeix camps de TMDB).
-        && !request.resource.data.keys().hasAny(['campsEditats']);
+      allow create: if isAdmin();
       allow read: if resource.data.estat in ['aprovada', 'programada'] || isAdmin();
       allow update, delete: if isAdmin();
 
@@ -165,11 +163,12 @@ service cloud.firestore {
       }
     }
 
-    // Registre d'auditoria de propostes i vots: es pot crear sense
-    // autenticar-se (mateix motiu que propostes), però només l'admin el pot
-    // llegir, i mai es pot modificar ni esborrar (igual que accessLog).
+    // Registre d'auditoria de propostes: només l'escriu la Cloud Function
+    // `crearProposta` amb l'Admin SDK (que no passa per aquestes regles), així
+    // que cap client el pot crear. Només l'admin el pot llegir, i mai es pot
+    // modificar ni esborrar (igual que accessLog).
     match /propostesActivitat/{id} {
-      allow create: if request.resource.data.keys().hasAll(['tipus', 'propostaId', 'numeroSoci', 'timestamp']);
+      allow create: if false;
       allow read: if isAdmin();
     }
   }

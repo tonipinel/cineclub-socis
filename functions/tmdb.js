@@ -156,7 +156,12 @@ function triarSinopsi(ca, es, en) {
   return { sinopsi: '', idioma: 'ca' };
 }
 
+// L'identificador va dins la ruta de l'API: només s'accepta un enter positiu (cap `../`, `?` ni decimals).
+const MAXIM_TMDB_ID = 99_999_999;
+const esTmdbIdValid = (valor) => Number.isSafeInteger(valor) && valor > 0 && valor <= MAXIM_TMDB_ID;
+
 async function detallPellicula(tmdbId, clau, fetchFn = fetch) {
+  if (!esTmdbIdValid(tmdbId)) throw new Error('Identificador de TMDB no vàlid.');
   const [ca, es] = await Promise.all([
     obtenirJson(
       clau,
@@ -206,4 +211,4 @@ async function descarregarCartell(posterPath, fetchFn = fetch) {
   };
 }
 
-module.exports = { cercarPellicules, detallPellicula, descarregarCartell };
+module.exports = { cercarPellicules, detallPellicula, descarregarCartell, esTmdbIdValid };

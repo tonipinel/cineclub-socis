@@ -79,6 +79,9 @@ body:has(.propostes-app) > main {
 .form__error {
   @apply font-body text-sm text-red-600;
 }
+.form__ajuda {
+  @apply font-body text-xs text-black/60;
+}
 .enllac {
   @apply text-gold-dark transition hover-real:underline;
 }

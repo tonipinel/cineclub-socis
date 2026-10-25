@@ -4,8 +4,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IdentitatPublicaProvider } from '../../src/auth/IdentitatPublica.jsx';
 
-vi.mock('../../src/firebase/client.js', () => ({ db: {} }));
-vi.mock('../../src/lib/propostes/pellicules.js', () => ({ cercarPellicules: vi.fn() }));
+vi.mock('../../src/lib/propostes/pellicules.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  cercarPellicules: vi.fn(),
+  crearProposta: vi.fn(),
+}));
 vi.mock('../../src/components/propostes/LectorCarnet.jsx', () => ({
   default: ({ onIdentificat }) => (
     <button type="button" onClick={() => onIdentificat({ numeroSoci: 7, nomPublic: 'Isabel M.', token: 'tok-7' })}>
@@ -13,14 +16,9 @@ vi.mock('../../src/components/propostes/LectorCarnet.jsx', () => ({
     </button>
   ),
 }));
-vi.mock('firebase/firestore', () => ({
-  addDoc: vi.fn().mockResolvedValue({ id: 'nova' }),
-  collection: vi.fn((_, nom) => nom),
-  serverTimestamp: vi.fn(() => 'TIMESTAMP'),
-}));
+vi.mock('../../src/firebase/client.js', () => ({ functions: {} }));
 
-import { addDoc } from 'firebase/firestore';
-import { cercarPellicules } from '../../src/lib/propostes/pellicules.js';
+import { cercarPellicules, crearProposta } from '../../src/lib/propostes/pellicules.js';
 import ProposarPellicula from '../../src/components/propostes/ProposarPellicula.jsx';
 
 const IDENTITAT = { numeroSoci: 7, nomPublic: 'Isabel M.', token: 'tok-7' };
@@ -36,7 +34,7 @@ function renderPagina() {
 describe('ProposarPellicula', () => {
   beforeEach(() => {
     sessionStorage.clear();
-    addDoc.mockClear();
+    crearProposta.mockReset().mockResolvedValue({ id: 'nova' });
     cercarPellicules.mockReset();
   });
 
@@ -64,9 +62,9 @@ describe('ProposarPellicula', () => {
     await user.click(screen.getByRole('button', { name: 'Enviar proposta' }));
 
     expect(await screen.findByText(/s'ha enviat/i)).toBeInTheDocument();
-    const [, dadesDesades] = addDoc.mock.calls[0];
-    expect(dadesDesades).toEqual({
-      titol: "L'endemà", any: '1990', tmdbId: 11, comentari: 'Una joia', numeroSoci: 7, nomProposant: 'Isabel M.', estat: 'pendent', timestamp: 'TIMESTAMP',
+    // El número de soci i el nom els posa la Cloud Function a partir del token: el client no els envia.
+    expect(crearProposta).toHaveBeenCalledWith('tok-7', {
+      titol: "L'endemà", any: '1990', tmdbId: 11, comentari: 'Una joia',
     });
   });
 
@@ -84,19 +82,53 @@ describe('ProposarPellicula', () => {
     expect(JSON.parse(sessionStorage.getItem('cineclub.identitat'))).toEqual(IDENTITAT);
   });
 
-  it('registra l\'activitat de la proposta creada', async () => {
-    cercarPellicules.mockResolvedValue([{ tmdbId: 11, titol: "L'endemà", any: '1990', posterUrl: null }]);
-    const user = userEvent.setup();
-    renderPagina();
-    await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
+  async function enviarProposta(user) {
     await user.type(await screen.findByLabelText('Pel·lícula'), 'endem');
     await user.click(await screen.findByRole('button', { name: /L'endemà \(1990\)/ }));
     await user.click(screen.getByRole('button', { name: 'Enviar proposta' }));
-    await screen.findByText(/s'ha enviat/i);
-    expect(addDoc).toHaveBeenCalledTimes(2);
-    expect(addDoc.mock.calls[1]).toEqual(['propostesActivitat', {
-      tipus: 'proposta_creada', propostaId: 'nova', numeroSoci: 7, timestamp: 'TIMESTAMP',
-    }]);
+  }
+
+  it('el comentari té un màxim de 1000 caràcters i ho diu', async () => {
+    cercarPellicules.mockResolvedValue([{ tmdbId: 11, titol: "L'endemà", any: '1990', posterUrl: null }]);
+    sessionStorage.setItem('cineclub.identitat', JSON.stringify(IDENTITAT));
+    const user = userEvent.setup();
+    renderPagina();
+    await user.type(await screen.findByLabelText('Pel·lícula'), 'endem');
+    await user.click(await screen.findByRole('button', { name: /L'endemà \(1990\)/ }));
+    const comentari = screen.getByLabelText("Explica'ns breument per què la recomanes (opcional)");
+    expect(comentari).toHaveAttribute('maxLength', '1000');
+    expect(comentari).toHaveAccessibleDescription('Màxim 1000 caràcters.');
+  });
+
+  it.each([
+    ['functions/already-exists', 'Aquesta pel·lícula ja està proposada'],
+    ['functions/resource-exhausted', 'massa propostes'],
+    ['functions/internal', "No s'ha pogut enviar la proposta"],
+  ])('si la Cloud Function respon %s, ho explica i manté el formulari', async (code, text) => {
+    cercarPellicules.mockResolvedValue([{ tmdbId: 11, titol: "L'endemà", any: '1990', posterUrl: null }]);
+    crearProposta.mockRejectedValue(Object.assign(new Error('x'), { code }));
+    sessionStorage.setItem('cineclub.identitat', JSON.stringify(IDENTITAT));
+    const user = userEvent.setup();
+    renderPagina();
+    await enviarProposta(user);
+    expect(await screen.findByText(new RegExp(text))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar proposta' })).toBeEnabled();
+    expect(sessionStorage.getItem('cineclub.identitat')).not.toBeNull();
+  });
+
+  it('si el carnet no és vàlid, oblida la identitat i demana tornar-lo a escanejar', async () => {
+    cercarPellicules.mockResolvedValue([{ tmdbId: 11, titol: "L'endemà", any: '1990', posterUrl: null }]);
+    crearProposta.mockRejectedValue(Object.assign(new Error('x'), { code: 'functions/permission-denied' }));
+    sessionStorage.setItem('cineclub.identitat', JSON.stringify(IDENTITAT));
+    const user = userEvent.setup();
+    renderPagina();
+    await enviarProposta(user);
+    expect(await screen.findByText('Aquest carnet no és vàlid. Torna a escanejar-lo.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simular escaneig' })).toBeInTheDocument();
+    expect(sessionStorage.getItem('cineclub.identitat')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Simular escaneig' }));
+    expect(screen.queryByText(/carnet no és vàlid/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar proposta' })).toBeDisabled();
   });
 
   it('un cop enviada, ofereix tornar a /propostes/', async () => {

@@ -14,8 +14,24 @@ describe('maxInstances', () => {
       votarProposta: 10,
       rankingTanda: 10,
       rankingPublic: 10,
+      crearProposta: 10,
       sincronitzarCalendari: 5,
       sincronitzarCalendariTot: 10,
+    });
+  });
+});
+
+// Sense Firestore: aquests casos es resolen abans de llegir cap document.
+describe('cercarPellicules: carnet', () => {
+  const cercar = (data) => funcions.cercarPellicules.run({ data, auth: null });
+
+  it('amb una consulta massa curta no comprova res i torna una llista buida', async () => {
+    await expect(cercar({ consulta: 'a' })).resolves.toEqual([]);
+  });
+
+  it.each([undefined, '', 'a/b', '..', { a: 1 }])('rebutja el token %s amb permission-denied', async (token) => {
+    await expect(cercar({ consulta: 'dune', token })).rejects.toMatchObject({
+      code: 'permission-denied', message: 'Identifica\'t amb el carnet per cercar pel·lícules.',
     });
   });
 });

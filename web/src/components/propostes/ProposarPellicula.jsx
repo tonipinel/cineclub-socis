@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase/client.js';
+import { crearProposta, missatgeErrorProposta } from '../../lib/propostes/pellicules.js';
 import { useIdentitatPublica } from '../../auth/useIdentitatPublica.js';
 import LectorCarnet from './LectorCarnet.jsx';
 import CercadorPellicula from './CercadorPellicula.jsx';
@@ -19,22 +18,20 @@ export default function ProposarPellicula() {
     setEnviant(true);
     setError(null);
     try {
-      const nova = await addDoc(collection(db, 'propostes'), {
+      await crearProposta(identitat.token, {
         titol: pellicula.titol,
         any: pellicula.any,
         tmdbId: pellicula.tmdbId,
         comentari: comentari.trim(),
-        numeroSoci: identitat.numeroSoci,
-        nomProposant: identitat.nomPublic,
-        estat: 'pendent',
-        timestamp: serverTimestamp(),
-      });
-      await addDoc(collection(db, 'propostesActivitat'), {
-        tipus: 'proposta_creada', propostaId: nova.id, numeroSoci: identitat.numeroSoci, timestamp: serverTimestamp(),
       });
       setEnviada(true);
-    } catch {
-      setError("No s'ha pogut enviar la proposta. Torna-ho a provar.");
+    } catch (errorEnviant) {
+      setError(missatgeErrorProposta(errorEnviant));
+      // Carnet desconegut o desactivat: cal tornar-lo a escanejar.
+      if (errorEnviant?.code === 'functions/permission-denied') {
+        setPellicula(null);
+        setIdentitat(null);
+      }
     } finally {
       setEnviant(false);
     }
@@ -59,7 +56,8 @@ export default function ProposarPellicula() {
         <p className="proposar-pellicula__text">
           Escaneja el teu carnet per identificar-te i proposar una pel·lícula.
         </p>
-        <LectorCarnet onIdentificat={setIdentitat} />
+        {error && <p className="form__error">{error}</p>}
+        <LectorCarnet onIdentificat={(nova) => { setError(null); setIdentitat(nova); }} />
       </div>
     );
   }
@@ -75,7 +73,11 @@ export default function ProposarPellicula() {
       {pellicula && (
         <div className="form__field">
           <label className="form__label" htmlFor="comentari">Explica'ns breument per què la recomanes (opcional)</label>
-          <textarea id="comentari" className="form__input" rows={3} value={comentari} onChange={(e) => setComentari(e.target.value)} />
+          <textarea
+            id="comentari" className="form__input" rows={3} maxLength={1000} aria-describedby="comentari-ajuda"
+            value={comentari} onChange={(e) => setComentari(e.target.value)}
+          />
+          <p id="comentari-ajuda" className="form__ajuda">Màxim 1000 caràcters.</p>
         </div>
       )}
 

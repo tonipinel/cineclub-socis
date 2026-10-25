@@ -9,11 +9,16 @@ const esIdValid = (valor) =>
 const aData = (valor) => (typeof valor?.toDate === 'function' ? valor.toDate() : valor);
 const aMs = (valor) => aData(valor)?.getTime() ?? 0;
 
-async function numeroSociDelToken(db, token) {
+// Els socis desactivats no tenen document a `socisPublic`, així que aquí no hi arriben.
+async function sociDelToken(db, token) {
   const soci = esIdValid(token) ? await db.doc(`socisPublic/${token}`).get() : null;
-  const numeroSoci = soci?.exists ? soci.data().numeroSoci : null;
-  if (numeroSoci == null) throw error('permission-denied', 'Identifica\'t amb el carnet.');
-  return numeroSoci;
+  const dades = soci?.exists ? soci.data() : {};
+  if (dades.numeroSoci == null) throw error('permission-denied', 'Identifica\'t amb el carnet.');
+  return { numeroSoci: dades.numeroSoci, nomPublic: dades.nomPublic };
+}
+
+async function numeroSociDelToken(db, token) {
+  return (await sociDelToken(db, token)).numeroSoci;
 }
 
 async function carregarTanda(db, tandaId) {
@@ -145,4 +150,4 @@ function ambMemoria(gestor, { duradaMs = 10 * 60 * 1000, maxim = 100 } = {}) {
   };
 }
 
-module.exports = { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria };
+module.exports = { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria, sociDelToken };
