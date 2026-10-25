@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  collection, doc, getDoc, getDocs, query, where, writeBatch,
+  collection, doc, getDoc, getDocs, query, runTransaction, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import * as ROUTES from '../../constants/routes';
-import { properNumeroSoci } from '../../lib/numeroSoci';
+import { ErrorComptadorSocis, maximNumeroSoci, reservarNumeroSoci } from '../../lib/numeroSoci';
 import {
   METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA,
 } from '../../lib/moviments';
@@ -116,42 +116,56 @@ export default function RegistrarPagamentPage() {
       // cada pagament nou: es torna a fixar al proper escaneig, respecte a
       // aquest pagament — si no, quedaria el valor obsolet del cicle anterior.
       const actualitzacioSoci = { ultimPagament: data, estatManual: null, inicPeriode: null };
-      if (!soci.numeroSoci) {
-        const socisExistents = await getDocs(collection(db, 'socis'));
-        actualitzacioSoci.numeroSoci = properNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
-      }
-      const numeroSoci = Number(actualitzacioSoci.numeroSoci ?? soci.numeroSoci);
+      // Si encara no té número (primer pagament), el reserva el comptador dins de la mateixa transacció que desa el
+      // pagament (vegeu src/lib/numeroSoci.js); el màxim llegit abans només és una guarda per si el comptador va
+      // endarrerit. La transacció rellegeix el soci: si un altre pagament simultani ja li ha donat número, es
+      // reintenta i fa servir aquell en lloc de reservar-ne un altre.
+      const maxim = soci.numeroSoci
+        ? 0
+        : maximNumeroSoci((await getDocs(collection(db, 'socis'))).docs.map((d) => d.data().numeroSoci));
+      const sociRef = doc(db, 'socis', id);
       const total = Number(importPagament) || 0;
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'socis', id), actualitzacioSoci);
-      if (estaActiu(soci)) {
-        sincronitzarSociPublic(batch, db, {
-          nom: soci.nom,
-          cognoms: soci.cognoms,
-          organitzacio: soci.organitzacio,
+      await runTransaction(db, async (transaction) => {
+        const actual = (await transaction.get(sociRef)).data();
+        if (!actual) throw new Error('El soci ja no existeix');
+        const escrit = { ...actualitzacioSoci };
+        if (!actual.numeroSoci) {
+          escrit.numeroSoci = await reservarNumeroSoci(transaction, doc(db, 'configuracio', 'socis'), maxim);
+        }
+        const numeroSoci = Number(escrit.numeroSoci ?? actual.numeroSoci);
+        // Si en carregar la pàgina no tenia número i ara sí, un altre primer pagament simultani ja ha registrat
+        // l'alta: aquest compta com a renovació.
+        const renovacio = esRenovacio || (!soci.numeroSoci && Boolean(actual.numeroSoci));
+        transaction.update(sociRef, escrit);
+        // socisPublic amb les dades rellegides (actiu, carnet i nom poden haver canviat des que s'ha obert la pàgina).
+        if (estaActiu(actual)) {
+          sincronitzarSociPublic(transaction, db, {
+            nom: actual.nom,
+            cognoms: actual.cognoms,
+            organitzacio: actual.organitzacio,
+            numeroSoci,
+            tokenCarnet: actual.tokenCarnet,
+            actiu: actual.actiu,
+          });
+        }
+        transaction.set(doc(collection(db, 'moviments')), {
+          data,
+          concepte: `Quota ${soci.nom} ${soci.cognoms}`,
+          tipus: TIPUS_MOVIMENT.INGRES,
+          categoria: CATEGORIA_QUOTA_SOCI,
+          tipusQuota: renovacio ? TIPUS_QUOTA.RENOVACIO : TIPUS_QUOTA.ALTA,
+          metodePagament,
           numeroSoci,
-          tokenCarnet: soci.tokenCarnet,
-          actiu: soci.actiu,
+          preuUnitari: total,
+          quantitat: 1,
+          total,
+          sessionId: renovacio ? '' : sessionId,
         });
-      }
-      batch.set(doc(collection(db, 'moviments')), {
-        data,
-        concepte: `Quota ${soci.nom} ${soci.cognoms}`,
-        tipus: TIPUS_MOVIMENT.INGRES,
-        categoria: CATEGORIA_QUOTA_SOCI,
-        tipusQuota: esRenovacio ? TIPUS_QUOTA.RENOVACIO : TIPUS_QUOTA.ALTA,
-        metodePagament,
-        numeroSoci,
-        preuUnitari: total,
-        quantitat: 1,
-        total,
-        sessionId: esRenovacio ? '' : sessionId,
       });
-      await batch.commit();
       navigate(ROUTES.SOCIS_EDITAR.replace(':id', id));
-    } catch {
+    } catch (err) {
       setDesant(false);
-      setError("No s'ha pogut desar. Torna-ho a provar.");
+      setError(err instanceof ErrorComptadorSocis ? err.message : "No s'ha pogut desar. Torna-ho a provar.");
     }
   };
 

@@ -9,6 +9,31 @@ vi.mock('firebase/firestore', () => {
   const batchDelete = vi.fn();
   const batchCommit = vi.fn().mockResolvedValue(undefined);
   const writeBatch = vi.fn(() => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }));
+  // Aprovar ara és una transacció (comptador de números de soci). Els documents que llegeix són en `docsTransaccio`
+  // (clau = darrer argument de doc(): 'socis' és configuracio/socis, el comptador; 'sol-1' la sol·licitud). Les
+  // escriptures es registren a txSet/txUpdate i `txCommit` fa de confirmació: si falla, no s'aplica res al magatzem.
+  const docsTransaccio = new Map();
+  const txGet = vi.fn(async (ref) => {
+    const dades = docsTransaccio.get(ref);
+    return { exists: () => dades !== undefined, data: () => (dades === undefined ? undefined : { ...dades }) };
+  });
+  const txSet = vi.fn();
+  const txUpdate = vi.fn();
+  const txCommit = vi.fn().mockResolvedValue(undefined);
+  const runTransaction = vi.fn(async (_db, fn) => {
+    const pendents = [];
+    const tx = {
+      get: txGet,
+      set: (ref, dades) => { txSet(ref, dades); pendents.push([ref, dades, false]); return tx; },
+      update: (ref, dades) => { txUpdate(ref, dades); pendents.push([ref, dades, true]); return tx; },
+    };
+    const resultat = await fn(tx);
+    await txCommit();
+    pendents.forEach(([ref, dades, fusiona]) => {
+      if (typeof ref === 'string') docsTransaccio.set(ref, fusiona ? { ...docsTransaccio.get(ref), ...dades } : dades);
+    });
+    return resultat;
+  });
   return {
     collection: vi.fn(),
     query: vi.fn(),
@@ -23,6 +48,7 @@ vi.mock('firebase/firestore', () => {
       docs: [{ data: () => ({ numeroSoci: 12 }) }, { data: () => ({ numeroSoci: 41 }) }],
     }),
     writeBatch,
+    runTransaction,
     onSnapshot: vi.fn((q, callback) => {
       callback({
         docs: [{ id: 'sol-1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', telefon: '600000000', estat: 'pendent' }) }],
@@ -33,12 +59,19 @@ vi.mock('firebase/firestore', () => {
     __batchUpdate: batchUpdate,
     __batchDelete: batchDelete,
     __batchCommit: batchCommit,
+    __docsTransaccio: docsTransaccio,
+    __txGet: txGet,
+    __txSet: txSet,
+    __txUpdate: txUpdate,
+    __txCommit: txCommit,
   };
 });
 
 import {
-  getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
+  getDocs, updateDoc, deleteDoc, writeBatch, runTransaction, onSnapshot, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
+  __docsTransaccio, __txGet, __txSet, __txUpdate, __txCommit,
 } from 'firebase/firestore';
+import { MISSATGE_COMPTADOR_ABSENT } from '../../lib/numeroSoci';
 import SolicitudsPendents from './SolicitudsPendents';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -55,6 +88,15 @@ describe('SolicitudsPendents', () => {
     __batchDelete.mockClear();
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
+    runTransaction.mockClear();
+    __txGet.mockClear();
+    __txSet.mockClear();
+    __txUpdate.mockClear();
+    __txCommit.mockClear();
+    __txCommit.mockResolvedValue(undefined);
+    __docsTransaccio.clear();
+    __docsTransaccio.set('socis', { ultimNumeroSoci: 41 });
+    __docsTransaccio.set('sol-1', { nom: 'Anna', cognoms: 'Vidal', telefon: '600000000', estat: 'pendent' });
   });
 
   it('usa el layout de llista amb un únic h1', () => {
@@ -65,29 +107,112 @@ describe('SolicitudsPendents', () => {
     expect(titols[0]).toHaveTextContent('Sol·licituds');
   });
 
-  it('aprova una sol·licitud: assigna el següent número de soci disponible i crea el soci en un sol batch', async () => {
+  // Abans l'aprovació llegia tots els socis i escrivia en un writeBatch, i el número era max+1 d'aquella lectura (dues
+  // aprovacions seguides podien donar el mateix número). Ara tot va en una sola runTransaction que llegeix i avança el
+  // comptador configuracio/socis; les comprovacions d'abans sobre el batch es fan ara sobre les escriptures de la
+  // transacció (__txSet/__txUpdate/__txCommit), i el desfer continua sent un writeBatch.
+  it('aprova una sol·licitud: reserva el número al comptador i crea el soci, socisPublic i l\'estat en una sola transacció', async () => {
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
     expect(getDocs).toHaveBeenCalledTimes(1);
-    expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(__batchSet).toHaveBeenCalledTimes(2);
-    expect(__batchSet.mock.calls[0][1].nom).toBe('Anna');
-    expect(__batchSet.mock.calls[0][1].numeroSoci).toBe(42);
-    expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'aprovada' });
-    expect(__batchCommit).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__txGet.mock.calls).toEqual([['sol-1'], ['socis']]);
+    const [[sociRef, sociData], [publicDocId, publicData]] = __txSet.mock.calls;
+    expect(__txSet).toHaveBeenCalledTimes(2);
+    expect(sociRef).toEqual({ id: 'nou-soci-id' });
+    expect(sociData.nom).toBe('Anna');
+    expect(sociData.numeroSoci).toBe(42);
+    expect(publicDocId).toBe(sociData.tokenCarnet);
+    expect(publicData).toEqual({ numeroSoci: 42, nomPublic: 'Anna V.' });
+    expect(__txUpdate.mock.calls).toEqual([
+      ['socis', { ultimNumeroSoci: 42 }],
+      ['sol-1', { estat: 'aprovada' }],
+    ]);
   });
 
   it('aprova una sol·licitud: també crea el doc socisPublic amb el token del nou soci', async () => {
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
-    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(__batchSet).toHaveBeenCalledTimes(2);
-    const [, sociData] = __batchSet.mock.calls[0];
-    const [publicDocId, publicData] = __batchSet.mock.calls[1];
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
+    expect(__txSet).toHaveBeenCalledTimes(2);
+    const [, sociData] = __txSet.mock.calls[0];
+    const [publicDocId, publicData] = __txSet.mock.calls[1];
     expect(publicDocId).toBe(sociData.tokenCarnet);
     expect(publicData).toEqual({ numeroSoci: 42, nomPublic: 'Anna V.' });
+  });
+
+  it('si el comptador va per davant dels socis existents (p. ex. el darrer soci s\'ha esborrat), no en reutilitza el número', async () => {
+    __docsTransaccio.set('socis', { ultimNumeroSoci: 50 });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
+    expect(__txSet.mock.calls[0][1].numeroSoci).toBe(51);
+    expect(__txUpdate).toHaveBeenCalledWith('socis', { ultimNumeroSoci: 51 });
+  });
+
+  it('si el comptador va endarrerit respecte dels socis existents, salta per sobre del número més alt', async () => {
+    __docsTransaccio.set('socis', { ultimNumeroSoci: 10 });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
+    expect(__txSet.mock.calls[0][1].numeroSoci).toBe(42);
+    expect(__txUpdate).toHaveBeenCalledWith('socis', { ultimNumeroSoci: 42 });
+  });
+
+  it('dues aprovacions seguides amb la mateixa lectura de socis (obsoleta) donen números diferents', async () => {
+    onSnapshot.mockImplementationOnce((q, callback) => {
+      callback({
+        docs: [
+          { id: 'sol-1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', telefon: '600000000', estat: 'pendent' }) },
+          { id: 'sol-2', data: () => ({ nom: 'Marc', cognoms: 'Serra', telefon: '611111111', estat: 'pendent' }) },
+        ],
+      });
+      return () => {};
+    });
+    __docsTransaccio.set('sol-2', { nom: 'Marc', cognoms: 'Serra', telefon: '611111111', estat: 'pendent' });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    const [aprovarAnna, aprovarMarc] = screen.getAllByRole('button', { name: 'Aprovar' });
+    await user.click(aprovarAnna);
+    await user.click(aprovarMarc);
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(2));
+    // getDocs (mock) retorna sempre el màxim 41: és la mateixa lectura obsoleta per a totes dues.
+    expect(getDocs).toHaveBeenCalledTimes(2);
+    const socisCreats = __txSet.mock.calls.filter(([ref]) => ref?.id === 'nou-soci-id').map(([, dades]) => dades);
+    expect(socisCreats.map((s) => [s.nom, s.numeroSoci])).toEqual([['Anna', 42], ['Marc', 43]]);
+    expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 43 });
+  });
+
+  it('sense comptador inicialitzat, mostra un error clar i no escriu res', async () => {
+    __docsTransaccio.delete('socis');
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    expect(await screen.findByText(MISSATGE_COMPTADOR_ABSENT)).toBeInTheDocument();
+    expect(__txSet).not.toHaveBeenCalled();
+    expect(__txUpdate).not.toHaveBeenCalled();
+    expect(__txCommit).not.toHaveBeenCalled();
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
+  });
+
+  it('no aprova una sol·licitud que ja no és pendent (p. ex. aprovada des d\'una altra sessió) i no reserva cap número', async () => {
+    __docsTransaccio.set('sol-1', { nom: 'Anna', cognoms: 'Vidal', estat: 'aprovada' });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    expect(await screen.findByText('Aquesta sol·licitud ja no està pendent. Torna a carregar la pàgina.')).toBeInTheDocument();
+    expect(__txGet.mock.calls).toEqual([['sol-1']]);
+    expect(__txSet).not.toHaveBeenCalled();
+    expect(__txUpdate).not.toHaveBeenCalled();
+    expect(__txCommit).not.toHaveBeenCalled();
   });
 
   it('després d\'aprovar, mostra un avís amb l\'opció de desfer', async () => {
@@ -106,11 +231,14 @@ describe('SolicitudsPendents', () => {
     const dialeg = await dialegConfirmacio();
     expect(dialeg).toHaveAttribute('role', 'alertdialog');
     expect(dialeg).toHaveTextContent("Segur que vols desfer l'aprovació de Anna Vidal? S'eliminarà el soci creat i la sol·licitud tornarà a l'estat pendent.");
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
     await acceptaDialeg('Desfés');
-    await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
-    expect(writeBatch).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchDelete).toHaveBeenCalledWith('nou-soci-id');
     expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'pendent' });
+    // Desfer no torna enrere el comptador: el número queda cremat (un forat), mai es reutilitza.
+    expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 42 });
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
   });
 
@@ -118,11 +246,11 @@ describe('SolicitudsPendents', () => {
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
-    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    const tokenCarnet = __batchSet.mock.calls[0][1].tokenCarnet;
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
+    const tokenCarnet = __txSet.mock.calls[0][1].tokenCarnet;
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
     await acceptaDialeg('Desfés');
-    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchDelete).toHaveBeenCalledWith(tokenCarnet);
   });
 
@@ -133,12 +261,12 @@ describe('SolicitudsPendents', () => {
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
-    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
     await tanca(user);
     await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
-    expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(__batchCommit).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchCommit).not.toHaveBeenCalled();
     expect(__batchDelete).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Desfer' })).toBeInTheDocument();
   });
@@ -149,7 +277,8 @@ describe('SolicitudsPendents', () => {
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     await user.click(await screen.findByRole('button', { name: 'Amagar' }));
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(runTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('descarta una sol·licitud sense crear cap soci', async () => {
@@ -157,27 +286,30 @@ describe('SolicitudsPendents', () => {
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
     expect(writeBatch).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
     expect(updateDoc).toHaveBeenCalledWith('sol-1', { estat: 'descartada' });
   });
 
   it('desactiva Aprovar i Descartar mentre l\'aprovació està en curs', async () => {
-    let resolBatch;
-    __batchCommit.mockReturnValue(new Promise((resolve) => { resolBatch = resolve; }));
+    let resolCommit;
+    __txCommit.mockReturnValue(new Promise((resolve) => { resolCommit = resolve; }));
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
-    resolBatch();
+    resolCommit();
   });
 
   it('mostra un error i reactiva els botons si l\'aprovació falla', async () => {
-    __batchCommit.mockRejectedValueOnce(new Error('offline'));
+    __txCommit.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
     await user.click(screen.getByRole('button', { name: 'Aprovar' }));
     expect(await screen.findByText("No s'ha pogut desar. Torna-ho a provar.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeEnabled();
+    // La transacció no s'ha confirmat: el comptador no s'ha mogut.
+    expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 41 });
   });
 
   it('ordena les sol·licituds de més noves a més antigues i en mostra la data', async () => {

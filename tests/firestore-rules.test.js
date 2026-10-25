@@ -305,6 +305,19 @@ describe('firestore.rules — configuracio', () => {
     await assertSucceeds(getDoc(doc(adminDb, 'configuracio/tiquets')));
     await assertSucceeds(updateDoc(doc(adminDb, 'configuracio/tiquets'), { seguentNumero: 151 }));
   });
+
+  it('el comptador de números de soci només el pot llegir i avançar un admin', async () => {
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'configuracio/socis'), { ultimNumeroSoci: 41 }));
+    await assertSucceeds(getDoc(doc(adminDb, 'configuracio/socis')));
+    await assertSucceeds(updateDoc(doc(adminDb, 'configuracio/socis'), { ultimNumeroSoci: 42 }));
+    for (const altreDb of [anonDb, taquillaDb]) {
+      await assertFails(getDoc(doc(altreDb, 'configuracio/socis')));
+      await assertFails(updateDoc(doc(altreDb, 'configuracio/socis'), { ultimNumeroSoci: 1 }));
+    }
+  });
 });
 
 describe('firestore.rules — lotsTiquets', () => {

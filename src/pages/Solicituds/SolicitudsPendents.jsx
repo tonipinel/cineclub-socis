@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import {
-  collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where, writeBatch,
+  collection, deleteDoc, doc, getDocs, onSnapshot, query, runTransaction, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import { solicitudASoci } from '../../lib/solicitudASoci';
-import { properNumeroSoci } from '../../lib/numeroSoci';
+import { ErrorComptadorSocis, maximNumeroSoci, reservarNumeroSoci } from '../../lib/numeroSoci';
 import { avui, formatDataHora } from '../../lib/data';
 import { sincronitzarSociPublic, esborrarSociPublic } from '../../lib/propostes';
 
 const MISSATGE_ERROR = "No s'ha pogut desar. Torna-ho a provar.";
+const MISSATGE_JA_NO_PENDENT = 'Aquesta sol·licitud ja no està pendent. Torna a carregar la pàgina.';
+
+class ErrorJaNoPendent extends Error {}
 
 const FILTRES = [
   ['pendent', 'Pendents'],
@@ -60,15 +63,23 @@ export default function SolicitudsPendents() {
     marcarProcessant(solicitud.id, true);
     setErrors((prev) => ({ ...prev, [solicitud.id]: null }));
     try {
+      // El màxim llegit és només una guarda per si el comptador va endarrerit; el número el reserva el comptador
+      // (vegeu src/lib/numeroSoci.js). El soci, socisPublic, l'estat de la sol·licitud i el comptador van en una sola
+      // transacció: o s'escriu tot o res, i si una altra aprovació avança el comptador alhora, aquesta es reintenta.
       const socisExistents = await getDocs(collection(db, 'socis'));
-      const numeroSoci = properNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
-      const batch = writeBatch(db);
+      const maxim = maximNumeroSoci(socisExistents.docs.map((d) => d.data().numeroSoci));
+      const solicitudRef = doc(db, 'solicituds', solicitud.id);
       const nouSociRef = doc(collection(db, 'socis'));
-      const nouSoci = solicitudASoci(solicitud, avui(), numeroSoci);
-      batch.set(nouSociRef, nouSoci);
-      sincronitzarSociPublic(batch, db, nouSoci);
-      batch.update(doc(db, 'solicituds', solicitud.id), { estat: 'aprovada' });
-      await batch.commit();
+      const nouSoci = await runTransaction(db, async (transaction) => {
+        const actual = await transaction.get(solicitudRef);
+        if (!actual.exists() || actual.data().estat !== 'pendent') throw new ErrorJaNoPendent();
+        const numeroSoci = await reservarNumeroSoci(transaction, doc(db, 'configuracio', 'socis'), maxim);
+        const soci = solicitudASoci(solicitud, avui(), numeroSoci);
+        transaction.set(nouSociRef, soci);
+        sincronitzarSociPublic(transaction, db, soci);
+        transaction.update(solicitudRef, { estat: 'aprovada' });
+        return soci;
+      });
       setUltimaAprovacio({
         solicitudId: solicitud.id,
         sociId: nouSociRef.id,
@@ -76,9 +87,12 @@ export default function SolicitudsPendents() {
         cognoms: solicitud.cognoms,
         tokenCarnet: nouSoci.tokenCarnet,
       });
-    } catch {
+    } catch (error) {
       marcarProcessant(solicitud.id, false);
-      setErrors((prev) => ({ ...prev, [solicitud.id]: MISSATGE_ERROR }));
+      let missatge = MISSATGE_ERROR;
+      if (error instanceof ErrorComptadorSocis) missatge = error.message;
+      else if (error instanceof ErrorJaNoPendent) missatge = MISSATGE_JA_NO_PENDENT;
+      setErrors((prev) => ({ ...prev, [solicitud.id]: missatge }));
     }
   };
 

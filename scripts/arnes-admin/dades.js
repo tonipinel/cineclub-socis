@@ -186,6 +186,8 @@ export function dadesInicials() {
     anulat: true, dataAnulacio: iso(4), codisAnulats: [],
   };
   d['configuracio/tiquets'] = { seguentNumero: 1000010 };
+  // Comptador de números de soci (el que deixa scripts/inicialitza-comptador-socis.mjs): el soci més alt és el 1060.
+  d['configuracio/socis'] = { ultimNumeroSoci: 1060 };
   d['configuracio/associacio'] = { quotaAnual: 25 };
 
   // --- Incidències d'escaneig.
