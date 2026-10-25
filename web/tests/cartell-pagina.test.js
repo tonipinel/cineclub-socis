@@ -84,7 +84,7 @@ describe('ruta /programacio/<any>/<slug>/cartell.html', () => {
 
   it('no pinta la capçalera, el peu ni la canònica del web', async () => {
     const cos = await html(pig);
-    expect(cos).toContain('family=Oswald:wght@200..700&family=Inter:wght@400;600');
+    expect(cos).not.toContain('fonts.googleapis.com');
     expect(cos).not.toContain('site-header');
     expect(cos).not.toContain('<link rel="canonical"');
   });

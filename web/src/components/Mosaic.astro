@@ -1,5 +1,5 @@
 ---
-import { resizedUrl } from '../lib/images.js';
+import { resizedUrl, srcsetOf } from '../lib/images.js';
 
 // `programming__mosaic` de layouts/index.html: cartells a 300 d'ample. `sessions` ja ve triada
 // i ordenada (sessionsMosaic); les que no tenen cartell s'ometen, com a Hugo.
@@ -7,6 +7,6 @@ const { sessions } = Astro.props;
 ---
 <div class="programming__mosaic">
   {sessions.filter((s) => s.publica?.cartell).map((s) => (
-    <img class="programming__mosaic-img" src={resizedUrl(s.publica.cartell, 300)} alt="">
+    <img class="programming__mosaic-img" src={resizedUrl(s.publica.cartell, 300)} srcset={srcsetOf(s.publica.cartell, [160, 200, 300])} sizes="105px" width="300" height="450" alt="">
   ))}
 </div>

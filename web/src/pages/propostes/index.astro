@@ -1,12 +1,11 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/pagina-propostes.css';
 import IllaPropostes from '../../components/propostes/IllaPropostes.jsx';
 
 const descripcio = "Les persones sòcies del Cineclub Roda de Berà proposen pel·lícules i, amb un 👍 o 👎 a cada tanda de pel·lícules, triem la programació del proper trimestre.";
 ---
 <BaseLayout titol="Propostes de programació" descripcio={descripcio}>
-  <!-- Només aquesta pàgina carrega Inter 700 (el `<b>` de «Proposada per» del detall, com a l'administració); afegir-lo a tot el web canviaria l'amplada de textos en negreta d'altres pàgines. -->
-  <link slot="head" href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
   <div class="propostes-app">
     <section class="propostes-intro">
       <h1 class="propostes-intro__titol">Propostes</h1>

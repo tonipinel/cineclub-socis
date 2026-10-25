@@ -1,5 +1,7 @@
 ---
 import '../styles/main.css';
+import oswald from '../assets/fonts/oswald-latin.woff2?url';
+import inter from '../assets/fonts/inter-latin.woff2?url';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import site from '../data/site.json';
@@ -44,9 +46,8 @@ const titolSocial = titolSocialProp || titol || site.title;
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="preload" href={oswald} as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href={inter} as="font" type="font/woff2" crossorigin>
   <slot name="head" />
 </head>
 <body class="site-body">

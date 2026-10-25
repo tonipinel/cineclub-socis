@@ -1,7 +1,7 @@
 .site-body {
   @apply font-body text-black;
   overflow-x: clip;
-  background-image: url("/images/cinema-pattern.jpg");
+  background-image: url("/images/cinema-pattern.webp");
   background-repeat: repeat;
   background-color: #4d4d4d;
   background-blend-mode: multiply;

@@ -168,9 +168,9 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
     expect(html).not.toContain('IllaPropostes');
   });
 
-  it('carrega Inter 700 com /propostes/ (el «Proposada per» de la fitxa)', async () => {
+  it('no carrega cap full de Google Fonts: Inter 700 surt de la font autoallotjada', async () => {
     const { html } = await renderitza('/propostes/votar/');
-    expect(html).toContain('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">');
+    expect(html).not.toContain('fonts.googleapis.com');
   });
 
   it('no canvia el <head> de /propostes/ ni de /propostes/proposar/ (títol social = títol)', async () => {

@@ -4,7 +4,7 @@ import JsonLdOrganization from '../components/JsonLdOrganization.astro';
 import NextSessions from '../components/NextSessions.astro';
 import Mosaic from '../components/Mosaic.astro';
 import site from '../data/site.json';
-import { resizedUrl } from '../lib/images.js';
+import { resizedUrl, srcsetOf } from '../lib/images.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { CACHE_AVUI, CACHE_CLIENT } from '../lib/cache.js';
 import { paginaPerSlug } from '../lib/pagines.js';
@@ -35,7 +35,7 @@ const iconaSocia = imatge('fes-te-socia.png', 160);
   </Fragment>
 
   <section class="hero">
-    {logo && <img class="hero__logo" src={logo} alt="Cineclub Roda de Berà">}
+    {logo && <img class="hero__logo" src={logo} width="600" height="386" fetchpriority="high" alt="Cineclub Roda de Berà">}
     <h1 class="hero__tagline">
       <span class="hero__tagline--white">{tagline1}</span><br>
       <span class="hero__tagline--gold">cinema{tagline2}</span>
@@ -47,7 +47,7 @@ const iconaSocia = imatge('fes-te-socia.png', 160);
 
   <div class="intro-wrapper">
     <div class="intro">
-      {poster && <img class="intro__poster" src={poster} alt="">}
+      {poster && <img class="intro__poster" src={poster} srcset={srcsetOf(imatges['neix-espai.png'], [300, 400, 500])} sizes="(min-width: 640px) 320px, 288px" width="500" height="688" alt="">}
       <div class="intro__body prose-ca" set:html={renderMarkdown(pagina?.cos)}></div>
     </div>
   </div>

@@ -116,10 +116,19 @@ describe('pàgina de sessió', () => {
     const html = await render(completa);
     const imatge = (src, w) => `/api/img.webp?w=${w}&amp;u=${encodeURIComponent(src)}`;
     expect(html).toContain(`class="session-fitxa__poster" src="${imatge(completa.publica.cartell, 400)}"`);
-    expect(html).toContain(`class="poster-modal__image" src="${imatge(completa.publica.cartell, 1400)}"`);
-    expect(html).toContain(`class="session-gallery__image" src="${imatge(completa.publica.galeria[0], 800)}" alt="Fotograma de Pig"`);
+    expect(html).toContain(`srcset="${imatge(completa.publica.cartell, 200)} 200w, ${imatge(completa.publica.cartell, 300)} 300w, ${imatge(completa.publica.cartell, 400)} 400w"`);
+    expect(html).toContain(`class="poster-modal__image" src="${imatge(completa.publica.cartell, 1400)}" alt="Pig" loading="lazy"`);
+    expect(html).toContain(`class="session-gallery__image" src="${imatge(completa.publica.galeria[0], 800)}" srcset="${imatge(completa.publica.galeria[0], 400)} 400w, ${imatge(completa.publica.galeria[0], 600)} 600w, ${imatge(completa.publica.galeria[0], 800)} 800w"`);
     expect(html.match(/session-gallery__dot"?[ >]/g).length).toBeGreaterThan(0);
     expect(html).toContain('class="session-gallery__prev"');
+  });
+
+  it('la primera imatge de la galeria (LCP) es carrega ja i amb prioritat; les altres, lazy', async () => {
+    const imatges = (await render(completa)).match(/<img class="session-gallery__image"[^>]*>/g);
+    expect(imatges).toHaveLength(2);
+    expect(imatges[0]).toContain('loading="eager" fetchpriority="high"');
+    expect(imatges[1]).toContain('loading="lazy"');
+    expect(imatges[1]).not.toContain('fetchpriority');
   });
 
   it('pinta el distribuïdor amb logo i enllaç des del catàleg', async () => {
@@ -189,7 +198,10 @@ describe('pàgina de sessió', () => {
   });
 
   it('pinta el tràiler només si hi ha trailerYoutubeId', async () => {
-    expect(await render(completa)).toContain('src="https://www.youtube-nocookie.com/embed/TGOcqxU-_l8" title="Tràiler de Pig"');
+    const html = await render(completa);
+    expect(html).toContain('data-trailer="TGOcqxU-_l8" data-titol="Tràiler de Pig"');
+    expect(html).toContain('src="https://img.youtube.com/vi/TGOcqxU-_l8/hqdefault.jpg"');
+    expect(html).not.toContain('<iframe');
     expect(await render(minima)).not.toContain('session-trailer');
   });
 

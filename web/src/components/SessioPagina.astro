@@ -55,7 +55,13 @@ const { trailerYoutubeId, cartell, cos } = sessio.publica ?? {};
   {trailerYoutubeId && (
     <div class="session-trailer">
       <div class="session-trailer__frame">
-        <iframe src={`https://www.youtube-nocookie.com/embed/${trailerYoutubeId}`} title={`Tràiler de ${titol}`} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <a class="session-trailer__play" href={`https://www.youtube.com/watch?v=${trailerYoutubeId}`} target="_blank" rel="noopener" data-trailer={trailerYoutubeId} data-titol={`Tràiler de ${titol}`} aria-label={`Veure el tràiler de ${titol}`}>
+          <img class="session-trailer__thumbnail" src={`https://img.youtube.com/vi/${trailerYoutubeId}/hqdefault.jpg`} width="480" height="360" alt="" loading="lazy" />
+          <span class="session-trailer__button" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="session-trailer__icon"><path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor" /></svg>
+          </span>
+          <span class="session-trailer__label">Tràiler</span>
+        </a>
       </div>
     </div>
   )}
@@ -64,3 +70,20 @@ const { trailerYoutubeId, cartell, cos } = sessio.publica ?? {};
 
   <RelatedSessions sessio={sessio} sessions={sessions} />
 </BaseLayout>
+
+<script>
+  // Facade del tràiler: només la miniatura (lazy); el reproductor de YouTube (~1 MB) no es carrega fins al clic.
+  document.querySelectorAll<HTMLAnchorElement>('[data-trailer]').forEach((enllac) => {
+    enllac.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      const video = document.createElement('iframe');
+      video.src = `https://www.youtube-nocookie.com/embed/${enllac.dataset.trailer}?autoplay=1&rel=0`;
+      video.title = enllac.dataset.titol ?? '';
+      video.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      video.allowFullscreen = true;
+      enllac.replaceWith(video);
+      video.focus();
+    });
+  });
+</script>

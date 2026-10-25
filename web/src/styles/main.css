@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../**/*.{astro,js}";
 @import "./tailwind-v3-compat.css";
+@import "./fonts.css";
 
 @import "./components/layout.css";
 @import "./components/header.css";
@@ -14,9 +15,6 @@
 @import "./components/signup-form.css";
 @import "./components/faq.css";
 @import "./components/prose.css";
-@import "./components/cartell.css";
-@import "./components/propostes-public.css";
-@import "./components/propostes.css";
 
 @theme {
   --color-gold: #BF9000;

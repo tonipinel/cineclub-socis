@@ -97,6 +97,27 @@
 .session-trailer__frame iframe {
   @apply absolute inset-0 h-full w-full border-0;
 }
+.session-trailer__play {
+  @apply relative block h-full w-full cursor-pointer bg-black;
+}
+.session-trailer__thumbnail {
+  @apply h-full w-full object-cover opacity-80 transition;
+}
+.session-trailer__play:hover .session-trailer__thumbnail {
+  @apply opacity-100;
+}
+.session-trailer__button {
+  @apply absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gold text-black shadow-lg transition;
+}
+.session-trailer__play:hover .session-trailer__button {
+  @apply scale-110 bg-white;
+}
+.session-trailer__icon {
+  @apply ml-1 h-10 w-10;
+}
+.session-trailer__label {
+  @apply absolute bottom-3 left-3 bg-black/70 px-3 py-1 font-display text-sm font-bold uppercase tracking-wide text-white;
+}
 .collab-strip-wrapper {
   width: 100%;
   border-style: dashed;

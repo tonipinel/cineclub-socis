@@ -95,8 +95,8 @@ describe('portada', () => {
   it('serveix les imatges de la pàgina redimensionades (600, 500, 200 i 160)', async () => {
     const { html } = await renderitza(Portada, '/');
     const url = (nom, w) => `/api/img.webp?w=${w}&amp;u=${encodeURIComponent(`${ST}pagines%2F${nom}.png?alt=media`)}`;
-    expect(html).toContain(`<img class="hero__logo" src="${url('hero-logo', 600)}" alt="Cineclub Roda de Berà">`);
-    expect(html).toContain(`<img class="intro__poster" src="${url('neix-espai', 500)}" alt="">`);
+    expect(html).toContain(`<img class="hero__logo" src="${url('hero-logo', 600)}" width="600" height="386" fetchpriority="high" alt="Cineclub Roda de Berà">`);
+    expect(html).toContain(`<img class="intro__poster" src="${url('neix-espai', 500)}" srcset="${url('neix-espai', 300)} 300w, ${url('neix-espai', 400)} 400w, ${url('neix-espai', 500)} 500w" sizes="(min-width: 640px) 320px, 288px" width="500" height="688" alt="">`);
     expect(html).toContain(`<img class="features__icon" src="${url('ajuntament', 200)}" alt="">`);
     expect(html).toContain(`<img class="membership-teaser__icon" src="${url('fes-te-socia', 160)}" alt="">`);
   });
@@ -148,10 +148,11 @@ describe('portada', () => {
   it('el mosaic porta fins a 9 cartells a 300: la resta en ordre descendent i les properes al final', async () => {
     const { html } = await renderitza(Portada, '/');
     const mosaic = html.split('<div class="programming__mosaic">')[1].split('</div>')[0];
-    const ids = [...mosaic.matchAll(/sessions%252F([^%]+)%252F/g)].map((m) => m[1]);
+    const ids = [...mosaic.matchAll(/ src="[^"]*sessions%252F([^%]+)%252F/g)].map((m) => m[1]);
     expect(ids).toEqual(['abejas', 'pig', 'the-artist', 'antiga', 'night']);
     expect(mosaic).toContain('class="programming__mosaic-img"');
     expect(mosaic).toContain('w=300');
+    expect(mosaic).toMatch(/srcset="[^"]*w=160[^"]* 160w, [^"]*w=200[^"]* 200w, [^"]*w=300[^"]* 300w" sizes="105px" width="300" height="450"/);
   });
 });
 

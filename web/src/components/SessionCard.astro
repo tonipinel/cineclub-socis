@@ -9,7 +9,7 @@ const t = targetaSessio(sessio);
 ---
 <article class="session-card" data-seccio={t.clau}>
   <a class="session-card__link" href={t.url}>
-    {t.imatge && <img class="session-card__image" src={t.imatge} alt={t.alt} loading="lazy" />}
+    {t.imatge && <img class="session-card__image" src={t.imatge} srcset={t.srcset} sizes="(min-width: 1024px) 30vw, (min-width: 640px) 42vw, 75vw" width="600" height="900" alt={t.alt} loading="lazy" />}
     <div class="session-card__body">
       <SectionBadge seccio={t.seccio} variant="hero" />
       <span class="session-card__date" set:html={t.dataHtml}></span>

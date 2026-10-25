@@ -19,7 +19,7 @@
 */
 .propostes-intro {
   @apply mb-4 flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-8 pt-8 text-center text-white;
-  background-image: url('/images/cinema-pattern.jpg');
+  background-image: url('/images/cinema-pattern.webp');
   background-repeat: repeat;
   background-color: #4d4d4d;
   background-blend-mode: multiply;
@@ -252,7 +252,7 @@ body.proposta-detall-obert-body {
 /* Fitxa pública d'una proposta */
 .fitxa-publica__hero {
   @apply flex flex-col items-center gap-2 border-b-[6px] border-dashed border-white px-4 pb-6 pt-8 text-center text-white;
-  background-image: url('/images/cinema-pattern.jpg');
+  background-image: url('/images/cinema-pattern.webp');
   background-repeat: repeat;
   background-color: #4d4d4d;
   background-blend-mode: multiply;

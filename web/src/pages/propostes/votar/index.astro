@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import '../../../styles/pagina-propostes.css';
 import IllaVotar from '../../../components/propostes/IllaVotar.jsx';
 import { SITE_URL } from '../../../lib/env.js';
 
@@ -17,8 +18,6 @@ const descripcio = "Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·
   <meta slot="head" property="og:image:type" content="image/jpeg">
   <meta slot="head" property="og:image:width" content="1200">
   <meta slot="head" property="og:image:height" content="630">
-  <!-- Inter 700, com a /propostes/: el `<b>` de «Proposada per» de la fitxa. -->
-  <link slot="head" href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
   <div class="propostes-app">
     <IllaVotar client:only="react">
       <div slot="fallback" class="carregant" role="status"><span class="carregant__spinner" role="img" aria-label="Carregant…"></span></div>

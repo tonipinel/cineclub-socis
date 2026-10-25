@@ -1,7 +1,7 @@
 ---
 import Icon from './Icon.astro';
 import InfoItem from './InfoItem.astro';
-import { resizedUrl } from '../lib/images.js';
+import { resizedUrl, srcsetOf } from '../lib/images.js';
 import { distribuidoraPerId, distribuidoraPerNom } from '../lib/distribuidores.js';
 import { titolSessio, urlTerme } from '../lib/sessio-camps.js';
 import { escapaHtml } from '../lib/xml.js';
@@ -39,11 +39,11 @@ const camps = [
     {p.cartell && (
       <div class="session-fitxa__poster-col">
         <button type="button" class="session-fitxa__poster-button" data-poster-trigger="poster-modal">
-          <img class="session-fitxa__poster" src={resizedUrl(p.cartell, 400)} alt={nomImatge} />
+          <img class="session-fitxa__poster" src={resizedUrl(p.cartell, 400)} srcset={srcsetOf(p.cartell, [200, 300, 400])} sizes="(min-width: 640px) 192px, 160px" width="400" height="600" alt={nomImatge} />
         </button>
         <dialog id="poster-modal" class="poster-modal">
           <button type="button" class="poster-modal__close" aria-label="Tancar"><Icon name="x-mark" /></button>
-          <img class="poster-modal__image" src={resizedUrl(p.cartell, 1400)} alt={nomImatge} />
+          <img class="poster-modal__image" src={resizedUrl(p.cartell, 1400)} alt={nomImatge} loading="lazy" />
         </dialog>
         {nomDistribuidora && (distribuidora?.logo
           ? <InfoItem logo={distribuidora.logo} href={distribuidora.url} external={true} />

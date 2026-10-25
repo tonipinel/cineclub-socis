@@ -1,5 +1,5 @@
 import { dataCaCurtaHtml, dataIso, retalla, urlize } from './format.js';
-import { resizedUrl } from './images.js';
+import { resizedUrl, srcsetOf } from './images.js';
 
 // Camps derivats d'una sessió de Firestore (`{ titol, data, hora, slug, publica: {...} }`) amb
 // la mateixa semàntica que les plantilles de Hugo (`.Title`, `.RelPermalink`, ...).
@@ -52,6 +52,7 @@ export function targetaSessio(sessio) {
     clau: seccio || 'cartellera',
     url: urlSessio(sessio),
     imatge: cartell ? resizedUrl(cartell, 600) : '',
+    srcset: cartell ? srcsetOf(cartell, [300, 400, 600]) : undefined,
     alt: titolOriginal || titol,
     dataHtml: dataCaCurtaHtml(sessio.data, sessio.hora),
     dataIso: dataIso(sessio.data, sessio.hora || '00:00'),

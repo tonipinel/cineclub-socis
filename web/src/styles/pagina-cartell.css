@@ -1,0 +1,3 @@
+/* Estils només del cartell imprimible: fora del bundle global. */
+@reference "./main.css";
+@import "./components/cartell.css";

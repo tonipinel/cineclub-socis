@@ -1,9 +1,9 @@
 ---
 import Icon from './Icon.astro';
-import { resizedUrl } from '../lib/images.js';
+import { resizedUrl, srcsetOf } from '../lib/images.js';
 import { titolSessio } from '../lib/sessio-camps.js';
 
-// Traducció del bloc `session-gallery` de layouts/programacio/single.html (imatges a 800 d'ample).
+// Traducció del bloc `session-gallery` de layouts/programacio/single.html (imatges a 800 d'ample; la primera és el LCP, així que es carrega ja i amb prioritat).
 // Sense galeria no es pinta res (Hugo deixaria un contenidor buit).
 const { sessio } = Astro.props;
 const galeria = sessio.publica?.galeria ?? [];
@@ -16,8 +16,8 @@ const alt = `Fotograma de ${sessio.publica?.titolOriginal || titolSessio(sessio)
         <button type="button" class="session-gallery__prev" aria-label="Imatge anterior"><Icon name="chevron-left" /></button>
       )}
       <div class="session-gallery__track">
-        {galeria.map((imatge) => (
-          <img class="session-gallery__image" src={resizedUrl(imatge, 800)} alt={alt} loading="lazy" />
+        {galeria.map((imatge, i) => (
+          <img class="session-gallery__image" src={resizedUrl(imatge, 800)} srcset={srcsetOf(imatge, [400, 600, 800])} sizes="(min-width: 1280px) 1280px, 100vw" width="800" height="450" alt={alt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} />
         ))}
       </div>
       {galeria.length > 1 && (
