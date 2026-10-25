@@ -24,7 +24,6 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   serverTimestamp: vi.fn(() => 'TIMESTAMP'),
   addDoc: vi.fn().mockResolvedValue({ id: 'log-1' }),
-  updateDoc: vi.fn().mockResolvedValue(undefined),
   getDocs: vi.fn(),
   getDocsFromServer: vi.fn(),
   onSnapshot: vi.fn((...args) => {
@@ -37,7 +36,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import {
-  addDoc, getDocs, getDocsFromServer, onSnapshot, query, updateDoc, where,
+  addDoc, getDocs, getDocsFromServer, onSnapshot, query, where,
 } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 import {
@@ -63,7 +62,6 @@ describe('EscaneigPage', () => {
   beforeEach(() => {
     addDoc.mockReset();
     addDoc.mockResolvedValue({ id: 'log-1' });
-    updateDoc.mockClear();
     getDocs.mockReset();
     getDocsFromServer.mockReset();
     query.mockClear();
@@ -634,7 +632,6 @@ describe('EscaneigPage', () => {
       expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
       expect(screen.getByText('Mode prova: no s\'ha desat res. S\'afegiria a «The Artist».')).toBeInTheDocument();
       expect(addDoc).not.toHaveBeenCalled();
-      expect(updateDoc).not.toHaveBeenCalled();
     });
 
     it('comprova un tiquet genèric sense registrar-lo', async () => {
@@ -930,48 +927,18 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
   beforeEach(() => {
     addDoc.mockReset();
     addDoc.mockResolvedValue({ id: 'log-1' });
-    updateDoc.mockClear();
     getDocs.mockReset();
+    query.mockClear();
     window.location.hash = '';
   });
 
-  it('fixa inicPeriode a avui si encara no s\'ha escanejat des de l\'últim pagament', async () => {
-    // La porta llegeix socisPorta (sense referència a la fitxa); l'activació s'escriu a la fitxa de `socis`, que
-    // només pot llegir i escriure l'admin: es busca pel número i, si es pot, s'hi escriu.
-    const sociRef = { id: 'soci-7' };
-    getDocs
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
-      })
-      .mockResolvedValueOnce({ empty: false, docs: [{ ref: sociRef }] });
-    const user = userEvent.setup();
-    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
-    const input = await obrirCodiManual(user);
-    await user.type(input, 'SOCI-7');
-    await user.click(screen.getByRole('button', { name: 'Registrar' }));
-    await screen.findByText('Anna Vidal');
-    await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(sociRef, { inicPeriode: new Date().toLocaleDateString('sv-SE') }));
-    expect(getDocs.mock.calls[1][0]).toEqual({
-      col: 'socis', restriccions: [{ camp: 'numeroSoci', op: '==', valor: 7 }, { limit: 1 }],
+  // L'activació la desa la Cloud Function activarCarnetEnEscanejar en rebre l'entrada (la taquilla no pot escriure a
+  // `socis`). La porta no llegeix ni escriu `socis`: només desa l'entrada i mostra ja el venciment final.
+  it('al primer escaneig d\'una alta, només desa l\'entrada i mostra el venciment comptat des d\'avui', async () => {
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
     });
-
-    // El venciment mostrat en aquest mateix escaneig ha de comptar des d'avui
-    // (l'inicPeriode que s'acaba de fixar), no des de l'últim pagament
-    // (2026-01-01): si es calculés abans de fixar-lo, mostraria un venciment
-    // fins a un any més antic del que li correspon realment.
-    const vencimentEsperat = new Date();
-    vencimentEsperat.setFullYear(vencimentEsperat.getFullYear() + 1);
-    expect(screen.getByText(`Venç el ${formatData(vencimentEsperat)}`)).toBeInTheDocument();
-  });
-
-  it('si la fitxa de socis no es pot llegir (taquilla), l\'entrada queda registrada i l\'error es registra', async () => {
-    getDocs
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
-      })
-      .mockRejectedValueOnce(new Error('permission-denied'));
     const user = userEvent.setup();
     renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
@@ -979,11 +946,17 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByText('Al dia')).toBeInTheDocument();
-    expect(addDoc.mock.calls[0][0]).toBe('accessLog');
-    await waitFor(() => expect(addDoc.mock.calls.at(-1)[1]).toEqual(expect.objectContaining({
-      motiu: 'error-escriptura', numeroSoci: 7, detall: 'inicPeriode: permission-denied',
-    })));
-    expect(updateDoc).not.toHaveBeenCalled();
+
+    // El venciment mostrat en aquest mateix escaneig compta des d'avui (l'activació que desarà la funció), no des de
+    // l'últim pagament (2026-01-01), encara que la fitxa no estigui actualitzada.
+    const vencimentEsperat = new Date();
+    vencimentEsperat.setFullYear(vencimentEsperat.getFullYear() + 1);
+    expect(screen.getByText(`Venç el ${formatData(vencimentEsperat)}`)).toBeInTheDocument();
+
+    await new Promise((r) => { setTimeout(r, 0); });
+    expect(addDoc.mock.calls.map(([col]) => col)).toEqual(['accessLog']);
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls.map(([col]) => col)).not.toContain('socis');
   });
 
   it('no toca inicPeriode si ja es va fixar des de l\'últim pagament', async () => {
@@ -1000,7 +973,6 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await screen.findByText('Anna Vidal');
-    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   // Renovació anticipada: ha pagat fa 5 dies, però la quota nova no comença fins que venci l'actual (d'aquí a 20
@@ -1029,7 +1001,6 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await screen.findByText('Anna Vidal');
-    expect(updateDoc).not.toHaveBeenCalled();
     expect(screen.getByText(`Venç el ${formatData(dia(20, 1))}`)).toBeInTheDocument();
   });
 
@@ -1058,7 +1029,6 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await screen.findByText('Anna Vidal');
-    expect(updateDoc).not.toHaveBeenCalled();
     expect(screen.getByText(`Venç el ${formatData(dia(-10, 1))}`)).toBeInTheDocument();
   });
 });
@@ -1153,7 +1123,6 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
   beforeEach(() => {
     addDoc.mockReset();
     addDoc.mockResolvedValue({ id: 'log-1' });
-    updateDoc.mockClear();
     getDocs.mockReset();
     getDocsFromServer.mockReset();
     onSnapshot.mockClear();

@@ -274,10 +274,7 @@ export const SECCIO_ESCANEIG = {
             <dt>Error d'escriptura</dt>
             <dd>
               El servidor ha rebutjat l'entrada i no s'ha desat. Si el detall comença per «Després del temps límit», era
-              una entrada pendent d'enviar que al final no ha arribat. Si comença per «inicPeriode», l'entrada sí que
-              s'ha desat. El que ha fallat és apuntar a la fitxa del soci la data d'activació del carnet, que només es
-              pot desar quan escaneja l'administració. Mentre no es desi, es repetirà a cada escaneig d'aquest soci.
-              Avisa l'administració amb el número de soci.
+              una entrada pendent d'enviar que al final no ha arribat.
             </dd>
             <dt>Escriptura sense confirmar (8 s)</dt>
             <dd>El servidor no ha confirmat l'entrada en 8 segons; s'ha quedat al dispositiu, pendent d'enviar.</dd>

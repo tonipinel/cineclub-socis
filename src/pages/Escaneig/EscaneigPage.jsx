@@ -5,7 +5,7 @@ import { prepararLector } from '../../lib/lectorCodis';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
 import {
-  addDoc, collection, getDocs, getDocsFromServer, limit, onSnapshot, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, getDocs, getDocsFromServer, limit, onSnapshot, query, serverTimestamp, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
@@ -535,22 +535,6 @@ export default function EscaneigPage() {
     return { sociDoc: snap.docs[0], desdeCache };
   };
 
-  // Activació del carnet (primer escaneig d'una alta) a la fitxa de `socis`, que només pot llegir i escriure
-  // l'admin: amb el rol taquilla falla i queda al registre d'incidències, com abans. No s'espera mai.
-  const desarActivacio = (numeroSoci, inicPeriode, codi, metode) => {
-    Promise.resolve()
-      .then(() => getDocs(query(collection(db, 'socis'), where('numeroSoci', '==', numeroSoci), limit(1))))
-      .then((snap) => {
-        if (!snap?.docs?.length) throw new Error('fitxa no trobada');
-        return updateDoc(snap.docs[0].ref, { inicPeriode });
-      })
-      .catch((error) => {
-        registrarErrorEscaneig('error-escriptura', {
-          codi, metode, numeroSoci, detall: `inicPeriode: ${textError(error)}`,
-        });
-      });
-  };
-
   const processarSociTrobat = async ({
     consulta, missatgeNoTrobat, detallNoTrobat, metode, codi, inici,
   }) => {
@@ -584,10 +568,11 @@ export default function EscaneigPage() {
     }
     // En una alta, l'any de soci compta des del primer cop que fa servir el
     // carnet dins de la quota pagada: si encara no ho ha fet, aquesta entrada
-    // el fixa ara (mai abans que comenci la quota; una renovació encadenada no
-    // en té; vegeu inicPeriodeEnEscanejar). Calculem aquí el valor que tindria (encara que
-    // en mode prova no s'arribi a desar) perquè l'estat i el venciment
-    // mostrats reflecteixin sempre el resultat final.
+    // el fixa (mai abans que comenci la quota; una renovació encadenada no
+    // en té; vegeu inicPeriodeEnEscanejar). El desa a la fitxa la Cloud Function
+    // activarCarnetEnEscanejar en rebre l'entrada (la porta no pot escriure a
+    // `socis`); aquí es calcula el mateix valor amb la data d'avui (també en mode
+    // prova) perquè l'estat i el venciment mostrats siguin ja els finals.
     const inicPeriodeNou = inicPeriodeEnEscanejar(soci, avui());
     const sociAmbInicPeriode = { ...soci, inicPeriode: inicPeriodeNou };
     const estat = calcularEstatSoci(sociAmbInicPeriode);
@@ -620,9 +605,6 @@ export default function EscaneigPage() {
       mostrarResultat({ tipus: 'error', text: TEXT_ERROR_REGISTRE, detall: nom });
       return;
     }
-    // L'entrada ja és desada: no s'espera la confirmació d'aquesta segona
-    // escriptura perquè, amb mala connexió, deixaria la pantalla penjada.
-    if (inicPeriodeNou !== soci.inicPeriode) desarActivacio(soci.numeroSoci, inicPeriodeNou, codi, metode);
     mostrarResultat(resultat === 'registrat'
       ? { tipus: 'ok', text: nom, estat, venciment }
       : avisPendent(nom, { estat, venciment }));

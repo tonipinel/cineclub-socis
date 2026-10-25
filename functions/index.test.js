@@ -17,6 +17,7 @@ describe('maxInstances', () => {
       crearProposta: 10,
       sincronitzarCalendari: 5,
       sincronitzarSociPorta: 5,
+      activarCarnetEnEscanejar: 5,
       sincronitzarCalendariTot: 10,
       llistarUsuarisTaquilla: 10,
       crearUsuariTaquilla: 10,
@@ -32,6 +33,17 @@ describe('maxInstances', () => {
 describe('sincronitzarSociPorta', () => {
   it('es reintenta si falla', () => {
     expect(funcions.sincronitzarSociPorta.__endpoint.eventTrigger.retry).toBe(true);
+  });
+});
+
+// Si falla, el soci no venceria mai: es reintenta (el gestor és idempotent).
+describe('activarCarnetEnEscanejar', () => {
+  it('es dispara en crear una entrada de l\'accessLog i es reintenta si falla', () => {
+    const { eventTrigger } = funcions.activarCarnetEnEscanejar.__endpoint;
+    expect(eventTrigger.eventFilters).toEqual({ database: '(default)', namespace: '(default)' });
+    expect(eventTrigger.eventFilterPathPatterns).toEqual({ document: 'accessLog/{id}' });
+    expect(eventTrigger.eventType).toBe('google.cloud.firestore.document.v1.created');
+    expect(eventTrigger.retry).toBe(true);
   });
 });
 

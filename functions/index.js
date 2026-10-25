@@ -15,6 +15,7 @@ const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
 const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicituds');
 const { crearPropostaAmbDependencies } = require('./proposta');
 const { sincronitzarSociPorta } = require('./socis-porta');
+const { activarCarnet } = require('./activacio-carnet');
 const usuaris = require('./usuaris');
 
 initializeApp();
@@ -162,6 +163,20 @@ exports.sincronitzarSociPorta = onDocumentWritten(
     id: event.params.id,
     abans: event.data?.before?.exists ? event.data.before.data() : null,
     despres: event.data?.after?.exists ? event.data.after.data() : null,
+    db: getFirestore(),
+    logger,
+  })
+);
+
+// Activació del carnet (`inicPeriode`) al primer escaneig d'una alta, també quan escaneja la taquilla, que no pot
+// escriure a `socis`. La lògica (mateixa regla que l'admin, data de l'entrada a Europe/Madrid) és a
+// `activacio-carnet.js`. Amb reintents: el gestor és idempotent i, si falla, el soci no venceria mai.
+exports.activarCarnetEnEscanejar = onDocumentCreated(
+  { document: 'accessLog/{id}', retry: true, timeoutSeconds: 60, maxInstances: MAX_DISPARADORS },
+  (event) => activarCarnet({
+    id: event.params.id,
+    entrada: event.data?.data() ?? null,
+    creada: event.data?.createTime ?? null,
     db: getFirestore(),
     logger,
   })

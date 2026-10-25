@@ -310,9 +310,8 @@ const TASQUES = {
           <ul>
             <li>
               <strong>Alta</strong> (primer pagament, o el primer després d'una baixa): l'any compta des del primer cop que
-              s'escaneja el carnet a partir del dia del pagament. Ara mateix aquesta data només es desa si l'escaneig el fa
-              un compte d'administració: si l'escaneja la taquilla, la fitxa continua dient «Encara no ha escanejat des del
-              pagament» i el venciment es compta des del dia del pagament.
+              s'escaneja el carnet a partir del dia del pagament, l'escanegi la taquilla o l'administració. La fitxa ho
+              mostra a «Activació del carnet» uns segons després de l'escaneig.
             </li>
             <li>
               <strong>Renovació</strong>: encadenada. Comença el dia que venç la quota actual (o el dia del pagament si ja
