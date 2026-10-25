@@ -84,6 +84,18 @@ La pantalla d'Escaneig necessita accedir a la càmera, cosa que el navegador nom
 
 `BarcodeDetector` (l'API que llegeix el QR amb la càmera) no està implementada nativament a Safari/iOS. Per això s'utilitza el paquet [`barcode-detector`](https://www.npmjs.com/package/barcode-detector) (`import 'barcode-detector/polyfill'` a `EscaneigPage.jsx`), que la substitueix per una implementació pròpia en WebAssembly quan el navegador no la té — així la càmera funciona igual a Safari/iOS que a la resta. Si mai falla (xarxa sense accés al CDN que serveix el `.wasm`, navegador molt antic), l'aplicació cau automàticament al camp de text manual, que sempre funciona.
 
+### Què veu la porta (`socisPorta`)
+
+La taquilla no llegeix `socis` (DNI, contacte, pagaments, token del carnet): només `socisPorta/{numeroSoci}`, amb el número, el nom, si està actiu i el motiu, les dates que calen per calcular l'estat i el venciment (les mateixes funcions de `src/lib/estatSoci.js` que l'admin) i el SHA-256 del token del carnet (`tokenHash`), mai el token. El manté la Cloud Function `sincronitzarSociPorta` (`functions/socis-porta.js`, llista blanca de camps) a cada canvi d'una fitxa. Les regles només permeten un `get` per número o una consulta amb `limit(1)`.
+
+- El QR del carnet porta `CARNET-<token>`: la porta en calcula el hash al navegador i busca el soci per `tokenHash`. Un QR amb `SOCI-<n>` es rebutja (el pot fabricar qualsevol). A mà s'accepta el número (`12` o `SOCI-12`): l'operador ha de comprovar la identitat.
+- L'activació del carnet (`inicPeriode` al primer escaneig d'una alta) s'escriu a `socis`, i només ho pot fer l'admin. Amb el rol taquilla falla i queda a `escaneigErrors`, com abans.
+- `escaneigErrors` només desa els 4 primers caràcters del token d'un carnet.
+- Per a la taquilla: després de registrar un pagament o fer un carnet nou, la porta ho veu amb uns segons de retard. Si surt «Vençut» o «Aquest carnet no és vàlid» just després, torna a escanejar-lo un cop.
+- El motiu de desactivació (text lliure) es mostra a la porta: no hi escriguis motius sensibles (salut, conflictes personals…).
+- Si una actualització de `socisPorta` falla, la funció es reintenta sola (`retry: true`) i registra només l'id del soci i el codi d'error.
+- Per omplir `socisPorta` la primera vegada o reparar desajustos: `node scripts/omple-socis-porta.mjs` (informe; `--apply` amb la còpia d'avui, `--desfer <fitxer>`).
+
 ### Tiquets genèrics i alternança de lots
 
 Hi ha dos lots (~150 tiquets pre-impresos cadascun). El club alterna quin lot es reparteix d'una sessió a la següent, perquè el lot que acaba de fer-se servir "descansi" abans de tornar-s'hi a repartir, reduint el risc de reutilitzar per error un tiquet físic sobrant d'una sessió anterior.

@@ -43,10 +43,20 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    // Taquilla necessita llegir socis per validar un carnet a la porta.
+    // Fitxa sencera del soci (DNI, contacte, pagaments, token del carnet): només l'admin. La porta fa servir
+    // `socisPorta`.
     match /socis/{id} {
-      allow read: if isStaff();
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
+    }
+
+    // Projecció mínima per a la porta (número, nom, estat i venciment, motiu de desactivació i el SHA-256 del token
+    // del carnet, mai el token): l'escriu només la Cloud Function `sincronitzarSociPorta` (functions/socis-porta.js)
+    // amb l'Admin SDK. L'ID és el número de soci. Es pot llegir un document per número (`get`) o consultar-ne UN
+    // (`limit(1)`, p. ex. pel hash del token escanejat), però mai llistar la col·lecció sencera.
+    match /socisPorta/{numeroSoci} {
+      allow get: if isStaff();
+      allow list: if isStaff() && request.query.limit <= 1;
+      allow write: if false;
     }
 
     // Només l'admin gestiona sessions; taquilla només necessita saber quina és l'activa.

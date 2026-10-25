@@ -1,10 +1,10 @@
 // Firestore en memòria per a l'arnès: les dades surten de `../dades.js` i les escriptures només
 // viuen a la pestanya (es perden en recarregar). Cap operació de Firestore surt del navegador.
-import { dadesInicials, Timestamp } from '../dades.js';
+import { ambSocisPorta, dadesInicials, Timestamp } from '../dades.js';
 
 export { Timestamp };
 
-const magatzem = new Map(Object.entries(dadesInicials()));
+const magatzem = new Map(Object.entries(await ambSocisPorta(dadesInicials())));
 const oients = new Set();
 
 let comptador = 0;

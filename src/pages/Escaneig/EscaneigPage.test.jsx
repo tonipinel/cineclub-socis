@@ -9,14 +9,17 @@ vi.mock('barcode-detector/polyfill', () => ({}));
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 const auth = vi.hoisted(() => ({ user: { uid: 'staff-1' } }));
 vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
+// SHA-256 real a src/lib/tokenCarnet.test.js; aquí, un hash previsible que es resol sense temporitzadors.
+vi.mock('../../lib/tokenCarnet', () => ({ hashTokenCarnet: vi.fn(async (token) => `hash:${token}`) }));
 
 const SESSIO_ACTIVA = { id: 'sessio-1', titol: 'The Artist' };
 const LOT_TIQUETS = { numeroInicial: 1, quantitat: 150, preu: 5 };
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_, nom) => nom),
-  query: vi.fn(),
-  where: vi.fn(),
+  query: vi.fn((col, ...restriccions) => ({ col, restriccions })),
+  where: vi.fn((camp, op, valor) => ({ camp, op, valor })),
+  limit: vi.fn((n) => ({ limit: n })),
   doc: vi.fn(),
   serverTimestamp: vi.fn(() => 'TIMESTAMP'),
   addDoc: vi.fn().mockResolvedValue({ id: 'log-1' }),
@@ -32,7 +35,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import {
-  addDoc, getDocs, getDocsFromServer, onSnapshot, updateDoc, where,
+  addDoc, getDocs, getDocsFromServer, onSnapshot, query, updateDoc, where,
 } from 'firebase/firestore';
 import EscaneigPage from './EscaneigPage';
 import {
@@ -52,6 +55,8 @@ describe('EscaneigPage', () => {
     updateDoc.mockClear();
     getDocs.mockReset();
     getDocsFromServer.mockReset();
+    query.mockClear();
+    where.mockClear();
     window.location.hash = '';
   });
 
@@ -101,17 +106,17 @@ describe('EscaneigPage', () => {
 
   it('registra l\'entrada d\'un soci identificat per un codi de carnet amb token (CARNET-)', async () => {
     const ultimPagament = new Date().toISOString().slice(0, 10);
-    // El mock només retorna el soci si la consulta és per 'tokenCarnet': així
-    // es demostra que el flux CARNET- consulta pel camp correcte i no pel
-    // 'numeroSoci' que fa servir el flux SOCI-.
-    getDocs.mockImplementation(async () => {
-      const ultimaWhere = where.mock.calls.at(-1);
-      if (ultimaWhere?.[0] === 'tokenCarnet' && ultimaWhere?.[2] === 'abc-123') {
+    // El mock només retorna el soci si la consulta és a `socisPorta` pel hash del token i amb limit(1): així es
+    // demostra que el flux CARNET- no envia mai el token en clar ni llegeix `socis`.
+    getDocs.mockImplementation(async (q) => {
+      const [filtre, limit] = q.restriccions;
+      if (q.col === 'socisPorta' && filtre.camp === 'tokenHash' && filtre.valor === 'hash:abc-123' && limit.limit === 1) {
         return {
           empty: false,
           docs: [{
             data: () => ({
-              nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: true, tokenCarnet: 'abc-123', ultimPagament,
+              nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, actiu: true, tokenHash: 'hash:abc-123', ultimPagament,
+              inicPeriode: ultimPagament,
             }),
           }],
         };
@@ -127,6 +132,39 @@ describe('EscaneigPage', () => {
     expect(addDoc.mock.calls[0][1]).toEqual({
       sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7, metode: 'manual',
     });
+    expect(where).not.toHaveBeenCalledWith('tokenCarnet', expect.anything(), expect.anything());
+    expect(query.mock.calls.map(([col]) => col)).not.toContain('socis');
+  });
+
+  it('busca el soci a socisPorta pel número i amb limit(1), mai a socis', async () => {
+    const ultimPagament = new Date().toISOString().slice(0, 10);
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament, inicPeriode: ultimPagament }) }],
+    });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const input = await obrirCodiManual(user);
+    await user.type(input, '7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(getDocs.mock.calls[0][0]).toEqual({
+      col: 'socisPorta', restriccions: [{ camp: 'numeroSoci', op: '==', valor: 7 }, { limit: 1 }],
+    });
+  });
+
+  it('en el registre d\'incidències no desa mai el token del carnet sencer', async () => {
+    getDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'CARNET-3fa85f64-5717-4562-b3fc-2c963f66afa6');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Aquest carnet no és vàlid.')).toBeInTheDocument();
+    expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
+    expect(addDoc.mock.calls[0][1]).toEqual(expect.objectContaining({ motiu: 'soci-no-trobat', codi: 'CARNET-3fa8…' }));
+    expect(JSON.stringify(addDoc.mock.calls)).not.toContain('5717-4562');
   });
 
   it('mostra el venciment en groc amb avís quan venç en menys de 30 dies', async () => {
@@ -380,7 +418,7 @@ describe('EscaneigPage', () => {
     await user.type(input, 'XYZ');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     expect(await screen.findByText('Codi no reconegut: XYZ')).toBeInTheDocument();
-    expect(screen.getByText('Els codis vàlids comencen per SOCI- o T-')).toBeInTheDocument();
+    expect(screen.getByText("Escaneja el QR del carnet o del tiquet, o escriu el número de soci o el codi del tiquet (T-000123).")).toBeInTheDocument();
     expect(getDocs).not.toHaveBeenCalled();
     expect(addDoc.mock.calls[0][0]).toBe('escaneigErrors');
     expect(addDoc.mock.calls[0][1]).toEqual({
@@ -631,7 +669,7 @@ describe('EscaneigPage', () => {
       });
       window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
-        this.detect = vi.fn().mockResolvedValue([{ rawValue: 'SOCI-7' }]);
+        this.detect = vi.fn().mockResolvedValue([{ rawValue: 'CARNET-abc' }]);
       });
     });
 
@@ -665,6 +703,27 @@ describe('EscaneigPage', () => {
       expect(addDoc.mock.calls[0][1]).toEqual({
         sessionId: 'sessio-1', timestamp: 'TIMESTAMP', escanejatPer: 'staff-1', tipus: 'soci', numeroSoci: 7, metode: 'qr',
       });
+      expect(where).toHaveBeenCalledWith('tokenHash', '==', 'hash:abc');
+    });
+
+    // El QR dels carnets és CARNET-<token>; SOCI-<n> (el text imprès) el pot fabricar qualsevol.
+    it('rebutja un QR amb SOCI-<n> sense consultar res ni registrar cap entrada', async () => {
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockResolvedValue([{ rawValue: 'SOCI-7' }]);
+      });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      await act(() => vi.advanceTimersByTimeAsync(400));
+
+      expect(screen.getByText('Aquest QR no és un carnet vàlid')).toBeInTheDocument();
+      expect(screen.getByText(/escriu-ne el número a mà i comprova-li la identitat/)).toBeInTheDocument();
+      expect(getDocs).not.toHaveBeenCalled();
+      expect(addDoc.mock.calls.map(([col]) => col)).toEqual(['escaneigErrors']);
+      expect(addDoc.mock.calls[0][1]).toEqual(expect.objectContaining({ motiu: 'qr-soci-rebutjat', codi: 'SOCI-7', metode: 'qr' }));
     });
   });
 });
@@ -679,18 +738,25 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
   });
 
   it('fixa inicPeriode a avui si encara no s\'ha escanejat des de l\'últim pagament', async () => {
+    // La porta llegeix socisPorta (sense referència a la fitxa); l'activació s'escriu a la fitxa de `socis`, que
+    // només pot llegir i escriure l'admin: es busca pel número i, si es pot, s'hi escriu.
     const sociRef = { id: 'soci-7' };
-    getDocs.mockResolvedValueOnce({
-      empty: false,
-      docs: [{ ref: sociRef, data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
-    });
+    getDocs
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
+      })
+      .mockResolvedValueOnce({ empty: false, docs: [{ ref: sociRef }] });
     const user = userEvent.setup();
     renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
     const input = await obrirCodiManual(user);
     await user.type(input, 'SOCI-7');
     await user.click(screen.getByRole('button', { name: 'Registrar' }));
     await screen.findByText('Anna Vidal');
-    expect(updateDoc).toHaveBeenCalledWith(sociRef, { inicPeriode: new Date().toLocaleDateString('sv-SE') });
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(sociRef, { inicPeriode: new Date().toLocaleDateString('sv-SE') }));
+    expect(getDocs.mock.calls[1][0]).toEqual({
+      col: 'socis', restriccions: [{ camp: 'numeroSoci', op: '==', valor: 7 }, { limit: 1 }],
+    });
 
     // El venciment mostrat en aquest mateix escaneig ha de comptar des d'avui
     // (l'inicPeriode que s'acaba de fixar), no des de l'últim pagament
@@ -699,6 +765,27 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     const vencimentEsperat = new Date();
     vencimentEsperat.setFullYear(vencimentEsperat.getFullYear() + 1);
     expect(screen.getByText(`Venç el ${formatData(vencimentEsperat)}`)).toBeInTheDocument();
+  });
+
+  it('si la fitxa de socis no es pot llegir (taquilla), l\'entrada queda registrada i l\'error es registra', async () => {
+    getDocs
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01' }) }],
+      })
+      .mockRejectedValueOnce(new Error('permission-denied'));
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    expect(screen.getByText('Al dia')).toBeInTheDocument();
+    expect(addDoc.mock.calls[0][0]).toBe('accessLog');
+    await waitFor(() => expect(addDoc.mock.calls.at(-1)[1]).toEqual(expect.objectContaining({
+      motiu: 'error-escriptura', numeroSoci: 7, detall: 'inicPeriode: permission-denied',
+    })));
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('no toca inicPeriode si ja es va fixar des de l\'últim pagament', async () => {
@@ -886,7 +973,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     let codiDetectat;
 
     beforeEach(() => {
-      codiDetectat = 'SOCI-7';
+      codiDetectat = 'CARNET-abc';
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) },
@@ -936,7 +1023,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
         this.detect = vi.fn().mockImplementation(() => {
           detectades.push(1);
-          if (detectades.length === 1) return Promise.resolve([{ rawValue: 'SOCI-7' }]);
+          if (detectades.length === 1) return Promise.resolve([{ rawValue: 'CARNET-abc' }]);
           if (detectades.length === 2) return lectura.promise;
           return Promise.resolve([]);
         });
@@ -958,7 +1045,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       await avancar(0);
       expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
 
-      lectura.resolve([{ rawValue: 'SOCI-7' }]);
+      lectura.resolve([{ rawValue: 'CARNET-abc' }]);
       await avancar(0);
       expect(screen.getByText('Anna Vidal')).toBeInTheDocument();
       expect(screen.queryByText(/ja s'ha registrat/)).not.toBeInTheDocument();
@@ -999,7 +1086,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       expect(getDocs).toHaveBeenCalledTimes(2);
 
       await avancar(2000);
-      codiDetectat = 'SOCI-8';
+      codiDetectat = 'CARNET-def';
       await avancar(2000);
       expect(getDocs).toHaveBeenCalledTimes(2);
       expect(registresLog()).toEqual([]);
@@ -1561,7 +1648,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     const soci = {
       ref: { id: 'soci-7' },
       data: () => ({
-        nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01', inicPeriode: '2026-01-15', tokenCarnet: 'abc',
+        nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: '2026-01-01', inicPeriode: '2026-01-15', tokenHash: 'hash:abc',
       }),
     };
     getDocs.mockResolvedValue({ empty: false, docs: [soci] });

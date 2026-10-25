@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
 import {
-  addDoc, collection, getDocs, getDocsFromServer, onSnapshot, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, getDocs, getDocsFromServer, limit, onSnapshot, query, serverTimestamp, updateDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { useAuth } from '../../auth/useAuth';
 import {
-  identificarCodi, resumAccessLog, tiquetEstaAnulat, preuDelTiquet,
+  codiPerRegistre, identificarCodi, resumAccessLog, tiquetEstaAnulat, preuDelTiquet,
 } from '../../lib/escaneig';
+import { hashTokenCarnet } from '../../lib/tokenCarnet';
 import { avui, formatData, formatDataHora } from '../../lib/data';
 import {
   calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu, inicPeriodeEnEscanejar,
@@ -34,6 +35,7 @@ const DETALL_LECTURA_ESGOTADA = 'Temps límit de lectura esgotat (2 intents)';
 // lectura (abans de cap escriptura i de cap missatge).
 const CANCELLAT = 'cancellat';
 const TEXT_ERROR_REGISTRE = "No s'ha pogut registrar l'entrada. Torna-ho a provar.";
+const DETALL_CODI_DESCONEGUT = 'Escaneja el QR del carnet o del tiquet, o escriu el número de soci o el codi del tiquet (T-000123).';
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
 const ETIQUETES_ESTAT = {
@@ -72,7 +74,7 @@ const MOCKUPS = {
     missatge: {
       tipus: 'error',
       text: 'Codi no reconegut: XYZ',
-      detall: 'Els codis vàlids comencen per SOCI- o T-',
+      detall: DETALL_CODI_DESCONEGUT,
     },
   },
   avis: {
@@ -340,6 +342,8 @@ export default function EscaneigPage() {
         escanejatPer: user?.uid ?? null,
         motiu,
         ...dades,
+        // La taquilla llegeix aquest registre: mai hi pot quedar el token sencer d'un carnet.
+        codi: codiPerRegistre(dades?.codi),
         online: navigator.onLine,
         versio: versioBuild(),
       };
@@ -410,7 +414,7 @@ export default function EscaneigPage() {
   };
 
   // Clau de pendents d'un soci: el número, perquè el mateix soci pot entrar
-  // amb SOCI-N o amb el QR del carnet (CARNET-token).
+  // amb el número escrit a mà o amb el QR del carnet (CARNET-token).
   const clauSoci = (numeroSoci) => `soci:${numeroSoci}`;
 
   const avisSenseConnexio = (text, dades) => {
@@ -467,14 +471,15 @@ export default function EscaneigPage() {
     return { ...segon, intents: 2 };
   };
 
-  // Consulta de socis amb getDocs (no getDocsFromServer): la fitxa d'un soci
+  // Consulta de `socisPorta` (la projecció mínima per a la porta, sense DNI, contacte ni token del carnet) amb
+  // limit(1), l'únic llistat que permeten les regles. Amb getDocs (no getDocsFromServer): la fitxa d'un soci
   // treta de la caché és vàlida per deixar-lo entrar, però un resultat buit
   // venint de la caché no vol dir que no existeixi, sinó que no s'ha pogut
   // preguntar al servidor; aquest cas es tracta com a "sense connexió".
   const buitDesdeCache = (snap) => snap.docs.length === 0 && snap.metadata?.fromCache;
   const consultarSoci = async (camp, valor, opcions) => {
     const resultat = await llegirAmbReintent(
-      () => getDocs(query(collection(db, 'socis'), where(camp, '==', valor))),
+      () => getDocs(query(collection(db, 'socisPorta'), where(camp, '==', valor), limit(1))),
       { ...opcions, valid: (snap) => !buitDesdeCache(snap) },
     );
     if (resultat.cancellat) return { cancellat: true };
@@ -487,6 +492,22 @@ export default function EscaneigPage() {
       };
     }
     return { sociDoc: snap.docs[0], desdeCache };
+  };
+
+  // Activació del carnet (primer escaneig d'una alta) a la fitxa de `socis`, que només pot llegir i escriure
+  // l'admin: amb el rol taquilla falla i queda al registre d'incidències, com abans. No s'espera mai.
+  const desarActivacio = (numeroSoci, inicPeriode, codi, metode) => {
+    Promise.resolve()
+      .then(() => getDocs(query(collection(db, 'socis'), where('numeroSoci', '==', numeroSoci), limit(1))))
+      .then((snap) => {
+        if (!snap?.docs?.length) throw new Error('fitxa no trobada');
+        return updateDoc(snap.docs[0].ref, { inicPeriode });
+      })
+      .catch((error) => {
+        registrarErrorEscaneig('error-escriptura', {
+          codi, metode, numeroSoci, detall: `inicPeriode: ${textError(error)}`,
+        });
+      });
   };
 
   const processarSociTrobat = async ({
@@ -560,20 +581,14 @@ export default function EscaneigPage() {
     }
     // L'entrada ja és desada: no s'espera la confirmació d'aquesta segona
     // escriptura perquè, amb mala connexió, deixaria la pantalla penjada.
-    if (inicPeriodeNou !== soci.inicPeriode) {
-      updateDoc(sociDoc.ref, { inicPeriode: inicPeriodeNou }).catch((error) => {
-        registrarErrorEscaneig('error-escriptura', {
-          codi, metode, numeroSoci: soci.numeroSoci, detall: `inicPeriode: ${textError(error)}`,
-        });
-      });
-    }
+    if (inicPeriodeNou !== soci.inicPeriode) desarActivacio(soci.numeroSoci, inicPeriodeNou, codi, metode);
     mostrarResultat(resultat === 'registrat'
       ? { tipus: 'ok', text: nom, estat, venciment }
       : avisPendent(nom, { estat, venciment }));
   };
 
   const processarCodiUnic = async (codi, metode, inici, senyal) => {
-    const identificatAbans = identificarCodi(codi);
+    const identificatAbans = identificarCodi(codi, metode);
     const clau = identificatAbans.tipus === 'soci' ? clauSoci(identificatAbans.numeroSoci) : codi;
     if (codisPendentsRef.current.has(clau)) {
       mostrarPendent(codi, metode);
@@ -591,14 +606,25 @@ export default function EscaneigPage() {
     const ms = () => Date.now() - inici;
 
     try {
-      const identificat = identificarCodi(codi);
+      const identificat = identificarCodi(codi, metode);
 
       if (identificat.tipus === 'desconegut') {
         registrarErrorEscaneig('codi-desconegut', { codi, metode, ms: ms() });
         mostrarResultat({
           tipus: 'error',
           text: `Codi no reconegut: ${codi}`,
-          detall: 'Els codis vàlids comencen per SOCI- o T-',
+          detall: DETALL_CODI_DESCONEGUT,
+        });
+        return;
+      }
+
+      // Un QR amb SOCI-<n> no és el d'un carnet (que porta CARNET-<token>) i el pot fabricar qualsevol.
+      if (identificat.tipus === 'soci-qr') {
+        registrarErrorEscaneig('qr-soci-rebutjat', { codi, metode, ms: ms() });
+        mostrarResultat({
+          tipus: 'error',
+          text: 'Aquest QR no és un carnet vàlid',
+          detall: 'Escaneja el QR del carnet. Si el soci no el porta, escriu-ne el número a mà i comprova-li la identitat.',
         });
         return;
       }
@@ -618,7 +644,7 @@ export default function EscaneigPage() {
 
       if (identificat.tipus === 'carnet-token') {
         return await processarSociTrobat({
-          consulta: await consultarSoci('tokenCarnet', identificat.token, {
+          consulta: await consultarSoci('tokenHash', await hashTokenCarnet(identificat.token), {
             senyal, inici, dades: { codi, metode },
           }),
           missatgeNoTrobat: 'Aquest carnet no és vàlid.',

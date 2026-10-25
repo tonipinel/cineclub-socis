@@ -1,10 +1,14 @@
 import { sessionsAmbControl } from './sessions';
 
-export function identificarCodi(codi) {
+// `metode`: 'qr' (càmera) o 'manual' (escrit per l'operador). Els carnets impresos porten CARNET-<token> al QR
+// (carnetQR); SOCI-<n> és només el text imprès sota el QR, per escriure'l a mà. Un QR amb SOCI-<n> el pot fabricar
+// qualsevol (els números són petits i correlatius), així que llegit per la càmera no identifica ningú ('soci-qr').
+export function identificarCodi(codi, metode) {
   const text = (codi ?? '').trim();
+  const manual = metode === 'manual';
 
-  const matchSoci = text.match(/^SOCI-(\d+)$/);
-  if (matchSoci) return { tipus: 'soci', numeroSoci: Number(matchSoci[1]) };
+  const matchSoci = text.match(/^SOCI-(\d+)$/) ?? (manual ? text.match(/^(\d+)$/) : null);
+  if (matchSoci) return { tipus: manual ? 'soci' : 'soci-qr', numeroSoci: Number(matchSoci[1]) };
 
   const matchCarnet = text.match(/^CARNET-(.+)$/);
   if (matchCarnet) return { tipus: 'carnet-token', token: matchCarnet[1] };
@@ -13,6 +17,13 @@ export function identificarCodi(codi) {
   if (matchTiquet) return { tipus: 'generic', codiTiquet: matchTiquet[1] };
 
   return { tipus: 'desconegut' };
+}
+
+// Codi tal com es desa a `escaneigErrors` (que també llegeix la taquilla): d'un carnet només els 4 primers caràcters
+// del token, prou per reconèixer-lo en un diagnòstic però no per fer-lo servir.
+export function codiPerRegistre(codi) {
+  const match = (codi ?? '').match(/^CARNET-(.+)$/);
+  return match ? `CARNET-${match[1].slice(0, 4)}…` : codi;
 }
 
 export function codisDesDe(seguentNumero, quantitat) {

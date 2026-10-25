@@ -10,6 +10,7 @@ import PaginaAdmin from '../../components/PaginaAdmin';
 
 const MOTIU_ETIQUETES = {
   'codi-desconegut': 'Codi no reconegut',
+  'qr-soci-rebutjat': 'QR amb número de soci (no és un carnet)',
   'soci-no-trobat': 'Soci no trobat',
   'soci-desactivat': 'Soci desactivat',
   'tiquet-anullat': 'Tiquet anul·lat',

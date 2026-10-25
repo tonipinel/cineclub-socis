@@ -1,15 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import {
   entradesPerFranjaHorariaFixa,
-  identificarCodi, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat, preuDelTiquet,
+  identificarCodi, codiPerRegistre, codisDesDe, tiquetsDelLot, trobarLotDelCodi, tiquetEstaAnulat, preuDelTiquet,
   resumAccessLog, assistenciaPerSessio, comptarAssistenciesRecents, resumPerSessio,
   resumDashboardTiquets, entradesPerFranjaHoraria,
 } from './escaneig';
-import { carnetPayload } from './carnet';
+import { carnetPayload, carnetQR } from './carnet';
 
 describe('identificarCodi', () => {
-  it('reconeix un codi de soci', () => {
-    expect(identificarCodi('SOCI-42')).toEqual({ tipus: 'soci', numeroSoci: 42 });
+  it('reconeix un codi de soci escrit a mà', () => {
+    expect(identificarCodi('SOCI-42', 'manual')).toEqual({ tipus: 'soci', numeroSoci: 42 });
+  });
+
+  it('a mà també accepta només el número de soci', () => {
+    expect(identificarCodi('42', 'manual')).toEqual({ tipus: 'soci', numeroSoci: 42 });
+    expect(identificarCodi(' 7 ', 'manual')).toEqual({ tipus: 'soci', numeroSoci: 7 });
+  });
+
+  // Els carnets impresos porten CARNET-<token> al QR (carnetQR); SOCI-<n> només és el text imprès sota el QR. Un QR
+  // amb SOCI-<n> el pot fer qualsevol (els números són petits i correlatius): no identifica ningú.
+  it('no accepta SOCI-<n> ni un número llegits d\'un QR', () => {
+    expect(identificarCodi('SOCI-42', 'qr')).toEqual({ tipus: 'soci-qr', numeroSoci: 42 });
+    expect(identificarCodi('42', 'qr')).toEqual({ tipus: 'desconegut' });
+  });
+
+  it('sense mètode tampoc no accepta SOCI-<n> (cal dir explícitament que és a mà)', () => {
+    expect(identificarCodi('SOCI-42')).toEqual({ tipus: 'soci-qr', numeroSoci: 42 });
   });
 
   it('ja no reconeix el format antic de lots (L1-/L2-, tiquets que ja no existeixen)', () => {
@@ -27,11 +43,15 @@ describe('identificarCodi', () => {
   });
 
   it('ignora espais en blanc al voltant del codi', () => {
-    expect(identificarCodi('  SOCI-7  ')).toEqual({ tipus: 'soci', numeroSoci: 7 });
+    expect(identificarCodi('  SOCI-7  ', 'manual')).toEqual({ tipus: 'soci', numeroSoci: 7 });
   });
 
-  it('identifica correctament un codi generat per carnetPayload', () => {
-    expect(identificarCodi(carnetPayload({ numeroSoci: 42 }))).toEqual({ tipus: 'soci', numeroSoci: 42 });
+  it('identifica correctament el text imprès al carnet (carnetPayload) escrit a mà', () => {
+    expect(identificarCodi(carnetPayload({ numeroSoci: 42 }), 'manual')).toEqual({ tipus: 'soci', numeroSoci: 42 });
+  });
+
+  it('identifica el QR del carnet (carnetQR) llegit per la càmera', () => {
+    expect(identificarCodi(carnetQR({ tokenCarnet: 'abc-123' }), 'qr')).toEqual({ tipus: 'carnet-token', token: 'abc-123' });
   });
 
   it('reconeix un codi de carnet amb token (CARNET-)', () => {
@@ -43,6 +63,22 @@ describe('identificarCodi', () => {
 
   it('retalla espais en blanc també per als codis de carnet amb token', () => {
     expect(identificarCodi('  CARNET-abc123  ')).toEqual({ tipus: 'carnet-token', token: 'abc123' });
+  });
+});
+
+// El registre d'incidències (escaneigErrors) el llegeix la taquilla: no hi pot quedar cap token de carnet sencer, que
+// serveix per votar i proposar com el soci.
+describe('codiPerRegistre', () => {
+  it('escurça el token d\'un codi de carnet als 4 primers caràcters', () => {
+    expect(codiPerRegistre('CARNET-3fa85f64-5717-4562-b3fc-2c963f66afa6')).toBe('CARNET-3fa8…');
+  });
+
+  it('deixa igual la resta de codis', () => {
+    for (const codi of ['SOCI-7', 'T-000123', 'XYZ', '', '7']) expect(codiPerRegistre(codi)).toBe(codi);
+  });
+
+  it('sense codi, no hi posa res', () => {
+    expect(codiPerRegistre(undefined)).toBeUndefined();
   });
 });
 

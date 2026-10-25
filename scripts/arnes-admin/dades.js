@@ -366,3 +366,26 @@ export function dadesInicials() {
 
   return d;
 }
+
+// `socisPorta` (el que llegeix la porta) el manté la Cloud Function `sincronitzarSociPorta`, que l'arnès no té: s'omple
+// en carregar-lo, amb la mateixa llista blanca i el mateix SHA-256 que functions/socis-porta.js (CommonJS, que el
+// navegador no pot importar; scripts/arnes-admin/dades.test.js comprova que en donen el mateix).
+const CAMPS_PORTA = [
+  'numeroSoci', 'nom', 'cognoms', 'actiu', 'motiuDesactivacio',
+  'ultimPagament', 'vigenciaDes', 'inicPeriode', 'modeVigencia', 'estatManual',
+];
+
+async function sha256(text) {
+  const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function ambSocisPorta(d) {
+  for (const [cami, soci] of Object.entries(d)) {
+    if (!/^socis\/[^/]+$/.test(cami) || !Number.isInteger(soci.numeroSoci) || soci.numeroSoci <= 0) continue;
+    const doc = Object.fromEntries(CAMPS_PORTA.filter((c) => soci[c] !== undefined).map((c) => [c, soci[c]]));
+    doc.tokenHash = soci.tokenCarnet ? await sha256(soci.tokenCarnet) : null;
+    d[`socisPorta/${soci.numeroSoci}`] = doc;
+  }
+  return d;
+}

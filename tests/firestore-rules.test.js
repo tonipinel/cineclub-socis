@@ -6,7 +6,7 @@ import {
   assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp,
+  doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, limit,
 } from 'firebase/firestore';
 
 let testEnv;
@@ -250,13 +250,81 @@ describe('firestore.rules — escaneigErrors', () => {
   });
 });
 
-describe('firestore.rules — socis (Fase 2)', () => {
-  it('permet a taquilla llegir socis però no escriure-hi', async () => {
+// La porta (taquilla) ja no llegeix `socis` (DNI, contacte, token del carnet): només `socisPorta`.
+describe('firestore.rules — socis: taquilla no hi té accés', () => {
+  it('impedeix a taquilla llegir (get i list) i escriure socis', async () => {
     const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'socis/1'), { nom: 'Test', numeroSoci: 7 });
-    await assertSucceeds(getDoc(doc(taquillaDb, 'socis/1')));
+    await setDoc(doc(adminDb, 'socis/1'), { nom: 'Test', numeroSoci: 7, tokenCarnet: 'tok' });
+    await assertFails(getDoc(doc(taquillaDb, 'socis/1')));
+    await assertFails(getDocs(collection(taquillaDb, 'socis')));
+    await assertFails(getDocs(query(collection(taquillaDb, 'socis'), where('numeroSoci', '==', 7), limit(1))));
+    await assertFails(getDocs(query(collection(taquillaDb, 'socis'), where('tokenCarnet', '==', 'tok'))));
     await assertFails(updateDoc(doc(taquillaDb, 'socis/1'), { nom: 'Hackejat' }));
+  });
+
+  it('un usuari identificat sense rol tampoc no pot llegir socis', async () => {
+    const senseRol = testEnv.authenticatedContext('qualsevol-uid', {}).firestore();
+    await assertFails(getDoc(doc(senseRol, 'socis/1')));
+  });
+
+  it('l\'admin encara pot llistar i consultar socis', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'socis/1'), { nom: 'Test', numeroSoci: 7 });
+    await assertSucceeds(getDocs(collection(adminDb, 'socis')));
+    await assertSucceeds(getDocs(query(collection(adminDb, 'socis'), where('numeroSoci', '==', 7))));
+  });
+});
+
+// Projecció mínima per a la porta, escrita només per la Cloud Function `sincronitzarSociPorta` (Admin SDK).
+describe('firestore.rules — socisPorta', () => {
+  const PORTA = { numeroSoci: 7, nom: 'Anna', cognoms: 'Vidal', actiu: true, tokenHash: 'h7', ultimPagament: '2026-01-01' };
+  const taquilla = () => testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+  const admin = () => testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'socisPorta/7'), PORTA);
+      await setDoc(doc(ctx.firestore(), 'socisPorta/8'), { ...PORTA, numeroSoci: 8, tokenHash: 'h8' });
+    });
+  });
+
+  it('taquilla pot fer get d\'un document pel número', async () => {
+    await assertSucceeds(getDoc(doc(taquilla(), 'socisPorta/7')));
+  });
+
+  it('taquilla pot consultar pel hash del token o pel número amb limit(1)', async () => {
+    const col = collection(taquilla(), 'socisPorta');
+    await assertSucceeds(getDocs(query(col, where('tokenHash', '==', 'h7'), limit(1))));
+    await assertSucceeds(getDocs(query(col, where('numeroSoci', '==', 7), limit(1))));
+  });
+
+  it('taquilla no pot llistar sense límit ni amb un límit més gran que 1', async () => {
+    const col = collection(taquilla(), 'socisPorta');
+    await assertFails(getDocs(col));
+    await assertFails(getDocs(query(col, where('tokenHash', '==', 'h7'))));
+    await assertFails(getDocs(query(col, limit(2))));
+    await assertFails(getDocs(query(col, where('actiu', '==', true), limit(50))));
+  });
+
+  it('ningú no hi pot escriure des del client, ni l\'admin', async () => {
+    for (const db of [taquilla(), admin()]) {
+      await assertFails(setDoc(doc(db, 'socisPorta/9'), PORTA));
+      await assertFails(updateDoc(doc(db, 'socisPorta/7'), { actiu: true }));
+      await assertFails(deleteDoc(doc(db, 'socisPorta/7')));
+    }
+  });
+
+  it('un visitant anònim o sense rol no hi pot llegir res', async () => {
+    for (const db of [testEnv.unauthenticatedContext().firestore(), testEnv.authenticatedContext('x', {}).firestore()]) {
+      await assertFails(getDoc(doc(db, 'socisPorta/7')));
+      await assertFails(getDocs(query(collection(db, 'socisPorta'), where('tokenHash', '==', 'h7'), limit(1))));
+    }
+  });
+
+  it('l\'admin hi pot llegir (get i consulta amb limit(1))', async () => {
+    await assertSucceeds(getDoc(doc(admin(), 'socisPorta/7')));
+    await assertSucceeds(getDocs(query(collection(admin(), 'socisPorta'), where('numeroSoci', '==', 7), limit(1))));
   });
 });
 

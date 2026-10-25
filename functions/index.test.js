@@ -16,6 +16,7 @@ describe('maxInstances', () => {
       rankingPublic: 10,
       crearProposta: 10,
       sincronitzarCalendari: 5,
+      sincronitzarSociPorta: 5,
       sincronitzarCalendariTot: 10,
       llistarUsuarisTaquilla: 10,
       crearUsuariTaquilla: 10,
@@ -24,6 +25,13 @@ describe('maxInstances', () => {
       restablirContrasenyaUsuariTaquilla: 10,
       eliminarUsuariTaquilla: 10,
     });
+  });
+});
+
+// La porta depèn de socisPorta: si una execució falla, Eventarc la reintenta (el gestor és idempotent).
+describe('sincronitzarSociPorta', () => {
+  it('es reintenta si falla', () => {
+    expect(funcions.sincronitzarSociPorta.__endpoint.eventTrigger.retry).toBe(true);
   });
 });
 

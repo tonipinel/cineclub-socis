@@ -14,6 +14,7 @@ const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
 const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
 const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicituds');
 const { crearPropostaAmbDependencies } = require('./proposta');
+const { sincronitzarSociPorta } = require('./socis-porta');
 const usuaris = require('./usuaris');
 
 initializeApp();
@@ -148,6 +149,20 @@ exports.sincronitzarCalendari = onDocumentWritten(
     despres: event.data?.after?.exists ? event.data.after.data() : null,
     db: getFirestore(),
     obtenirCalendari,
+    logger,
+  })
+);
+
+// Manté `socisPorta/{numeroSoci}` (el que pot llegir la porta) al dia amb cada fitxa de soci. La llista blanca de
+// camps i la lògica són a `socis-porta.js`. No escriu mai a `socis`. Amb reintents: el gestor és idempotent i, si
+// falla, la porta veuria un estat desfasat (p. ex. un soci que acaba de pagar com a «Vençut»).
+exports.sincronitzarSociPorta = onDocumentWritten(
+  { document: 'socis/{id}', retry: true, timeoutSeconds: 60, maxInstances: MAX_DISPARADORS },
+  (event) => sincronitzarSociPorta({
+    id: event.params.id,
+    abans: event.data?.before?.exists ? event.data.before.data() : null,
+    despres: event.data?.after?.exists ? event.data.after.data() : null,
+    db: getFirestore(),
     logger,
   })
 );
