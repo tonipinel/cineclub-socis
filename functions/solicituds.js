@@ -132,6 +132,12 @@ async function motiuSenseBenvinguda(deps, id, dades, ara) {
 // `deps`: obtenirConfiguracio(), mail (la col·lecció `mail`), comptarDesDe(data) (sol·licituds creades des
 // d'aleshores, aquesta inclosa), solicitudsAmbCorreu(variants) → [{ id, ms }], avisar(missatge, dades).
 async function gestionarNovaSolicitud(deps, id, dades, ara) {
+  // Les crea `scripts/import-excel.js` (Admin SDK; les regles no deixen posar `importat` des del formulari):
+  // són persones del cens antic que no han omplert el formulari, així que no se'ls envia res.
+  if (dades.importat === true) {
+    deps.avisar('Sol·licitud importada de l\'Excel: no s\'envia cap correu', { id });
+    return;
+  }
   const recentsDia = await deps.comptarDesDe(new Date(ara - 24 * HORA));
   if (recentsDia > LIMIT_AVISOS_DIA) {
     deps.avisar('No s\'envia cap correu de la sol·licitud', { id, motiu: 'limit-diari' });
@@ -170,7 +176,17 @@ async function gestionarNovaSolicitud(deps, id, dades, ara) {
   }
 }
 
+// Sol·licituds del formulari creades des de `data`: el total menys les importades de l'Excel, perquè una
+// importació no esgoti els límits de les altes reals. Les importades es llegeixen amb un sol filtre
+// d'igualtat (no cal cap índex compost) i se'n filtra la data aquí; en són poques i d'un sol cop.
+async function comptarDelFormulariDesDe(solicituds, data) {
+  const total = (await solicituds.where('timestamp', '>=', data).count().get()).data().count;
+  const importades = (await solicituds.where('importat', '==', true).select('timestamp').get()).docs
+    .filter((doc) => (doc.get('timestamp')?.toMillis?.() ?? -Infinity) >= data.getTime()).length;
+  return total - importades;
+}
+
 module.exports = {
   LIMIT_BENVINGUDES_HORA, LIMIT_AVISOS_DIA, escaparHtml, textPla, correuValid, nomValid, crearCorreuUnCop,
-  gestionarNovaSolicitud,
+  gestionarNovaSolicitud, comptarDelFormulariDesDe,
 };

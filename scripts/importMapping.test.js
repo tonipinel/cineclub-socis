@@ -47,6 +47,19 @@ describe('mapExcelRowToSoci', () => {
   });
 });
 
+describe('cel·les especials d\'exceljs', () => {
+  it('desempaqueta text enriquit, fórmules i hipervincles amb text enriquit', () => {
+    const soci = mapExcelRowToSoci({
+      numeroSoci: { formula: 'A1+1', result: 13 },
+      nom: { richText: [{ text: 'An' }, { font: { bold: true }, text: 'na ' }] },
+      cognoms: { formula: 'B2', result: ' Vidal ' },
+      correuElectronic: { text: { richText: [{ text: 'anna@' }, { text: 'example.com' }] }, hyperlink: 'mailto:anna@example.com' },
+    }, '2026-08-29');
+    expect(soci).toMatchObject({ numeroSoci: 13, nom: 'Anna', cognoms: 'Vidal', correuElectronic: 'anna@example.com' });
+    expect(mapExcelRowToSolicitud({ nom: { richText: [{ text: 'Gerard' }] }, cognoms: 'F' }).nom).toBe('Gerard');
+  });
+});
+
 describe('mapExcelRowToSolicitud', () => {
   it('mapeja una fila sense número de soci com una sol·licitud pendent', () => {
     const solicitud = mapExcelRowToSolicitud({

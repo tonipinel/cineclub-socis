@@ -2,10 +2,13 @@
 // auto-detectat (p. ex. adreces de correu, que l'Excel enllaça automàticament)
 // i `{ formula, result }` per a cel·les amb fórmula. Cal desempaquetar-los abans
 // de desar el valor a Firestore.
+// El text enriquit (cel·les amb formats barrejats) arriba com `{ richText: [{ text }, ...] }`, i el text
+// d'un hipervincle també pot ser text enriquit.
 function valorPla(valor) {
   if (valor && typeof valor === 'object') {
-    if ('text' in valor) return valor.text;
-    if ('result' in valor) return valor.result;
+    if (Array.isArray(valor.richText)) return valor.richText.map((tros) => tros?.text ?? '').join('');
+    if ('text' in valor) return valorPla(valor.text);
+    if ('result' in valor) return valorPla(valor.result);
   }
   return valor;
 }
@@ -16,6 +19,7 @@ function text(valor) {
   return String(pla).trim();
 }
 
+// Només per a socis NOUS: `import-excel.js` mai escriu aquest objecte sobre un soci existent.
 export function mapExcelRowToSoci(row, dataImportacio) {
   return {
     numeroSoci: valorPla(row.numeroSoci) ?? '',

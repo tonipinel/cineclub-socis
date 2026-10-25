@@ -46,10 +46,18 @@ node scripts/bootstrap-admin.js <email> <ruta-a-la-clau-de-service-account.json>
 ## Importació del cens actual (Excel)
 
 ```bash
-node scripts/import-excel.js <ruta-al-excel.xlsx> <ruta-a-la-clau-de-service-account.json>
+node scripts/import-excel.js <ruta-al-excel.xlsx>           # informe: no escriu res
+node scripts/import-excel.js <ruta-al-excel.xlsx> --apply   # escriu (cal la còpia d'avui a backups/)
+node scripts/import-excel.js --desfer backups/<AAAA-MM-DD>/import-excel-registre.json
 ```
 
-L'script és idempotent: cada soci es desa amb l'ID de document igual al seu número de soci/a, així que tornar a executar-lo sobre el mateix full actualitza els documents existents en lloc de duplicar-los.
+Credencials: `GOOGLE_APPLICATION_CREDENTIALS` o la clau `cineclub-socis-firebase-adminsdk-*.json` de l'arrel. És idempotent: un soci que ja existeix (mateix número) només rep els camps de contacte que tingui buits, mai se li toquen el pagament, el període, l'estat actiu ni el carnet; les sol·licituds ja existents (mateix correu, o nom i telèfon) no es dupliquen.
+
+Abans de llançar `--apply`:
+
+- **Desplega primer les funcions** (`firebase deploy --only functions`). Les sol·licituds importades porten `importat: true` i només la versió nova de `notificarNovaSolicitud` les deixa sense correus. Amb la versió antiga, cada persona importada rebria la benvinguda amb el número de compte, i el club, un avís per cadascuna.
+- Les sol·licituds importades es desen amb `acceptaPrivacitat` i `acceptaDadesPersonals` a `true`, però aquestes persones no han acceptat res pel formulari. Cal tenir el consentiment per una altra via, o demanar-lo en aprovar-les.
+- `--desfer` no esborra un soci creat si després se n'ha canviat el nom, el pagament, el període o l'estat. Tot i així, les referències que no toquen el document (assistències a `accessLog`, moviments, propostes o vots amb el seu número) quedarien òrfenes si s'esborra. Desfés-ho només just després d'importar.
 
 ## Desplegament
 

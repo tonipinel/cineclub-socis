@@ -11,7 +11,7 @@ const { credencialsCalendari } = require('./calendari');
 const { clientCalendari } = require('./calendari-google');
 const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
 const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
-const { gestionarNovaSolicitud } = require('./solicituds');
+const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicituds');
 
 initializeApp();
 
@@ -37,7 +37,7 @@ exports.notificarNovaSolicitud = onDocumentCreated('solicituds/{id}', async (eve
   await gestionarNovaSolicitud({
     obtenirConfiguracio,
     mail: db.collection('mail'),
-    comptarDesDe: async (data) => (await solicituds.where('timestamp', '>=', data).count().get()).data().count,
+    comptarDesDe: (data) => comptarDelFormulariDesDe(solicituds, data),
     solicitudsAmbCorreu: async (variants) => (await solicituds.where('correuElectronic', 'in', variants).get())
       .docs.map((doc) => ({ id: doc.id, ms: doc.get('timestamp')?.toMillis?.() ?? null })),
     avisar: (missatge, dades) => logger.warn(missatge, dades),

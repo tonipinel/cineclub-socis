@@ -86,6 +86,8 @@ describe('firestore.rules — solicituds', () => {
   it('rebutja un camp que el formulari no envia', async () => {
     await assertFails(crear(solicitudDelFormulari({ notes: 'x' })));
     await assertFails(crear(solicitudDelFormulari({ aprovat: true })));
+    // `importat` només el posa l'script d'importació (Admin SDK): fa que no s'enviïn correus.
+    await assertFails(crear(solicitudDelFormulari({ importat: true })));
   });
 
   it('rebutja que falti un camp obligatori', async () => {

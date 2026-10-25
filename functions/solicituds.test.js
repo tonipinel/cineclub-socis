@@ -3,7 +3,7 @@ import solicituds from './solicituds.js';
 
 const {
   escaparHtml, textPla, correuValid, nomValid, crearCorreuUnCop, gestionarNovaSolicitud, LIMIT_BENVINGUDES_HORA,
-  LIMIT_AVISOS_DIA,
+  LIMIT_AVISOS_DIA, comptarDelFormulariDesDe,
 } = solicituds;
 
 // Imita la col·lecció `mail`: `create()` falla amb ALREADY_EXISTS (codi 6) si l'id ja hi és.
@@ -304,5 +304,59 @@ describe('gestionarNovaSolicitud', () => {
     await gestionarNovaSolicitud(seguent.deps, 'sol-1', solicitud(), ARA);
     expect(seguent.correus).toEqual([]);
     expect(seguent.avisos[0][1]).toEqual({ id: 'sol-1', motiu: 'limit-diari' });
+  });
+});
+
+describe('sol·licituds importades de l\'Excel (`importat: true`)', () => {
+  it('no envien cap correu (ni benvinguda, ni avís, ni límit) i només deixen una línia amb l\'id', async () => {
+    for (const recents of [1, LIMIT_AVISOS_DIA + 1]) {
+      const e = entorn({ recentsHora: recents, recentsDia: recents });
+      const crides = [];
+      for (const dep of ['obtenirConfiguracio', 'comptarDesDe', 'solicitudsAmbCorreu']) {
+        const original = e.deps[dep];
+        e.deps[dep] = async (...args) => { crides.push(dep); return original(...args); };
+      }
+      await gestionarNovaSolicitud(e.deps, 'sol-1', solicitud({ importat: true }), ARA);
+      expect(e.correus).toEqual([]);
+      expect(e.ids()).toEqual([]);
+      expect(crides).toEqual([]);
+      expect(e.avisos).toEqual([['Sol·licitud importada de l\'Excel: no s\'envia cap correu', { id: 'sol-1' }]]);
+    }
+  });
+
+  it('una sol·licitud normal continua generant exactament els mateixos correus', async () => {
+    for (const importat of [undefined, false]) {
+      const e = entorn();
+      await gestionarNovaSolicitud(e.deps, 'sol-1', solicitud(importat === undefined ? {} : { importat }), ARA);
+      expect(e.correus.map(html)).toEqual([ABANS.admin, ABANS.benvinguda]);
+    }
+  });
+});
+
+// Imita la col·lecció `solicituds` per a les dues consultes del recompte.
+function solicitudsFals(docs) {
+  const consulta = (filtres) => ({
+    where: (camp, op, valor) => consulta([...filtres, [camp, op, valor]]),
+    select: () => consulta(filtres),
+    _docs: () => docs.filter((d) => filtres.every(([camp, op, valor]) => (
+      op === '>=' ? d[camp] != null && d[camp].toMillis() >= valor.getTime() : d[camp] === valor
+    ))),
+    count: () => ({ get: async () => ({ data: () => ({ count: consulta(filtres)._docs().length }) }) }),
+    get: async () => ({ docs: consulta(filtres)._docs().map((d) => ({ get: (camp) => d[camp] })) }),
+  });
+  return consulta([]);
+}
+
+describe('comptarDelFormulariDesDe', () => {
+  it('no compta les importades, perquè una importació no deixi sense correus les altes reals', async () => {
+    const desDe = new Date(ARA - 60 * 60 * 1000);
+    const col = solicitudsFals([
+      { timestamp: timestamp(ARA) },
+      { timestamp: timestamp(ARA - 1000) },
+      { timestamp: timestamp(ARA - 2 * 60 * 60 * 1000) },
+      ...Array.from({ length: 150 }, () => ({ timestamp: timestamp(ARA - 500), importat: true })),
+      { timestamp: timestamp(ARA - 3 * 60 * 60 * 1000), importat: true },
+    ]);
+    expect(await comptarDelFormulariDesDe(col, desDe)).toBe(2);
   });
 });
