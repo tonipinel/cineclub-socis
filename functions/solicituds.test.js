@@ -23,13 +23,15 @@ function mailFals(registre = []) {
 }
 
 // Correus que generava la versió anterior per a una sol·licitud normal (abans d'escapar res): una
-// sol·licitud legítima ha de continuar rebent exactament el mateix text.
+// sol·licitud legítima ha de continuar rebent exactament el mateix text. L'única diferència és la fila del
+// DNI de l'avís al club, que ja no porta el número (es consulta a l'administració).
 const ABANS = {
-  admin: "\n    <p>S'ha rebut una nova sol·licitud d'alta de soci/a.</p>\n    <table cellpadding=\"4\"><tr><td><strong>Nom</strong></td><td>Anna</td></tr><tr><td><strong>Cognoms</strong></td><td>Vidal</td></tr><tr><td><strong>DNI</strong></td><td>12345678Z</td></tr><tr><td><strong>Població</strong></td><td>Roda de Berà</td></tr><tr><td><strong>Codi postal</strong></td><td>43883</td></tr><tr><td><strong>Telèfon</strong></td><td>600000000</td></tr><tr><td><strong>Correu electrònic</strong></td><td>anna@example.com</td></tr><tr><td><strong>Comentaris</strong></td><td>Hola!</td></tr></table>\n    <p><a href=\"https://associacio.cineclubrodadebera.cat/solicituds\">Veure les sol·licituds pendents</a></p>\n  \n    <p style=\"margin-top:24px;\">\n      <img src=\"https://cineclubrodadebera.cat/images/logo.png\" alt=\"Cineclub Roda de Berà\" width=\"80\" style=\"display:block;margin-bottom:8px;\">\n      <strong>Associació Cineclub Roda de Berà</strong>\n    </p>\n  ",
+  admin: "\n    <p>S'ha rebut una nova sol·licitud d'alta de soci/a.</p>\n    <table cellpadding=\"4\"><tr><td><strong>Nom</strong></td><td>Anna</td></tr><tr><td><strong>Cognoms</strong></td><td>Vidal</td></tr><tr><td><strong>DNI</strong></td><td>facilitat (consultable a l'administració)</td></tr><tr><td><strong>Població</strong></td><td>Roda de Berà</td></tr><tr><td><strong>Codi postal</strong></td><td>43883</td></tr><tr><td><strong>Telèfon</strong></td><td>600000000</td></tr><tr><td><strong>Correu electrònic</strong></td><td>anna@example.com</td></tr><tr><td><strong>Comentaris</strong></td><td>Hola!</td></tr></table>\n    <p><a href=\"https://associacio.cineclubrodadebera.cat/solicituds\">Veure les sol·licituds pendents</a></p>\n  \n    <p style=\"margin-top:24px;\">\n      <img src=\"https://cineclubrodadebera.cat/images/logo.png\" alt=\"Cineclub Roda de Berà\" width=\"80\" style=\"display:block;margin-bottom:8px;\">\n      <strong>Associació Cineclub Roda de Berà</strong>\n    </p>\n  ",
   benvinguda: "\n    <p>Hola Anna,</p>\n    <p>Moltes gràcies per haver omplert el formulari per formar part del Cineclub Roda de Berà. Ens fa molta il·lusió veure l'interès que està generant el projecte.</p>\n    <p>T'informem del nostre compte bancari de l'associació per si vols tramitar el pagament de la quota anual (30€): ES12 3456 7890 1234 5678 9012.</p>\n    <p>Si ho prefereixes, també pots pagar en efectiu o targeta en la propera sessió o algun dimecres en el nostre horari d'oficina a l'Hotel d'Entitats, que és de 15.15 a 16.15 hores (en aquest últim cas, consulta'ns abans perquè algun dimecres potser no hi som).</p>\n    <p>Per avançar feina i que no et perdis cap informació mentrestant, t'afegirem al grup de whatsapp de socis i sòcies, allà és on centralitzem tota la informació i on generem les enquestes per triar les properes sessions.</p>\n    <p>Gràcies per la confiança i per ajudar-nos a posar en marxa aquest espai de cinema a Roda de Berà.</p>\n    <p>Si tens qualsevol dubte, comentari o suggeriment, estem a la teva disposició.</p>\n    <p>Salut i cinema!</p>\n  \n    <p style=\"margin-top:24px;\">\n      <img src=\"https://cineclubrodadebera.cat/images/logo.png\" alt=\"Cineclub Roda de Berà\" width=\"80\" style=\"display:block;margin-bottom:8px;\">\n      <strong>Associació Cineclub Roda de Berà</strong>\n    </p>\n  ",
 };
 
 const ARA = Date.parse('2026-10-24T10:00:00Z');
+const CADUCA = new Date(ARA + 30 * 24 * 60 * 60 * 1000);
 const timestamp = (ms) => ({ toMillis: () => ms });
 const CONFIG = { quotaAnual: 30, numeroCompte: 'ES12 3456 7890 1234 5678 9012' };
 
@@ -185,11 +187,13 @@ describe('gestionarNovaSolicitud', () => {
         to: 'cineclub.rodadebera@gmail.com',
         from: 'cineclub.rodadebera@gmail.com',
         message: { subject: 'Nova sol·licitud d\'alta: Anna Vidal', html: ABANS.admin },
+        expireAt: CADUCA,
       },
       {
         to: 'anna@example.com',
         from: 'cineclub.rodadebera@gmail.com',
         message: { subject: 'Benvingut/da al Cineclub Roda de Berà', html: ABANS.benvinguda },
+        expireAt: CADUCA,
       },
     ]);
     expect(avisos).toEqual([]);
@@ -304,6 +308,38 @@ describe('gestionarNovaSolicitud', () => {
     await gestionarNovaSolicitud(seguent.deps, 'sol-1', solicitud(), ARA);
     expect(seguent.correus).toEqual([]);
     expect(seguent.avisos[0][1]).toEqual({ id: 'sol-1', motiu: 'limit-diari' });
+  });
+});
+
+describe('DNI als correus', () => {
+  it('l\'avís al club diu si s\'ha facilitat el DNI però no el porta, i la benvinguda no en parla', async () => {
+    const { deps, correus } = entorn();
+    await gestionarNovaSolicitud(deps, 'sol-1', solicitud(), ARA);
+    expect(correus).toHaveLength(2);
+    expect(JSON.stringify(correus)).not.toContain('12345678Z');
+    expect(html(correus[0])).toContain('<tr><td><strong>DNI</strong></td><td>facilitat (consultable a l\'administració)</td></tr>');
+    expect(html(correus[1])).not.toContain('DNI');
+  });
+
+  it('sense DNI l\'avís al club diu que no s\'ha facilitat', async () => {
+    for (const dni of [undefined, '']) {
+      const { deps, correus } = entorn();
+      await gestionarNovaSolicitud(deps, 'sol-1', solicitud({ dni }), ARA);
+      expect(html(correus[0])).toContain('<tr><td><strong>DNI</strong></td><td>no facilitat</td></tr>');
+    }
+  });
+});
+
+describe('caducitat dels correus (`expireAt`)', () => {
+  it('tots els documents de `mail` caduquen 30 dies després, segons el rellotge rebut', async () => {
+    const normal = entorn();
+    await gestionarNovaSolicitud(normal.deps, 'sol-1', solicitud(), ARA);
+    const limit = entorn({ recentsHora: LIMIT_AVISOS_DIA + 1, recentsDia: LIMIT_AVISOS_DIA + 1 });
+    await gestionarNovaSolicitud(limit.deps, 'sol-1', solicitud(), ARA);
+    const tots = [...normal.correus, ...limit.correus];
+    expect(tots).toHaveLength(3);
+    for (const correu of tots) expect(correu.expireAt).toEqual(CADUCA);
+    expect(CADUCA.toISOString()).toBe('2026-11-23T10:00:00.000Z');
   });
 });
 

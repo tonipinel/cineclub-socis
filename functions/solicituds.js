@@ -11,6 +11,9 @@ const LOGO_URL = 'https://cineclubrodadebera.cat/images/logo.png';
 const LIMIT_BENVINGUDES_HORA = 30;
 const LIMIT_AVISOS_DIA = 100;
 const HORA = 60 * 60 * 1000;
+// Els correus porten dades personals: la política TTL de Firestore sobre `mail.expireAt` els esborra
+// passat aquest temps (l'extensió ja els ha enviat en pocs segons).
+const RETENCIO_CORREUS = 30 * 24 * HORA;
 
 const CAMPS = [
   ['nom', 'Nom'],
@@ -79,10 +82,16 @@ function signatura() {
   `;
 }
 
+// El DNI no surt mai al correu (quedaria guardat a Gmail): només es diu si s'ha facilitat.
+function valorFila(dades, camp) {
+  if (camp === 'dni') return dades.dni ? 'facilitat (consultable a l\'administració)' : 'no facilitat';
+  return escaparHtml(dades[camp]);
+}
+
 function missatgeNotificacioAdmin(dades, motiu) {
   const files = CAMPS
-    .filter(([camp]) => dades[camp])
-    .map(([camp, etiqueta]) => `<tr><td><strong>${etiqueta}</strong></td><td>${escaparHtml(dades[camp])}</td></tr>`)
+    .filter(([camp]) => camp === 'dni' || dades[camp])
+    .map(([camp, etiqueta]) => `<tr><td><strong>${etiqueta}</strong></td><td>${valorFila(dades, camp)}</td></tr>`)
     .join('');
   const avis = motiu ? `\n    <p><strong>No s'ha enviat el correu de benvinguda: ${MOTIUS[motiu]}</strong></p>` : '';
   return `
@@ -146,6 +155,7 @@ async function gestionarNovaSolicitud(deps, id, dades, ara) {
         to: DESTINATARI,
         from: DESTINATARI,
         message: { subject: 'Massa sol·licituds d\'alta en 24 hores', html: missatgeLimitDiari() + signatura() },
+        expireAt: new Date(ara + RETENCIO_CORREUS),
       });
     }
     return;
@@ -161,6 +171,7 @@ async function gestionarNovaSolicitud(deps, id, dades, ara) {
       subject: `Nova sol·licitud d'alta: ${textPla(dades.nom)} ${textPla(dades.cognoms)}`,
       html: missatgeNotificacioAdmin(dades, motiu) + signatura(),
     },
+    expireAt: new Date(ara + RETENCIO_CORREUS),
   });
 
   if (dades.correuElectronic && !motiu) {
@@ -172,6 +183,7 @@ async function gestionarNovaSolicitud(deps, id, dades, ara) {
         subject: 'Benvingut/da al Cineclub Roda de Berà',
         html: missatgeBenvinguda(dades, config) + signatura(),
       },
+      expireAt: new Date(ara + RETENCIO_CORREUS),
     });
   }
 }

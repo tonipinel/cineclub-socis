@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import handlers from './votacio-handlers.js';
 
-const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic } = handlers;
+const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria } = handlers;
 
 function ms(valor) {
   if (valor?.toDate) return valor.toDate().getTime();
@@ -404,5 +404,84 @@ describe('gestionarRankingPublic', () => {
     expect(Object.keys(resposta)).toEqual(['files']);
     for (const fila of resposta.files) expect(Object.keys(fila).sort()).toEqual(['percentatge', 'propostaId']);
     expect(resposta.files.some((fila) => typeof fila.percentatge === 'number')).toBe(true);
+  });
+});
+
+describe('ambMemoria (rànquing públic)', () => {
+  const DEU_MINUTS = 10 * 60 * 1000;
+  const mesTard = (data, ms) => new Date(data.getTime() + ms);
+  const sisVots = () => {
+    const vots = {};
+    for (let soci = 1; soci <= 6; soci += 1) vots[`tandes/t1/vots/${soci}`] = vot({ p1: 'like', p2: 'dislike', p3: 'like' });
+    return vots;
+  };
+
+  function comptador(db) {
+    const lectures = { n: 0 };
+    const original = db.doc;
+    db.doc = (ruta) => { lectures.n += 1; return original(ruta); };
+    return lectures;
+  }
+
+  it('la primera crida llegeix; les següents dins de 10 minuts no tornen a llegir i retornen el mateix', async () => {
+    const db = escenari(sisVots());
+    const lectures = comptador(db);
+    const rankingPublic = ambMemoria(gestionarRankingPublic);
+    const primera = await rankingPublic(db, { tandaId: 't1' }, dema);
+    expect(primera).toEqual(await gestionarRankingPublic(escenari(sisVots()), { tandaId: 't1' }, dema));
+    const llegides = lectures.n;
+    expect(llegides).toBeGreaterThan(0);
+    db.dades.set('tandes/t1/vots/1', vot({ p1: 'dislike', p2: 'dislike', p3: 'dislike' }));
+    expect(await rankingPublic(db, { tandaId: 't1' }, mesTard(dema, DEU_MINUTS - 1))).toEqual(primera);
+    expect(lectures.n).toBe(llegides);
+  });
+
+  it('passats 10 minuts es torna a calcular', async () => {
+    const db = escenari(sisVots());
+    const rankingPublic = ambMemoria(gestionarRankingPublic);
+    const primera = await rankingPublic(db, { tandaId: 't1' }, dema);
+    db.dades.set('tandes/t1/vots/1', vot({ p1: 'dislike', p2: 'dislike', p3: 'dislike' }));
+    const lectures = comptador(db);
+    const despres = await rankingPublic(db, { tandaId: 't1' }, mesTard(dema, DEU_MINUTS));
+    expect(lectures.n).toBeGreaterThan(0);
+    expect(despres).not.toEqual(primera);
+  });
+
+  it('una tanda oberta dona failed-precondition cada cop i no es desa: quan tanca es calcula', async () => {
+    const db = escenari(sisVots());
+    const lectures = comptador(db);
+    const rankingPublic = ambMemoria(gestionarRankingPublic);
+    expect(await codi(rankingPublic(db, { tandaId: 't1' }, ara))).toBe('failed-precondition');
+    const abans = lectures.n;
+    expect(await codi(rankingPublic(db, { tandaId: 't1' }, ara))).toBe('failed-precondition');
+    expect(lectures.n).toBeGreaterThan(abans);
+    expect((await rankingPublic(db, { tandaId: 't1' }, dema)).files).toHaveLength(3);
+  });
+
+  it('els errors no es desen (tanda inexistent que després es crea)', async () => {
+    const db = escenari(sisVots());
+    const rankingPublic = ambMemoria(gestionarRankingPublic);
+    expect(await codi(rankingPublic(db, { tandaId: 't9' }, dema))).toBe('not-found');
+    db.dades.set('tandes/t9', { nom: 'T9', propostes: ['p1'], tanca: timestamp(ahir), creada: timestamp(ahir) });
+    expect((await rankingPublic(db, { tandaId: 't9' }, dema)).files).toEqual([{ propostaId: 'p1', percentatge: null }]);
+  });
+
+  it('cada tanda té la seva entrada i la memòria té un màxim d\'entrades (surt la més antiga)', async () => {
+    const db = escenari({
+      ...sisVots(),
+      'tandes/t2': { nom: 'T2', propostes: ['p1'], tanca: timestamp(ahir), creada: timestamp(ahir) },
+      'tandes/t3': { nom: 'T3', propostes: ['p2'], tanca: timestamp(ahir), creada: timestamp(ahir) },
+    });
+    const rankingPublic = ambMemoria(gestionarRankingPublic, { maxim: 2 });
+    const t1 = await rankingPublic(db, { tandaId: 't1' }, dema);
+    const t2 = await rankingPublic(db, { tandaId: 't2' }, dema);
+    expect(t2).not.toEqual(t1);
+    await rankingPublic(db, { tandaId: 't3' }, dema);
+    const lectures = comptador(db);
+    await rankingPublic(db, { tandaId: 't3' }, dema);
+    await rankingPublic(db, { tandaId: 't2' }, dema);
+    expect(lectures.n).toBe(0);
+    await rankingPublic(db, { tandaId: 't1' }, dema);
+    expect(lectures.n).toBeGreaterThan(0);
   });
 });

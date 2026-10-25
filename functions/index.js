@@ -6,7 +6,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { cercarPellicules, detallPellicula, descarregarCartell } = require('./tmdb');
-const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic } = require('./votacio-handlers');
+const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria } = require('./votacio-handlers');
 const { credencialsCalendari } = require('./calendari');
 const { clientCalendari } = require('./calendari-google');
 const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
@@ -21,6 +21,10 @@ const GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY = defineSecret('GOOGLE_CALENDAR_SERVIC
 const GOOGLE_CALENDAR_ID = defineSecret('GOOGLE_CALENDAR_ID');
 const SECRETS_CALENDARI = [GOOGLE_CALENDAR_SERVICE_ACCOUNT_KEY, GOOGLE_CALENDAR_ID];
 
+// Límits d'instàncies (per defecte, fins a 100): n'hi ha prou de sobres per al club i limiten el cost d'un abús.
+const MAX_CALLABLES = 10;
+const MAX_DISPARADORS = 5;
+
 async function obtenirConfiguracio() {
   const snap = await getFirestore().doc('configuracio/associacio').get();
   const dades = snap.exists ? snap.data() : {};
@@ -31,7 +35,7 @@ async function obtenirConfiguracio() {
 }
 
 // La lògica (escapar, a qui s'envia la benvinguda, límits) és a `solicituds.js`.
-exports.notificarNovaSolicitud = onDocumentCreated('solicituds/{id}', async (event) => {
+exports.notificarNovaSolicitud = onDocumentCreated({ document: 'solicituds/{id}', maxInstances: MAX_DISPARADORS }, async (event) => {
   const db = getFirestore();
   const solicituds = db.collection('solicituds');
   await gestionarNovaSolicitud({
@@ -58,7 +62,7 @@ function desarFitxa(propostaId, tmdbId, opcions) {
 }
 
 exports.desarFitxaNovaProposta = onDocumentCreated(
-  { document: 'propostes/{id}', secrets: SECRETS },
+  { document: 'propostes/{id}', secrets: SECRETS, maxInstances: MAX_DISPARADORS },
   async (event) => {
     const dades = event.data.data();
     if (!dades.tmdbId) return;
@@ -75,7 +79,7 @@ exports.desarFitxaNovaProposta = onDocumentCreated(
 // La clau de TMDB no pot sortir del servidor, així que el cercador del
 // formulari passa per aquí. S'hi pot accedir amb el token del carnet d'un
 // soci (formulari públic) o com a admin.
-exports.cercarPellicules = onCall({ secrets: SECRETS }, async (request) => {
+exports.cercarPellicules = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABLES }, async (request) => {
   const consulta = String(request.data?.consulta ?? '').trim();
   if (consulta.length < 2) return [];
   const esAdmin = request.auth?.token?.role === 'admin';
@@ -90,7 +94,7 @@ exports.cercarPellicules = onCall({ secrets: SECRETS }, async (request) => {
 // L'admin tria a mà la pel·lícula d'una proposta ja existent (p. ex. les
 // anteriors al cercador): se'n torna a agafar la fitxa de TMDB, respectant els camps editats a mà
 // tret que demani `sobreescriure`.
-exports.assignarPellicula = onCall({ secrets: SECRETS }, async (request) => {
+exports.assignarPellicula = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABLES }, async (request) => {
   if (request.auth?.token?.role !== 'admin') throw new HttpsError('permission-denied', 'Només l\'admin.');
   const { propostaId, tmdbId, sobreescriure } = request.data ?? {};
   if (!propostaId || !tmdbId) throw new HttpsError('invalid-argument', 'Falten dades.');
@@ -103,7 +107,7 @@ exports.assignarPellicula = onCall({ secrets: SECRETS }, async (request) => {
 });
 
 function votacio(gestor) {
-  return onCall(async (request) => {
+  return onCall({ maxInstances: MAX_CALLABLES }, async (request) => {
     try {
       return await gestor(getFirestore(), request.data ?? {}, new Date());
     } catch (error) {
@@ -116,7 +120,8 @@ function votacio(gestor) {
 exports.estatVotacio = votacio(gestionarEstat);
 exports.votarProposta = votacio(gestionarVot);
 exports.rankingTanda = votacio(gestionarRanking);
-exports.rankingPublic = votacio(gestionarRankingPublic);
+// Sense token i amb una tanda tancada que ja no canvia: es desa uns minuts per no rellegir tots els vots.
+exports.rankingPublic = votacio(ambMemoria(gestionarRankingPublic));
 
 let calendari;
 const obtenirCalendari = () => (calendari ??= clientCalendari(credencialsCalendari({
@@ -126,7 +131,7 @@ const obtenirCalendari = () => (calendari ??= clientCalendari(credencialsCalenda
 
 // Manté el Google Calendar del club al dia amb cada sessió publicada. No escriu mai a `sessions`.
 exports.sincronitzarCalendari = onDocumentWritten(
-  { document: 'sessions/{id}', secrets: SECRETS_CALENDARI, retry: false, timeoutSeconds: 60 },
+  { document: 'sessions/{id}', secrets: SECRETS_CALENDARI, retry: false, timeoutSeconds: 60, maxInstances: MAX_DISPARADORS },
   (event) => sincronitzarSessio({
     id: event.params.id,
     abans: event.data?.before?.exists ? event.data.before.data() : null,
@@ -138,7 +143,7 @@ exports.sincronitzarCalendari = onDocumentWritten(
 );
 
 // Sincronització completa (adoptar els de Hugo, reparar desajustos). Per defecte és un informe.
-exports.sincronitzarCalendariTot = onCall({ secrets: SECRETS_CALENDARI, timeoutSeconds: 300 }, async (request) => {
+exports.sincronitzarCalendariTot = onCall({ secrets: SECRETS_CALENDARI, timeoutSeconds: 300, maxInstances: MAX_CALLABLES }, async (request) => {
   try {
     return await sincronitzarTot({
       db: getFirestore(), obtenirCalendari, auth: request.auth, dades: request.data, logger,

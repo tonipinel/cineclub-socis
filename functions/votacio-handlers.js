@@ -129,4 +129,20 @@ async function gestionarRankingPublic(db, dades, ara) {
   return { files: files.map(({ propostaId, percentatge }) => ({ propostaId, percentatge })) };
 }
 
-module.exports = { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic };
+// Memòria per instància del rànquing públic: una tanda tancada ja no canvia, així que no cal tornar a llegir
+// tots els vots a cada crida anònima. Només es desen les respostes bones (una tanda oberta continua donant
+// error), caduquen als `duradaMs` segons l'`ara` de cada crida i, si n'hi ha `maxim`, surt la més antiga.
+function ambMemoria(gestor, { duradaMs = 10 * 60 * 1000, maxim = 100 } = {}) {
+  const memoria = new Map();
+  return async (db, dades, ara) => {
+    const desat = memoria.get(dades.tandaId);
+    if (desat && ara.getTime() < desat.fins) return desat.resultat;
+    const resultat = await gestor(db, dades, ara);
+    memoria.delete(dades.tandaId);
+    if (memoria.size >= maxim) memoria.delete(memoria.keys().next().value);
+    memoria.set(dades.tandaId, { resultat, fins: ara.getTime() + duradaMs });
+    return resultat;
+  };
+}
+
+module.exports = { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria };
