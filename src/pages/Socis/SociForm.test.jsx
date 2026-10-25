@@ -15,15 +15,31 @@ vi.mock('firebase/firestore', () => {
   const batchDelete = vi.fn();
   const batchCommit = vi.fn().mockResolvedValue(undefined);
   const writeBatch = vi.fn(() => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }));
+  // Les accions del soci (desactivar, regenerar, reactivar) van en una transacció: la lectura és el mateix `getDoc`
+  // simulat i les escriptures es registren als mateixos espies que el lot; `batchCommit` fa de confirmació (si
+  // la funció llança, no hi arriba).
+  const runTransaction = vi.fn(async (_db, fn) => {
+    const tx = {
+      get: (ref) => getDoc(ref),
+      set: (...args) => { batchSet(...args); return tx; },
+      update: (...args) => { batchUpdate(...args); return tx; },
+      delete: (...args) => { batchDelete(...args); return tx; },
+    };
+    const resultat = await fn(tx);
+    await batchCommit();
+    return resultat;
+  });
+  const getDoc = vi.fn();
   return {
     addDoc: vi.fn().mockResolvedValue({ id: 's9' }),
-    getDoc: vi.fn(),
+    getDoc,
     getDocs: vi.fn().mockResolvedValue({ docs: [] }),
     collection: vi.fn((_, nom) => nom),
     doc: vi.fn((...args) => args[args.length - 1]),
     query: vi.fn(),
     where: vi.fn(),
     writeBatch,
+    runTransaction,
     __batchSet: batchSet,
     __batchUpdate: batchUpdate,
     __batchDelete: batchDelete,
@@ -32,8 +48,9 @@ vi.mock('firebase/firestore', () => {
 });
 
 import {
-  addDoc, collection, getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
+  addDoc, collection, getDoc, getDocs, where, writeBatch, runTransaction, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
 } from 'firebase/firestore';
+import QRCode from 'qrcode';
 import SociForm from './SociForm';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -106,6 +123,7 @@ const SOCI_COMPLET = {
 function reiniciaEscriptures() {
   addDoc.mockClear();
   writeBatch.mockClear();
+  runTransaction.mockClear();
   __batchSet.mockClear();
   __batchUpdate.mockClear();
   __batchDelete.mockClear();
@@ -346,7 +364,8 @@ describe('SociForm — edició directa', () => {
     expect(within(barra()).getByText('Desant…')).toBeInTheDocument();
     resol();
     await esperaDesat();
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchCommit).toHaveBeenCalledTimes(1);
   });
 
@@ -860,6 +879,7 @@ describe('SociForm — assistència a sessions', () => {
 describe('SociForm — desactivació', () => {
   beforeEach(() => {
     writeBatch.mockClear();
+    runTransaction.mockClear();
     __batchSet.mockClear();
     __batchUpdate.mockClear();
     __batchDelete.mockClear();
@@ -894,7 +914,7 @@ describe('SociForm — desactivació', () => {
   });
 
   it('desactiva el soci amb el motiu indicat, després de confirmar, i esborra el seu socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
+    getDoc.mockResolvedValue({
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1' }),
     });
     const user = userEvent.setup();
@@ -925,7 +945,7 @@ describe('SociForm — desactivació', () => {
   });
 
   it('esborra socisPublic pel token en desactivar, encara que el soci no tingui numeroSoci (esborrar per token és inofensiu)', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '', tokenCarnet: 'tok-1' }) });
+    getDoc.mockResolvedValue({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '', tokenCarnet: 'tok-1' }) });
     const user = userEvent.setup();
     renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
@@ -941,7 +961,7 @@ describe('SociForm — desactivació', () => {
   });
 
   it('no toca socisPublic en desactivar un soci sense tokenCarnet', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
+    getDoc.mockResolvedValue({ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) });
     const user = userEvent.setup();
     renderAmbConfirmacio(
       <MemoryRouter initialEntries={['/socis/1']}>
@@ -957,7 +977,7 @@ describe('SociForm — desactivació', () => {
   });
 
   it('mostra el motiu i permet reactivar un soci desactivat, tornant a escriure socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
+    getDoc.mockResolvedValue({
       data: () => ({
         nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: false,
         motiuDesactivacio: 'Mal comportament', dataDesactivacio: '2026-06-01',
@@ -987,6 +1007,7 @@ describe('SociForm — desactivació', () => {
 describe('SociForm — cancel·lar les confirmacions de desactivar i reactivar', () => {
   beforeEach(() => {
     writeBatch.mockClear();
+    runTransaction.mockClear();
     __batchCommit.mockClear();
     __batchCommit.mockResolvedValue(undefined);
   });
@@ -1010,6 +1031,7 @@ describe('SociForm — cancel·lar les confirmacions de desactivar i reactivar',
     await tanca(user);
     await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(writeBatch).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
     expect(__batchCommit).not.toHaveBeenCalled();
     expect(screen.getByText('Actiu')).toBeInTheDocument();
     expect(screen.getByLabelText('Motiu de la desactivació')).toHaveValue('Mal comportament');
@@ -1047,7 +1069,8 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
     await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchUpdate).toHaveBeenCalledWith('1', { telefon: '600' });
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
   });
@@ -1244,7 +1267,8 @@ describe('SociForm — nom de les propostes en canviar el nom', () => {
     await user.type(screen.getByLabelText('Nom'), 'Joana');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await esperaDesat();
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchCommit).toHaveBeenCalledTimes(1);
     expect(__batchUpdate.mock.calls).toEqual([
       ['1', { nom: 'Joana' }],
@@ -1281,6 +1305,32 @@ describe('SociForm — nom de les propostes en canviar el nom', () => {
     expect(__batchUpdate.mock.calls).toEqual([['1', { nom: 'Joana' }]]);
   });
 
+  it('si el número de soci canvia entre la consulta de propostes i la transacció, no desa res i es pot tornar a provar', async () => {
+    getDoc
+      .mockResolvedValueOnce({ data: () => SOCI_COMPLET })
+      .mockResolvedValueOnce({ data: () => SOCI_COMPLET })
+      .mockResolvedValue({ data: () => ({ ...SOCI_COMPLET, numeroSoci: 8 }) });
+    getDocs.mockImplementation(async () => ({ docs: [proposta('p1', 'Anna V.')] }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Nom'));
+    await user.type(screen.getByLabelText('Nom'), 'Joana');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await within(barra()).findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    expect(__batchCommit).not.toHaveBeenCalled();
+    // En tornar-ho a provar, la consulta es fa amb el número nou.
+    __batchUpdate.mockClear();
+    __batchSet.mockClear();
+    getDocs.mockImplementation(async () => ({ docs: [proposta('p8', 'Anna V.')] }));
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate.mock.calls).toEqual([
+      ['1', { nom: 'Joana' }],
+      [{ id: 'p8' }, { nomProposant: 'Joana V.' }],
+    ]);
+    expect(where).toHaveBeenLastCalledWith('numeroSoci', '==', 8);
+  });
+
   it('un canvi que no afecta el nom (telèfon) no consulta ni toca les propostes', async () => {
     carrega(SOCI_COMPLET);
     const user = userEvent.setup();
@@ -1302,7 +1352,13 @@ describe('SociForm — nom de les propostes en canviar el nom', () => {
     await user.type(screen.getByLabelText('Nom'), 'Joana');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await esperaDesat();
-    expect(writeBatch).toHaveBeenCalledTimes(2);
+    // El primer lot és la transacció: soci + socisPublic + 448 propostes = 450 escriptures; la resta, en un lot a part.
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    const primerCommit = __batchCommit.mock.invocationCallOrder[0];
+    const abans = (espia) => espia.mock.invocationCallOrder.filter((o) => o < primerCommit).length;
+    expect(abans(__batchUpdate) + abans(__batchSet)).toBe(450);
+    expect(__batchSet).toHaveBeenCalledTimes(1);
     expect(__batchCommit).toHaveBeenCalledTimes(2);
     expect(__batchUpdate).toHaveBeenCalledTimes(452);
     expect(__batchUpdate.mock.calls[0]).toEqual(['1', { nom: 'Joana' }]);
@@ -1335,7 +1391,7 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     expect(screen.getByLabelText('Telèfon')).toHaveValue('6000000001');
     expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
     // La relectura abans de desar ja veu el soci desactivat.
-    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI_COMPLET, ...desactivacio }) });
+    getDoc.mockResolvedValue({ data: () => ({ ...SOCI_COMPLET, ...desactivacio }) });
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
     expect(__batchUpdate.mock.calls[1]).toEqual(['1', { telefon: '6000000001' }]);
@@ -1357,7 +1413,7 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     expect(__batchSet).toHaveBeenCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' });
     expect(screen.getByLabelText('Cognoms')).toHaveValue('Puig');
     // La relectura abans de desar ja veu el token nou.
-    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI_COMPLET, tokenCarnet: 'token-nou' }) });
+    getDoc.mockResolvedValue({ data: () => ({ ...SOCI_COMPLET, tokenCarnet: 'token-nou' }) });
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
     expect(__batchUpdate.mock.calls[1]).toEqual(['1', { cognoms: 'Puig' }]);
@@ -1419,6 +1475,7 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
 describe('SociForm — regenerar carnet', () => {
   beforeEach(() => {
     writeBatch.mockClear();
+    runTransaction.mockClear();
     __batchSet.mockClear();
     __batchUpdate.mockClear();
     __batchDelete.mockClear();
@@ -1428,7 +1485,7 @@ describe('SociForm — regenerar carnet', () => {
   });
 
   it('regenera el token del carnet després de confirmar, i sincronitza socisPublic', async () => {
-    getDoc.mockResolvedValueOnce({
+    getDoc.mockResolvedValue({
       data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'token-vell' }),
     });
     const user = userEvent.setup();
@@ -1467,6 +1524,7 @@ describe('SociForm — regenerar carnet', () => {
     await tanca(user);
     await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(writeBatch).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
     expect(__batchCommit).not.toHaveBeenCalled();
   });
 
@@ -1477,7 +1535,8 @@ describe('SociForm — regenerar carnet', () => {
     await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
     await acceptaDialeg('Regenera');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
     expect(__batchUpdate.mock.calls).toEqual([['1', { tokenCarnet: 'token-nou' }]]);
     expect(__batchDelete.mock.calls).toEqual([['token-vell']]);
     expect(__batchSet.mock.calls).toEqual([['token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
@@ -1523,5 +1582,188 @@ describe('SociForm — regenerar carnet', () => {
     expect(__batchSet.mock.calls).toEqual([['token-actual', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
     expect(__batchDelete).not.toHaveBeenCalled();
     expect(await screen.findByRole('button', { name: 'Regenerar carnet' })).toBeInTheDocument();
+  });
+});
+
+describe('SociForm — les accions del soci rellegeixen el document abans d\'escriure', () => {
+  beforeEach(() => {
+    reiniciaEscriptures();
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('token-nou');
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const desactiva = async (user) => {
+    await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+    await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Baixa');
+    await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+    await acceptaDialeg('Desactiva');
+  };
+
+  it('desactivar amb el carnet regenerat en una altra pestanya esborra el socisPublic del token actual (i el vell)', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, tokenCarnet: 'tok-2' });
+    const user = userEvent.setup();
+    renderExistent();
+    await desactiva(user);
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchUpdate.mock.calls).toEqual([
+      ['1', { actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: expect.any(String), reiniciQuota: true }],
+    ]);
+    expect(__batchDelete.mock.calls).toEqual([['tok-2'], ['tok-1']]);
+    expect(__batchSet).not.toHaveBeenCalled();
+    expect(await screen.findByText('Desactivat')).toBeInTheDocument();
+  });
+
+  it('desactivar amb el mateix token esborra només aquest socisPublic', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    await desactiva(user);
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchDelete.mock.calls).toEqual([['tok-1']]);
+  });
+
+  it('regenerar amb el carnet regenerat en una altra pestanya esborra el token actual i publica el nou amb les dades actuals', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, tokenCarnet: 'tok-2', nom: 'Joana' });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchUpdate.mock.calls).toEqual([['1', { tokenCarnet: 'token-nou' }]]);
+    expect(__batchDelete.mock.calls).toEqual([['tok-2'], ['tok-1']]);
+    expect(__batchSet.mock.calls).toEqual([['token-nou', { numeroSoci: 7, nomPublic: 'Joana V.' }]]);
+  });
+
+  it('regenerar un soci que mentrestant s\'ha desactivat canvia el token però no el publica', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, tokenCarnet: 'tok-2', actiu: false });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls).toEqual([['1', { tokenCarnet: 'token-nou' }]]);
+    expect(__batchDelete.mock.calls).toEqual([['tok-2'], ['tok-1']]);
+    expect(__batchSet).not.toHaveBeenCalled();
+  });
+
+  it('reactivar publica socisPublic amb el token i el nom actuals, no amb els de quan es va obrir la fitxa', async () => {
+    const desactivat = {
+      ...SOCI_COMPLET, actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-06-01',
+    };
+    carregaICanviaAbansDeDesar(desactivat, {
+      ...desactivat, tokenCarnet: 'tok-2', cognoms: 'Puig', numeroSoci: 8,
+    });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+    await acceptaDialeg('Reactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    // Pagament (2026-08-29) posterior a la baixa (2026-06-01) i sense marca: la propera quota segueix sent renovació.
+    expect(__batchUpdate.mock.calls).toEqual([['1', {
+      actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: false,
+    }]]);
+    expect(__batchSet.mock.calls).toEqual([['tok-2', { numeroSoci: 8, nomPublic: 'Anna P.' }]]);
+    expect(__batchDelete).not.toHaveBeenCalled();
+    expect(await screen.findByText('Actiu')).toBeInTheDocument();
+  });
+
+  it('reactivar fa servir la marca reiniciQuota del document actual: si un pagament registrat mentrestant l\'ha tret, escriu false', async () => {
+    const desactivat = {
+      ...SOCI_COMPLET, actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-09-15', reiniciQuota: true,
+    };
+    carregaICanviaAbansDeDesar(desactivat, { ...desactivat, reiniciQuota: false, ultimPagament: '2026-10-20' });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+    await acceptaDialeg('Reactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchUpdate.mock.calls).toEqual([['1', {
+      actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: false,
+    }]]);
+  });
+
+  it('reactivar una organització publica el nom de l\'organització del document actual', async () => {
+    const desactivat = {
+      ...SOCI_COMPLET, actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: '2026-06-01',
+    };
+    carregaICanviaAbansDeDesar(desactivat, { ...desactivat, organitzacio: true });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+    await acceptaDialeg('Reactiva');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(__batchSet.mock.calls).toEqual([['tok-1', { numeroSoci: 7, nomPublic: 'Organització Cineclub Roda de Berà' }]]);
+  });
+
+  it.each([
+    ['desactivar', async (user) => {
+      await user.click(await screen.findByRole('button', { name: 'Desactivar soci' }));
+      await user.type(screen.getByLabelText('Motiu de la desactivació'), 'Baixa');
+      await user.click(screen.getByRole('button', { name: 'Confirmar desactivació' }));
+      await acceptaDialeg('Desactiva');
+    }, SOCI_COMPLET],
+    ['regenerar', async (user) => {
+      await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+      await acceptaDialeg('Regenera');
+    }, SOCI_COMPLET],
+    ['reactivar', async (user) => {
+      await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
+      await acceptaDialeg('Reactiva');
+    }, { ...SOCI_COMPLET, actiu: false, dataDesactivacio: '2026-06-01' }],
+  ])('si el soci ja no existeix, %s no escriu res i ho diu', async (_accio, fes, alObrir) => {
+    carregaICanviaAbansDeDesar(alObrir, undefined);
+    const user = userEvent.setup();
+    renderExistent();
+    await fes(user);
+    expect(await screen.findByText('Aquest soci ja no existeix: torna al llistat de socis.')).toBeInTheDocument();
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__batchUpdate).not.toHaveBeenCalled();
+    expect(__batchDelete).not.toHaveBeenCalled();
+    expect(__batchSet).not.toHaveBeenCalled();
+    expect(__batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('si la transacció es reintenta per contenció, només compten les escriptures de l\'últim intent i la fitxa mostra el seu token', async () => {
+    // Firestore torna a executar la funció quan el document llegit canvia abans de confirmar: el primer intent llegeix
+    // tok-1 i les seves escriptures es descarten; el segon llegeix tok-2 (regenerat per un altre admin) i és el bo.
+    getDoc
+      .mockResolvedValueOnce({ data: () => SOCI_COMPLET })
+      .mockResolvedValueOnce({ data: () => SOCI_COMPLET })
+      .mockResolvedValue({ data: () => ({ ...SOCI_COMPLET, tokenCarnet: 'tok-2' }) });
+    crypto.randomUUID.mockReturnValueOnce('token-a').mockReturnValueOnce('token-b');
+    const descartades = vi.fn();
+    runTransaction.mockImplementationOnce(async (_db, fn) => {
+      const intent = (escriu) => {
+        const tx = {
+          get: (ref) => getDoc(ref),
+          set: (...a) => { escriu('set', ...a); return tx; },
+          update: (...a) => { escriu('update', ...a); return tx; },
+          delete: (...a) => { escriu('delete', ...a); return tx; },
+        };
+        return fn(tx);
+      };
+      await intent(descartades);
+      const resultat = await intent((op, ...a) => ({ set: __batchSet, update: __batchUpdate, delete: __batchDelete })[op](...a));
+      await __batchCommit();
+      return resultat;
+    });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.click(await screen.findByRole('button', { name: 'Regenerar carnet' }));
+    await acceptaDialeg('Regenera');
+    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
+    expect(descartades).toHaveBeenCalledWith('update', '1', { tokenCarnet: 'token-a' });
+    expect(__batchUpdate.mock.calls).toEqual([['1', { tokenCarnet: 'token-b' }]]);
+    expect(__batchDelete.mock.calls).toEqual([['tok-2'], ['tok-1']]);
+    expect(__batchSet.mock.calls).toEqual([['token-b', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
+    await waitFor(() => expect(QRCode.toDataURL).toHaveBeenLastCalledWith('CARNET-token-b', expect.anything()));
+    expect(QRCode.toDataURL).not.toHaveBeenCalledWith('CARNET-token-a', expect.anything());
   });
 });

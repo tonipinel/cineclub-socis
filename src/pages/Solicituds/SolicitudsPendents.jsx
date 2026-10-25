@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  collection, deleteDoc, doc, getDocs, onSnapshot, query, runTransaction, updateDoc, where, writeBatch,
+  collection, deleteDoc, doc, getDocs, onSnapshot, query, runTransaction, updateDoc, where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import PaginaAdmin from '../../components/PaginaAdmin';
@@ -107,11 +107,16 @@ export default function SolicitudsPendents() {
     if (!confirmat) return;
     setErrorDesfer(null);
     try {
-      const batch = writeBatch(db);
-      batch.delete(doc(db, 'socis', ultimaAprovacio.sociId));
-      esborrarSociPublic(batch, db, ultimaAprovacio.tokenCarnet);
-      batch.update(doc(db, 'solicituds', ultimaAprovacio.solicitudId), { estat: 'pendent' });
-      await batch.commit();
+      // El carnet es pot haver regenerat des que s'ha aprovat: s'esborra el socisPublic del token vigent (rellegit dins
+      // la transacció) i també el desat en aprovar. Si el soci ja no hi és, s'esborra igualment el de l'aprovació.
+      const sociRef = doc(db, 'socis', ultimaAprovacio.sociId);
+      await runTransaction(db, async (transaction) => {
+        const tokenActual = (await transaction.get(sociRef)).data()?.tokenCarnet;
+        transaction.delete(sociRef);
+        esborrarSociPublic(transaction, db, tokenActual);
+        if (tokenActual !== ultimaAprovacio.tokenCarnet) esborrarSociPublic(transaction, db, ultimaAprovacio.tokenCarnet);
+        transaction.update(doc(db, 'solicituds', ultimaAprovacio.solicitudId), { estat: 'pendent' });
+      });
       setUltimaAprovacio(null);
     } catch {
       setErrorDesfer(MISSATGE_ERROR);

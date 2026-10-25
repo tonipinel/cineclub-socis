@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import {
+  addDoc, collection, doc, getDoc, getDocs, query, runTransaction, where, writeBatch,
+} from 'firebase/firestore';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
@@ -45,8 +47,10 @@ const CAMPS_FORMULARI = [
 const CAMPS_EDITABLES = [...CAMPS_FORMULARI.map(([camp]) => camp), 'organitzacio'];
 // Camps dels quals depèn el nom públic (`calcularNomPublic`), que es copia a cada proposta com a `nomProposant`.
 const CAMPS_NOM_PUBLIC = ['nom', 'cognoms', 'organitzacio'];
-// Un lot de Firestore admet 500 escriptures: el primer porta també el soci i socisPublic.
+// Un lot de Firestore admet 500 escriptures; se'n fan servir com a molt 450. El primer (la transacció del desat) porta
+// també el soci i socisPublic.
 const PROPOSTES_PER_LOT = 450;
+const PROPOSTES_PRIMER_LOT = PROPOSTES_PER_LOT - 2;
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -84,6 +88,23 @@ const IconaCorreu = () => (
 
 const ERROR_CARREGA = "No s'ha pogut carregar el soci. Torna-ho a provar.";
 const TORNAR = { to: ROUTES.SOCIS, etiqueta: 'Socis' };
+const MISSATGE_SOCI_INEXISTENT = 'Aquest soci ja no existeix: torna al llistat de socis.';
+
+class ErrorSociInexistent extends Error {
+  constructor() {
+    super(MISSATGE_SOCI_INEXISTENT);
+    this.name = 'ErrorSociInexistent';
+  }
+}
+
+// El soci tal com és ara, a partir del document rellegit just abans d'escriure. socisPublic depèn del token, de l'estat
+// i del nom, que poden haver canviat des que s'ha obert la fitxa (una altra pestanya, un altre admin, l'escaneig, un
+// pagament): calcular-lo amb la còpia carregada en obrir-la podria esborrar un token vell i deixar viu el vigent.
+function sociActual(snap) {
+  const actual = snap.data();
+  if (!actual) throw new ErrorSociInexistent();
+  return { ...CAMPS_INICIALS, ...actual };
+}
 
 // Valors editables: els camps del formulari i la casella d'organització.
 const valorsInicials = (soci) => ({
@@ -125,33 +146,41 @@ function FitxaSoci({ id, soci }) {
     }
     // Només s'escriuen els camps canviats: el que hagin desat mentrestant l'escaneig o un pagament (inicPeriode,
     // ultimPagament, actiu, tokenCarnet...) es conserva. socisPublic i nomProposant depenen també de camps que la
-    // fitxa no edita (token, actiu, número), i per això es calculen amb el document rellegit just abans del lot,
+    // fitxa no edita (token, actiu, número), i per això es calculen dins d'una transacció amb el document rellegit,
     // no amb el carregat en obrir la fitxa.
     const ref = doc(db, 'socis', id);
-    const actual = (await getDoc(ref)).data();
-    if (!actual) throw new Error('El soci ja no existeix');
-    const nou = { ...CAMPS_INICIALS, ...actual, ...canvis };
-    const batch = writeBatch(db);
-    batch.update(ref, canvis);
-    if (estaActiu(nou)) sincronitzarSociPublic(batch, db, nou);
-    // El nom amb què es mostren les seves propostes es desa a cada proposta: si canvia, s'hi propaga.
-    const lotsAddicionals = [];
-    if (CAMPS_NOM_PUBLIC.some((camp) => camp in canvis) && nou.numeroSoci) {
-      const nomProposant = calcularNomPublic(nou);
-      const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(nou.numeroSoci))));
-      const pendents = propostes.docs.filter((p) => p.data().nomProposant !== nomProposant);
-      // Amb més propostes de les que caben en un lot, la resta va en lots posteriors (cadascun atòmic). Si un
-      // falla, el soci ja és desat però el desat es dona per fallit i els canvis queden pendents: tornar a desar
-      // només reescriu les propostes que encara tenen el nom vell.
-      for (let i = 0; i < pendents.length; i += PROPOSTES_PER_LOT) {
-        const lot = i === 0 ? batch : writeBatch(db);
-        pendents.slice(i, i + PROPOSTES_PER_LOT).forEach((p) => lot.update(p.ref, { nomProposant }));
-        if (i > 0) lotsAddicionals.push(lot);
+    // El nom amb què es mostren les seves propostes es desa a cada proposta: si canvia, s'hi propaga. Una transacció
+    // del client no pot fer consultes, així que les propostes es busquen abans, amb el número rellegit ara; si dins la
+    // transacció el número ja és un altre, no es desa res (tornar a desar ho torna a buscar).
+    const canviaNom = CAMPS_NOM_PUBLIC.some((camp) => camp in canvis);
+    let numeroConsultat = null;
+    let propostes = [];
+    if (canviaNom) {
+      numeroConsultat = sociActual(await getDoc(ref)).numeroSoci;
+      if (numeroConsultat) {
+        propostes = (await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(numeroConsultat))))).docs;
       }
     }
-    await batch.commit();
+    const { nou, restants, nomProposant } = await runTransaction(db, async (transaction) => {
+      const fresc = { ...sociActual(await transaction.get(ref)), ...canvis };
+      transaction.update(ref, canvis);
+      if (estaActiu(fresc)) sincronitzarSociPublic(transaction, db, fresc);
+      if (!canviaNom || !fresc.numeroSoci) return { nou: fresc, restants: [] };
+      if (Number(fresc.numeroSoci) !== Number(numeroConsultat)) throw new Error('El número de soci ha canviat mentre es desava');
+      const nom = calcularNomPublic(fresc);
+      const pendents = propostes.filter((p) => p.data().nomProposant !== nom);
+      pendents.slice(0, PROPOSTES_PRIMER_LOT).forEach((p) => transaction.update(p.ref, { nomProposant: nom }));
+      return { nou: fresc, restants: pendents.slice(PROPOSTES_PRIMER_LOT), nomProposant: nom };
+    });
     setDesat(nou);
-    for (const lot of lotsAddicionals) await lot.commit();
+    // Amb més propostes de les que caben a la transacció, la resta va en lots posteriors (cadascun atòmic). Si un
+    // falla, el soci ja és desat però el desat es dona per fallit i els canvis queden pendents: tornar a desar
+    // només reescriu les propostes que encara tenen el nom vell.
+    for (let i = 0; i < restants.length; i += PROPOSTES_PER_LOT) {
+      const lot = writeBatch(db);
+      restants.slice(i, i + PROPOSTES_PER_LOT).forEach((p) => lot.update(p.ref, { nomProposant }));
+      await lot.commit();
+    }
     return undefined;
   };
 
@@ -201,8 +230,8 @@ function FitxaSoci({ id, soci }) {
     setErrorEstat(null);
     try {
       await accio();
-    } catch {
-      setErrorEstat(missatgeError);
+    } catch (error) {
+      setErrorEstat(error instanceof ErrorSociInexistent ? error.message : missatgeError);
     } finally {
       operantRef.current = false;
       setOperant(false);
@@ -223,15 +252,20 @@ function FitxaSoci({ id, soci }) {
     });
     if (!confirmat) return;
     await opera(async () => {
+      const ref = doc(db, 'socis', id);
       // reiniciQuota: després d'una baixa, la propera quota és una alta (compta des del primer escaneig, no s'encadena).
       const actualitzacio = {
         actiu: false, motiuDesactivacio: motiuDesactivacio.trim(), dataDesactivacio: avui(), reiniciQuota: true,
       };
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'socis', id), actualitzacio);
-      esborrarSociPublic(batch, db, desat.tokenCarnet);
-      await batch.commit();
-      setDesat((d) => ({ ...d, ...actualitzacio }));
+      const actual = await runTransaction(db, async (transaction) => {
+        const soci = sociActual(await transaction.get(ref));
+        transaction.update(ref, actualitzacio);
+        // El token vigent; i, per si de cas, el de quan es va obrir la fitxa, si és un altre.
+        esborrarSociPublic(transaction, db, soci.tokenCarnet);
+        if (desat.tokenCarnet !== soci.tokenCarnet) esborrarSociPublic(transaction, db, desat.tokenCarnet);
+        return soci;
+      });
+      setDesat({ ...actual, ...actualitzacio });
       setMotiuDesactivacio('');
       setMostrarFormDesactivacio(false);
     }, "No s'ha pogut desar. Torna-ho a provar.");
@@ -245,13 +279,18 @@ function FitxaSoci({ id, soci }) {
     });
     if (!confirmat) return;
     await opera(async () => {
-      const nouToken = crypto.randomUUID();
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'socis', id), { tokenCarnet: nouToken });
-      esborrarSociPublic(batch, db, desat.tokenCarnet);
-      sincronitzarSociPublic(batch, db, { ...desat, tokenCarnet: nouToken });
-      await batch.commit();
-      setDesat((d) => ({ ...d, tokenCarnet: nouToken }));
+      const ref = doc(db, 'socis', id);
+      const nou = await runTransaction(db, async (transaction) => {
+        const soci = sociActual(await transaction.get(ref));
+        const nouToken = crypto.randomUUID();
+        transaction.update(ref, { tokenCarnet: nouToken });
+        esborrarSociPublic(transaction, db, soci.tokenCarnet);
+        if (desat.tokenCarnet !== soci.tokenCarnet) esborrarSociPublic(transaction, db, desat.tokenCarnet);
+        // Només es publica si el soci continua actiu (ho comprova `sincronitzarSociPublic`).
+        sincronitzarSociPublic(transaction, db, { ...soci, tokenCarnet: nouToken });
+        return { ...soci, tokenCarnet: nouToken };
+      });
+      setDesat(nou);
     }, "No s'ha pogut regenerar el carnet. Torna-ho a provar.");
   };
 
@@ -259,14 +298,20 @@ function FitxaSoci({ id, soci }) {
     const confirmat = await confirma({ missatge: 'Segur que vols reactivar aquest soci?', etiquetaAcceptar: 'Reactiva' });
     if (!confirmat) return;
     await opera(async () => {
-      const actualitzacio = {
-        actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: reiniciQuotaEnReactivar(desat),
-      };
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'socis', id), actualitzacio);
-      sincronitzarSociPublic(batch, db, { ...desat, ...actualitzacio });
-      await batch.commit();
-      setDesat((d) => ({ ...d, ...actualitzacio }));
+      const ref = doc(db, 'socis', id);
+      const nou = await runTransaction(db, async (transaction) => {
+        const fresc = sociActual(await transaction.get(ref));
+        // Es calcula amb el document rellegit i abans d'aplicar-hi l'actualització, que esborra dataDesactivacio
+        // (i un pagament registrat mentrestant pot haver tret la marca).
+        const actualitzacio = {
+          actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: reiniciQuotaEnReactivar(fresc),
+        };
+        transaction.update(ref, actualitzacio);
+        const soci = { ...fresc, ...actualitzacio };
+        sincronitzarSociPublic(transaction, db, soci);
+        return soci;
+      });
+      setDesat(nou);
     }, "No s'ha pogut desar. Torna-ho a provar.");
   };
 

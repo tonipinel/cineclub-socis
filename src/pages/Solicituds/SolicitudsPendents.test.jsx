@@ -19,6 +19,7 @@ vi.mock('firebase/firestore', () => {
   });
   const txSet = vi.fn();
   const txUpdate = vi.fn();
+  const txDelete = vi.fn();
   const txCommit = vi.fn().mockResolvedValue(undefined);
   const runTransaction = vi.fn(async (_db, fn) => {
     const pendents = [];
@@ -26,11 +27,14 @@ vi.mock('firebase/firestore', () => {
       get: txGet,
       set: (ref, dades) => { txSet(ref, dades); pendents.push([ref, dades, false]); return tx; },
       update: (ref, dades) => { txUpdate(ref, dades); pendents.push([ref, dades, true]); return tx; },
+      delete: (ref) => { txDelete(ref); pendents.push([ref, null, false]); return tx; },
     };
     const resultat = await fn(tx);
     await txCommit();
     pendents.forEach(([ref, dades, fusiona]) => {
-      if (typeof ref === 'string') docsTransaccio.set(ref, fusiona ? { ...docsTransaccio.get(ref), ...dades } : dades);
+      if (typeof ref !== 'string') return;
+      if (dades === null) docsTransaccio.delete(ref);
+      else docsTransaccio.set(ref, fusiona ? { ...docsTransaccio.get(ref), ...dades } : dades);
     });
     return resultat;
   });
@@ -63,13 +67,14 @@ vi.mock('firebase/firestore', () => {
     __txGet: txGet,
     __txSet: txSet,
     __txUpdate: txUpdate,
+    __txDelete: txDelete,
     __txCommit: txCommit,
   };
 });
 
 import {
   getDocs, updateDoc, deleteDoc, writeBatch, runTransaction, onSnapshot, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
-  __docsTransaccio, __txGet, __txSet, __txUpdate, __txCommit,
+  __docsTransaccio, __txGet, __txSet, __txUpdate, __txDelete, __txCommit,
 } from 'firebase/firestore';
 import { MISSATGE_COMPTADOR_ABSENT } from '../../lib/numeroSoci';
 import SolicitudsPendents from './SolicitudsPendents';
@@ -92,6 +97,7 @@ describe('SolicitudsPendents', () => {
     __txGet.mockClear();
     __txSet.mockClear();
     __txUpdate.mockClear();
+    __txDelete.mockClear();
     __txCommit.mockClear();
     __txCommit.mockResolvedValue(undefined);
     __docsTransaccio.clear();
@@ -110,7 +116,8 @@ describe('SolicitudsPendents', () => {
   // Abans l'aprovació llegia tots els socis i escrivia en un writeBatch, i el número era max+1 d'aquella lectura (dues
   // aprovacions seguides podien donar el mateix número). Ara tot va en una sola runTransaction que llegeix i avança el
   // comptador configuracio/socis; les comprovacions d'abans sobre el batch es fan ara sobre les escriptures de la
-  // transacció (__txSet/__txUpdate/__txCommit), i el desfer continua sent un writeBatch.
+  // transacció (__txSet/__txUpdate/__txCommit). El desfer també és una transacció (rellegeix el soci per esborrar el
+  // socisPublic del token vigent).
   it('aprova una sol·licitud: reserva el número al comptador i crea el soci, socisPublic i l\'estat en una sola transacció', async () => {
     const user = userEvent.setup();
     renderAmbConfirmacio(<SolicitudsPendents />);
@@ -231,12 +238,12 @@ describe('SolicitudsPendents', () => {
     const dialeg = await dialegConfirmacio();
     expect(dialeg).toHaveAttribute('role', 'alertdialog');
     expect(dialeg).toHaveTextContent("Segur que vols desfer l'aprovació de Anna Vidal? S'eliminarà el soci creat i la sol·licitud tornarà a l'estat pendent.");
-    expect(writeBatch).not.toHaveBeenCalled();
+    expect(runTransaction).toHaveBeenCalledTimes(1);
     await acceptaDialeg('Desfés');
-    await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(__batchDelete).toHaveBeenCalledWith('nou-soci-id');
-    expect(__batchUpdate).toHaveBeenCalledWith('sol-1', { estat: 'pendent' });
+    await waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(2));
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(__txDelete).toHaveBeenCalledWith('nou-soci-id');
+    expect(__txUpdate).toHaveBeenLastCalledWith('sol-1', { estat: 'pendent' });
     // Desfer no torna enrere el comptador: el número queda cremat (un forat), mai es reutilitza.
     expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 42 });
     expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
@@ -250,8 +257,50 @@ describe('SolicitudsPendents', () => {
     const tokenCarnet = __txSet.mock.calls[0][1].tokenCarnet;
     await user.click(await screen.findByRole('button', { name: 'Desfer' }));
     await acceptaDialeg('Desfés');
-    await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(__batchDelete).toHaveBeenCalledWith(tokenCarnet);
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(2));
+    expect(__txDelete).toHaveBeenCalledWith(tokenCarnet);
+  });
+
+  // Entre aprovar i desfer, el carnet del soci nou es pot haver regenerat (des de la seva fitxa): el socisPublic que
+  // permet votar és el del token vigent, no el desat en aprovar.
+  const aprovaIDesfes = async (sociAlDesfer) => {
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
+    const tokenAprovacio = __txSet.mock.calls[0][1].tokenCarnet;
+    if (sociAlDesfer) __docsTransaccio.set('nou-soci-id', sociAlDesfer(tokenAprovacio));
+    __txGet.mockClear();
+    __txUpdate.mockClear();
+    await user.click(await screen.findByRole('button', { name: 'Desfer' }));
+    await acceptaDialeg('Desfés');
+    await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(2));
+    return tokenAprovacio;
+  };
+
+  it('en desfer, si el carnet s\'ha regenerat mentrestant, esborra el socisPublic del token vigent i el de l\'aprovació', async () => {
+    const tokenAprovacio = await aprovaIDesfes(() => ({ nom: 'Anna', numeroSoci: 42, tokenCarnet: 'tok-regenerat' }));
+    expect(__txGet.mock.calls).toEqual([['nou-soci-id']]);
+    expect(__txDelete.mock.calls).toEqual([['nou-soci-id'], ['tok-regenerat'], [tokenAprovacio]]);
+    expect(__txUpdate.mock.calls).toEqual([['sol-1', { estat: 'pendent' }]]);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
+  });
+
+  it('en desfer amb el mateix token, l\'esborra una sola vegada', async () => {
+    const tokenAprovacio = await aprovaIDesfes((token) => ({ nom: 'Anna', numeroSoci: 42, tokenCarnet: token }));
+    expect(__txDelete.mock.calls).toEqual([['nou-soci-id'], [tokenAprovacio]]);
+    expect(__txUpdate.mock.calls).toEqual([['sol-1', { estat: 'pendent' }]]);
+  });
+
+  it('en desfer, si el soci ja no existeix, esborra igualment el socisPublic de l\'aprovació i no falla', async () => {
+    const tokenAprovacio = await aprovaIDesfes(null);
+    expect(__txDelete.mock.calls).toEqual([['nou-soci-id'], [tokenAprovacio]]);
+    expect(__txUpdate.mock.calls).toEqual([['sol-1', { estat: 'pendent' }]]);
+    // Desfer no torna enrere el comptador: el número queda cremat.
+    expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 42 });
+    expect(screen.queryByText("No s'ha pogut desar. Torna-ho a provar.")).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Desfer' })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -266,8 +315,8 @@ describe('SolicitudsPendents', () => {
     await tanca(user);
     await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
     expect(writeBatch).not.toHaveBeenCalled();
-    expect(__batchCommit).not.toHaveBeenCalled();
-    expect(__batchDelete).not.toHaveBeenCalled();
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(__txDelete).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Desfer' })).toBeInTheDocument();
   });
 
