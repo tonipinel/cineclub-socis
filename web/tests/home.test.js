@@ -109,6 +109,15 @@ describe('portada', () => {
     expect(html).toContain('<li>Programació anunciada amb antelació</li>');
   });
 
+  it('«Com funciona la programació» explica les propostes i la votació de la tanda de pel·lícules a la web', async () => {
+    const { html } = await renderitza(Portada, '/');
+    expect(html).toContain('La junta busca la distribuïdora de cada proposta');
+    expect(html).toContain('entren a una tanda de pel·lícules');
+    expect(html).toContain('Cada trimestre, totes les persones sòcies votem la tanda a la web, amb el carnet');
+    expect(html).not.toContain('WhatsApp');
+    expect(html).not.toContain('posem a votació dues propostes');
+  });
+
   it('el botó Fes-te sòcia/soci apunta a /fes-te-socia/', async () => {
     const { html } = await renderitza(Portada, '/');
     expect(html.match(/<a class="btn" href="\/fes-te-socia\/">Fes-te sòcia\/soci<\/a>/g)).toHaveLength(2);
