@@ -13,21 +13,34 @@ export default function CercadorPellicula({ token, valorInicial = '', triadaInic
   const [triada, setTriada] = useState(triadaInicial);
   const [activa, setActiva] = useState(0);
 
+  // `intent` torna a llançar la mateixa cerca («Tornar-ho a provar»).
+  const [intent, setIntent] = useState(0);
+  // Consulta de l'última cerca resolta: «No s'ha trobat…» només després de cercar-la (no mentre s'espera).
+  const [resolta, setResolta] = useState(null);
+  const text = consulta.trim();
+
+  // Una cerca superada (consulta nova, menys de 2 lletres, pel·lícula triada) s'ignora en arribar i, en
+  // netejar-se, treu el «Cercant…» i l'error: sense això es quedava «Cercant…» per sempre.
   useEffect(() => {
-    if (triada || consulta.trim().length < 2) return undefined;
+    if (triada || text.length < 2) return undefined;
     let actiu = true;
     const temporitzador = setTimeout(() => {
       setCercant(true);
       setError(null);
-      cercarPellicules(consulta.trim(), token)
-        .then((trobades) => { if (actiu) { setResultats(trobades); setActiva(0); } })
-        .catch(() => { if (actiu) setError("No s'ha pogut cercar. Torna-ho a provar."); })
+      cercarPellicules(text, token)
+        .then((trobades) => { if (actiu) { setResultats(trobades); setResolta(text); setActiva(0); } })
+        .catch(() => { if (actiu) { setResultats([]); setResolta(null); setError("No s'ha pogut cercar. Torna-ho a provar."); } })
         .finally(() => { if (actiu) setCercant(false); });
     }, RETARD_MS);
-    return () => { actiu = false; clearTimeout(temporitzador); };
-  }, [consulta, token, triada]);
+    return () => {
+      actiu = false;
+      clearTimeout(temporitzador);
+      setCercant(false);
+      setError(null);
+    };
+  }, [text, token, triada, intent]);
 
-  const resultatsVisibles = triada || consulta.trim().length < 2 ? [] : resultats;
+  const resultatsVisibles = triada || text.length < 2 ? [] : resultats;
 
   const handleTecla = (e) => {
     if (resultatsVisibles.length === 0) {
@@ -88,10 +101,17 @@ export default function CercadorPellicula({ token, valorInicial = '', triadaInic
               aria-controls="cercador-pellicula-llista"
             />
           </div>
-          {cercant && <p className="cercador-pellicula__estat">Cercant…</p>}
-          {error && <p className="form__error">{error}</p>}
-          {!cercant && !error && consulta.trim().length >= 2 && resultatsVisibles.length === 0 && (
-            <p className="cercador-pellicula__estat">No s'ha trobat cap pel·lícula amb aquest títol.</p>
+          {cercant && <p className="cercador-pellicula__estat" role="status">Cercant…</p>}
+          {error && (
+            <div className="cercador-pellicula__error">
+              <p className="form__error" role="alert">{error}</p>
+              <button type="button" className="cercador-pellicula__reintentar" onClick={() => setIntent((i) => i + 1)}>
+                Tornar-ho a provar
+              </button>
+            </div>
+          )}
+          {!cercant && !error && text.length >= 2 && resolta === text && resultatsVisibles.length === 0 && (
+            <p className="cercador-pellicula__estat" role="status">No s'ha trobat cap pel·lícula amb aquest títol.</p>
           )}
           {resultatsVisibles.length > 0 && (
             <ul className="cercador-pellicula__llista" id="cercador-pellicula-llista" role="listbox">

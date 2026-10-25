@@ -203,6 +203,12 @@ body.proposta-detall-obert-body {
 .cercador-pellicula__estat {
   @apply text-sm text-black/60;
 }
+.cercador-pellicula__error {
+  @apply flex flex-wrap items-center gap-x-3 gap-y-1;
+}
+.cercador-pellicula__reintentar {
+  @apply cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-gold-dark underline decoration-dotted;
+}
 .cercador-pellicula__etiqueta {
   @apply sr-only;
 }

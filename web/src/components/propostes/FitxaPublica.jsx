@@ -3,6 +3,7 @@ import CartellPelicula from './CartellPelicula.jsx';
 import FitxaPellicula from './FitxaPellicula.jsx';
 import TrailerPellicula from './TrailerPellicula.jsx';
 import TitolLocal from './TitolLocal.jsx';
+import { useDialegModal } from './useDialegModal.js';
 
 const URL_IMATGES_TMDB = 'https://image.tmdb.org/t/p';
 
@@ -18,7 +19,6 @@ export default function FitxaPublica({ proposta, titolRef, senseProposant = fals
   useEffect(() => {
     if (obertaIndex === null) return undefined;
     const handler = (e) => {
-      if (e.key === 'Escape') setObertaIndex(null);
       if (e.key === 'ArrowRight') setObertaIndex((i) => (i + 1) % imatges.length);
       if (e.key === 'ArrowLeft') setObertaIndex((i) => (i - 1 + imatges.length) % imatges.length);
     };
@@ -73,43 +73,59 @@ export default function FitxaPublica({ proposta, titolRef, senseProposant = fals
         )}
       </div>
       {obertaIndex !== null && (
-        <div
-          className="fitxa-publica__modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Imatge de ${proposta.titol}`}
-          onClick={() => setObertaIndex(null)}
+        <ModalImatge
+          proposta={proposta}
+          imatges={imatges}
+          index={obertaIndex}
+          onCanviar={setObertaIndex}
+          onTancar={() => setObertaIndex(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Imatge ampliada (diàleg modal: Escape la tanca, i el focus torna a la miniatura).
+function ModalImatge({ proposta, imatges, index, onCanviar, onTancar }) {
+  const ref = useDialegModal(onTancar);
+  return (
+    <div
+      className="fitxa-publica__modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Imatge de ${proposta.titol}`}
+      tabIndex={-1}
+      ref={ref}
+      onClick={onTancar}
+    >
+      <button type="button" className="fitxa-publica__modal-tancar" onClick={onTancar} aria-label="Tancar la imatge">
+        ✕
+      </button>
+      {imatges.length > 1 && (
+        <button
+          type="button"
+          className="fitxa-publica__modal-fletxa fitxa-publica__modal-fletxa--anterior"
+          onClick={(e) => { e.stopPropagation(); onCanviar((index - 1 + imatges.length) % imatges.length); }}
+          aria-label="Imatge anterior"
         >
-          <button type="button" className="fitxa-publica__modal-tancar" onClick={() => setObertaIndex(null)} aria-label="Tancar la imatge">
-            ✕
-          </button>
-          {imatges.length > 1 && (
-            <button
-              type="button"
-              className="fitxa-publica__modal-fletxa fitxa-publica__modal-fletxa--anterior"
-              onClick={(e) => { e.stopPropagation(); setObertaIndex((obertaIndex - 1 + imatges.length) % imatges.length); }}
-              aria-label="Imatge anterior"
-            >
-              ‹
-            </button>
-          )}
-          <img
-            className="fitxa-publica__modal-imatge"
-            src={`${URL_IMATGES_TMDB}/w1280${imatges[obertaIndex]}`}
-            alt={`Imatge ampliada de ${proposta.titol}`}
-            onClick={(e) => e.stopPropagation()}
-          />
-          {imatges.length > 1 && (
-            <button
-              type="button"
-              className="fitxa-publica__modal-fletxa fitxa-publica__modal-fletxa--seguent"
-              onClick={(e) => { e.stopPropagation(); setObertaIndex((obertaIndex + 1) % imatges.length); }}
-              aria-label="Imatge següent"
-            >
-              ›
-            </button>
-          )}
-        </div>
+          ‹
+        </button>
+      )}
+      <img
+        className="fitxa-publica__modal-imatge"
+        src={`${URL_IMATGES_TMDB}/w1280${imatges[index]}`}
+        alt={`Imatge ampliada de ${proposta.titol}`}
+        onClick={(e) => e.stopPropagation()}
+      />
+      {imatges.length > 1 && (
+        <button
+          type="button"
+          className="fitxa-publica__modal-fletxa fitxa-publica__modal-fletxa--seguent"
+          onClick={(e) => { e.stopPropagation(); onCanviar((index + 1) % imatges.length); }}
+          aria-label="Imatge següent"
+        >
+          ›
+        </button>
       )}
     </div>
   );

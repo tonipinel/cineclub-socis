@@ -1473,14 +1473,15 @@ describe('PropostesPublic', () => {
       expect(screen.getAllByText('22/07/2026').length).toBeGreaterThan(0);
     });
 
-    it('el botó de tornar tanca el detall i restaura el hash #recents', async () => {
+    it('el botó de tornar tanca el detall i torna al hash d\'abans d\'obrir-lo', async () => {
       mockFirestore({ tanda: tandaFirestore() });
       const user = userEvent.setup();
       renderPagina();
       await user.click(await screen.findByRole('button', { name: /Amélie/ }));
+      expect(window.location.hash).toBe('#p1');
       await user.click(screen.getByRole('button', { name: 'Tornar al llistat' }));
       expect(screen.queryByRole('button', { name: 'Tornar al llistat' })).not.toBeInTheDocument();
-      expect(window.location.hash).toBe('#recents');
+      await waitFor(() => expect(window.location.hash).toBe(''));
     });
 
     it('carregar la pàgina amb un hash existent obre directament aquell detall', async () => {
@@ -1501,10 +1502,12 @@ describe('PropostesPublic', () => {
       });
       renderPagina();
       expect(screen.queryByRole('button', { name: 'Tornar al llistat' })).not.toBeInTheDocument();
-      expect(document.body).toHaveClass('proposta-detall-obert-body');
+      // Mentre no hi ha fitxa a la vista, el scroll no es bloqueja.
+      expect(document.body).not.toHaveClass('proposta-detall-obert-body');
       await waitFor(() => expect(resol).toBeDefined());
       resol();
       expect(await screen.findByRole('button', { name: 'Tornar al llistat' })).toBeInTheDocument();
+      expect(document.body).toHaveClass('proposta-detall-obert-body');
       expect(screen.getAllByText('Amélie').length).toBeGreaterThan(0);
     });
 
@@ -1528,6 +1531,204 @@ describe('PropostesPublic', () => {
       expect(document.body).toHaveClass('proposta-detall-obert-body');
       await user.click(screen.getByRole('button', { name: 'Tornar al llistat' }));
       expect(document.body).not.toHaveClass('proposta-detall-obert-body');
+    });
+  });
+
+  describe('hash desconegut', () => {
+    it('un #id que no és a la llista (retirada, esborrada o qualsevol #foo) no bloqueja el scroll ni obre res', async () => {
+      window.location.hash = '#desconeguda';
+      mockFirestore({ tanda: tandaFirestore() });
+      renderPagina();
+      expect(await cartellsTanda()).toHaveLength(3);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(document.body).not.toHaveClass('proposta-detall-obert-body');
+    });
+  });
+
+  describe('accessibilitat dels diàlegs', () => {
+    it('el detall és un diàleg amb nom (el títol) i el focus hi entra al botó de tancar', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const dialeg = await screen.findByRole('dialog', { name: 'Amélie' });
+      expect(dialeg).toHaveAttribute('aria-modal', 'true');
+      expect(within(dialeg).getByRole('button', { name: 'Tornar al llistat' })).toHaveFocus();
+    });
+
+    it('Escape tanca el detall (com la creu) i el focus torna al cartell que l\'ha obert', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      const cartell = await screen.findByRole('button', { name: 'Amélie' });
+      await user.click(cartell);
+      await screen.findByRole('dialog');
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(window.location.hash).toBe(''));
+      expect(document.body).not.toHaveClass('proposta-detall-obert-body');
+      expect(cartell).toHaveFocus();
+    });
+
+    it('el Tab no surt del detall: del darrer element torna al primer i Maj+Tab del primer va al darrer', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const dialeg = await screen.findByRole('dialog');
+      const tancar = within(dialeg).getByRole('button', { name: 'Tornar al llistat' });
+      const votarBoto = within(dialeg).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' });
+      expect(tancar).toHaveFocus();
+      await user.tab({ shift: true });
+      expect(votarBoto).toHaveFocus();
+      await user.tab();
+      expect(tancar).toHaveFocus();
+      for (let i = 0; i < 10; i += 1) {
+        await user.tab();
+        expect(dialeg).toContainElement(document.activeElement);
+      }
+    });
+
+    it('el lector del carnet és un diàleg amb nom; Escape el cancel·la i el focus torna al botó que l\'ha obert', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      const votarBoto = await screen.findByRole('button', { name: 'Votar aquesta tanda de pel·lícules' });
+      await user.click(votarBoto);
+      const dialeg = screen.getByRole('dialog', { name: 'Escaneja el teu carnet per votar' });
+      expect(within(dialeg).getByRole('button', { name: 'Cancel·lar' })).toHaveFocus();
+      await user.tab({ shift: true });
+      expect(within(dialeg).getByRole('link', { name: 'Fes-te Soci/a' })).toHaveFocus();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(votarBoto).toHaveFocus();
+      expect(votar).not.toHaveBeenCalled();
+    });
+
+    it('la creu del lector també torna el focus al botó que l\'ha obert', async () => {
+      mockFirestore({ propostes: [] });
+      const user = userEvent.setup();
+      renderPagina();
+      await screen.findByText(SENSE_TANDA);
+      const proposar = screen.getByRole('button', { name: 'Proposar pel·lícula' });
+      await user.click(proposar);
+      expect(screen.getByRole('dialog', { name: 'Escaneja el teu carnet per proposar' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Cancel·lar' }));
+      expect(proposar).toHaveFocus();
+    });
+
+    it('amb el lector obert damunt del detall, Escape només tanca el de dalt (el lector) i un segon Escape, el detall', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const detall = await screen.findByRole('dialog', { name: 'Amélie' });
+      const votarBoto = within(detall).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' });
+      await user.click(votarBoto);
+      expect(screen.getByRole('dialog', { name: 'Escaneja el teu carnet per votar' })).toBeInTheDocument();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog', { name: 'Escaneja el teu carnet per votar' })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Amélie' })).toBeInTheDocument();
+      expect(votarBoto).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('un Escape mantingut (repetició automàtica del teclat) només tanca un diàleg', async () => {
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const detall = await screen.findByRole('dialog', { name: 'Amélie' });
+      await user.click(within(detall).getByRole('button', { name: 'Votar aquesta tanda de pel·lícules' }));
+      expect(screen.getByRole('dialog', { name: 'Escaneja el teu carnet per votar' })).toBeInTheDocument();
+      // La primera pulsació tanca el lector; les repeticions (`repeat: true`) s'ignoren.
+      await user.keyboard('{Escape>3}');
+      expect(screen.queryByRole('dialog', { name: 'Escaneja el teu carnet per votar' })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Amélie' })).toBeInTheDocument();
+    });
+
+    it('amb una imatge ampliada dins el detall, Escape només tanca la imatge', async () => {
+      mockFirestore({
+        propostes: [{ id: 'p1', dades: { titol: 'Amélie', estat: 'aprovada', numeroSoci: 3, imatges: ['/a.jpg', '/b.jpg'] } }],
+        tanda: { id: 't1', tanca: FUTUR, propostes: ['p1'] },
+      });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      const detall = await screen.findByRole('dialog', { name: 'Amélie' });
+      const [escena] = within(detall).getAllByRole('button', { name: 'Ampliar la imatge' });
+      await user.click(escena);
+      expect(screen.getByRole('dialog', { name: 'Imatge de Amélie' })).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog', { name: 'Imatge de Amélie' })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Amélie' })).toBeInTheDocument();
+      expect(escena).toHaveFocus();
+    });
+  });
+
+  describe('historial en tancar el detall', () => {
+    it('obert des d\'un cartell: tancar-lo torna enrere a l\'entrada de la llista (no n\'afegeix cap)', async () => {
+      window.location.hash = '#recents';
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      const llargadaInicial = history.length;
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      expect(window.location.hash).toBe('#p1');
+      expect(history.length).toBe(llargadaInicial + 1);
+      const pushState = vi.spyOn(history, 'pushState');
+      const back = vi.spyOn(history, 'back');
+      try {
+        await user.click(screen.getByRole('button', { name: 'Tornar al llistat' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(back).toHaveBeenCalledTimes(1);
+        expect(pushState).not.toHaveBeenCalled();
+        await waitFor(() => expect(window.location.hash).toBe('#recents'));
+        // Tornar enrere no reobre el detall: el detall ja no és a l'historial per darrere.
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      } finally {
+        pushState.mockRestore();
+        back.mockRestore();
+      }
+    });
+
+    it('enllaç directe /propostes/#id: tancar-lo substitueix el hash per #recents sense afegir cap entrada ni sortir de la pàgina', async () => {
+      window.location.hash = '#p1';
+      history.replaceState(null, '', window.location.href);
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      const tancar = await screen.findByRole('button', { name: 'Tornar al llistat' });
+      const llargada = history.length;
+      const pushState = vi.spyOn(history, 'pushState');
+      const back = vi.spyOn(history, 'back');
+      try {
+        await user.click(tancar);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(window.location.hash).toBe('#recents');
+        expect(history.length).toBe(llargada);
+        expect(back).not.toHaveBeenCalled();
+        expect(pushState).not.toHaveBeenCalled();
+      } finally {
+        pushState.mockRestore();
+        back.mockRestore();
+      }
+    });
+
+    it('el botó Enrere del navegador amb el detall obert el tanca, i en tornar endavant es torna a obrir', async () => {
+      window.location.hash = '#recents';
+      mockFirestore({ tanda: tandaFirestore() });
+      const user = userEvent.setup();
+      renderPagina();
+      await user.click(await screen.findByRole('button', { name: 'Amélie' }));
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      act(() => { history.back(); });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      act(() => { history.forward(); });
+      expect(await screen.findByRole('dialog', { name: 'Amélie' })).toBeInTheDocument();
     });
   });
 });
