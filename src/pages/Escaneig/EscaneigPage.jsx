@@ -12,7 +12,7 @@ import {
 } from '../../lib/escaneig';
 import { avui, formatData, formatDataHora } from '../../lib/data';
 import {
-  calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu,
+  calcularEstatSoci, calcularVenciment, diesFinsVenciment, estaActiu, inicPeriodeEnEscanejar,
   ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
@@ -520,14 +520,13 @@ export default function EscaneigPage() {
       });
       return;
     }
-    // L'any de soci no compta des del pagament, sinó des del primer cop que
-    // fa servir el carnet després de pagar: si encara no ho ha fet des de
-    // l'últim pagament, aquesta entrada el fixa ara. Calculem aquí el valor
-    // que tindria (encara que en mode prova no s'arribi a desar) perquè
-    // l'estat i el venciment mostrats reflecteixin sempre el resultat final.
-    const inicPeriodeNou = soci.ultimPagament && (!soci.inicPeriode || soci.inicPeriode < soci.ultimPagament)
-      ? avui()
-      : soci.inicPeriode;
+    // L'any de soci compta des del primer cop que fa servir el carnet dins de
+    // la quota pagada: si encara no ho ha fet, aquesta entrada el fixa ara (mai
+    // abans que comenci la quota, p. ex. en una renovació anticipada; vegeu
+    // inicPeriodeEnEscanejar). Calculem aquí el valor que tindria (encara que
+    // en mode prova no s'arribi a desar) perquè l'estat i el venciment
+    // mostrats reflecteixin sempre el resultat final.
+    const inicPeriodeNou = inicPeriodeEnEscanejar(soci, avui());
     const sociAmbInicPeriode = { ...soci, inicPeriode: inicPeriodeNou };
     const estat = calcularEstatSoci(sociAmbInicPeriode);
     const venciment = estat === ESTAT_AL_DIA

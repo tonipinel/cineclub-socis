@@ -12,7 +12,7 @@ import {
   METODES_INGRES, ETIQUETES_METODE, TIPUS_MOVIMENT, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA,
 } from '../../lib/moviments';
 import { avui, formatData } from '../../lib/data';
-import { estaActiu, calcularVenciment } from '../../lib/estatSoci';
+import { estaActiu, novaQuota } from '../../lib/estatSoci';
 import { sincronitzarSociPublic } from '../../lib/propostes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
@@ -79,15 +79,10 @@ export default function RegistrarPagamentPage() {
       setImportPagament(String(configSnap.data()?.quotaAnual ?? 30));
       setSessions(totesSessions);
       setEsRenovacio(renovacio);
+      // La data és la del cobrament real (avui per defecte), també en una renovació: és la que va a comptabilitat.
+      // Des de quan compta la quota es calcula a part (novaQuota). Una renovació no es vincula a cap sessió.
       if (renovacio) {
-        // Una renovació no es vincula a cap sessió, i per defecte la data és
-        // quan li toca renovar (no avui): així l'ultimPagament avança
-        // exactament un any cada cop, encara que el pagament real s'hagi
-        // rebut un altre dia.
         setSessionId('');
-        if (dadesSoci.ultimPagament) {
-          setData(calcularVenciment(dadesSoci).toLocaleDateString('sv-SE'));
-        }
       } else {
         setSessionId(sessioMesPropera(totesSessions, avui()) ?? '');
       }
@@ -112,10 +107,6 @@ export default function RegistrarPagamentPage() {
     if (!confirmat) return;
     setDesant(true);
     try {
-      // inicPeriode (des de quan compta el seu any de soci) es neteja en
-      // cada pagament nou: es torna a fixar al proper escaneig, respecte a
-      // aquest pagament — si no, quedaria el valor obsolet del cicle anterior.
-      const actualitzacioSoci = { ultimPagament: data, estatManual: null, inicPeriode: null };
       // Si encara no té número (primer pagament), el reserva el comptador dins de la mateixa transacció que desa el
       // pagament (vegeu src/lib/numeroSoci.js); el màxim llegit abans només és una guarda per si el comptador va
       // endarrerit. La transacció rellegeix el soci: si un altre pagament simultani ja li ha donat número, es
@@ -128,14 +119,19 @@ export default function RegistrarPagamentPage() {
       await runTransaction(db, async (transaction) => {
         const actual = (await transaction.get(sociRef)).data();
         if (!actual) throw new Error('El soci ja no existeix');
-        const escrit = { ...actualitzacioSoci };
+        // Si en carregar la pàgina no tenia número i ara sí, un altre primer pagament simultani ja ha registrat
+        // l'alta: aquest compta com a renovació.
+        const renovacio = esRenovacio || (!soci.numeroSoci && Boolean(actual.numeroSoci));
+        // La quota s'encadena al venciment del soci rellegit (amb l'activació que hi hagi pogut fixar un escaneig).
+        // inicPeriode (activació del carnet) es neteja: el fixarà el primer escaneig dins de la quota nova.
+        const { vigenciaDes, vencimentAnterior } = novaQuota(actual, data, { renovacio });
+        const escrit = {
+          ultimPagament: data, vigenciaDes, estatManual: null, inicPeriode: null,
+        };
         if (!actual.numeroSoci) {
           escrit.numeroSoci = await reservarNumeroSoci(transaction, doc(db, 'configuracio', 'socis'), maxim);
         }
         const numeroSoci = Number(escrit.numeroSoci ?? actual.numeroSoci);
-        // Si en carregar la pàgina no tenia número i ara sí, un altre primer pagament simultani ja ha registrat
-        // l'alta: aquest compta com a renovació.
-        const renovacio = esRenovacio || (!soci.numeroSoci && Boolean(actual.numeroSoci));
         transaction.update(sociRef, escrit);
         // socisPublic amb les dades rellegides (actiu, carnet i nom poden haver canviat des que s'ha obert la pàgina).
         if (estaActiu(actual)) {
@@ -150,6 +146,7 @@ export default function RegistrarPagamentPage() {
         }
         transaction.set(doc(collection(db, 'moviments')), {
           data,
+          ...(vencimentAnterior ? { vencimentAnterior } : {}),
           concepte: `Quota ${soci.nom} ${soci.cognoms}`,
           tipus: TIPUS_MOVIMENT.INGRES,
           categoria: CATEGORIA_QUOTA_SOCI,
@@ -170,6 +167,8 @@ export default function RegistrarPagamentPage() {
   };
 
   if (carregant) return <Carregant />;
+
+  const vigenciaPrevista = data ? novaQuota(soci, data, { renovacio: esRenovacio }).vigenciaDes : null;
 
   return (
     <PaginaAdmin as="form" amplada="formulari" className="pagament-form" onSubmit={handleSubmit} titol="Registrar pagament">
@@ -220,6 +219,13 @@ export default function RegistrarPagamentPage() {
           ))}
         </select>
       </div>
+
+      {vigenciaPrevista && (
+        <p className="pagament-form__avis pagament-form__avis--info">
+          La quota nova comptarà a partir del {formatData(vigenciaPrevista)}
+          {vigenciaPrevista > data ? ", quan venci l'actual" : ''}.
+        </p>
+      )}
 
       {esRenovacio ? (
         <p className="pagament-form__avis pagament-form__avis--info">

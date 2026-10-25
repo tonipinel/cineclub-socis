@@ -11,7 +11,7 @@ import {
   calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic,
 } from '../../lib/propostes';
 import {
-  calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
+  calcularEstatSoci, calcularVenciment, estaActiu, iniciPeriodeActual, iniciVigencia, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { assistenciaPerSessio } from '../../lib/escaneig';
 import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/moviments';
@@ -273,10 +273,12 @@ function FitxaSoci({ id, soci }) {
   const sessionsAssistides = assistencies.filter((s) => s.assisteix);
   const sessionsNoAssistides = assistencies.filter((s) => !s.assisteix);
   const pagamentActual = pagaments[0] ?? null;
-  // El període actual va des de l'activació del carnet (inicPeriode, o
-  // ultimPagament si encara no s'ha escanejat des de llavors) fins al
-  // venciment de la quota — no des del pagament ni sense límit superior.
-  const iniciPeriode = dades.inicPeriode || dades.ultimPagament;
+  // El període actual va des de l'activació del carnet (o l'inici de la quota
+  // si encara no s'ha escanejat dins seu) fins al venciment de la quota — no
+  // des del pagament ni sense límit superior.
+  const iniciPeriode = iniciPeriodeActual(dades);
+  // En una renovació anticipada la quota no compta des del pagament, sinó des que venç l'anterior.
+  const vigenciaDes = iniciVigencia(dades);
   const vencimentStr = venciment ? venciment.toLocaleDateString('sv-SE') : null;
   const sessionsPeriodeActual = iniciPeriode
     ? sessionsAssistides.filter((s) => s.data >= iniciPeriode && s.data <= vencimentStr)
@@ -329,6 +331,9 @@ function FitxaSoci({ id, soci }) {
                 </p>
                 <p className="soci-form__data-clau">Data de sol·licitud: {formatData(dades.dataAlta)}</p>
                 <p className="soci-form__data-clau">Últim pagament: {formatData(dades.ultimPagament)}</p>
+                {vigenciaDes && vigenciaDes !== dades.ultimPagament && (
+                  <p className="soci-form__data-clau">Quota vigent des de: {formatData(vigenciaDes)}</p>
+                )}
                 <p className="soci-form__data-clau">
                   Activació del carnet: {dades.inicPeriode ? formatData(dades.inicPeriode) : 'Encara no ha escanejat des del pagament'}
                 </p>

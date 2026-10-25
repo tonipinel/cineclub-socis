@@ -1,4 +1,6 @@
-import { estaActiu, calcularVenciment } from './estatSoci';
+import {
+  estaActiu, calcularPeriodes, calcularVenciment, iniciPeriodeActual,
+} from './estatSoci';
 import { assistenciaPerSessio } from './escaneig';
 import { sessionsAmbControl } from './sessions';
 
@@ -123,35 +125,22 @@ export function ordenarMoviments(moviments, { columna = 'data', direccio = 'desc
   });
 }
 
-function dataIso(data) {
-  return data.toLocaleDateString('sv-SE');
-}
-
-function mesUnAnyDespres(dataIsoStr) {
-  const [any, mes, dia] = dataIsoStr.split('-').map(Number);
-  return dataIso(new Date(any + 1, mes - 1, dia));
-}
-
-// Període de vigència de cada quota: un any des del pagament (o, en l'última
-// quota d'un soci, des del primer escaneig posterior al pagament, vegeu
-// `inicPeriode` a estatSoci.js).
+// Període de vigència de cada quota segons l'historial de cada soci (vegeu calcularPeriodes a estatSoci.js): una
+// renovació anticipada compta des del venciment de l'anterior, i l'última, des de l'activació del carnet.
 function periodesDeQuotes(moviments, socis) {
   const socisPerNumero = new Map(socis.map((soci) => [Number(soci.numeroSoci), soci]));
-  const quotes = moviments.filter((m) => (
-    m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES && m.data
-  ));
-  const ultimaPerSoci = new Map();
-  for (const quota of quotes) {
-    const numero = Number(quota.numeroSoci);
-    const ultima = ultimaPerSoci.get(numero);
-    if (!ultima || quota.data > ultima.data) ultimaPerSoci.set(numero, quota);
+  // Una quota sense número de soci no s'encadena amb cap altra: és un historial propi.
+  const quotesPerSoci = new Map();
+  for (const quota of moviments) {
+    if (quota.categoria !== CATEGORIA_QUOTA_SOCI || quota.tipus !== TIPUS_MOVIMENT.INGRES || !quota.data) continue;
+    const numero = Number(quota.numeroSoci) || Symbol('sense número');
+    if (!quotesPerSoci.has(numero)) quotesPerSoci.set(numero, []);
+    quotesPerSoci.get(numero).push(quota);
   }
-  return quotes.map((quota) => {
-    const soci = socisPerNumero.get(Number(quota.numeroSoci));
-    const esUltima = ultimaPerSoci.get(Number(quota.numeroSoci)) === quota;
-    const inici = esUltima && soci?.inicPeriode && soci.inicPeriode >= quota.data ? soci.inicPeriode : quota.data;
-    return { total: Number(quota.total) || 0, inici, fi: mesUnAnyDespres(inici) };
-  });
+  return [...quotesPerSoci].flatMap(([numero, quotes]) => (
+    calcularPeriodes(quotes, { inicPeriode: socisPerNumero.get(numero)?.inicPeriode })
+      .map(({ total, inici, fi }) => ({ total: Number(total) || 0, inici, fi }))
+  ));
 }
 
 // Mínim de pel·lícules que comptem per any: les quotes es reparteixen com a
@@ -269,7 +258,7 @@ function costPerSessioPerSoci(soci, moviments, sessionsPassades, entradesPerNume
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))[0];
   if (!pagamentActual) return null;
 
-  const iniciPeriode = soci.inicPeriode || soci.ultimPagament;
+  const iniciPeriode = iniciPeriodeActual(soci);
   const sessionsPeriode = sessionsPassades.filter((s) => (s.data ?? '') >= iniciPeriode);
   const entrades = entradesPerNumero.get(numeroSoci) ?? [];
   const assistides = assistenciaPerSessio(sessionsPeriode, entrades).filter((s) => s.assisteix).length;
@@ -342,7 +331,7 @@ export function resumReal(moviments, avui = new Date()) {
 // - Nous socis: no tenen una data de venciment coneguda, així que els
 //   estimem pel ritme mitjà d'altes dels últims 3 mesos, repetit cada mes.
 // - Renovacions: NO s'estimen per mitjana, sinó soci a soci, mirant a quins
-//   els venç realment la quota (ultimPagament + 1 any) dins de cada mes
+//   els venç realment la quota (calcularVenciment) dins de cada mes
 //   concret, i aplicant-hi el filtre de probabilitat de renovar.
 // El cost de pel·lícula més car dels últims 3 mesos (no la mitjana) queda
 // fix cada mes com a estimació conservadora.

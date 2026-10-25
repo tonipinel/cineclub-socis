@@ -311,6 +311,31 @@ describe('rendibilitatPerSessio', () => {
     const resultat = rendibilitatPerSessio([quota(1, '2024-02-01', 24)], socis, sessions);
     expect(resultat).toEqual({ dins: 2 });
   });
+
+  it('una renovació anticipada reparteix la quota al període que paga (des del venciment de l\'anterior), no des del dia que es paga', () => {
+    // La primera quota cobreix 2024-01-10 → 2025-01-10; la segona, pagada el 2024-06-01, cobreix 2025-01-10 → 2026-01-10.
+    const sessions = [sessio('primer', '2024-08-01'), sessio('segon', '2025-03-01')];
+    const resultat = rendibilitatPerSessio([quota(1, '2024-01-10', 24), quota(1, '2024-06-01', 36)], [], sessions);
+    expect(resultat).toEqual({ primer: 2, segon: 3 });
+  });
+
+  it('les quotes sense número de soci no s\'encadenen entre elles', () => {
+    const sessions = [sessio('s1', '2024-08-01')];
+    const resultat = rendibilitatPerSessio([quota(null, '2024-01-10', 24), quota(null, '2024-06-01', 36)], [], sessions);
+    expect(resultat).toEqual({ s1: 5 });
+  });
+
+  it('una quota pagada després de vèncer l\'anterior compta des del dia del pagament', () => {
+    const sessions = [sessio('buit', '2025-02-01'), sessio('dins', '2025-04-01')];
+    const resultat = rendibilitatPerSessio([quota(1, '2024-01-10', 24), quota(1, '2025-03-01', 36)], [], sessions);
+    expect(resultat).toEqual({ dins: 3 });
+  });
+
+  it('una activació (inicPeriode) anterior a l\'inici de la quota no l\'avança', () => {
+    const sessions = [sessio('abans', '2024-03-01'), sessio('dins', '2024-06-01')];
+    const socis = [{ numeroSoci: 1, inicPeriode: '2024-01-15' }];
+    expect(rendibilitatPerSessio([quota(1, '2024-02-01', 24)], socis, sessions)).toEqual({ abans: 2, dins: 2 });
+  });
 });
 
 describe('etiquetes', () => {
@@ -760,5 +785,19 @@ describe('resumPrevisio — sessions especials sense control', () => {
 describe('LLINDAR_COST_SESSIO_RENOVACIO', () => {
   it('és de 8€', () => {
     expect(LLINDAR_COST_SESSIO_RENOVACIO).toBe(8);
+  });
+});
+
+describe('rendibilitatPerSessio — ordre dels moviments', () => {
+  it('dues quotes del mateix soci el mateix dia reparteixen igual en qualsevol ordre', () => {
+    const q = (id, total, extra = {}) => ({
+      id, tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 1, data: '2024-01-10', total, ...extra,
+    });
+    const alta = q('a', 24);
+    const renovacio = q('b', 36, { vencimentAnterior: '2025-01-10' });
+    const sessions = [{ id: 's1', data: '2024-08-01' }, { id: 's2', data: '2025-03-01' }];
+    const esperat = { s1: 2, s2: 3 };
+    expect(rendibilitatPerSessio([alta, renovacio], [], sessions)).toEqual(esperat);
+    expect(rendibilitatPerSessio([renovacio, alta], [], sessions)).toEqual(esperat);
   });
 });

@@ -11,6 +11,7 @@ import {
 import {
   ACCEPT_ADJUNT, eliminarAdjunt, pujarAdjunt, urlAdjunt, validarAdjunt,
 } from '../../lib/adjunts';
+import { sincronitzacioQuotes } from '../../lib/estatSoci';
 import { sessionsAmbControl } from '../../lib/sessions';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import BarraDesar from '../../components/BarraDesar';
@@ -22,15 +23,12 @@ import ZonaPerill from '../../components/ZonaPerill';
 import * as ROUTES from '../../constants/routes';
 
 // Un soci pot tenir diversos moviments de "Quotes socis" (alta + renovacions
-// successives, distingides pel camp `tipusQuota`). El seu `ultimPagament`
-// ha de reflectir sempre el més recent, però aquest formulari és genèric per
-// a qualsevol moviment i no en sap res del soci: per això, cada cop que es
-// desa o s'elimina un moviment de quota, recalculem `ultimPagament` a partir
-// de tots els moviments de quota restants d'aquell soci, en comptes de
-// confiar que quedi sincronitzat sol. `inicPeriode` (des de quan compta el
-// seu any de soci, fixat al primer escaneig posterior al pagament — vegeu
-// estatSoci.js) es neteja alhora, perquè torni a fixar-se al proper
-// escaneig respecte al pagament corregit.
+// successives, distingides pel camp `tipusQuota`). Aquest formulari és
+// genèric i no en sap res del soci: per això, cada cop que es desa o
+// s'elimina un moviment de quota, la fitxa del soci (ultimPagament,
+// vigenciaDes i, si cal, inicPeriode) es recalcula amb tot l'historial de
+// quotes que en queda (sincronitzacioQuotes, a estatSoci.js), i només
+// s'escriu el que canvia: editar el concepte o el mètode no toca res.
 async function sincronitzarUltimPagament(numeroSoci) {
   const [movimentsSnap, socisSnap] = await Promise.all([
     getDocs(query(
@@ -41,9 +39,10 @@ async function sincronitzarUltimPagament(numeroSoci) {
     getDocs(query(collection(db, 'socis'), where('numeroSoci', '==', numeroSoci))),
   ]);
   if (socisSnap.empty) return;
-  const dates = movimentsSnap.docs.map((d) => d.data().data).filter(Boolean).sort();
-  if (dates.length === 0) return;
-  await updateDoc(socisSnap.docs[0].ref, { ultimPagament: dates[dates.length - 1], inicPeriode: null });
+  const sociDoc = socisSnap.docs[0];
+  const canvis = sincronitzacioQuotes(sociDoc.data(), movimentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  if (Object.keys(canvis).length === 0) return;
+  await updateDoc(sociDoc.ref, canvis);
 }
 
 // Cada categoria només és vàlida per a un tipus (una despesa mai pot ser
@@ -170,6 +169,7 @@ function FitxaMoviment({ id, moviment }) {
         // llistat aquí es perdria en desar.
         ...(desat?.numeroSoci != null ? { numeroSoci: desat.numeroSoci } : {}),
         ...(desat?.tipusQuota != null ? { tipusQuota: desat.tipusQuota } : {}),
+        ...(desat?.vencimentAnterior != null ? { vencimentAnterior: desat.vencimentAnterior } : {}),
         ...(adjuntFinal ? { adjunt: adjuntFinal } : {}),
       };
       const nou = v.tipus === TIPUS_MOVIMENT.TRASPAS

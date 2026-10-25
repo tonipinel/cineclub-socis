@@ -408,6 +408,23 @@ describe('SociForm — edició directa', () => {
     expect(screen.queryByDisplayValue('2026-02-15')).not.toBeInTheDocument();
   });
 
+  it('en una renovació anticipada, mostra des de quan compta la quota nova i el venciment que en resulta', async () => {
+    carrega({
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-10-20', vigenciaDes: '2026-11-15', inicPeriode: null,
+    });
+    renderExistent();
+    expect(await screen.findByText('Últim pagament: 20/10/2026')).toBeInTheDocument();
+    expect(screen.getByText('Quota vigent des de: 15/11/2026')).toHaveClass('soci-form__data-clau');
+    expect(screen.getByText('Venciment de la quota: 15/11/2027')).toBeInTheDocument();
+  });
+
+  it('si la quota compta des de l\'últim pagament, no repeteix la data', async () => {
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', vigenciaDes: '2026-07-23' });
+    renderExistent();
+    expect(await screen.findByText('Últim pagament: 23/07/2026')).toBeInTheDocument();
+    expect(screen.queryByText(/Quota vigent des de/)).not.toBeInTheDocument();
+  });
+
   it('mostra la data d\'activació del carnet (inicPeriode) quan ja s\'ha fixat', async () => {
     carrega({
       nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', ultimPagament: '2026-07-23', inicPeriode: '2026-08-06',

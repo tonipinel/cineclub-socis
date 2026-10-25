@@ -717,6 +717,36 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     await screen.findByText('Anna Vidal');
     expect(updateDoc).not.toHaveBeenCalled();
   });
+
+  // Renovació anticipada: ha pagat fa 5 dies, però la quota nova no comença fins que venci l'actual (d'aquí a 20
+  // dies). Abans, cada escaneig fins aleshores fixava inicPeriode a avui i el soci perdia aquests 20 dies.
+  it('abans que comenci la quota pagada (renovació anticipada), no toca inicPeriode i mostra el venciment nou', async () => {
+    const ara = new Date();
+    const dia = (dies, anys = 0) => new Date(ara.getFullYear() + anys, ara.getMonth(), ara.getDate() + dies);
+    const sociRef = { id: 'soci-7' };
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{
+        ref: sociRef,
+        data: () => ({
+          nom: 'Anna',
+          cognoms: 'Vidal',
+          numeroSoci: 7,
+          ultimPagament: dia(-5).toLocaleDateString('sv-SE'),
+          vigenciaDes: dia(20).toLocaleDateString('sv-SE'),
+          inicPeriode: null,
+        }),
+      }],
+    });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText('Anna Vidal');
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(screen.getByText(`Venç el ${formatData(dia(20, 1))}`)).toBeInTheDocument();
+  });
 });
 
 describe('EscaneigPage — sessions especials sense control', () => {

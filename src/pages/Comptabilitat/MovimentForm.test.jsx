@@ -497,6 +497,17 @@ describe('MovimentForm — numeroSoci', () => {
     expect(setDoc.mock.calls[0][1]).toEqual({ ...MOVIMENT_EXISTENT, concepte: 'Quotes de març!', tipusQuota: 'renovacio' });
   });
 
+  it('conserva el vencimentAnterior d\'una renovació en desar (és el que la fa comptar des del venciment anterior)', async () => {
+    const user = userEvent.setup();
+    await renderExistent({ ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio', vencimentAnterior: '2026-04-01' });
+    await user.type(screen.getByLabelText('Concepte'), '!');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(setDoc.mock.calls[0][1]).toEqual({
+      ...MOVIMENT_EXISTENT, concepte: 'Quotes de març!', tipusQuota: 'renovacio', vencimentAnterior: '2026-04-01',
+    });
+  });
+
   it('mostra "Alta nova" com a tipus de quota per defecte', async () => {
     await renderExistent({ ...MOVIMENT_EXISTENT, tipusQuota: 'alta' });
     expect(screen.getByLabelText('Tipus de quota')).toHaveValue('Alta nova');
@@ -512,25 +523,85 @@ describe('MovimentForm — numeroSoci', () => {
   });
 });
 
-describe('MovimentForm — sincronització d\'ultimPagament', () => {
-  const ambQuotes = (...dates) => {
-    respostes.moviments = dates.map((data) => ({ data: () => ({ data }) }));
-    respostes.socis = [{ ref: 'socis/abc' }];
+// Abans, desar o eliminar qualsevol moviment de quota escrivia `{ ultimPagament: data més recent, inicPeriode: null }`:
+// fins i tot canviar només el concepte reiniciava l'any del soci al proper escaneig. Ara la fitxa es recalcula amb
+// l'historial de quotes (calcularPeriodes) i només s'escriu el que canvia de debò.
+describe('MovimentForm — sincronització de la fitxa del soci amb l\'historial de quotes', () => {
+  // `quotes`: els moviments de quota del soci tal com queden després de desar o eliminar (és el que llegeix la
+  // sincronització, que es fa després de l'escriptura).
+  const ambHistorial = (soci, ...quotes) => {
+    respostes.moviments = quotes.map((q) => ({ data: () => (typeof q === 'string' ? { data: q } : q) }));
+    respostes.socis = [{ ref: 'socis/abc', data: () => soci }];
   };
+  const QUOTA = { ...MOVIMENT_EXISTENT, data: '2026-08-06', numeroSoci: 7, tipusQuota: 'renovacio' };
 
-  it('en editar un moviment de quota, recalcula ultimPagament del soci amb la data més recent', async () => {
-    ambQuotes('2026-03-05', '2026-08-06');
+  it('si només canvia el concepte, no toca la fitxa (ni l\'activació del carnet)', async () => {
+    ambHistorial({ ultimPagament: '2026-08-06', inicPeriode: '2026-08-10' }, '2025-08-06', '2026-08-06');
     const user = userEvent.setup();
-    await renderExistent({ ...MOVIMENT_EXISTENT, numeroSoci: 7 });
+    await renderExistent(QUOTA);
     await user.type(screen.getByLabelText('Concepte'), '!');
     await user.click(botoDesar());
     await esperaDesat();
-    expect(updateDoc).toHaveBeenCalledTimes(1);
-    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-08-06', inicPeriode: null });
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('en corregir la data d\'una renovació feta després de vèncer, recalcula ultimPagament i vigenciaDes i conserva l\'activació vàlida', async () => {
+    ambHistorial({ ultimPagament: '2026-08-06', inicPeriode: '2026-08-10' }, '2024-08-01', '2026-08-04');
+    const user = userEvent.setup();
+    await renderExistent(QUOTA);
+    await user.clear(screen.getByLabelText('Data'));
+    await user.type(screen.getByLabelText('Data'), '2026-08-04');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(updateDoc.mock.calls).toEqual([['socis/abc', { ultimPagament: '2026-08-04', vigenciaDes: '2026-08-04' }]]);
+  });
+
+  // Fitxa d'abans: la renovació es va desar amb el venciment (2026-08-06) com a data. Posar-hi la data real del
+  // cobrament (dos dies abans) no li fa perdre aquests dos dies: la quota continua comptant des del 2026-08-06.
+  it('en posar la data real (anterior al venciment) a una renovació antiga, la quota continua comptant des del venciment', async () => {
+    ambHistorial({ ultimPagament: '2026-08-06', inicPeriode: '2026-08-10' }, '2025-08-06', '2026-08-04');
+    const user = userEvent.setup();
+    await renderExistent(QUOTA);
+    await user.clear(screen.getByLabelText('Data'));
+    await user.type(screen.getByLabelText('Data'), '2026-08-04');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(updateDoc.mock.calls).toEqual([['socis/abc', { ultimPagament: '2026-08-04', vigenciaDes: '2026-08-06' }]]);
+  });
+
+  it('una renovació anticipada continua comptant des del venciment anterior desat al moviment', async () => {
+    const anticipada = { data: '2026-07-20', vencimentAnterior: '2026-08-20' };
+    ambHistorial({ ultimPagament: '2026-07-25', vigenciaDes: '2026-08-20' }, '2025-08-06', anticipada);
+    const user = userEvent.setup();
+    await renderExistent({ ...QUOTA, data: '2026-07-25', vencimentAnterior: '2026-08-20' });
+    await user.clear(screen.getByLabelText('Data'));
+    await user.type(screen.getByLabelText('Data'), '2026-07-20');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(setDoc.mock.calls[0][1]).toEqual({ ...QUOTA, data: '2026-07-20', vencimentAnterior: '2026-08-20' });
+    expect(updateDoc.mock.calls).toEqual([['socis/abc', { ultimPagament: '2026-07-20' }]]);
+  });
+
+  it('amb dues quotes del mateix dia (alta i renovació), l\'ordre en què arriben no afegeix cap any', async () => {
+    const soci = { ultimPagament: '2026-08-06', vigenciaDes: '2027-08-06' };
+    const alta = { data: '2026-08-06', tipusQuota: 'alta' };
+    const renovacio = { data: '2026-08-06', tipusQuota: 'renovacio', vencimentAnterior: '2027-08-06' };
+    for (const ordre of [[alta, renovacio], [renovacio, alta]]) {
+      updateDoc.mockClear();
+      setDoc.mockClear();
+      ambHistorial(soci, ...ordre);
+      const user = userEvent.setup();
+      const { unmount } = await renderExistent(QUOTA);
+      await user.type(screen.getByLabelText('Concepte'), '!');
+      await user.click(botoDesar());
+      await esperaDesat();
+      expect(updateDoc).not.toHaveBeenCalled();
+      unmount();
+    }
   });
 
   it('no toca res si el moviment desat no té numeroSoci', async () => {
-    ambQuotes('2026-03-05');
+    ambHistorial({ ultimPagament: '2020-01-01' }, '2026-03-05');
     const user = userEvent.setup();
     await renderExistent(MOVIMENT_EXISTENT);
     await user.type(screen.getByLabelText('Concepte'), '!');
@@ -539,20 +610,22 @@ describe('MovimentForm — sincronització d\'ultimPagament', () => {
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
-  it('en eliminar un moviment de quota, recalcula ultimPagament exclosent-lo', async () => {
-    ambQuotes('2026-03-05');
+  it('en eliminar l\'última quota, la fitxa torna a la quota anterior i descarta l\'activació de l\'eliminada', async () => {
+    ambHistorial({ ultimPagament: '2026-08-06', inicPeriode: '2026-08-10' }, '2025-08-06');
     const user = userEvent.setup();
-    await renderExistent({ ...MOVIMENT_EXISTENT, numeroSoci: 7 });
+    await renderExistent(QUOTA);
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     await acceptaDialeg('Elimina');
     await screen.findByText('Llibre de moviments');
-    expect(updateDoc).toHaveBeenCalledWith('socis/abc', { ultimPagament: '2026-03-05', inicPeriode: null });
+    expect(updateDoc.mock.calls).toEqual([
+      ['socis/abc', { ultimPagament: '2025-08-06', vigenciaDes: '2025-08-06', inicPeriode: null }],
+    ]);
   });
 
-  it('no actualitza ultimPagament si no queda cap moviment de quota per aquell soci', async () => {
-    ambQuotes();
+  it('no actualitza la fitxa si no queda cap moviment de quota per aquell soci', async () => {
+    ambHistorial({ ultimPagament: '2026-08-06' });
     const user = userEvent.setup();
-    await renderExistent({ ...MOVIMENT_EXISTENT, numeroSoci: 7 });
+    await renderExistent(QUOTA);
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     await acceptaDialeg('Elimina');
     await screen.findByText('Llibre de moviments');
@@ -592,7 +665,7 @@ describe('MovimentForm — eliminar', () => {
   it('amb canvis pendents, elimina amb les dades desades (numeroSoci i document desats)', async () => {
     ambSessions();
     respostes.moviments = [];
-    respostes.socis = [{ ref: 'socis/abc' }];
+    respostes.socis = [{ ref: 'socis/abc', data: () => ({ ultimPagament: '2026-03-05' }) }];
     const user = userEvent.setup();
     await renderExistent({ ...MOVIMENT_EXISTENT, numeroSoci: 7, adjunt: ADJUNT });
     await user.click(within(grupAdjunt()).getByRole('button', { name: 'Treure' }));
@@ -1089,7 +1162,8 @@ describe('MovimentForm — document / factura adjunt', () => {
 
   it('si el moviment ja s\'ha escrit i falla un pas posterior, no esborra el document que ara hi està vinculat', async () => {
     pujarAdjunt.mockResolvedValue(ADJUNT_NOU);
-    respostes.socis = [{ ref: 'socis/abc' }];
+    // La fitxa no quadra amb l'historial: la sincronització ha d'escriure (i el primer cop falla).
+    respostes.socis = [{ ref: 'socis/abc', data: () => ({ ultimPagament: '2020-01-01' }) }];
     respostes.moviments = [{ data: () => ({ data: '2026-03-05' }) }];
     updateDoc.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
@@ -1104,7 +1178,8 @@ describe('MovimentForm — document / factura adjunt', () => {
   it('si falla un pas posterior en substituir el document, l\'antic ja s\'ha esborrat i reintentar no deixa orfes', async () => {
     pujarAdjunt.mockResolvedValue(ADJUNT_NOU);
     urlAdjunt.mockImplementation(async (path) => `https://storage.test/${path}`);
-    respostes.socis = [{ ref: 'socis/abc' }];
+    // La fitxa no quadra amb l'historial: la sincronització ha d'escriure (i el primer cop falla).
+    respostes.socis = [{ ref: 'socis/abc', data: () => ({ ultimPagament: '2020-01-01' }) }];
     respostes.moviments = [{ data: () => ({ data: '2026-03-05' }) }];
     updateDoc.mockRejectedValueOnce(new Error('offline'));
     const user = userEvent.setup();
