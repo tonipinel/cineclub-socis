@@ -7,12 +7,21 @@ import ZonaPerill from '../../../components/ZonaPerill';
 import { ESTATS } from '../campsProposta';
 
 // Pestanya editable amb el proposant, l'estat, el comentari i les dades internes (privades).
-// Canviar l'estat no programa res: només «Programar sessió» de la capçalera crea la sessió.
+// Canviar l'estat no programa res: només «Programar sessió» de la capçalera crea la sessió i posa «Programada».
+// Per això «Programada» no es pot triar sense sessió, i una proposta programada amb sessió no en pot sortir.
+// Una de programada sense sessió (encallada) sí que pot canviar d'estat.
 export default function GestioProposta({
-  valors, canvia, errors, socis, distribuidores, internaDisponible, onEliminar, errorEliminar,
+  valors, canvia, errors, socis, distribuidores, internaDisponible, estatDesat, teSessio, onEliminar, eliminacioDesactivada = false,
+  errorEliminar,
 }) {
   const distribuidora = distribuidores.find((d) => d.id === valors.distribuidoraId);
   const alCanvi = (camp) => (e) => canvia(camp, e.target.value);
+  const estatFix = estatDesat === 'programada' && teSessio;
+  const programadaNoTriable = estatDesat !== 'programada' && !teSessio;
+  const ajudaEstat = (estatFix && "Té una sessió associada: l'estat es queda en «Programada».")
+    || (programadaNoTriable && "«Programada» només s'assigna amb «Programar sessió», un cop la proposta és aprovada.")
+    || null;
+  const descripcioEstat = [ajudaEstat && 'estat-ajuda', errors.estat && 'estat-error'].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="fitxa-proposta__targetes">
@@ -37,9 +46,21 @@ export default function GestioProposta({
           </div>
           <div className="form__field">
             <label className="form__label" htmlFor="estat">Estat</label>
-            <select id="estat" className="form__input" value={valors.estat} onChange={alCanvi('estat')}>
-              {ESTATS.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
+            <select
+              id="estat"
+              className="form__input"
+              value={valors.estat}
+              onChange={alCanvi('estat')}
+              disabled={estatFix}
+              aria-invalid={Boolean(errors.estat)}
+              aria-describedby={descripcioEstat}
+            >
+              {ESTATS.map(([valor, etiqueta]) => (
+                <option key={valor} value={valor} disabled={valor === 'programada' && programadaNoTriable}>{etiqueta}</option>
+              ))}
             </select>
+            {ajudaEstat && <p id="estat-ajuda" className="fitxa-proposta__ajuda">{ajudaEstat}</p>}
+            {errors.estat && <p id="estat-error" className="form__error">{errors.estat}</p>}
           </div>
         </div>
         <div className="form__field">
@@ -102,8 +123,18 @@ export default function GestioProposta({
         </div>
       </fieldset>
 
-      <ZonaPerill descripcio="S'esborren la proposta i les seves dades internes. Aquesta acció no es pot desfer.">
-        <button className="btn btn--perill" type="button" onClick={onEliminar}>Eliminar proposta</button>
+      <ZonaPerill
+        descripcio="S'esborren la proposta i les seves dades internes. No es pot si és en alguna tanda o en té una sessió. Aquesta acció no es pot desfer."
+      >
+        {/* `aria-disabled` (no `disabled`): el botó conserva el focus durant l'eliminació i en fallar. */}
+        <button
+          className="btn btn--perill"
+          type="button"
+          onClick={eliminacioDesactivada ? undefined : onEliminar}
+          aria-disabled={eliminacioDesactivada || undefined}
+        >
+          Eliminar proposta
+        </button>
         {errorEliminar && <p className="form__error" role="alert">{errorEliminar}</p>}
       </ZonaPerill>
     </div>

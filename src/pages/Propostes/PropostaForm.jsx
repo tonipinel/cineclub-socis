@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ref, uploadBytes } from 'firebase/storage';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, where, writeBatch,
+  collection, doc, getDoc, getDocs, query, runTransaction, where, writeBatch,
 } from 'firebase/firestore';
 import { db, storage } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
+import { missatgeBloqueigEliminarDiversos } from '../../lib/blocatgeEliminar';
 import { sessionsPerProposta } from '../../lib/tandes';
 import { infoTanda, ordenarTandes } from '../../lib/propostesLlistat';
 import {
@@ -37,6 +38,11 @@ const ERROR_SOCI = 'Selecciona un soci vàlid de la llista.';
 const ERROR_TRIAR = "No s'ha pogut carregar la fitxa de la pel·lícula. Torna-ho a provar.";
 const ERROR_PUJADA = "No s'ha pogut pujar la imatge. Torna-ho a provar.";
 const ERROR_ACTUALITZAR = "No s'ha pogut actualitzar la fitxa des de TMDB. Torna-ho a provar.";
+const ERROR_ELIMINAR = "No s'ha pogut eliminar. Torna-ho a provar.";
+// «Programada» només la posa «Programar sessió» (amb la sessió); una proposta amb sessió no en pot sortir.
+const ERROR_A_PROGRAMADA = 'Només «Programar sessió» pot passar la proposta a «Programada».';
+const ERROR_TE_SESSIO = "Aquesta proposta té una sessió associada: l'estat ha de ser «Programada».";
+const ERROR_PROGRAMADA_MENTRESTANT = "No es pot eliminar: mentrestant s'ha programat una sessió amb aquesta proposta.";
 // Per què la barra no deixa desar (els mateixos textos que la nota de «Programar sessió»).
 const MOTIU_TMDB = "S'està actualitzant la fitxa des de TMDB…";
 const MOTIU_PUJADA = "S'està pujant el cartell…";
@@ -50,6 +56,12 @@ const internaAFormulari = (interna) => ({
   condicions: interna?.condicions ?? '',
   distribuidoraId: interna?.distribuidoraId ?? '',
 });
+
+// Sessions creades des de la proposta (consulta nova al servidor; el filtre local només reforça el `where`).
+async function sessionsDeLaProposta(id) {
+  const snap = await getDocs(query(collection(db, 'sessions'), where('propostaId', '==', id)));
+  return docsDe(snap).filter((s) => s.propostaId === id);
+}
 
 const sociDeLaProposta = (socis, proposta) => socis.find((s) => Number(s.numeroSoci) === Number(proposta.numeroSoci));
 
@@ -93,6 +105,8 @@ function FitxaProposta({
   const [programant, setProgramant] = useState(false);
   const [errorProgramar, setErrorProgramar] = useState(null);
   const [errorEliminar, setErrorEliminar] = useState(null);
+  const [eliminant, setEliminant] = useState(false);
+  const eliminantRef = useRef(false);
   // `actualitzant`: la crida a TMDB és en curs (la fitxa queda bloquejada). `actualitzantRef`: des que comença
   // (inclòs el diàleg de confirmació) fins que acaba; bloqueja «Programar», desar i descartar.
   const [actualitzant, setActualitzant] = useState(false);
@@ -121,7 +135,13 @@ function FitxaProposta({
     const { errors: errorsFitxa, payload } = prepararDesatFitxa({ form: v, base: base.current, proposta });
     const errors = { ...errorsFitxa };
     const aProposta = { ...payload };
-    if (canviats.includes('estat')) aProposta.estat = v.estat;
+    // Sessions rellegides a cada canvi d'estat: una altra pestanya pot haver programat la proposta mentrestant.
+    if (canviats.includes('estat')) {
+      aProposta.estat = v.estat;
+      const teSessio = (await sessionsDeLaProposta(id)).length > 0;
+      if (v.estat === 'programada' && !teSessio) errors.estat = ERROR_A_PROGRAMADA;
+      if (v.estat !== 'programada' && teSessio) errors.estat = ERROR_TE_SESSIO;
+    }
     if (v.comentari.trim() !== base.current.comentari.trim()) aProposta.comentari = v.comentari.trim();
     if (canviats.includes('soci')) {
       const soci = socis.find((s) => etiquetaSoci(s) === v.soci);
@@ -159,6 +179,11 @@ function FitxaProposta({
     valors, canvia, canviats, hiHaCanvis, estat, desa, descarta, errorDesat, errors, reinicia,
   } = useFitxaEditable({ inicial, onDesar });
   const ambCanvisPendents = hiHaCanvis || estat === 'desant';
+  // Si la sessió arriba tard i fixa l'estat a «Programada», un canvi d'estat pendent ja no es podria desar: es desfà.
+  const estatFix = proposta.estat === 'programada' && Boolean(sessio);
+  useEffect(() => {
+    if (estatFix && valors.estat !== 'programada') canvia('estat', 'programada');
+  }, [estatFix, valors.estat]); // eslint-disable-line react-hooks/exhaustive-deps
   // Valors de l'últim render, per als gestors que continuen després d'un `await`.
   const propostaRef = useRef(proposta);
   const ambCanvisPendentsRef = useRef(ambCanvisPendents);
@@ -278,20 +303,50 @@ function FitxaProposta({
     }
   };
 
+  // Comprova (de nou a cada intent) que cap tanda ni sessió no usa la proposta i, després de confirmar, esborra la
+  // proposta i les dades internes en una transacció que rellegeix la proposta: si mentrestant ha passat a
+  // «Programada» (una altra pestanya l'ha programat), no esborra res. Una de programada ja abans (encallada, sense
+  // sessió) sí que es pot esborrar. Els vots són dins les tandes (si n'hi ha, la tanda ja bloqueja);
+  // `propostesActivitat` és un registre d'auditoria immutable i es conserva; Storage no s'esborra mai.
   const handleEliminar = async () => {
-    const confirmat = await confirma({
-      missatge: `Segur que vols eliminar definitivament la proposta "${proposta.titol}"? Aquesta acció no es pot desfer.`,
-      perill: true,
-      etiquetaAcceptar: 'Elimina',
-    });
-    if (!confirmat) return;
+    if (eliminantRef.current) return;
+    eliminantRef.current = true;
     setErrorEliminar(null);
     try {
-      await deleteDoc(doc(db, 'propostes', id));
-      await deleteDoc(doc(db, 'propostesInternes', id));
+      const [snapTandes, sessions] = await Promise.all([
+        getDocs(query(collection(db, 'tandes'), where('propostes', 'array-contains', id))),
+        sessionsDeLaProposta(id),
+      ]);
+      const tandesQueLaUsen = docsDe(snapTandes).filter((t) => Array.isArray(t.propostes) && t.propostes.includes(id));
+      const bloqueig = missatgeBloqueigEliminarDiversos([
+        { nombre: tandesQueLaUsen.length, singular: 'tanda', plural: 'tandes', titols: tandesQueLaUsen.map((t) => t.nom) },
+        { nombre: sessions.length, singular: 'sessió', plural: 'sessions', titols: sessions.map((t) => t.titol) },
+      ]);
+      if (bloqueig) {
+        setErrorEliminar(bloqueig);
+        return;
+      }
+      const confirmat = await confirma({
+        missatge: `Segur que vols eliminar definitivament la proposta "${proposta.titol}"? Aquesta acció no es pot desfer.`,
+        perill: true,
+        etiquetaAcceptar: 'Elimina',
+      });
+      if (!confirmat) return;
+      setEliminant(true);
+      const refProposta = doc(db, 'propostes', id);
+      const estatAbans = proposta.estat;
+      await runTransaction(db, async (tx) => {
+        const estatTx = (await tx.get(refProposta)).data()?.estat;
+        if (estatTx === 'programada' && estatAbans !== 'programada') throw new Error(ERROR_PROGRAMADA_MENTRESTANT);
+        tx.delete(refProposta);
+        tx.delete(doc(db, 'propostesInternes', id));
+      });
       navigate(ROUTES.PROPOSTES_PENDENTS);
-    } catch {
-      setErrorEliminar("No s'ha pogut eliminar. Torna-ho a provar.");
+    } catch (e) {
+      setErrorEliminar(e.message === ERROR_PROGRAMADA_MENTRESTANT ? ERROR_PROGRAMADA_MENTRESTANT : ERROR_ELIMINAR);
+    } finally {
+      eliminantRef.current = false;
+      setEliminant(false);
     }
   };
 
@@ -384,7 +439,10 @@ function FitxaProposta({
               socis={socis}
               distribuidores={distribuidores}
               internaDisponible={internaDisponible}
+              estatDesat={proposta.estat}
+              teSessio={Boolean(sessio)}
               onEliminar={handleEliminar}
+              eliminacioDesactivada={eliminant || estat === 'desant' || pujant}
               errorEliminar={errorEliminar}
             />
           )}

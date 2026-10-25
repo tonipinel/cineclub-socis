@@ -111,6 +111,7 @@ function senseEscriptures() {
   expect(deleteDoc).not.toHaveBeenCalled();
   expect(lot.update).not.toHaveBeenCalled();
   expect(lot.set).not.toHaveBeenCalled();
+  expect(lot.delete).not.toHaveBeenCalled();
   expect(lot.commit).not.toHaveBeenCalled();
 }
 
@@ -134,7 +135,9 @@ beforeEach(() => {
   getDocs.mockReset();
   where.mockClear();
   runTransaction.mockReset();
-  lot = { update: vi.fn(), set: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+  lot = {
+    update: vi.fn(), set: vi.fn(), delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined),
+  };
   writeBatch.mockReset().mockImplementation(() => lot);
 });
 
@@ -1006,6 +1009,114 @@ describe('PropostaForm: Gestió i desat', () => {
   });
 });
 
+describe('PropostaForm: l\'estat «Programada»', () => {
+  const AJUDA_PROGRAMADA = "«Programada» només s'assigna amb «Programar sessió», un cop la proposta és aprovada.";
+  const AJUDA_FIXADA = "Té una sessió associada: l'estat es queda en «Programada».";
+  const opcio = (nom) => within(screen.getByLabelText('Estat')).getByRole('option', { name: nom });
+  const SESSIO = { id: 's5', titol: 'Amélie', propostaId: 'p1' };
+
+  it('sense sessió, «Programada» no es pot triar i el camp explica per què', async () => {
+    await obrirGestio({ proposta: { ...PROPOSTA, estat: 'aprovada' } });
+    expect(opcio('Programada')).toBeDisabled();
+    for (const nom of ['Pendent', 'Aprovada', 'Rebutjada']) expect(opcio(nom)).toBeEnabled();
+    const ajuda = screen.getByText(AJUDA_PROGRAMADA);
+    expect(screen.getByLabelText('Estat')).toHaveAttribute('aria-describedby', ajuda.id);
+  });
+
+  it('si igualment arriba «Programada» sense sessió, en desar no escriu res i marca el camp', async () => {
+    await obrirGestio({ proposta: { ...PROPOSTA, estat: 'aprovada' } });
+    fireEvent.change(screen.getByLabelText('Estat'), { target: { value: 'programada' } });
+    fireEvent.click(botoDesar());
+    expect(await screen.findByText("Només «Programar sessió» pot passar la proposta a «Programada».", { selector: '#estat-error' }))
+      .toBeInTheDocument();
+    expect(screen.getByLabelText('Estat')).toHaveAttribute('aria-invalid', 'true');
+    senseEscriptures();
+    expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
+  });
+
+  it('una proposta programada amb sessió té l\'estat fix, amb l\'explicació', async () => {
+    await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' }, sessions: [SESSIO] });
+    await waitFor(() => expect(screen.getByLabelText('Estat')).toBeDisabled());
+    expect(screen.getByLabelText('Estat')).toHaveValue('programada');
+    const ajuda = screen.getByText(AJUDA_FIXADA);
+    expect(screen.getByLabelText('Estat')).toHaveAttribute('aria-describedby', ajuda.id);
+  });
+
+  it('una proposta programada sense sessió (encallada) es pot tornar a «Aprovada» i llavors es pot programar', async () => {
+    const { user } = await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' } });
+    expect(screen.getByLabelText('Estat')).toBeEnabled();
+    expect(opcio('Programada')).toBeEnabled();
+    await user.selectOptions(screen.getByLabelText('Estat'), 'aprovada');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(lot.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'aprovada' });
+    expect(screen.getByRole('button', { name: 'Programar sessió' })).toBeInTheDocument();
+    // Ja no és programada i no té sessió: «Programada» deixa de ser triable.
+    expect(opcio('Programada')).toBeDisabled();
+  });
+
+  it('si mentrestant s\'ha creat una sessió, treure-la de «Programada» no escriu res i marca el camp', async () => {
+    const { user } = await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' }, sessions: [], sessionsDespres: [SESSIO] });
+    await user.selectOptions(screen.getByLabelText('Estat'), 'aprovada');
+    await user.click(botoDesar());
+    expect(await screen.findByText("Aquesta proposta té una sessió associada: l'estat ha de ser «Programada».", { selector: '#estat-error' }))
+      .toBeInTheDocument();
+    senseEscriptures();
+  });
+
+  it('una proposta aprovada que ja té sessió es pot passar a «Programada»', async () => {
+    const { user } = await obrirGestio({ proposta: { ...PROPOSTA, estat: 'aprovada' }, sessions: [SESSIO] });
+    await screen.findByRole('link', { name: 'Veure la sessió' });
+    expect(opcio('Programada')).toBeEnabled();
+    await user.selectOptions(screen.getByLabelText('Estat'), 'programada');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(lot.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
+  });
+
+  it('qualsevol canvi d\'estat torna a consultar les sessions (una sola lectura) abans d\'escriure', async () => {
+    const { user } = await obrirGestio();
+    const lecturesAbans = getDocs.mock.calls.length;
+    await user.selectOptions(screen.getByLabelText('Estat'), 'rebutjada');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(getDocs.mock.calls.slice(lecturesAbans).map(([ref]) => ref.path)).toEqual(['sessions']);
+    expect(lot.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'rebutjada' });
+  });
+
+  it('cursa: si des d\'una altra pestanya s\'ha programat mentrestant, canviar l\'estat no escriu res i marca el camp', async () => {
+    const { user } = await obrirGestio({ proposta: { ...PROPOSTA, estat: 'aprovada' }, sessions: [], sessionsDespres: [SESSIO] });
+    await user.selectOptions(screen.getByLabelText('Estat'), 'rebutjada');
+    await user.click(botoDesar());
+    expect(await screen.findByText("Aquesta proposta té una sessió associada: l'estat ha de ser «Programada».", { selector: '#estat-error' }))
+      .toBeInTheDocument();
+    senseEscriptures();
+  });
+
+  it('si la sessió arriba tard i fixa l\'estat, el canvi pendent d\'estat es desfà', async () => {
+    preparar({ proposta: { ...PROPOSTA, estat: 'programada' }, sessions: [SESSIO] });
+    let resol;
+    const original = getDocs.getMockImplementation();
+    getDocs.mockImplementation((ref) => (ref.path === 'sessions'
+      ? new Promise((r) => { resol = () => r(original(ref)); })
+      : original(ref)));
+    const user = userEvent.setup();
+    renderFitxa('/propostes/pendents/p1?pestanya=gestio');
+    await screen.findByLabelText('Estat');
+    await user.selectOptions(screen.getByLabelText('Estat'), 'aprovada');
+    expect(botoDesar()).toBeEnabled();
+    resol();
+    // El valor es desfà en l'efecte que segueix el render que deshabilita el camp: cal esperar-los tots dos.
+    await waitFor(() => {
+      expect(screen.getByLabelText('Estat')).toBeDisabled();
+      expect(screen.getByLabelText('Estat')).toHaveValue('programada');
+    });
+    expect(screen.getByText(AJUDA_FIXADA)).toBeInTheDocument();
+    expect(botoDesar()).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
+  });
+});
+
 describe('PropostaForm: «Programar sessió» amb canvis sense desar', () => {
   const NOTA = 'Desa els canvis abans de programar la sessió.';
   const programar = () => screen.getByRole('button', { name: 'Programar sessió' });
@@ -1079,21 +1190,41 @@ describe('PropostaForm: «Programar sessió» amb canvis sense desar', () => {
 });
 
 describe('PropostaForm: Eliminar proposta', () => {
-  it('elimina la proposta i les dades internes després de confirmar i torna al llistat', async () => {
+  const eliminar = () => within(screen.getByRole('region', { name: 'Zona de perill' })).getByRole('button', { name: 'Eliminar proposta' });
+  // Transacció d'eliminació: `estatTx` és l'estat que hi llegeix la proposta.
+  let tx;
+  let estatTx;
+  beforeEach(() => {
+    estatTx = 'pendent';
+    tx = { get: vi.fn(async () => ({ exists: () => true, data: () => ({ ...PROPOSTA, estat: estatTx }) })), delete: vi.fn() };
+    runTransaction.mockImplementation(async (_db, fn) => fn(tx));
+  });
+  const senseEliminar = () => {
+    senseEscriptures();
+    expect(tx.delete).not.toHaveBeenCalled();
+  };
+
+  it('sense tandes ni sessions, després de confirmar elimina la proposta i les dades internes en una transacció i torna al llistat', async () => {
     const { user } = await obrirGestio();
-    const zona = screen.getByRole('region', { name: 'Zona de perill' });
-    await user.click(within(zona).getByRole('button', { name: 'Eliminar proposta' }));
+    await user.click(eliminar());
 
     const dialeg = await dialegConfirmacio();
     expect(dialeg).toHaveAttribute('role', 'alertdialog');
     expect(dialeg).toHaveTextContent(
       'Segur que vols eliminar definitivament la proposta "Amélie"? Aquesta acció no es pot desfer.',
     );
-    expect(deleteDoc).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
     await acceptaDialeg('Elimina');
     expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
-    expect(deleteDoc).toHaveBeenCalledTimes(2);
-    expect(deleteDoc.mock.calls.map(([ref]) => ref.path)).toEqual(['propostes/p1', 'propostesInternes/p1']);
+    // Tot o res: les dues eliminacions van a la mateixa transacció, que abans rellegeix la proposta; res fora d'ella.
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(tx.get.mock.calls.map(([ref]) => ref.path)).toEqual(['propostes/p1']);
+    expect(tx.delete.mock.calls.map(([ref]) => ref.path)).toEqual(['propostes/p1', 'propostesInternes/p1']);
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(deleteDoc).not.toHaveBeenCalled();
+    // Les dependències es consulten al servidor amb filtres, no a partir del que s'ha carregat en obrir la fitxa.
+    expect(where).toHaveBeenCalledWith('propostes', 'array-contains', 'p1');
+    expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
   });
 
   it.each([
@@ -1101,22 +1232,134 @@ describe('PropostaForm: Eliminar proposta', () => {
     ['ESC', (user) => tancaDialegAmbEsc(user)],
   ])('no elimina la proposta si es tanca la confirmació amb %s', async (_nom, tanca) => {
     const { user } = await obrirGestio();
-    await user.click(screen.getByRole('button', { name: 'Eliminar proposta' }));
+    await user.click(eliminar());
     await tanca(user);
     await waitFor(() => expect(hiHaDialegConfirmacio()).toBe(false));
 
-    expect(deleteDoc).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
+    senseEliminar();
     expect(screen.getByRole('heading', { level: 1, name: 'Amélie' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Eliminar proposta' })).toHaveFocus();
+    expect(eliminar()).toHaveFocus();
   });
 
-  it('si falla l\'eliminació, ho avisa i es queda a la fitxa', async () => {
+  it('si una tanda conté la proposta, no confirma ni elimina res i diu quina', async () => {
+    const { user } = await obrirGestio({ tandes: [{ id: 't1', nom: 'Tardor 2026', propostes: ['p1', 'p2'] }] });
+    await user.click(eliminar());
+    expect(await screen.findByRole('alert')).toHaveTextContent("No es pot eliminar: l'usa 1 tanda (Tardor 2026)");
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+    senseEliminar();
+    expect(screen.queryByText('Llistat de propostes')).not.toBeInTheDocument();
+  });
+
+  it('si hi ha sessions creades des de la proposta, no elimina res i les llista (plural)', async () => {
+    const { user } = await obrirGestio({
+      proposta: { ...PROPOSTA, estat: 'programada' },
+      sessions: [{ id: 's5', titol: 'Amélie (dijous)', propostaId: 'p1' }, { id: 's6', titol: 'Amélie (bis)', propostaId: 'p1' }],
+    });
+    await user.click(eliminar());
+    expect(await screen.findByRole('alert')).toHaveTextContent("No es pot eliminar: l'usen 2 sessions (Amélie (dijous), Amélie (bis))");
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+    senseEliminar();
+  });
+
+  it('amb tandes i sessió alhora, les llista totes dues', async () => {
+    const { user } = await obrirGestio({
+      tandes: [{ id: 't1', nom: 'Tardor', propostes: ['p1'] }, { id: 't2', nom: 'Hivern', propostes: ['p1'] }],
+      sessions: [{ id: 's5', titol: 'Amélie', propostaId: 'p1' }],
+    });
+    await user.click(eliminar());
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "No es pot eliminar: l'usen 2 tandes (Tardor, Hivern) i l'usa 1 sessió (Amélie)",
+    );
+    senseEliminar();
+  });
+
+  it('consulta les dependències de nou a cada intent: una sessió creada després d\'obrir la fitxa també ho bloqueja', async () => {
+    const { user } = await obrirGestio({ sessions: [], sessionsDespres: [{ id: 's5', titol: 'Amélie', propostaId: 'p1' }] });
+    await user.click(eliminar());
+    expect(await screen.findByRole('alert')).toHaveTextContent("No es pot eliminar: l'usa 1 sessió (Amélie)");
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+    senseEliminar();
+  });
+
+  it('si no es poden consultar les dependències, no elimina res i ho avisa', async () => {
     const { user } = await obrirGestio();
-    deleteDoc.mockRejectedValueOnce(new Error('boom'));
-    await user.click(screen.getByRole('button', { name: 'Eliminar proposta' }));
+    getDocs.mockRejectedValue(new Error('boom'));
+    await user.click(eliminar());
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut eliminar. Torna-ho a provar.");
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+    senseEliminar();
+  });
+
+  it('si falla la transacció, ho avisa, es queda a la fitxa, el focus torna al botó i no hi ha cap eliminació fora d\'ella', async () => {
+    const { user } = await obrirGestio();
+    runTransaction.mockRejectedValueOnce(new Error('boom'));
+    await user.click(eliminar());
     await acceptaDialeg('Elimina');
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut eliminar. Torna-ho a provar.");
     expect(screen.queryByText('Llistat de propostes')).not.toBeInTheDocument();
+    expect(deleteDoc).not.toHaveBeenCalled();
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(eliminar()).not.toHaveAttribute('aria-disabled', 'true');
+    expect(eliminar()).toHaveFocus();
+  });
+
+  it('cursa: si entre la comprovació i l\'eliminació la proposta ha passat a «Programada», no elimina res i ho explica', async () => {
+    const { user } = await obrirGestio();
+    estatTx = 'programada';
+    await user.click(eliminar());
+    await acceptaDialeg('Elimina');
+    expect(await screen.findByRole('alert')).toHaveTextContent("No es pot eliminar: mentrestant s'ha programat una sessió amb aquesta proposta.");
+    expect(tx.delete).not.toHaveBeenCalled();
+    expect(screen.queryByText('Llistat de propostes')).not.toBeInTheDocument();
+    expect(eliminar()).toHaveFocus();
+  });
+
+  it('una proposta «Programada» sense sessió (encallada) sí que es pot eliminar', async () => {
+    const { user } = await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' } });
+    estatTx = 'programada';
+    await user.click(eliminar());
+    await acceptaDialeg('Elimina');
+    expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
+    expect(tx.delete.mock.calls.map(([ref]) => ref.path)).toEqual(['propostes/p1', 'propostesInternes/p1']);
+  });
+
+  it('un doble clic fa una sola comprovació i un sol diàleg; mentre s\'elimina el botó és deshabilitat (aria) i no fa res', async () => {
+    const { user } = await obrirGestio();
+    let acaba;
+    runTransaction.mockImplementation((_db, fn) => new Promise((r) => { acaba = () => r(fn(tx)); }));
+    const lecturesAbans = getDocs.mock.calls.length;
+    await user.dblClick(eliminar());
+    await acceptaDialeg('Elimina');
+    await waitFor(() => expect(runTransaction).toHaveBeenCalledTimes(1));
+    expect(eliminar()).toHaveAttribute('aria-disabled', 'true');
+    await user.click(eliminar());
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    // Una lectura de tandes i una de sessions.
+    expect(getDocs.mock.calls.length - lecturesAbans).toBe(2);
+    acaba();
+    expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('mentre es desa, «Eliminar proposta» és deshabilitat', async () => {
+    const { user } = await obrirGestio();
+    let acaba;
+    lot.commit.mockImplementation(() => new Promise((r) => { acaba = r; }));
+    await user.type(screen.getByLabelText('Comentari del soci'), ' i tant');
+    await user.click(botoDesar());
+    await screen.findByText('Desant…');
+    expect(eliminar()).toHaveAttribute('aria-disabled', 'true');
+    await user.click(eliminar());
+    expect(hiHaDialegConfirmacio()).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+    acaba();
+    await esperaDesat();
+    expect(eliminar()).not.toHaveAttribute('aria-disabled', 'true');
   });
 });
 
