@@ -5,16 +5,24 @@ service firebase.storage {
       return request.auth != null && request.auth.token.role == 'admin';
     }
 
-    // Carteles de les propostes de pel·lícules (els desa la Cloud Function
+    // Lectura pública només amb `get` (fitxer a fitxer, per camí conegut), mai `list`:
+    // amb `read` qualsevol visitant podria llistar les carpetes i veure cartells i ids
+    // de propostes pendents o esborrades i imatges de sessions encara no publicades.
+    // Nota: un `get` anònim també retorna les metadades de l'objecte, inclòs el
+    // `downloadTokens`; per a aquests fitxers públics el token no és cap secret.
+
+    // Cartells de les propostes de pel·lícules (els desa la Cloud Function
     // des de TMDB): públics perquè la pàgina de propostes també ho és.
     match /carteils/{nom} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isAdmin();
     }
 
     // Imatges de la web pública (cartells i galeries de sessions, imatges de pàgines):
-    // qualsevol les pot veure; només l'admin les pot pujar o canviar.
+    // qualsevol les pot veure; només l'admin les pot llistar, pujar o canviar.
     match /web/{cami=**} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 

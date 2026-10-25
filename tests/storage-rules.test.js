@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { ref, uploadBytes, getBytes, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getBytes, getMetadata, getDownloadURL, deleteObject, listAll, list } from 'firebase/storage';
 
 let testEnv;
 
@@ -100,5 +100,45 @@ describe('storage.rules — web', () => {
   it('l\'admin hi pot pujar i esborrar', async () => {
     await assertSucceeds(uploadBytes(ref(storageDe('admin'), CARTELL), bytes(), JPG));
     await assertSucceeds(deleteObject(ref(storageDe('admin'), CARTELL)));
+  });
+
+  it('un visitant pot obtenir les metadades i l\'URL de descàrrega d\'un fitxer conegut', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), CARTELL), bytes(), JPG);
+    });
+    await assertSucceeds(getMetadata(ref(storageDe(null), CARTELL)));
+    await assertSucceeds(getDownloadURL(ref(storageDe(null), CARTELL)));
+  });
+});
+
+describe('storage.rules — llistar carpetes', () => {
+  const JPG = { contentType: 'image/jpeg' };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), 'web/sessions/pig/poster.jpg'), bytes(), JPG);
+      await uploadBytes(ref(ctx.storage(), 'carteils/p1-1.jpg'), bytes(), JPG);
+    });
+  });
+
+  it.each(['web', 'web/sessions', 'web/sessions/pig', 'carteils'])(
+    'ni un visitant ni taquilla poden llistar %s/', async (carpeta) => {
+      for (const rol of [null, 'taquilla']) {
+        await assertFails(listAll(ref(storageDe(rol), carpeta)));
+        await assertFails(list(ref(storageDe(rol), carpeta), { maxResults: 10 }));
+      }
+    });
+
+  it('un visitant pot llegir un cartell de proposta per camí conegut', async () => {
+    await assertSucceeds(getBytes(ref(storageDe(null), 'carteils/p1-1.jpg')));
+  });
+
+  it('un visitant no pot pujar cartells de propostes', async () => {
+    await assertFails(uploadBytes(ref(storageDe(null), 'carteils/p2-1.jpg'), bytes(), JPG));
+  });
+
+  it.each(['web/sessions', 'carteils'])('l\'admin pot llistar %s/', async (carpeta) => {
+    const res = await assertSucceeds(listAll(ref(storageDe('admin'), carpeta)));
+    expect(res.items.length + res.prefixes.length).toBe(1);
   });
 });
