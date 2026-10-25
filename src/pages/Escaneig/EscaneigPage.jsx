@@ -1,5 +1,5 @@
-import 'barcode-detector/polyfill';
 import { useEffect, useRef, useState } from 'react';
+import { prepararLector } from '../../lib/lectorCodis';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
 import {
@@ -37,6 +37,9 @@ const CANCELLAT = 'cancellat';
 const TEXT_ERROR_REGISTRE = "No s'ha pogut registrar l'entrada. Torna-ho a provar.";
 const DETALL_CODI_DESCONEGUT = 'Escaneja el QR del carnet o del tiquet, o escriu el número de soci o el codi del tiquet (T-000123).';
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
+// Deteccions fallides seguides (≈ 2 s) que fan donar el lector per no disponible.
+const MAX_DETECCIONS_FALLIDES = 5;
+const TEXT_LECTOR_NO_DISPONIBLE = "No s'ha pogut carregar el lector de codis. Pots escriure el codi a mà.";
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -45,11 +48,11 @@ const ETIQUETES_ESTAT = {
   [ESTAT_NOU_REGISTRE]: 'Nou registre',
 };
 
-// Mode mockup: afegeix #idle, #escanejant, #codi, #ok (soci), #tiquet (ok
-// genèric), #error o #avis a la URL per veure directament aquella pantalla
-// sense haver d'escanejar ni tenir sessió activa (útil per iterar sobre el
-// disseny). No afecta producció real: només substitueix l'estat inicial
-// mentre l'URL tingui aquest fragment.
+// Mode mockup: afegeix #idle, #escanejant, #codi, #lector (lector no
+// disponible), #ok (soci), #tiquet (ok genèric), #error o #avis a la URL per
+// veure directament aquella pantalla sense haver d'escanejar ni tenir sessió
+// activa (útil per iterar sobre el disseny). No afecta producció real: només
+// substitueix l'estat inicial mentre l'URL tingui aquest fragment.
 const MOCKUP_SESSIO = { id: 'mockup', titol: 'Sessió de prova' };
 
 const MOCKUP_VENCIMENT_AVIAT = new Date();
@@ -59,6 +62,7 @@ const MOCKUPS = {
   idle: { modeEntrada: 'idle', missatge: null },
   escanejant: { modeEntrada: 'escanejant', missatge: null },
   codi: { modeEntrada: 'manual', missatge: null },
+  lector: { modeEntrada: 'manual', missatge: null, lectorNoDisponible: true },
   ok: {
     modeEntrada: 'escanejant',
     missatge: {
@@ -223,6 +227,10 @@ export default function EscaneigPage() {
   const [missatge, setMissatge] = useState(() => mockup?.missatge ?? null);
   const [resum, setResum] = useState(RESUM_INICIAL);
   const [modeEntrada, setModeEntrada] = useState(() => mockup?.modeEntrada ?? 'idle');
+  // El lector de QR no ha pogut arrencar (WASM no carregat, detector que falla):
+  // es passa al camp de text amb un avís.
+  const [lectorNoDisponible, setLectorNoDisponible] = useState(() => mockup?.lectorNoDisponible ?? false);
+  const inputManualRef = useRef(null);
   const [modeProva, setModeProva] = useState(false);
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
@@ -266,9 +274,11 @@ export default function EscaneigPage() {
     if (mockup) {
       setModeEntrada(mockup.modeEntrada);
       setMissatge(mockup.missatge ?? null);
+      setLectorNoDisponible(mockup.lectorNoDisponible ?? false);
     } else {
       setMissatge(null);
       setModeEntrada('idle');
+      setLectorNoDisponible(false);
     }
   }
 
@@ -298,6 +308,13 @@ export default function EscaneigPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessioActiva?.id]);
 
+  // El WASM del lector (≈ 1 MB amb el polyfill d'iOS) es baixa mentre la
+  // pantalla espera, no en clicar Escanejar. Si falla, s'avisa en escanejar.
+  useEffect(() => {
+    if (sessioActiva) prepararLector().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessioActiva?.id]);
+
   // En desmuntar, l'intent s'abandona en silenci; si canvia la sessió activa,
   // s'avisa l'operador (vegeu processarCodi).
   useEffect(() => () => controladorRef.current?.abort('desmuntat'), []);
@@ -321,10 +338,12 @@ export default function EscaneigPage() {
 
   const handleTancar = () => {
     setModeEntrada('idle');
+    setLectorNoDisponible(false);
     mostrarResultat(null);
   };
 
   const handleEscanejar = () => {
+    setLectorNoDisponible(false);
     setModeEntrada('BarcodeDetector' in window ? 'escanejant' : 'manual');
   };
 
@@ -801,9 +820,28 @@ export default function EscaneigPage() {
     if (!sessioActiva || modeEntrada !== 'escanejant' || missatge || !('BarcodeDetector' in window)) return undefined;
     let actiu = true;
     let stream;
-    const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    let lectorLlest = false;
+    let detectant = false;
+    let fallades = 0;
+    // Sense lector la càmera mostraria la imatge però mai no llegiria res, en silenci.
+    const lectorFallit = (error) => {
+      if (!actiu) return;
+      actiu = false;
+      registrarErrorEscaneig('lector-no-disponible', { detall: String(error?.message ?? error).slice(0, 200) });
+      setLectorNoDisponible(true);
+      setModeEntrada('manual');
+    };
+    let detector;
+    try {
+      detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    } catch (error) {
+      lectorFallit(error);
+      return undefined;
+    }
+    prepararLector().then(() => { lectorLlest = true; }, lectorFallit);
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
+    // Dins la promesa: sense context segur, navigator.mediaDevices no existeix.
+    Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })).then((s) => {
       if (!actiu) {
         s.getTracks().forEach((track) => track.stop());
         return;
@@ -818,16 +856,21 @@ export default function EscaneigPage() {
 
     // Una sola detecció alhora, i cap resultat d'una detecció que acabi
     // després d'aturar la càmera (ja hi ha un resultat a la pantalla).
-    let detectant = false;
     const interval = setInterval(async () => {
-      if (detectant || !videoRef.current?.srcObject) return;
+      // Fins que el vídeo no té imatge (HAVE_CURRENT_DATA), el polyfill llança InvalidStateError:
+      // passa en cada arrencada de la càmera i no vol dir que el lector falli.
+      if (detectant || !lectorLlest || !videoRef.current?.srcObject || videoRef.current.readyState < 2) return;
       detectant = true;
       try {
         const barcodes = await detector.detect(videoRef.current);
+        fallades = 0;
         if (!actiu || !barcodes[0]) return;
         processarCodiRef.current(barcodes[0].rawValue, 'qr');
-      } catch {
-        // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
+      } catch (error) {
+        // Un fotograma no vàlid es reintenta al següent interval; si el descodificador falla sempre, el lector no funciona.
+        if (error?.name === 'InvalidStateError') return;
+        fallades += 1;
+        if (fallades >= MAX_DETECCIONS_FALLIDES) lectorFallit(error);
       } finally {
         detectant = false;
       }
@@ -840,6 +883,10 @@ export default function EscaneigPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessioActiva?.id, modeEntrada, missatge]);
+
+  useEffect(() => {
+    if (lectorNoDisponible && modeEntrada === 'manual') inputManualRef.current?.focus();
+  }, [lectorNoDisponible, modeEntrada]);
 
   const handleCodiManual = (e) => {
     e.preventDefault();
@@ -937,10 +984,14 @@ export default function EscaneigPage() {
 
         {!missatge && modeEntrada === 'manual' && (
           <div className="escaneig__manual-caixa">
+            {lectorNoDisponible && (
+              <p className="escaneig__lector-error" role="alert">{TEXT_LECTOR_NO_DISPONIBLE}</p>
+            )}
             <form className="escaneig__manual" onSubmit={handleCodiManual}>
               <div className="form__field">
                 <label className="form__label escaneig__manual-label" htmlFor="codi-manual">Codi manual</label>
                 <input
+                  ref={inputManualRef}
                   id="codi-manual"
                   className="form__input escaneig__manual-input"
                   value={codiManual}
@@ -949,6 +1000,12 @@ export default function EscaneigPage() {
               </div>
               <button className="btn" type="submit">Registrar</button>
             </form>
+            {lectorNoDisponible && (
+              <button type="button" className="btn btn--blanc escaneig__lector-reintentar" onClick={handleEscanejar}>
+                <IconaCamera />
+                Tornar a provar la càmera
+              </button>
+            )}
           </div>
         )}
 

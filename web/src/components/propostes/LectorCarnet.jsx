@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import 'barcode-detector/polyfill';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/client.js';
 import { identificarCodi } from '../../lib/propostes/identificarCodi.js';
+import { prepararLector } from '../../lib/propostes/lectorCodis.js';
 
 const DEBOUNCE_MS = 3000;
+// Deteccions fallides seguides (≈ 2 s) que fan donar el lector per no disponible.
+const MAX_DETECCIONS_FALLIDES = 5;
+const TEXT_LECTOR_NO_DISPONIBLE = "No s'ha pogut carregar el lector. Torna-ho a provar.";
 
 export default function LectorCarnet({ onIdentificat }) {
   const videoRef = useRef(null);
@@ -12,6 +15,9 @@ export default function LectorCarnet({ onIdentificat }) {
   const [escanejant, setEscanejant] = useState(false);
   const [verificant, setVerificant] = useState(false);
   const [error, setError] = useState(null);
+  // El lector de QR no ha arrencat (WASM no carregat, detector que falla): sense
+  // això la càmera mostraria la imatge però mai no llegiria res, en silenci.
+  const [lectorNoDisponible, setLectorNoDisponible] = useState(false);
 
   const handleEscanejar = () => {
     if (!('BarcodeDetector' in window)) {
@@ -19,6 +25,7 @@ export default function LectorCarnet({ onIdentificat }) {
       return;
     }
     setError(null);
+    setLectorNoDisponible(false);
     setEscanejant(true);
   };
 
@@ -54,9 +61,26 @@ export default function LectorCarnet({ onIdentificat }) {
     if (!escanejant || verificant || !('BarcodeDetector' in window)) return undefined;
     let actiu = true;
     let stream;
-    const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    let lectorLlest = false;
+    let detectant = false;
+    let fallades = 0;
+    const lectorFallit = () => {
+      if (!actiu) return;
+      actiu = false;
+      setLectorNoDisponible(true);
+      setEscanejant(false);
+    };
+    let detector;
+    try {
+      detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    } catch {
+      lectorFallit();
+      return undefined;
+    }
+    prepararLector().then(() => { lectorLlest = true; }, lectorFallit);
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((s) => {
+    // Dins la promesa: sense context segur, navigator.mediaDevices no existeix.
+    Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })).then((s) => {
       if (!actiu) {
         s.getTracks().forEach((track) => track.stop());
         return;
@@ -70,12 +94,21 @@ export default function LectorCarnet({ onIdentificat }) {
     });
 
     const interval = setInterval(async () => {
-      if (!videoRef.current?.srcObject) return;
+      // Fins que el vídeo no té imatge (HAVE_CURRENT_DATA), el polyfill llança InvalidStateError:
+      // passa en cada arrencada de la càmera i no vol dir que el lector falli.
+      if (detectant || !lectorLlest || !videoRef.current?.srcObject || videoRef.current.readyState < 2) return;
+      detectant = true;
       try {
         const barcodes = await detector.detect(videoRef.current);
-        if (barcodes[0]) handleCodi(barcodes[0].rawValue);
-      } catch {
-        // Fotograma no vàlid per detectar-hi res; es reintenta al següent interval.
+        fallades = 0;
+        if (actiu && barcodes[0]) handleCodi(barcodes[0].rawValue);
+      } catch (error) {
+        // Un fotograma no vàlid es reintenta al següent interval; si el descodificador falla sempre, el lector no funciona.
+        if (error?.name === 'InvalidStateError') return;
+        fallades += 1;
+        if (fallades >= MAX_DETECCIONS_FALLIDES) lectorFallit();
+      } finally {
+        detectant = false;
       }
     }, 400);
 
@@ -89,9 +122,12 @@ export default function LectorCarnet({ onIdentificat }) {
 
   return (
     <div className="lector-carnet">
+      {lectorNoDisponible && (
+        <p className="form__error" role="alert">{TEXT_LECTOR_NO_DISPONIBLE}</p>
+      )}
       {!escanejant && (
         <button type="button" className="btn" onClick={handleEscanejar}>
-          Escanejar el meu carnet
+          {lectorNoDisponible ? 'Tornar-ho a provar' : 'Escanejar el meu carnet'}
         </button>
       )}
       {escanejant && (

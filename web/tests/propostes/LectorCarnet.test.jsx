@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('barcode-detector/polyfill', () => ({}));
+const lector = vi.hoisted(() => ({ prepararLector: null }));
+vi.mock('../../src/lib/propostes/lectorCodis.js', () => ({ prepararLector: (...args) => lector.prepararLector(...args) }));
 vi.mock('../../src/firebase/client.js', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((...args) => args[args.length - 1]),
@@ -13,9 +14,15 @@ vi.mock('firebase/firestore', () => ({
 import { getDoc } from 'firebase/firestore';
 import LectorCarnet from '../../src/components/propostes/LectorCarnet.jsx';
 
+// jsdom deixa el vídeo sempre a readyState 0: per defecte, la càmera ja té imatge.
+const video = vi.hoisted(() => ({ readyState: 4 }));
+Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { configurable: true, get: () => video.readyState });
+
 describe('LectorCarnet', () => {
   beforeEach(() => {
     getDoc.mockReset();
+    lector.prepararLector = vi.fn().mockResolvedValue(undefined);
+    video.readyState = 4;
   });
 
   it('mostra un botó per començar a escanejar, sense cap camp de text', () => {
@@ -90,6 +97,108 @@ describe('LectorCarnet', () => {
       await vi.advanceTimersByTimeAsync(400);
 
       expect(onIdentificat).toHaveBeenCalledWith({ numeroSoci: 7, nomPublic: 'Isabel M.', token: 'tok-1' });
+    });
+  });
+
+  describe('lector no disponible', () => {
+    const TEXT_LECTOR = "No s'ha pogut carregar el lector. Torna-ho a provar.";
+    const originalBarcodeDetector = window.BarcodeDetector;
+    const originalPlay = window.HTMLMediaElement?.prototype.play;
+    let stop;
+
+    beforeEach(() => {
+      stop = vi.fn();
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }) },
+      });
+      window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockResolvedValue([]);
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      window.BarcodeDetector = originalBarcodeDetector;
+      window.HTMLMediaElement.prototype.play = originalPlay;
+    });
+
+    it('si el WASM del lector no es pot carregar, avisa amb role=alert, para la càmera i ofereix tornar-ho a provar', async () => {
+      lector.prepararLector = vi.fn().mockRejectedValueOnce(new Error('Failed to fetch')).mockResolvedValue(undefined);
+      render(<LectorCarnet onIdentificat={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+      expect(document.querySelector('video')).toBeNull();
+      await vi.waitFor(() => expect(stop).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Tornar-ho a provar' }));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.querySelector('video')).not.toBeNull();
+      expect(lector.prepararLector).toHaveBeenCalledTimes(2);
+    });
+
+    it('si el detector falla a cada fotograma, després de 5 errors seguits avisa', async () => {
+      const detect = vi.fn().mockRejectedValue(new Error('Barcode detection service unavailable.'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      vi.useFakeTimers();
+      render(<LectorCarnet onIdentificat={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(screen.getByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+      await act(() => vi.advanceTimersByTimeAsync(4000));
+      expect(detect).toHaveBeenCalledTimes(5);
+    });
+
+    it('mentre la càmera s\'escalfa (readyState < 2) no detecta ni compta errors; després, 5 errors reals sí que avisen', async () => {
+      video.readyState = 1;
+      const detect = vi.fn().mockRejectedValue(new Error('Barcode detection service unavailable.'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      vi.useFakeTimers();
+      render(<LectorCarnet onIdentificat={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+
+      await act(() => vi.advanceTimersByTimeAsync(400 * 10));
+      expect(detect).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      video.readyState = 4;
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(screen.getByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+    });
+
+    it('un InvalidStateError (fotograma encara no disponible) no compta com a error del lector', async () => {
+      const detect = vi.fn().mockRejectedValue(new DOMException('Invalid element or state.', 'InvalidStateError'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      vi.useFakeTimers();
+      render(<LectorCarnet onIdentificat={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+
+      await act(() => vi.advanceTimersByTimeAsync(400 * 20));
+      expect(detect.mock.calls.length).toBeGreaterThanOrEqual(10);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('no intenta detectar res fins que el lector està llest', async () => {
+      let llest;
+      lector.prepararLector = vi.fn(() => new Promise((resolve) => { llest = resolve; }));
+      const detect = vi.fn().mockResolvedValue([]);
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      vi.useFakeTimers();
+      render(<LectorCarnet onIdentificat={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(detect).not.toHaveBeenCalled();
+      llest();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(detect).toHaveBeenCalledTimes(1);
     });
   });
 });

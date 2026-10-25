@@ -5,7 +5,8 @@ import {
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('barcode-detector/polyfill', () => ({}));
+const lector = vi.hoisted(() => ({ prepararLector: null }));
+vi.mock('../../lib/lectorCodis', () => ({ prepararLector: (...args) => lector.prepararLector(...args) }));
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
 const auth = vi.hoisted(() => ({ user: { uid: 'staff-1' } }));
 vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
@@ -47,6 +48,15 @@ async function obrirCodiManual(user) {
   await user.click(await screen.findByRole('button', { name: 'Introduir codi manualment' }));
   return screen.getByLabelText('Codi manual');
 }
+
+// Per defecte el lector de codis està llest (detector natiu o WASM carregat) i
+// el vídeo de la càmera ja té imatge (jsdom el deixa sempre a readyState 0).
+const video = vi.hoisted(() => ({ readyState: 4 }));
+Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { configurable: true, get: () => video.readyState });
+beforeEach(() => {
+  lector.prepararLector = vi.fn().mockResolvedValue(undefined);
+  video.readyState = 4;
+});
 
 describe('EscaneigPage', () => {
   beforeEach(() => {
@@ -724,6 +734,193 @@ describe('EscaneigPage', () => {
       expect(getDocs).not.toHaveBeenCalled();
       expect(addDoc.mock.calls.map(([col]) => col)).toEqual(['escaneigErrors']);
       expect(addDoc.mock.calls[0][1]).toEqual(expect.objectContaining({ motiu: 'qr-soci-rebutjat', codi: 'SOCI-7', metode: 'qr' }));
+    });
+
+    it('amb una sessió activa, comença a preparar el lector (baixar el WASM) abans de clicar Escanejar', async () => {
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await screen.findByRole('button', { name: 'Escanejar' });
+      await waitFor(() => expect(lector.prepararLector).toHaveBeenCalledTimes(1));
+      expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it('si la preparació anticipada falla, no mostra res fins que s\'escaneja', async () => {
+      lector.prepararLector = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await screen.findByRole('button', { name: 'Escanejar' });
+      await waitFor(() => expect(lector.prepararLector).toHaveBeenCalled());
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar' }));
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+    });
+
+    const TEXT_LECTOR = "No s'ha pogut carregar el lector de codis. Pots escriure el codi a mà.";
+    const registresLector = () => addDoc.mock.calls.filter(([col]) => col === 'escaneigErrors').map(([, r]) => r);
+
+    it('si el lector no es pot carregar (WASM inaccessible), avisa amb role=alert, passa al camp de text amb el focus i para la càmera', async () => {
+      lector.prepararLector = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+      const stop = vi.fn();
+      navigator.mediaDevices.getUserMedia.mockResolvedValue({ getTracks: () => [{ stop }] });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      fireEvent.click(await screen.findByRole('button', { name: 'Escanejar' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+      const input = screen.getByLabelText('Codi manual');
+      await waitFor(() => expect(input).toHaveFocus());
+      expect(document.querySelector('video')).toBeNull();
+      await waitFor(() => expect(stop).toHaveBeenCalled());
+      expect(registresLector()).toEqual([expect.objectContaining({ motiu: 'lector-no-disponible', detall: 'Failed to fetch' })]);
+    });
+
+    it('amb el lector no disponible, el codi escrit a mà es registra igualment', async () => {
+      lector.prepararLector = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+      getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [{ data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7, ultimPagament: new Date().toISOString().slice(0, 10) }) }],
+      });
+      const user = userEvent.setup();
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await user.click(await screen.findByRole('button', { name: 'Escanejar' }));
+      await screen.findByRole('alert');
+      await user.type(screen.getByLabelText('Codi manual'), 'SOCI-7');
+      await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+      expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+      expect(addDoc.mock.calls.find(([col]) => col === 'accessLog')[1]).toMatchObject({ numeroSoci: 7, metode: 'manual' });
+    });
+
+    it('si el detector falla a cada fotograma, després de 5 errors seguits avisa i passa al camp de text', async () => {
+      const detect = vi.fn().mockRejectedValue(new DOMException('Barcode detection service unavailable.', 'NotSupportedError'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+      expect(screen.getByLabelText('Codi manual')).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(4000));
+      expect(detect).toHaveBeenCalledTimes(5);
+    });
+
+    it('mentre la càmera s\'escalfa (readyState < 2) no detecta ni compta errors; després, 5 errors reals sí que avisen', async () => {
+      video.readyState = 1;
+      const detect = vi.fn().mockRejectedValue(new DOMException('Barcode detection service unavailable.', 'NotSupportedError'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(400 * 10));
+      expect(detect).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      video.readyState = 4;
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(screen.getByRole('alert')).toHaveTextContent(TEXT_LECTOR);
+    });
+
+    it('un InvalidStateError (fotograma encara no disponible) no compta com a error del lector', async () => {
+      const detect = vi.fn().mockRejectedValue(new DOMException('Invalid element or state.', 'InvalidStateError'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(400 * 20));
+
+      expect(detect.mock.calls.length).toBeGreaterThanOrEqual(10);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.querySelector('video')).not.toBeNull();
+    });
+
+    it('el comptador d\'errors torna a zero cada cop que la càmera es torna a engegar', async () => {
+      const detect = vi.fn().mockRejectedValue(new DOMException('Barcode detection service unavailable.', 'NotSupportedError'));
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+      fireEvent.click(screen.getByRole('button', { name: "Tancar i tornar a l'inici" }));
+      fireEvent.click(screen.getByRole('button', { name: 'Escanejar' }));
+      await act(() => vi.advanceTimersByTimeAsync(400 * 4));
+
+      expect(detect).toHaveBeenCalledTimes(8);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('un error de detecció aïllat no dona el lector per perdut', async () => {
+      let crides = 0;
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() {
+        this.detect = vi.fn().mockImplementation(async () => {
+          crides += 1;
+          if (crides % 4 === 0) return [];
+          throw new Error('fotograma');
+        });
+      });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      await act(() => vi.advanceTimersByTimeAsync(400 * 20));
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.querySelector('video')).not.toBeNull();
+    });
+
+    it('no intenta detectar res fins que el lector està llest', async () => {
+      let llest;
+      lector.prepararLector = vi.fn(() => new Promise((resolve) => { llest = resolve; }));
+      const detect = vi.fn().mockResolvedValue([]);
+      window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      const botoEscanejar = await screen.findByRole('button', { name: 'Escanejar' });
+
+      vi.useFakeTimers();
+      fireEvent.click(botoEscanejar);
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(detect).not.toHaveBeenCalled();
+      llest();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(detect).toHaveBeenCalledTimes(1);
+    });
+
+    it('«Tornar a provar la càmera» torna a engegar el lector i treu l\'avís', async () => {
+      lector.prepararLector = vi.fn()
+        .mockResolvedValueOnce(undefined) // preparació anticipada
+        .mockRejectedValueOnce(new Error('Failed to fetch'))
+        .mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      await user.click(await screen.findByRole('button', { name: 'Escanejar' }));
+      await screen.findByRole('alert');
+
+      await user.click(screen.getByRole('button', { name: 'Tornar a provar la càmera' }));
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.querySelector('video')).not.toBeNull();
+      expect(lector.prepararLector).toHaveBeenCalledTimes(3); // anticipada + 2 escanejos
+    });
+
+    it('si el navegador no exposa la càmera (context no segur), mostra l\'error de càmera en lloc de petar', async () => {
+      Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
+      renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+      fireEvent.click(await screen.findByRole('button', { name: 'Escanejar' }));
+
+      expect(await screen.findByText(/No s'ha pogut accedir a la càmera/)).toBeInTheDocument();
     });
   });
 });

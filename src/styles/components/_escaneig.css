@@ -33,6 +33,12 @@ body.escaneig-body {
 .escaneig__manual {
   @apply flex flex-col gap-3;
 }
+.escaneig__lector-error {
+  @apply mb-4 rounded bg-red-700 px-3 py-2 font-body text-sm font-semibold text-white;
+}
+.escaneig__lector-reintentar {
+  @apply mt-4 inline-flex w-full items-center justify-center gap-2;
+}
 .escaneig__manual-label {
   @apply text-white;
 }
