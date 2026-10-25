@@ -29,6 +29,7 @@ const MOTIU_ETIQUETES = {
   'sessio-canviada': 'Sessió canviada a mig escaneig',
   'sessio-canviada-escrit': 'Sessió canviada (entrada ja desada)',
   abandonat: 'Escaneig abandonat (pantalla tancada)',
+  'lector-no-disponible': 'Lector de QR no disponible',
 };
 
 // Camps afegits als registres a partir d'octubre de 2026; els antics no en

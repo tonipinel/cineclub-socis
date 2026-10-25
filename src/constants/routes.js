@@ -38,6 +38,7 @@ export const TANDES = '/tandes';
 export const TANDES_NOVA = '/tandes/nova';
 export const TANDES_EDITAR = '/tandes/:id';
 export const TANDES_RESULTATS = '/tandes/:id/resultats';
+export const AJUDA = '/ajuda';
 
 export const URL_PROPOSTES_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/';
 export const URL_PROPOSTES_PROPOSAR_PUBLIQUES = 'https://cineclubrodadebera.cat/propostes/proposar/';

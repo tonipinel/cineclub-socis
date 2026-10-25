@@ -1,0 +1,77 @@
+/* Pàgina d'ajuda (/ajuda): índex d'àncores i seccions de text */
+.ajuda__intro {
+  @apply mb-6 text-base text-black/80;
+}
+
+.ajuda__index {
+  @apply mb-8 rounded border border-black/10 bg-neutral-50 p-4;
+}
+.ajuda__index-titol {
+  @apply m-0 mb-2 font-display text-lg font-bold uppercase tracking-wide;
+}
+.ajuda__index-llista {
+  @apply m-0 flex list-decimal flex-col gap-3 pl-5;
+}
+.ajuda__index-subllista {
+  @apply mt-1 flex list-none flex-col gap-1 p-0 sm:grid sm:grid-cols-2 sm:gap-x-4;
+}
+.ajuda__index-enllac {
+  @apply rounded-sm text-sm text-gold-dark no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black;
+}
+.ajuda__index-enllac--seccio {
+  @apply text-base font-semibold;
+}
+
+.ajuda__seccio {
+  @apply mb-10;
+}
+/* Que la capçalera fixa no tapi el títol en saltar-hi des de l'índex. */
+.ajuda__titol-seccio,
+.ajuda__titol-apartat,
+.ajuda__index-titol {
+  @apply scroll-mt-24 lg:scroll-mt-28;
+}
+.ajuda__titol-seccio {
+  @apply mb-4 border-b border-black/10 pb-2 font-display text-xl font-bold uppercase tracking-wide md:text-2xl;
+}
+.ajuda__seccio > .ajuda__cos,
+.ajuda__apartat {
+  @apply mb-6;
+}
+.ajuda__titol-apartat {
+  @apply mb-2 font-body text-lg font-bold;
+}
+
+.ajuda__cos {
+  @apply flex flex-col gap-3 text-base leading-relaxed text-black/85;
+}
+.ajuda__cos p,
+.ajuda__cos dl {
+  @apply m-0;
+}
+.ajuda__cos ol,
+.ajuda__cos ul {
+  @apply m-0 flex flex-col gap-1.5 pl-6;
+}
+.ajuda__cos ol {
+  @apply list-decimal;
+}
+.ajuda__cos ul {
+  @apply list-disc;
+}
+.ajuda__cos dt {
+  @apply mt-3 font-semibold first:mt-0;
+}
+.ajuda__cos dd {
+  @apply m-0 mt-0.5 pl-4 text-black/75;
+}
+.ajuda__cos code {
+  @apply rounded bg-black/5 px-1 font-mono text-sm;
+}
+
+.ajuda__avis {
+  @apply rounded border-l-4 border-amber-600 bg-amber-50 px-4 py-3 font-semibold text-black;
+}
+.ajuda__tornar-index {
+  @apply mt-4 inline-block rounded-sm text-sm font-semibold text-gold-dark no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black;
+}

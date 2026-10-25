@@ -25,6 +25,7 @@
 @import "./components/_entitats.css";
 @import "./components/_pagina-admin.css";
 @import "./components/_fitxa-proposta.css";
+@import "./components/_ajuda.css";
 
 @theme {
   --color-gold: #BF9000;

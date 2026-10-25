@@ -96,10 +96,10 @@ describe('Header', () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
-  it('la barra principal de l\'admin té 5 entrades, sense Sol·licituds, Tandes ni Tiquets', () => {
+  it('la barra principal de l\'admin té 6 entrades, sense Sol·licituds, Tandes ni Tiquets', () => {
     const { container } = renderAdmin();
     expect(entradesPrincipals(container).map((a) => a.getAttribute('aria-label'))).toEqual([
-      'Socis', 'Programació', 'Sala', 'Comptabilitat', 'Configuració',
+      'Socis', 'Programació', 'Sala', 'Comptabilitat', 'Configuració', 'Ajuda',
     ]);
     expect(screen.getByRole('button', { name: 'Sortir' })).toBeInTheDocument();
   });
@@ -108,6 +108,15 @@ describe('Header', () => {
     const { container } = renderAdmin();
     expect(screen.getByRole('button', { name: 'Sortir' })).toHaveClass('site-header__link--sortir');
     entradesPrincipals(container).forEach((a) => expect(a).not.toHaveClass('site-header__link--sortir'));
+  });
+
+  it('l\'enllaç «Ajuda» porta a /ajuda, per a admin i per a taquilla', () => {
+    const { container, unmount } = renderAdmin();
+    expect(entrada(container, 'Ajuda')).toHaveAttribute('href', '/ajuda');
+    unmount();
+    mockUseAuth.mockReturnValue({ user: { uid: '2' }, role: 'taquilla', signOut: vi.fn() });
+    render(<MemoryRouter initialEntries={['/escaneig']}><Header /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Ajuda' })).toHaveAttribute('href', '/ajuda');
   });
 
   it('les entrades de grup enllacen al seu primer element', () => {
@@ -218,7 +227,7 @@ describe('Header', () => {
     });
   });
 
-  it('quan l\'usuari és taquilla, només mostra l\'enllaç d\'Escaneig i el botó de sortir', async () => {
+  it('quan l\'usuari és taquilla, només mostra els enllaços d\'Escaneig i d\'Ajuda i el botó de sortir', async () => {
     const signOut = vi.fn();
     mockUseAuth.mockReturnValue({ user: { uid: '2' }, role: 'taquilla', signOut });
     const user = userEvent.setup();
@@ -233,7 +242,7 @@ describe('Header', () => {
     expect(screen.queryByText('Tiquets')).not.toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Submenú' })).not.toBeInTheDocument();
     expect(container.querySelector('.site-header__subgrup')).toBeNull();
-    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Escaneig']);
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Escaneig', 'Ajuda']);
     const botoSortir = screen.getByRole('button', { name: 'Sortir' });
     await user.click(botoSortir);
     expect(signOut).toHaveBeenCalledTimes(1);

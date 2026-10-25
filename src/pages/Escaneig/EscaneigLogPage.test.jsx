@@ -80,7 +80,7 @@ describe('EscaneigLogPage', () => {
   });
 
   it('mostra les etiquetes dels motius de diagnòstic nous', async () => {
-    const motius = ['debounce', 'lots-no-carregats', 'error-escriptura', 'timeout-escriptura', 'sense-connexio', 'pendent-enviar', 'lectura-lenta', 'sessio-canviada', 'sessio-canviada-escrit', 'abandonat', 'qr-soci-rebutjat'];
+    const motius = ['debounce', 'lots-no-carregats', 'error-escriptura', 'timeout-escriptura', 'sense-connexio', 'pendent-enviar', 'lectura-lenta', 'sessio-canviada', 'sessio-canviada-escrit', 'abandonat', 'qr-soci-rebutjat', 'lector-no-disponible'];
     mockSessionsIErrors([SESSIO_DOC], motius.map((motiu, i) => ({
       id: `err-${i}`,
       data: () => ({ sessionId: 'sessio-1', motiu, codi: `SOCI-${i}`, metode: 'qr', timestamp: null }),
@@ -97,6 +97,8 @@ describe('EscaneigLogPage', () => {
     expect(screen.getByText('Sessió canviada (entrada ja desada)')).toBeInTheDocument();
     expect(screen.getByText('Escaneig abandonat (pantalla tancada)')).toBeInTheDocument();
     expect(screen.getByText('QR amb número de soci (no és un carnet)')).toBeInTheDocument();
+    expect(screen.getByText('Lector de QR no disponible')).toBeInTheDocument();
+    expect(screen.queryByText('lector-no-disponible')).not.toBeInTheDocument();
   });
 
   it('mostra el nombre d\'intents de lectura quan n\'hi ha', async () => {

@@ -53,6 +53,7 @@ export const RUTES = [
   '/propostes/pendents/p23', '/propostes/pendents/p23?pestanya=gestio', '/propostes/pendents/p23?pestanya=pellicula', '/propostes/pendents/p23?pestanya=mitjans',
   '/propostes/pendents/p24', '/propostes/pendents/p24?pestanya=pellicula', '/propostes/pendents/p24?pestanya=gestio', '/propostes/pendents/p24?pestanya=mitjans',
   '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t3', '/tandes/t1/resultats',
+  '/ajuda',
   // Estats d'error: documents que no existeixen, lectures que fallen (`?falla-lectures`) i la sessió que no es pot
   // comprovar (`?falla-sessio`), vegeu `scripts/arnes-admin/mocks/`.
   '/sessions/no-existeix', '/propostes/pendents/no-existeix', '/socis/no-existeix/carnet',

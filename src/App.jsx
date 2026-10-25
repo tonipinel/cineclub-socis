@@ -43,6 +43,7 @@ const EntitatForm = lazy(() => import('./pages/Entitats/EntitatForm'));
 const TandesList = lazy(() => import('./pages/Tandes/TandesList'));
 const TandaForm = lazy(() => import('./pages/Tandes/TandaForm'));
 const TandaResultats = lazy(() => import('./pages/Tandes/TandaResultats'));
+const AjudaPage = lazy(() => import('./pages/Ajuda/AjudaPage'));
 
 // Els enllaços antics de la votació eren /#<id>: amb hash van a la web pública;
 // sense hash, / porta al login (que ja envia l'admin al dashboard).
@@ -415,6 +416,16 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={[ROLE_ADMIN]}>
                       <TandaResultats />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path={ROUTES.AJUDA}
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={[ROLE_ADMIN, ROLE_TAQUILLA]}>
+                      <AjudaPage />
                     </RequireRole>
                   </RequireAuth>
                 }
