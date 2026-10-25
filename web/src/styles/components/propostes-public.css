@@ -62,8 +62,8 @@ body:has(.propostes-app) > main {
 .carregant {
   @apply flex min-h-screen w-full items-center justify-center;
 }
-.carregant__gif {
-  @apply h-24 w-24;
+.carregant__spinner {
+  @apply h-16 w-16 animate-spin rounded-full border-8 border-black/10 border-t-gold;
 }
 
 /* Camps i errors de formulari, enllaç (_forms.css). */

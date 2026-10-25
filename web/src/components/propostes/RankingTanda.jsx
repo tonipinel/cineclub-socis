@@ -1,3 +1,4 @@
+import { resizedUrl } from '../../lib/images.js';
 import IconaPolze from './IconaPolze.jsx';
 import TitolLocal from './TitolLocal.jsx';
 
@@ -25,7 +26,7 @@ function Fila({ fila, proposta, vot, posicio }) {
   return (
     <li className={`ranking-tanda__fila ${posicio ? '' : 'ranking-tanda__fila--sense-posicio'}`}>
       {proposta?.imatgeUrl ? (
-        <img className="ranking-tanda__cartell" src={proposta.imatgeUrl} alt="" loading="lazy" />
+        <img className="ranking-tanda__cartell" src={resizedUrl(proposta.imatgeUrl, 200)} alt="" loading="lazy" />
       ) : (
         <div className="ranking-tanda__cartell ranking-tanda__cartell-placeholder" aria-hidden="true">🎬</div>
       )}

@@ -11,7 +11,7 @@ vi.mock('../../src/components/propostes/LectorCarnet.jsx', () => ({
     </button>
   ),
 }));
-vi.mock('firebase/firestore', () => ({
+vi.mock('firebase/firestore/lite', () => ({
   collection: vi.fn((_, nom) => nom),
   query: vi.fn((collectionName, ...constraints) => ({ collectionName, constraints })),
   where: vi.fn((field, op, value) => ({ field, op, value })),
@@ -24,7 +24,7 @@ vi.mock('../../src/lib/propostes/votacio.js', () => ({
   ordreBarrejat: vi.fn((ids) => [...ids]),
 }));
 
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore/lite';
 import { carregarEstat, carregarRanking } from '../../src/lib/propostes/votacio.js';
 import IllaVotar from '../../src/components/propostes/IllaVotar.jsx';
 

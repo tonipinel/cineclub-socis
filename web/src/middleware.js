@@ -19,6 +19,8 @@ const CARTELL = /^\/programacio\/[^/]+\/[^/]+\/cartell\.html$/;
 // Qualsevol altre camí d'imatge que doni 404 és un 404 sense cap lectura.
 const IMATGE = /\.(?:jpg|jpeg|png|webp)$/;
 
+const PAGINA_AMB_SESSIONS = /^\/(?:programacio\/(?:\d{4}\/[^/]+\/)?)?$/;
+
 // Les pàgines HTML acaben en barra (trailingSlash: 'always') o són el cartell: les úniques que pinten
 // entitats i distribuïdores. Els estàtics, les imatges i els endpoints de dades (.xml, .txt, .webp, .jpg) no hi passen.
 const esPaginaHtml = (pathname) => pathname.endsWith('/') || CARTELL.test(pathname);
@@ -58,6 +60,9 @@ export const onRequest = async (context, next) => {
   let response;
   const html = esPaginaHtml(pathname);
   if (html) {
+    // Les pàgines que pinten sessions (portada, programació, fitxa) les llegeixen en paral·lel amb els
+    // catàlegs: la memòria les comparteix amb la pàgina, que ja gestiona l'errada si falla.
+    if (PAGINA_AMB_SESSIONS.test(pathname)) sessionsPubliques().catch(() => {});
     // Els carregadors no llancen; si ho fessin, la pàgina es pinta amb l'últim catàleg de cadascun.
     await Promise.all([
       carregaEntitats().catch((err) => console.error('error en carregar les entitats', err)),

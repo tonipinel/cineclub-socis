@@ -4,6 +4,8 @@ import IllaProposar from '../../../components/propostes/IllaProposar.jsx';
 ---
 <BaseLayout titol="Proposa una pel·lícula" noindex>
   <div class="propostes-app">
-    <IllaProposar client:only="react" />
+    <IllaProposar client:only="react">
+      <div slot="fallback" class="carregant" role="status"><span class="carregant__spinner" role="img" aria-label="Carregant…"></span></div>
+    </IllaProposar>
   </div>
 </BaseLayout>

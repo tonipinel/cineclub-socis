@@ -20,6 +20,8 @@ const descripcio = "Les persones sòcies del Cineclub Roda de Berà proposen pel
     </section>
     <!-- Amb identitat, l'illa comença en mode immersiu (carrega l'estat del soci): s'amaga la intro abans de pintar perquè no parpellegi; l'illa la torna a mostrar si no hi ha votació. -->
     <script is:inline>try { if (sessionStorage.getItem('cineclub.identitat')) document.body.classList.add('propostes-immersiu-body'); } catch {}</script>
-    <IllaPropostes client:only="react" />
+    <IllaPropostes client:only="react">
+      <div slot="fallback" class="carregant" role="status"><span class="carregant__spinner" role="img" aria-label="Carregant…"></span></div>
+    </IllaPropostes>
   </div>
 </BaseLayout>

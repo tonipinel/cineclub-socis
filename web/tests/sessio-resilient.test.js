@@ -78,7 +78,9 @@ const ambDb = (llista = docs) => {
     collection: (nom) => ({
       get: async () => ({ docs: (nom === 'sessions' ? llista : []).map(({ id, ...dades }) => ({ id, data: () => dades })) }),
       doc: (id) => ({ get: async () => ({ exists: nom === 'pagines' && !!pagines[id], data: () => pagines[id] }) }),
-      where: () => ({ get: async () => ({ docs: [] }) }),
+      where: (camp, op, valor) => ({
+        get: async () => ({ docs: nom === 'sessions' ? llista.filter((s) => s[camp] === valor).map(({ id, ...dades }) => ({ id, data: () => dades })) : [] }),
+      }),
     }),
   };
   return globalThis.__dbFals;

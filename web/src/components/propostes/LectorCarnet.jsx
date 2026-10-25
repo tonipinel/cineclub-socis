@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore/lite';
 import { db } from '../../firebase/client.js';
 import { identificarCodi } from '../../lib/propostes/identificarCodi.js';
-import { prepararLector } from '../../lib/propostes/lectorCodis.js';
 
 const DEBOUNCE_MS = 3000;
 // Deteccions fallides seguides (≈ 2 s) que fan donar el lector per no disponible.
@@ -12,20 +11,33 @@ const TEXT_LECTOR_NO_DISPONIBLE = "No s'ha pogut carregar el lector. Torna-ho a 
 export default function LectorCarnet({ onIdentificat }) {
   const videoRef = useRef(null);
   const ultimCodiRef = useRef({ codi: null, moment: 0 });
+  // El lector (polyfill de BarcodeDetector + WASM de zxing) pesa molt: només es baixa en tocar «Escanejar».
+  const lectorRef = useRef(null);
   const [escanejant, setEscanejant] = useState(false);
+  const [descarregant, setDescarregant] = useState(false);
   const [verificant, setVerificant] = useState(false);
   const [error, setError] = useState(null);
   // El lector de QR no ha arrencat (WASM no carregat, detector que falla): sense
   // això la càmera mostraria la imatge però mai no llegiria res, en silenci.
   const [lectorNoDisponible, setLectorNoDisponible] = useState(false);
 
-  const handleEscanejar = () => {
+  const handleEscanejar = async () => {
+    setError(null);
+    setLectorNoDisponible(false);
+    setDescarregant(true);
+    // Importar el mòdul instal·la el polyfill: la comprovació de `BarcodeDetector` va després.
+    try {
+      lectorRef.current = await import('../../lib/propostes/lectorCodis.js');
+    } catch {
+      setLectorNoDisponible(true);
+      return;
+    } finally {
+      setDescarregant(false);
+    }
     if (!('BarcodeDetector' in window)) {
       setError('Aquest navegador no permet escanejar codis QR. Prova-ho amb un altre mòbil o navegador.');
       return;
     }
-    setError(null);
-    setLectorNoDisponible(false);
     setEscanejant(true);
   };
 
@@ -77,7 +89,7 @@ export default function LectorCarnet({ onIdentificat }) {
       lectorFallit();
       return undefined;
     }
-    prepararLector().then(() => { lectorLlest = true; }, lectorFallit);
+    lectorRef.current.prepararLector().then(() => { lectorLlest = true; }, lectorFallit);
 
     // Dins la promesa: sense context segur, navigator.mediaDevices no existeix.
     Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })).then((s) => {
@@ -126,8 +138,8 @@ export default function LectorCarnet({ onIdentificat }) {
         <p className="form__error" role="alert">{TEXT_LECTOR_NO_DISPONIBLE}</p>
       )}
       {!escanejant && (
-        <button type="button" className="btn" onClick={handleEscanejar}>
-          {lectorNoDisponible ? 'Tornar-ho a provar' : 'Escanejar el meu carnet'}
+        <button type="button" className="btn" onClick={handleEscanejar} disabled={descarregant}>
+          {descarregant ? 'Carregant el lector…' : lectorNoDisponible ? 'Tornar-ho a provar' : 'Escanejar el meu carnet'}
         </button>
       )}
       {escanejant && (

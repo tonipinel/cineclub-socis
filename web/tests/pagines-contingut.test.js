@@ -5,6 +5,7 @@ import RutaContingut from '../src/pages/[slug].astro';
 import FesTeSocia from '../src/pages/fes-te-socia/index.astro';
 import Pagina404 from '../src/pages/404.astro';
 import { normalitza } from './helpers/html.js';
+import { conWhere } from './helpers/firestore.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -63,7 +64,7 @@ const pagines = {
 
 const ambDb = (docs = pagines) => {
   globalThis.__dbFals = {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: [] }),
       doc: (id) => ({ get: async () => ({ exists: nom === 'pagines' && !!docs[id], data: () => docs[nom === 'pagines' ? id : ''] }) }),
     }),

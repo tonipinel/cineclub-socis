@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { resizedUrl } from '../../lib/images.js';
 import IconaPolze from './IconaPolze.jsx';
 
 const NOM_VOT = {
@@ -40,7 +41,7 @@ export default function PantallaFinalVot({
               onClick={() => onCanviar(p.id)}
             >
               {p.imatgeUrl ? (
-                <img className="resum-vots__imatge" src={p.imatgeUrl} alt="" />
+                <img className="resum-vots__imatge" src={resizedUrl(p.imatgeUrl, 300)} alt="" />
               ) : (
                 <span className="resum-vots__placeholder">
                   <span className="resum-vots__placeholder-titol">{p.titol}</span>

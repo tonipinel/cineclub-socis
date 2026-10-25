@@ -51,7 +51,7 @@ describe('/propostes/', () => {
 
   it('munta l\'illa de React només al client, dins <div class="propostes-app"> (els estils de .btn en depenen)', async () => {
     const { html } = await renderitza('/propostes/');
-    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaPropostes[^"]*"[^>]*client="only"[^>]*><\/astro-island><\/div><\/main>/);
+    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaPropostes[^"]*"[^>]*client="only"[^>]*>[\s\S]*?<\/astro-island><\/div><\/main>/);
     expect(html).toMatch(/renderer-url="[^"]+"/);
   });
 
@@ -113,7 +113,7 @@ describe('/propostes/proposar/', () => {
 
   it('munta l\'illa de React només al client, dins <div class="propostes-app">', async () => {
     const { html } = await renderitza('/propostes/proposar/');
-    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaProposar[^"]*"[^>]*client="only"[^>]*><\/astro-island><\/div><\/main>/);
+    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaProposar[^"]*"[^>]*client="only"[^>]*>[\s\S]*?<\/astro-island><\/div><\/main>/);
   });
 
   it('marca «Propostes» com a activa al menú', async () => {
@@ -164,7 +164,7 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
 
   it('munta l\'illa de React només al client, dins <div class="propostes-app">', async () => {
     const { html } = await renderitza('/propostes/votar/');
-    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaVotar[^"]*"[^>]*client="only"[^>]*><\/astro-island><\/div><\/main>/);
+    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaVotar[^"]*"[^>]*client="only"[^>]*>[\s\S]*?<\/astro-island><\/div><\/main>/);
     expect(html).not.toContain('IllaPropostes');
   });
 

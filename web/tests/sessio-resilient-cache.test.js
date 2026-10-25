@@ -8,6 +8,7 @@ import TermeDirectors from '../src/pages/directors/[terme].astro';
 import TermeInterprets from '../src/pages/interprets/[terme].astro';
 import Pagina404 from '../src/pages/404.astro';
 import { CACHE_AVUI, CACHE_CLIENT } from '../src/lib/cache.js';
+import { conWhere } from './helpers/firestore.js';
 
 // Si un llistat ha hagut d'ometre una sessió que no es podia pintar, la resposta no es pot quedar un
 // dia al CDN: la pàgina va amb la caché curta dels errors del client.
@@ -34,7 +35,7 @@ const docs = [
 beforeEach(() => {
   globalThis.__omesa = null;
   globalThis.__dbFals = {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: (nom === 'sessions' ? docs : []).map(({ id, ...dades }) => ({ id, data: () => dades })) }),
       doc: () => ({ get: async () => ({ exists: false }) }),
     }),

@@ -232,7 +232,8 @@ describe('middleware', () => {
       const alias = await onRequest(context('/programacio/25-de-juny-pig/'), no404);
       expect(alias.status).toBe(301);
       expect(alias.headers.get('Location')).toBe('/programacio/2026/pig/');
-      expect(sessionsMock).toHaveBeenCalledTimes(1);
+      // Una per a l'avançament de la pàgina de la sessió i una per a l'alias (a producció la memòria les uneix).
+      expect(sessionsMock).toHaveBeenCalledTimes(2);
     });
   });
 

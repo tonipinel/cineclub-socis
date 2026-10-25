@@ -1,5 +1,7 @@
 import sharp from 'sharp';
-import { STORAGE_PREFIX, RESIZE_WIDTHS } from './images.js';
+import { PREFIXOS_STORAGE, RESIZE_WIDTHS } from './images.js';
+import { getBucket } from './storage.js';
+import { llegir } from './db.js';
 
 const MAX_BYTES = 40 * 1024 * 1024;
 // Límit de píxels d'entrada (25 MP): una bomba de descompressió petita en bytes no omple la memòria.
@@ -19,11 +21,14 @@ export const urlStorage = (valor) => {
   } catch {
     return null;
   }
-  if (!url.href.startsWith(STORAGE_PREFIX)) return null;
+  if (!PREFIXOS_STORAGE.some((prefix) => url.href.startsWith(prefix))) return null;
   try {
     // Nom de l'objecte (`web%2Fsessions%2F...`) ja decodificat: cap segment pot ser `.` ni `..`.
     const nom = decodeURIComponent(url.pathname.split('/o/')[1] ?? '');
-    if (nom.split('/').some((tros) => tros === '.' || tros === '..')) return null;
+    const trossos = nom.split('/');
+    if (trossos.some((tros) => tros === '.' || tros === '..')) return null;
+    // `carteils/` és pla: cap subcarpeta.
+    if (trossos[0] === 'carteils' && trossos.length !== 2) return null;
   } catch {
     return null;
   }
@@ -101,4 +106,19 @@ export const fetchImage = async (url, fetchFn = fetch, { timeoutMs = 10000, maxB
   const declarat = res.headers.get('content-length');
   if (declarat !== null && !(Number(declarat) <= maxBytes)) return null;
   return llegirAmbLimit(res, maxBytes);
+};
+
+// Nom de l'objecte (`web/sessions/a.jpg`) d'una adreça ja validada per `urlStorage`.
+export const nomObjecte = (url) => decodeURIComponent(new URL(url).pathname.split('/o/')[1] ?? '');
+
+// Com `fetchImage`, però llegint l'original amb l'Admin SDK (xarxa interna de Google, sense passar per
+// l'endpoint públic de Storage). Mateixos límits: tipus ràster i mida màxima, comprovats a les metadades
+// abans de baixar res. `url` ha de venir de `resizeRequest`. Retorna null si no compleix.
+export const llegirStorage = async (url, bucket = getBucket(), { timeoutMs = 10000, maxBytes = MAX_BYTES } = {}) => {
+  const fitxer = bucket.file(nomObjecte(url));
+  const [meta] = await llegir(fitxer.getMetadata(), timeoutMs);
+  const tipus = String(meta.contentType).split(';')[0].trim().toLowerCase();
+  if (!TIPUS_PERMESOS.includes(tipus) || !(Number(meta.size) <= maxBytes)) return null;
+  const [contingut] = await llegir(fitxer.download(), timeoutMs);
+  return contingut.length <= maxBytes ? contingut : null;
 };

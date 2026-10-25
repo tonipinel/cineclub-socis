@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore/lite';
 import { getFunctions } from 'firebase/functions';
 
 // Configuració pública del projecte (la mateixa que fes-te-socia-form.js

@@ -4,6 +4,7 @@ import RutaCartell from '../src/pages/programacio/[any]/[slug]/cartell.html.astr
 import Pagina404 from '../src/pages/404.astro';
 import { entradesSitemap } from '../src/lib/sitemap.js';
 import { fixaEntitatsDeProva } from '../src/lib/entitats.js';
+import { conWhere } from './helpers/firestore.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -45,7 +46,7 @@ const ambPublica = (publica, extra = {}) => ({ ...pig, ...extra, publica: { ...p
 
 const ambDb = (sessions, imatges = { 'hero-logo.png': LOGO }) => {
   globalThis.__dbFals = {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: sessions.map(({ id, ...dades }) => ({ id, data: () => dades })) }),
       doc: (id) => ({ get: async () => ({ exists: nom === 'pagines' && id === 'portada', data: () => ({ slug: 'portada', imatges }) }) }),
     }),
@@ -193,7 +194,7 @@ describe('ruta /programacio/<any>/<slug>/cartell.html', () => {
   });
 
   it('no surt al sitemap', async () => {
-    const urls = (await entradesSitemap({ collection: () => ({ get: async () => ({ docs: [{ id: 'pig', data: () => pig }] }), doc: () => ({ get: async () => ({ exists: false }) }), where: () => ({ get: async () => ({ docs: [] }) }) }) })).map((e) => e.cami);
+    const urls = (await entradesSitemap({ collection: (nom) => ({ doc: () => ({ get: async () => ({ exists: false }) }), where: () => ({ get: async () => ({ docs: nom === 'sessions' ? [{ id: 'pig', data: () => pig }] : [] }) }) }) })).map((e) => e.cami);
     expect(urls.some((u) => u.includes('/programacio/2026/pig/'))).toBe(true);
     expect(urls.some((u) => u.includes('cartell'))).toBe(false);
   });

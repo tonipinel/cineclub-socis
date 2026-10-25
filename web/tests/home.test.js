@@ -3,6 +3,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import Portada from '../src/pages/index.astro';
 import Programacio from '../src/pages/programacio/index.astro';
 import { CACHE_AVUI } from '../src/lib/cache.js';
+import { conWhere } from './helpers/firestore.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -54,7 +55,7 @@ const programacio = {
 
 const ambDb = (pagines = { portada, programacio }) => {
   globalThis.__dbFals = {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: (nom === 'sessions' ? sessions : []).map(({ id, ...dades }) => ({ id, data: () => dades })) }),
       doc: (id) => ({ get: async () => ({ exists: nom === 'pagines' && !!pagines[id], data: () => pagines[id] }) }),
     }),

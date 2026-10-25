@@ -9,6 +9,8 @@ export const getDb = () => {
   if (!db) {
     if (!getApps().length) initializeApp({ projectId: PROJECT_ID });
     db = getFirestore();
+    // REST en lloc de gRPC: la primera lectura d'una instància freda no ha d'obrir cap canal gRPC.
+    db.settings({ preferRest: true });
   }
   return db;
 };

@@ -17,7 +17,7 @@ const stamp = (data) => ({ toDate: () => data });
 const futur = () => stamp(new Date(Date.now() + 7 * 86400000));
 const passat = () => stamp(new Date(Date.now() - 7 * 86400000));
 
-// Db fals: només `collection('tandes').get()` i `doc('propostes/<id>').get()`, com el codi real.
+// Db fals: només `collection('tandes').get()` i `getAll(doc('propostes/<id>'), ...)`, com el codi real.
 const dbFals = ({ tandes = [], propostes = {}, falla = false } = {}) => ({
   collection: () => ({
     get: async () => {
@@ -25,11 +25,10 @@ const dbFals = ({ tandes = [], propostes = {}, falla = false } = {}) => ({
       return { docs: tandes.map(({ id, ...dades }) => ({ id, data: () => dades })) };
     },
   }),
-  doc: (ruta) => ({
-    get: async () => {
-      const dades = propostes[ruta.split('/')[1]];
-      return { exists: Boolean(dades), data: () => dades };
-    },
+  doc: (ruta) => ({ ruta }),
+  getAll: async (...refs) => refs.map(({ ruta }) => {
+    const dades = propostes[ruta.split('/')[1]];
+    return { exists: Boolean(dades), data: () => dades };
   }),
 });
 

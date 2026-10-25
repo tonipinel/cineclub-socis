@@ -9,9 +9,9 @@ function dbFals({ sessions = [], pagines = {}, propostes = [] }) {
   return {
     collection: (nom) => ({
       get: async () => ({ docs: docs(nom === 'sessions' ? sessions : []) }),
-      // Només `where('estat', '==', 'aprovada')` sobre `propostes`.
+      // `where('estat', '==', 'aprovada')` sobre `propostes` i `where('publicada', '==', true)` sobre `sessions`.
       where: (camp, op, valor) => ({
-        get: async () => ({ docs: docs(nom === 'propostes' ? propostes.filter((p) => p[camp] === valor) : []) }),
+        get: async () => ({ docs: docs((nom === 'propostes' ? propostes : nom === 'sessions' ? sessions : []).filter((p) => p[camp] === valor)) }),
       }),
       doc: (id) => ({
         get: async () => {

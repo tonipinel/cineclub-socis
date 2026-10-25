@@ -111,7 +111,7 @@ function publicable(s) {
 // dolent no pugui fer caure tot el web. La lectura es memoritza ~60 s (vegeu memo.js).
 export function sessionsPubliques(db = getDb()) {
   return memo.obte(db, 'sessions', async () => {
-    const snap = await llegir(db.collection('sessions').get());
+    const snap = await llegir(db.collection('sessions').where('publicada', '==', true).get());
     return snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter(publicable)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore/lite';
 import { db } from '../../firebase/client.js';
 import { triaTanda } from '../../lib/propostes/tandes.js';
 import { carregarEstat } from '../../lib/propostes/votacio.js';

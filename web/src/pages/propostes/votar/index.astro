@@ -20,6 +20,8 @@ const descripcio = "Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·
   <!-- Inter 700, com a /propostes/: el `<b>` de «Proposada per» de la fitxa. -->
   <link slot="head" href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
   <div class="propostes-app">
-    <IllaVotar client:only="react" />
+    <IllaVotar client:only="react">
+      <div slot="fallback" class="carregant" role="status"><span class="carregant__spinner" role="img" aria-label="Carregant…"></span></div>
+    </IllaVotar>
   </div>
 </BaseLayout>

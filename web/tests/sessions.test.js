@@ -6,11 +6,12 @@ import {
   sessionsRelacionades,
 } from '../src/lib/sessions.js';
 import { dataIso } from '../src/lib/format.js';
+import { conWhere } from './helpers/firestore.js';
 
 // Db fals: només `collection('sessions').get()`, com el que fa el codi real.
 function dbFals(docs) {
   return {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({
         docs: (nom === 'sessions' ? docs : []).map(({ id, ...dades }) => ({ id, data: () => dades })),
       }),
@@ -230,7 +231,7 @@ describe('sessionsRelacionades (related-sessions.html)', () => {
 describe('sessionsPubliques: memòria', () => {
   it('no torna a llegir Firestore dins del TTL i no memoritza les errades', async () => {
     const get = vi.fn().mockRejectedValueOnce(new Error('caiguda')).mockResolvedValue({ docs: [] });
-    const db = { collection: () => ({ get }) };
+    const db = { collection: () => ({ where: () => ({ get }) }) };
     await expect(sessionsPubliques(db)).rejects.toThrow();
     await sessionsPubliques(db);
     await sessionsPubliques(db);

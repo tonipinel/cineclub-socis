@@ -7,7 +7,7 @@ describe('firebase/client', () => {
   it('es pot importar en Node i exporta app, db i functions', async () => {
     const mod = await import('../src/firebase/client.js');
     expect(mod.app.options.projectId).toBe('cineclub-socis');
-    expect(mod.db.type).toBe('firestore');
+    expect(mod.db.type).toBe('firestore-lite');
     expect(mod.functions.region).toBe('us-central1');
   });
 

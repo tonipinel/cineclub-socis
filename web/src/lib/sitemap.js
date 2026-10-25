@@ -4,7 +4,10 @@ import { SLUGS_CONTINGUT, paginaPerSlug } from './pagines.js';
 import { urlSessioCodificada, urlTerme } from './sessio-camps.js';
 import { sessionsPubliques } from './sessions.js';
 import { termesDe } from './taxonomies.js';
+import { creaMemo } from './memo.js';
 import { escapaXml } from './xml.js';
+
+const memo = creaMemo();
 
 const TAXONOMIES = ['directors', 'generes', 'interprets'];
 const PAGINES = [...SLUGS_CONTINGUT, 'fes-te-socia'];
@@ -48,16 +51,15 @@ export const lastmodPagina = (pagina) => {
 
 // `lastmod` de /propostes/: la proposta aprovada més recent (instant UTC sense mil·lisegons). Sense propostes
 // aprovades, o si la lectura falla, la URL surt sense `lastmod`.
-async function lastmodPropostes(db) {
-  try {
-    const snap = await llegir(db.collection('propostes').where('estat', '==', 'aprovada').get());
-    const instants = snap.docs.map((d) => d.data().timestamp?.toDate?.().getTime()).filter(Number.isFinite);
-    return instants.length ? new Date(Math.max(...instants)).toISOString().replace(/\.\d+Z$/, 'Z') : null;
-  } catch (err) {
-    console.error('error en llegir les propostes per al sitemap', err);
-    return null;
-  }
-}
+// Es memoritza ~60 s (vegeu memo.js); si la lectura falla no es desa i la següent petició ho torna a provar.
+const lastmodPropostes = (db) => memo.obte(db, 'lastmod-propostes', async () => {
+  const snap = await llegir(db.collection('propostes').where('estat', '==', 'aprovada').get());
+  const instants = snap.docs.map((d) => d.data().timestamp?.toDate?.().getTime()).filter(Number.isFinite);
+  return instants.length ? new Date(Math.max(...instants)).toISOString().replace(/\.\d+Z$/, 'Z') : null;
+}).catch((err) => {
+  console.error('error en llegir les propostes per al sitemap', err);
+  return null;
+});
 
 const mesRecent = (lastmods) => lastmods.reduce((a, b) => (a === null || instant(b) > instant(a) ? b : a), null);
 

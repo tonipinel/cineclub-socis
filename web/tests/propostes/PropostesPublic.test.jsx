@@ -12,7 +12,7 @@ vi.mock('../../src/components/propostes/LectorCarnet.jsx', () => ({
     </button>
   ),
 }));
-vi.mock('firebase/firestore', () => ({
+vi.mock('firebase/firestore/lite', () => ({
   collection: vi.fn((_, nom) => nom),
   query: vi.fn((collectionName, ...constraints) => ({ collectionName, constraints })),
   where: vi.fn((field, op, value) => ({ field, op, value })),
@@ -29,7 +29,7 @@ vi.mock('../../src/lib/propostes/votacio.js', () => ({
   ordreBarrejat: vi.fn((ids) => [...ids]),
 }));
 
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore/lite';
 import {
   carregarEstat, votar, carregarRanking, carregarRankingPublic, ordreBarrejat,
 } from '../../src/lib/propostes/votacio.js';
@@ -218,7 +218,7 @@ describe('PropostesPublic', () => {
       carregarEstat.mockResolvedValue({ tanda: null });
       renderPaginaPreIdentificat();
       const estat = await screen.findByRole('status');
-      expect(within(estat).getByAltText('Carregant…')).toBeInTheDocument();
+      expect(within(estat).getByRole('img', { name: 'Carregant…' })).toBeInTheDocument();
     });
 
     it('amb tanda activa, el visitant té un botó per votar-la que demana el carnet i, un cop escanejat, entra a votar', async () => {
@@ -268,10 +268,10 @@ describe('PropostesPublic', () => {
       carregarRankingPublic.mockReturnValue(new Promise((r) => { resol = r; }));
       renderPagina();
       await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / });
-      expect(within(screen.getByRole('status')).getByAltText('Carregant…')).toBeInTheDocument();
+      expect(within(screen.getByRole('status')).getByRole('img', { name: 'Carregant…' })).toBeInTheDocument();
       await act(async () => { resol({ files: [{ propostaId: 'p1', percentatge: 50 }] }); });
       expect(await screen.findByText('50 %')).toBeInTheDocument();
-      expect(screen.queryByAltText('Carregant…')).not.toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'Carregant…' })).not.toBeInTheDocument();
     });
 
     it('si el rànquing públic falla, ho diu i «Tornar-ho a provar» el torna a demanar', async () => {

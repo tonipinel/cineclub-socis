@@ -27,10 +27,9 @@ export async function cartellsDeLaTanda(db, ara = new Date()) {
   const tanda = triaTanda(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })), ara);
   const idsTanda = (Array.isArray(tanda?.propostes) ? tanda.propostes : [])
     .filter((id) => typeof id === 'string' && id !== '' && !id.includes('/'));
-  const propostes = await Promise.all(idsTanda.map(async (id) => {
-    const proposta = await llegir(db.doc(`propostes/${id}`).get(), LECTURA_MS);
-    return proposta.exists ? proposta.data() : null;
-  }));
+  // Una sola lectura per a totes les propostes de la tanda.
+  const docs = idsTanda.length ? await llegir(db.getAll(...idsTanda.map((id) => db.doc(`propostes/${id}`))), LECTURA_MS) : [];
+  const propostes = docs.map((proposta) => (proposta.exists ? proposta.data() : null));
   return propostes
     .filter((proposta) => ESTATS_EFECTIUS.includes(proposta?.estat))
     .map((proposta) => urlCartell(proposta.imatgeUrl))

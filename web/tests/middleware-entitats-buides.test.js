@@ -5,7 +5,7 @@ const { dbRef } = vi.hoisted(() => ({ dbRef: { docs: [], distribuidores: [] } })
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
   getDb: () => ({
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: (nom === 'distribuidores' ? dbRef.distribuidores : dbRef.docs).map((d) => ({ data: () => d })) }),
     }),
   }),
@@ -16,6 +16,7 @@ import { fixaEntitatsDeProva, entitatsCarregades } from '../src/lib/entitats.js'
 import { fixaDistribuidoresDeProva, distribuidoresCarregades } from '../src/lib/distribuidores.js';
 import { reiniciaMemos } from '../src/lib/memo.js';
 import { CACHE_CLIENT, CACHE_OK } from '../src/lib/cache.js';
+import { conWhere } from './helpers/firestore.js';
 
 const context = (path) => ({ url: new URL(`http://localhost${path}`) });
 const ok = () => Promise.resolve(new Response('<p>hola</p>', { status: 200 }));

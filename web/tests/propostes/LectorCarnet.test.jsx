@@ -6,17 +6,23 @@ import userEvent from '@testing-library/user-event';
 const lector = vi.hoisted(() => ({ prepararLector: null }));
 vi.mock('../../src/lib/propostes/lectorCodis.js', () => ({ prepararLector: (...args) => lector.prepararLector(...args) }));
 vi.mock('../../src/firebase/client.js', () => ({ db: {} }));
-vi.mock('firebase/firestore', () => ({
+vi.mock('firebase/firestore/lite', () => ({
   doc: vi.fn((...args) => args[args.length - 1]),
   getDoc: vi.fn(),
 }));
 
-import { getDoc } from 'firebase/firestore';
+import { getDoc } from 'firebase/firestore/lite';
 import LectorCarnet from '../../src/components/propostes/LectorCarnet.jsx';
 
 // jsdom deixa el vídeo sempre a readyState 0: per defecte, la càmera ja té imatge.
 const video = vi.hoisted(() => ({ readyState: 4 }));
 Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { configurable: true, get: () => video.readyState });
+
+// El lector es carrega amb `import()` en tocar el botó: cal esperar que s'acabi abans de mirar res.
+const clicaEscanejar = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+  await act(() => vi.dynamicImportSettled());
+};
 
 describe('LectorCarnet', () => {
   beforeEach(() => {
@@ -77,7 +83,7 @@ describe('LectorCarnet', () => {
     it('no torna a verificar el mateix codi dins la finestra de debounce, encara que un escaneig fallit reconstrueixi la càmera', async () => {
       getDoc.mockResolvedValue({ exists: () => false });
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await vi.advanceTimersByTimeAsync(0); // resol getUserMedia i inicia la reproducció
       await vi.advanceTimersByTimeAsync(400); // 1a detecció: carnet no vàlid -> verificant torna a false
@@ -91,7 +97,7 @@ describe('LectorCarnet', () => {
       getDoc.mockResolvedValue({ exists: () => true, data: () => ({ numeroSoci: 7, nomPublic: 'Isabel M.' }) });
       const onIdentificat = vi.fn();
       render(<LectorCarnet onIdentificat={onIdentificat} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(400);
@@ -127,13 +133,14 @@ describe('LectorCarnet', () => {
     it('si el WASM del lector no es pot carregar, avisa amb role=alert, para la càmera i ofereix tornar-ho a provar', async () => {
       lector.prepararLector = vi.fn().mockRejectedValueOnce(new Error('Failed to fetch')).mockResolvedValue(undefined);
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       expect(await screen.findByRole('alert')).toHaveTextContent(TEXT_LECTOR);
       expect(document.querySelector('video')).toBeNull();
       await vi.waitFor(() => expect(stop).toHaveBeenCalled());
 
       fireEvent.click(screen.getByRole('button', { name: 'Tornar-ho a provar' }));
+      await act(() => vi.dynamicImportSettled());
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(document.querySelector('video')).not.toBeNull();
       expect(lector.prepararLector).toHaveBeenCalledTimes(2);
@@ -144,7 +151,7 @@ describe('LectorCarnet', () => {
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
       vi.useFakeTimers();
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await act(() => vi.advanceTimersByTimeAsync(400 * 4));
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -160,7 +167,7 @@ describe('LectorCarnet', () => {
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
       vi.useFakeTimers();
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await act(() => vi.advanceTimersByTimeAsync(400 * 10));
       expect(detect).not.toHaveBeenCalled();
@@ -178,7 +185,7 @@ describe('LectorCarnet', () => {
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
       vi.useFakeTimers();
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await act(() => vi.advanceTimersByTimeAsync(400 * 20));
       expect(detect.mock.calls.length).toBeGreaterThanOrEqual(10);
@@ -192,7 +199,7 @@ describe('LectorCarnet', () => {
       window.BarcodeDetector = vi.fn().mockImplementation(function BarcodeDetectorMock() { this.detect = detect; });
       vi.useFakeTimers();
       render(<LectorCarnet onIdentificat={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Escanejar el meu carnet' }));
+      await clicaEscanejar();
 
       await act(() => vi.advanceTimersByTimeAsync(2000));
       expect(detect).not.toHaveBeenCalled();

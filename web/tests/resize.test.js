@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import sharp from 'sharp';
-import { resizeRequest, toWebp, fetchImage } from '../src/lib/resize.js';
-import { STORAGE_PREFIX } from '../src/lib/images.js';
+import { resizeRequest, toWebp, fetchImage, llegirStorage } from '../src/lib/resize.js';
+import { STORAGE_PREFIX, CARTELLS_PREFIX, resizedUrl } from '../src/lib/images.js';
+import { getBucket } from '../src/lib/storage.js';
 import { GET } from '../src/pages/api/img.webp.js';
+
+// Per defecte l'Admin SDK no està disponible: l'endpoint cau a l'adreça pública (el `fetch` de cada test).
+vi.mock('../src/lib/storage.js', () => ({ getBucket: vi.fn() }));
 
 const SRC = `${STORAGE_PREFIX}sessions%2Fpig%2Fposter.jpg?alt=media`;
 const params = (u, w) => new URLSearchParams({ u, w: String(w) });
@@ -37,6 +41,22 @@ describe('resizeRequest', () => {
     const peticio = resizeRequest(params(`${SRC.replace('poster', 'po\nster')}\t`, 400));
     expect(peticio.url).toBe(SRC);
     expect(peticio.url).not.toMatch(/[\r\n\t]/);
+  });
+});
+
+describe('resizeRequest: cartells de propostes', () => {
+  const CARTELL = `${CARTELLS_PREFIX}p1-1000.jpg?alt=media`;
+  it('accepta `carteils/<fitxer>` i genera l\'adreça de l\'endpoint', () => {
+    expect(resizeRequest(params(CARTELL, 300))).toEqual({ url: CARTELL, width: 300 });
+    expect(resizedUrl(CARTELL, 300)).toBe(`/api/img.webp?w=300&u=${encodeURIComponent(CARTELL)}`);
+  });
+  it('rebutja subcarpetes, segments de punt i altres carpetes', () => {
+    const origen = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/';
+    expect(resizeRequest(params(`${origen}carteils%2Fa%2Fb.jpg?alt=media`, 300))).toBe(null);
+    expect(resizeRequest(params(`${origen}carteils%2F..%2Ffactures%2Fa.pdf?alt=media`, 300))).toBe(null);
+    expect(resizeRequest(params(`${origen}carteils%2F%2e%2e%2Ffactures%2Fa.pdf?alt=media`, 300))).toBe(null);
+    expect(resizeRequest(params(`${origen}carteilsx%2Fa.jpg?alt=media`, 300))).toBe(null);
+    expect(resizeRequest(params(`${origen}factures%2Fa.pdf?alt=media`, 300))).toBe(null);
   });
 });
 
@@ -150,6 +170,23 @@ describe('fetchImage', () => {
   });
 });
 
+describe('llegirStorage', () => {
+  const bucket = (meta, contingut = Buffer.from([1, 2, 3])) => {
+    const file = vi.fn(() => ({ getMetadata: async () => [meta], download: async () => [contingut] }));
+    return { file };
+  };
+  it('llegeix l\'objecte pel nom decodificat', async () => {
+    const b = bucket({ contentType: 'image/jpeg', size: '3' });
+    expect([...await llegirStorage(SRC, b)]).toEqual([1, 2, 3]);
+    expect(b.file).toHaveBeenCalledWith('web/sessions/pig/poster.jpg');
+  });
+  it('rebutja tipus no ràster i mides passades de límit sense baixar res', async () => {
+    expect(await llegirStorage(SRC, bucket({ contentType: 'image/svg+xml', size: '3' }))).toBe(null);
+    expect(await llegirStorage(SRC, bucket({ contentType: 'image/jpeg', size: String(41 * 1024 * 1024) }))).toBe(null);
+    expect(await llegirStorage(SRC, bucket({ contentType: 'image/jpeg', size: '3000' }), { maxBytes: 2000 })).toBe(null);
+  });
+});
+
 describe('GET /api/img.webp', () => {
   const crida = (u, w = 400) => GET({ url: new URL(`https://web.exemple/api/img.webp?w=${w}&u=${encodeURIComponent(u)}`) });
   afterEach(() => vi.unstubAllGlobals());
@@ -165,6 +202,15 @@ describe('GET /api/img.webp', () => {
     expect(res.headers.get('content-type')).toBe('image/webp');
     expect(res.headers.get('cache-control')).toContain('immutable');
     expect((await sharp(Buffer.from(await res.arrayBuffer())).metadata()).width).toBe(400);
+  });
+  it('llegeix l\'original amb l\'Admin SDK, sense passar per fetch', async () => {
+    const original = await sharp({ create: { width: 900, height: 600, channels: 3, background: '#c00' } }).jpeg().toBuffer();
+    getBucket.mockReturnValueOnce({ file: () => ({ getMetadata: async () => [{ contentType: 'image/jpeg', size: original.length }], download: async () => [original] }) });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const res = await crida(`${CARTELLS_PREFIX}p1-1.jpg?alt=media`);
+    expect(res.status).toBe(200);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
   it('redirigeix a l\'original quan no es pot redimensionar', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('xarxa'); });

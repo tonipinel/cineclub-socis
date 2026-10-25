@@ -8,6 +8,7 @@ import TermeGeneres from '../src/pages/generes/[terme].astro';
 import IndexInterprets from '../src/pages/interprets/index.astro';
 import TermeInterprets from '../src/pages/interprets/[terme].astro';
 import Pagina404 from '../src/pages/404.astro';
+import { conWhere } from './helpers/firestore.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -37,7 +38,7 @@ const sessions = [
 
 const ambDb = (docs = sessions) => {
   globalThis.__dbFals = {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: (nom === 'sessions' ? docs : []).map(({ id, ...dades }) => ({ id, data: () => dades })) }),
     }),
   };

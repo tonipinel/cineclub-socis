@@ -4,6 +4,7 @@ import SessioPagina from '../src/components/SessioPagina.astro';
 import RutaSessio from '../src/pages/programacio/[any]/[slug].astro';
 import Pagina404 from '../src/pages/404.astro';
 import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
+import { conWhere } from './helpers/firestore.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -255,10 +256,10 @@ describe('pàgina de sessió', () => {
   });
 });
 
-// Db fals: només `collection('sessions').get()`, com el que fa el codi real.
+// Db fals: només `collection('sessions').where('publicada', '==', true).get()`, com el que fa el codi real.
 const ambDb = (docs) => {
   globalThis.__dbFals = {
-    collection: () => ({
+    collection: () => conWhere({
       get: async () => ({ docs: docs.map(({ id, ...dades }) => ({ id, data: () => dades })) }),
     }),
   };

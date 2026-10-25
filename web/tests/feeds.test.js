@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { feedPortada, feedProgramacio, feedTaxonomia, feedTerme, resumHtml, rfc822, xmlFeed } from '../src/lib/feeds.js';
+import { conWhere } from './helpers/firestore.js';
 
 const dir = new URL('./fixtures/hugo-feeds/', import.meta.url);
 const llegeix = (nom) => readFileSync(new URL(nom, dir), 'utf8');
@@ -9,7 +10,7 @@ const contingut = JSON.parse(llegeix('contingut.json'));
 // Db fals amb el contingut real de les sessions i pàgines de Hugo (fixture generat des de ~/sites/cineclub).
 function dbFals({ sessions, pagines }) {
   return {
-    collection: (nom) => ({
+    collection: (nom) => conWhere({
       get: async () => ({ docs: (nom === 'sessions' ? sessions : []).map(({ id, ...dades }) => ({ id, data: () => dades })) }),
       doc: (id) => ({
         get: async () => {
