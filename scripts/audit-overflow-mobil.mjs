@@ -45,6 +45,7 @@ export const RUTES = [
   '/escaneig', '/escaneig/log',
   '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/nou?sessionId=ses2', '/comptabilitat/m1', '/comptabilitat/m4', '/comptabilitat/m7', '/comptabilitat/m9',
   '/configuracio',
+  '/usuaris-taquilla', '/usuaris-taquilla/nou', '/usuaris-taquilla/tq1', '/usuaris-taquilla/tq2',
   '/distribuidores', '/distribuidores/nova', '/distribuidores/d1', '/distribuidores/d2', '/distribuidores/d7',
   '/propostes/pendents', '/propostes/pendents?vista=tandes', '/propostes/pendents?estat=aprovada&tanda=cap',
   '/propostes/pendents/nova', '/propostes/pendents/p1',
@@ -71,6 +72,9 @@ const ESTATS = {
   filtres: '[aria-label="Mostrar filtres"]',
   desar: '.barra-desar button[type="submit"]',
   calendari: '.pagina-admin__accions [aria-label="Sincronitzar el calendari"]',
+  // El primer usuari actiu: mostra el panell amb l'enllaç per triar contrasenya (llarg, amb el botó «Copia»).
+  // (amb confirmació: es clica «Restableix» al diàleg).
+  restablir: ['button[aria-label^="Restableix la contrasenya de"]:not([disabled])', '.dialeg-confirmacio .btn--perill'],
 };
 const ESTATS_PER_RUTA = {
   '/socis': ['filtres'],
@@ -101,6 +105,10 @@ const ESTATS_PER_RUTA = {
   '/comptabilitat/m9': ['desar'],
   // Configuració: barra fixa «Desar» sempre visible (pàgina d'un sol document, sense mode «Editar»).
   '/configuracio': ['desar'],
+  // Usuaris de taquilla: panell de l'enllaç al llistat i a la fitxa (actiu, tq1); barra «Desar» a les fitxes.
+  '/usuaris-taquilla': ['restablir'],
+  '/usuaris-taquilla/tq1': ['desar', 'restablir'],
+  '/usuaris-taquilla/tq2': ['desar'],
   // Fitxa de proposta: la barra fixa «Desar» és a les pestanyes editables (no al Resum, la pestanya per defecte).
   '/propostes/pendents/p1?pestanya=pellicula': ['desar'],
   '/propostes/pendents/p1?pestanya=gestio': ['desar'],
@@ -256,14 +264,16 @@ async function main() {
           const carregada = await preparada(pagina) && new URL(pagina.url()).pathname === cami;
           let senseBoto = false;
           if (selector) {
-            const boto = await pagina.$(selector);
-            if (boto) {
+            // Un estat pot ser una seqüència de clics (p. ex. un botó i després el diàleg de confirmació).
+            for (const sel of [selector].flat()) {
+              const boto = await pagina.$(sel);
+              if (!boto) { senseBoto = true; break; }
               await boto.click();
               await espera(500);
-            } else senseBoto = true;
+            }
           } else {
             for (const [estat, sel] of Object.entries(ESTATS)) {
-              if (!(ESTATS_PER_RUTA[ruta] ?? []).includes(estat) && await pagina.$(sel)) {
+              if (!(ESTATS_PER_RUTA[ruta] ?? []).includes(estat) && await pagina.$([sel].flat()[0])) {
                 avisos.add(`${ruta} té el botó «${estat}» però no és a ESTATS_PER_RUTA: no s'ha provat.`);
               }
             }

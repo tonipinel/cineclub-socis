@@ -17,6 +17,12 @@ describe('maxInstances', () => {
       crearProposta: 10,
       sincronitzarCalendari: 5,
       sincronitzarCalendariTot: 10,
+      llistarUsuarisTaquilla: 10,
+      crearUsuariTaquilla: 10,
+      editarUsuariTaquilla: 10,
+      canviarEstatUsuariTaquilla: 10,
+      restablirContrasenyaUsuariTaquilla: 10,
+      eliminarUsuariTaquilla: 10,
     });
   });
 });

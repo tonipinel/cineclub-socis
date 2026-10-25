@@ -355,5 +355,14 @@ export function dadesInicials() {
     d[`tandes/t1/vots/${1000 + i}`] = { valors };
   }
 
+  // --- Historial de l'usuari de taquilla tq1 (l'escriuen les Cloud Functions).
+  const ACCIONS = ['crear', 'enviar-enllac', 'editar', 'desactivar', 'reactivar', 'enviar-enllac'];
+  ACCIONS.forEach((accio, i) => {
+    d[`auditoriaUsuaris/au${i + 1}`] = {
+      accio, actorUid: 'arnes-admin', actorCorreu: 'administradora.amb.un.correu.molt.llarg@cineclubrodadebera-exemple.cat',
+      objectiuUid: 'tq1', objectiuCorreu: 'maria.angels.puig.ferrer.taquilla.dijous@correu-molt-llarg-de-prova.example', timestamp: ts(30 - i * 5),
+    };
+  });
+
   return d;
 }

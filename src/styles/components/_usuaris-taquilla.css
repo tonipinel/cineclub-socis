@@ -1,0 +1,105 @@
+/* Usuaris de taquilla (llistat, alta i fitxa) */
+.usuaris-taquilla__ajuda {
+  @apply mb-4 text-sm text-black/60;
+}
+.usuaris-taquilla__cerca {
+  @apply mb-4 w-full max-w-md;
+}
+.usuaris-taquilla__llista {
+  @apply m-0 flex list-none flex-col p-0;
+}
+.usuaris-taquilla__item {
+  @apply flex flex-col gap-3 border-b border-black/10 py-3 text-sm;
+}
+.usuaris-taquilla__dades {
+  @apply flex min-w-0 flex-col gap-1 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-center lg:gap-x-4;
+}
+.usuaris-taquilla__nom {
+  @apply min-w-0 text-base font-semibold wrap-anywhere;
+}
+.usuaris-taquilla__correu {
+  @apply min-w-0 wrap-anywhere;
+}
+.usuaris-taquilla__estat {
+  @apply self-start lg:self-center;
+}
+.usuaris-taquilla__data {
+  @apply text-black/60;
+}
+.usuaris-taquilla__accions {
+  @apply flex flex-wrap gap-2;
+}
+.usuaris-taquilla__boto {
+  @apply px-4 py-2 text-sm;
+}
+.usuaris-taquilla__error {
+  @apply m-0;
+}
+.usuaris-taquilla__enllac {
+  @apply max-w-3xl;
+}
+.usuaris-taquilla__form {
+  @apply flex flex-col gap-2;
+}
+.usuaris-taquilla__enviar {
+  @apply mt-2;
+}
+.usuaris-taquilla__fet {
+  @apply mb-4 font-semibold;
+}
+.usuaris-taquilla__enllacos {
+  @apply mt-4 flex flex-wrap gap-x-6 gap-y-2;
+}
+.usuaris-taquilla__seccio {
+  @apply mt-6 flex flex-col gap-3;
+}
+.usuaris-taquilla__subtitol {
+  @apply m-0 font-display text-xl font-bold;
+}
+.usuaris-taquilla__detalls {
+  @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm;
+}
+.usuaris-taquilla__detalls dt {
+  @apply font-semibold;
+}
+.usuaris-taquilla__detalls dd {
+  @apply m-0;
+}
+.usuaris-taquilla__historial {
+  @apply m-0 flex list-none flex-col p-0 text-sm;
+}
+.usuaris-taquilla__historial-item {
+  @apply flex flex-wrap gap-x-3 border-b border-black/10 py-2;
+}
+.usuaris-taquilla__historial-data {
+  @apply text-black/60;
+}
+.usuaris-taquilla__historial-actor {
+  @apply min-w-0 text-black/60 wrap-anywhere;
+}
+
+/* Enllaç per triar contrasenya (després de crear o restablir) */
+.enllac-contrasenya {
+  @apply flex flex-col gap-2 rounded border border-gold bg-gold/10 p-4;
+}
+.enllac-contrasenya__titol {
+  @apply m-0 font-display text-lg font-bold;
+}
+.enllac-contrasenya__text {
+  @apply m-0 wrap-anywhere;
+}
+.enllac-contrasenya__fila {
+  @apply flex min-w-0 flex-col gap-2 sm:flex-row;
+}
+.enllac-contrasenya__input {
+  @apply min-w-0 flex-1 font-mono text-xs;
+}
+.enllac-contrasenya__copia {
+  @apply shrink-0 px-4 py-2 text-sm;
+}
+.enllac-contrasenya__avis {
+  @apply m-0 text-sm font-semibold text-red-700;
+}
+.enllac-contrasenya__copiat {
+  @apply m-0 min-h-5 text-sm;
+}

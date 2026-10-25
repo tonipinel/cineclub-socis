@@ -191,14 +191,21 @@ describe('Header', () => {
       });
     });
 
-    it('al menú mòbil els tres grups mostren els seus elements a sota, sempre visibles', () => {
+    it('al menú mòbil els grups mostren els seus elements a sota, sempre visibles', () => {
       const { container } = renderAdmin('/sessions');
       const grups = container.querySelectorAll('.site-header__nav .site-header__subgrup');
       expect([...grups].map((g) => [...g.querySelectorAll('a')].map((a) => a.textContent))).toEqual([
         ['Socis', 'Sol·licituds'],
         ['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats'],
         ['Escaneig', 'Tiquets'],
+        ['Associació', 'Usuaris de taquilla'],
       ]);
+    });
+
+    it('Configuració és un grup: a /usuaris-taquilla es marca actiu i mostra el submenú', () => {
+      const { container } = renderAdmin('/usuaris-taquilla');
+      expect(entrada(container, 'Configuració')).toHaveClass('site-header__link--actiu');
+      expect([...submenu().querySelectorAll('a')].map((a) => a.textContent)).toEqual(['Associació', 'Usuaris de taquilla']);
     });
 
     it('en clicar un element del submenú mòbil es tanca el menú', async () => {

@@ -4,7 +4,7 @@ import { GRUPS_ADMIN, grupActiu } from './menuAdmin';
 describe('GRUPS_ADMIN', () => {
   it('defineix els grups Socis, Programació i Sala amb els seus elements en ordre', () => {
     expect(GRUPS_ADMIN.map((g) => [g.id, g.etiqueta])).toEqual([
-      ['socis', 'Socis'], ['programacio', 'Programació'], ['sala', 'Sala'],
+      ['socis', 'Socis'], ['programacio', 'Programació'], ['sala', 'Sala'], ['configuracio', 'Configuració'],
     ]);
     expect(GRUPS_ADMIN[0].elements.map((e) => [e.etiqueta, e.to])).toEqual([
       ['Socis', '/socis'], ['Sol·licituds', '/solicituds'],
@@ -15,6 +15,9 @@ describe('GRUPS_ADMIN', () => {
     ]);
     expect(GRUPS_ADMIN[2].elements.map((e) => [e.etiqueta, e.to])).toEqual([
       ['Escaneig', '/escaneig'], ['Tiquets', '/tickets'],
+    ]);
+    expect(GRUPS_ADMIN[3].elements.map((e) => [e.etiqueta, e.to])).toEqual([
+      ['Associació', '/configuracio'], ['Usuaris de taquilla', '/usuaris-taquilla'],
     ]);
   });
 
@@ -35,6 +38,7 @@ describe('grupActiu', () => {
       '/entitats', '/entitats/nova', '/entitats/e1',
     ],
     sala: ['/escaneig', '/escaneig/log', '/tickets', '/tickets/lot1'],
+    configuracio: ['/configuracio', '/usuaris-taquilla', '/usuaris-taquilla/nou', '/usuaris-taquilla/u1'],
   };
   Object.entries(taula).forEach(([id, rutes]) => {
     it.each(rutes)(`${id}: %s`, (ruta) => {
@@ -43,7 +47,7 @@ describe('grupActiu', () => {
   });
 
   it.each([
-    '/', '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1', '/configuracio', '/dashboard', '/accedir',
+    '/', '/comptabilitat', '/comptabilitat/nou', '/comptabilitat/m1', '/dashboard', '/accedir',
     '/propostes', '/propostes/proposar',
   ])('retorna null per a %s', (ruta) => {
     expect(grupActiu(ruta)).toBeNull();
@@ -54,5 +58,6 @@ describe('grupActiu', () => {
     expect(grupActiu('/tandesos')).toBeNull();
     expect(grupActiu('/ticketsfoo/1')).toBeNull();
     expect(grupActiu('/escaneigs')).toBeNull();
+    expect(grupActiu('/configuracions')).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ const { logger } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
+const { getAuth } = require('firebase-admin/auth');
 const { cercarPellicules, detallPellicula, descarregarCartell, esTmdbIdValid } = require('./tmdb');
 const { gestionarEstat, gestionarVot, gestionarRanking, gestionarRankingPublic, ambMemoria, sociDelToken } = require('./votacio-handlers');
 const { credencialsCalendari } = require('./calendari');
@@ -13,6 +14,7 @@ const { sincronitzarSessio, sincronitzarTot } = require('./calendari-handlers');
 const { desarFitxaAmbDependencies } = require('./fitxa-proposta');
 const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicituds');
 const { crearPropostaAmbDependencies } = require('./proposta');
+const usuaris = require('./usuaris');
 
 initializeApp();
 
@@ -161,3 +163,17 @@ exports.sincronitzarCalendariTot = onCall({ secrets: SECRETS_CALENDARI, timeoutS
     throw error;
   }
 });
+
+// Gestió dels usuaris de taquilla des de l'admin. La lògica (permisos, rol, límits, auditoria) és a `usuaris.js`.
+function usuarisTaquilla(gestor) {
+  return onCall({ maxInstances: MAX_CALLABLES }, (request) => usuaris.executar(gestor, {
+    auth: getAuth(), db: getFirestore(), FieldValue, logger, ara: Date.now(),
+  }, request, HttpsError));
+}
+
+exports.llistarUsuarisTaquilla = usuarisTaquilla(usuaris.llistar);
+exports.crearUsuariTaquilla = usuarisTaquilla(usuaris.crear);
+exports.editarUsuariTaquilla = usuarisTaquilla(usuaris.editar);
+exports.canviarEstatUsuariTaquilla = usuarisTaquilla(usuaris.canviarEstat);
+exports.restablirContrasenyaUsuariTaquilla = usuarisTaquilla(usuaris.restablirContrasenya);
+exports.eliminarUsuariTaquilla = usuarisTaquilla(usuaris.eliminar);

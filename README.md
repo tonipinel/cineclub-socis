@@ -37,7 +37,9 @@ node scripts/bootstrap-admin.js <email> <ruta-a-la-clau-de-service-account.json>
 
 Després, cal que aquesta persona tanqui sessió i torni a entrar perquè el navegador obtingui un ID token nou amb el claim `role: admin`.
 
-Per donar d'alta un usuari de **taquilla** (control d'accés a la porta, sense accés a Socis ni Sessions), s'utilitza el mateix script amb un tercer argument (la persona ha d'existir prèviament com a usuari d'Auth, igual que per a l'admin):
+Els usuaris de **taquilla** (només escaneig a la porta, sense accés a Socis ni Sessions) es gestionen des de l'admin, a **Configuració → Usuaris de taquilla**: crear (la persona rep un correu per triar la contrasenya; l'enllaç també es pot copiar), canviar nom o correu, desactivar/reactivar, restablir la contrasenya i eliminar. Ho fan les Cloud Functions `*UsuariTaquilla` (`functions/usuaris.js`), que només actuen sobre comptes amb el rol `taquilla` i deixen constància de cada canvi a `auditoriaUsuaris`. Límits: 20 usuaris de taquilla i 10 altes per hora.
+
+L'script continua funcionant (p. ex. per donar el rol a un compte d'Auth que ja existeix):
 
 ```bash
 node scripts/bootstrap-admin.js <email> <ruta-a-la-clau-de-service-account.json> taquilla

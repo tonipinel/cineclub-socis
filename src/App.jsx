@@ -22,6 +22,9 @@ import ComptabilitatPage from './pages/Comptabilitat/ComptabilitatPage';
 import MovimentForm from './pages/Comptabilitat/MovimentForm';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ConfiguracioPage from './pages/Configuracio/ConfiguracioPage';
+import UsuarisTaquillaList from './pages/UsuarisTaquilla/UsuarisTaquillaList';
+import UsuariTaquillaNou from './pages/UsuarisTaquilla/UsuariTaquillaNou';
+import UsuariTaquillaFitxa from './pages/UsuarisTaquilla/UsuariTaquillaFitxa';
 import RedireccioPropostes from './pages/Propostes/RedireccioPropostes';
 import PropostesPendents from './pages/Propostes/PropostesPendents';
 import PropostaForm from './pages/Propostes/PropostaForm';
@@ -237,6 +240,36 @@ export default function App() {
               <RequireAuth>
                 <RequireRole roles={[ROLE_ADMIN]}>
                   <ConfiguracioPage />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.USUARIS_TAQUILLA}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <UsuarisTaquillaList />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.USUARIS_TAQUILLA_NOU}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <UsuariTaquillaNou />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={ROUTES.USUARIS_TAQUILLA_EDITAR}
+            element={
+              <RequireAuth>
+                <RequireRole roles={[ROLE_ADMIN]}>
+                  <UsuariTaquillaFitxa />
                 </RequireRole>
               </RequireAuth>
             }

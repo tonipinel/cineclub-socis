@@ -32,6 +32,15 @@ export const GRUPS_ADMIN = [
       { to: ROUTES.TICKETS, etiqueta: 'Tiquets' },
     ],
   },
+  {
+    id: 'configuracio',
+    etiqueta: 'Configuració',
+    icona: 'configuracio',
+    elements: [
+      { to: ROUTES.CONFIGURACIO, etiqueta: 'Associació' },
+      { to: ROUTES.USUARIS_TAQUILLA, etiqueta: 'Usuaris de taquilla' },
+    ],
+  },
 ];
 
 const coincideix = (pathname, ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`);

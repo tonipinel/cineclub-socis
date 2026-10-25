@@ -78,6 +78,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Registre de la gestió d'usuaris de taquilla: l'escriuen només les Cloud Functions (Admin SDK).
+    match /auditoriaUsuaris/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Lots de tiquets genèrics generats (rang de números, si ja s'han
     // imprès i quan, i si s'han anul·lat). Taquilla necessita llegir-los
     // per bloquejar a la porta un tiquet anul·lat; només l'admin els gestiona.

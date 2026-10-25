@@ -8,7 +8,7 @@ import * as ROUTES from '../constants/routes';
 import { GRUPS_ADMIN, grupActiu } from '../lib/menuAdmin';
 import { NOM_ORGANITZACIO } from '../lib/propostes';
 
-const [GRUP_SOCIS, GRUP_PROGRAMACIO, GRUP_SALA] = GRUPS_ADMIN;
+const [GRUP_SOCIS, GRUP_PROGRAMACIO, GRUP_SALA, GRUP_CONFIGURACIO] = GRUPS_ADMIN;
 
 // Els grups (amb `elements`) enllacen al seu primer element i tenen submenú.
 const ENLLACOS_ADMIN = [
@@ -16,7 +16,7 @@ const ENLLACOS_ADMIN = [
   GRUP_PROGRAMACIO,
   GRUP_SALA,
   { to: ROUTES.COMPTABILITAT, etiqueta: 'Comptabilitat', icona: 'comptabilitat' },
-  { to: ROUTES.CONFIGURACIO, etiqueta: 'Configuració', icona: 'configuracio' },
+  GRUP_CONFIGURACIO,
 ];
 
 const ENLLACOS_TAQUILLA = [
