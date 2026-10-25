@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 import {
   getFirestore, collection, addDoc, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { netejarTelefon } from "./fes-te-socia-dades.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDCVaFfq9sCwlthP8z4qmO-SoRH0nYr_9E",
@@ -78,7 +79,7 @@ if (form) {
       dni: form.dni.value.trim().toUpperCase(),
       poblacio: form.poblacio.value.trim(),
       codiPostal: form.codiPostal.value.trim(),
-      telefon: form.telefon.value.trim(),
+      telefon: netejarTelefon(form.telefon.value),
       correuElectronic: form.correuElectronic.value.trim(),
       comentaris: form.comentaris.value.trim(),
       acceptaPrivacitat: form.acceptaPrivacitat.checked,

@@ -6,7 +6,7 @@ import {
   assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, where,
+  doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp,
 } from 'firebase/firestore';
 
 let testEnv;
@@ -30,33 +30,144 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
-const SOLICITUD_VALIDA = {
-  nom: 'Anna',
-  cognoms: 'Vidal',
-  poblacio: 'Roda de Berà',
-  codiPostal: '43883',
-  telefon: '600000000',
-  acceptaPrivacitat: true,
-  acceptaDadesPersonals: true,
-};
+// Exactament el que envia `web/public/js/fes-te-socia-form.js` (camps del formulari + timestamp i estat).
+function solicitudDelFormulari(canvis = {}) {
+  return {
+    nom: 'Anna',
+    cognoms: 'Vidal',
+    dni: '12345678Z',
+    poblacio: 'Roda de Berà',
+    codiPostal: '43883',
+    telefon: '+34 600 00 00 00',
+    correuElectronic: 'anna@example.com',
+    comentaris: 'Vull fer-me sòcia.',
+    acceptaPrivacitat: true,
+    acceptaDadesPersonals: true,
+    timestamp: serverTimestamp(),
+    estat: 'pendent',
+    ...canvis,
+  };
+}
+
+const SOLICITUD_VALIDA = solicitudDelFormulari();
+
+function sense(dades, camp) {
+  const copia = { ...dades };
+  delete copia[camp];
+  return copia;
+}
 
 describe('firestore.rules — solicituds', () => {
+  const anon = () => testEnv.unauthenticatedContext().firestore();
+  const crear = (dades) => setDoc(doc(anon(), 'solicituds/1'), dades);
+
   it('permet crear una sol·licitud a un visitant no autenticat', async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(setDoc(doc(db, 'solicituds/1'), SOLICITUD_VALIDA));
+    await assertSucceeds(crear(SOLICITUD_VALIDA));
+  });
+
+  it('accepta la sol·licitud de qui marca que no té correu (correu i comentaris buits)', async () => {
+    await assertSucceeds(crear(solicitudDelFormulari({ correuElectronic: '', comentaris: '' })));
+  });
+
+  it('accepta que falti qualsevol camp opcional (dni, correu, comentaris)', async () => {
+    let dades = SOLICITUD_VALIDA;
+    for (const camp of ['dni', 'correuElectronic', 'comentaris']) dades = sense(dades, camp);
+    await assertSucceeds(crear(dades));
+  });
+
+  it('accepta els valors als límits de mida', async () => {
+    await assertSucceeds(crear(solicitudDelFormulari({
+      nom: 'a'.repeat(80), cognoms: 'b'.repeat(80), poblacio: 'c'.repeat(80), codiPostal: '1'.repeat(10),
+      dni: 'D'.repeat(20), telefon: '6'.repeat(25), comentaris: 'x'.repeat(2000),
+      correuElectronic: `${'a'.repeat(242)}@example.com`,
+    })));
+  });
+
+  it('rebutja un camp que el formulari no envia', async () => {
+    await assertFails(crear(solicitudDelFormulari({ notes: 'x' })));
+    await assertFails(crear(solicitudDelFormulari({ aprovat: true })));
+  });
+
+  it('rebutja que falti un camp obligatori', async () => {
+    for (const camp of ['nom', 'cognoms', 'poblacio', 'codiPostal', 'telefon', 'acceptaPrivacitat',
+      'acceptaDadesPersonals', 'estat', 'timestamp']) {
+      await assertFails(crear(sense(SOLICITUD_VALIDA, camp)));
+    }
+  });
+
+  it('rebutja camps que no són text', async () => {
+    await assertFails(crear(solicitudDelFormulari({ nom: 42 })));
+    await assertFails(crear(solicitudDelFormulari({ cognoms: ['Vidal'] })));
+    await assertFails(crear(solicitudDelFormulari({ dni: { a: 1 } })));
+    await assertFails(crear(solicitudDelFormulari({ comentaris: true })));
+    await assertFails(crear(solicitudDelFormulari({ telefon: 600000000 })));
+  });
+
+  it('rebutja camps obligatoris buits', async () => {
+    await assertFails(crear(solicitudDelFormulari({ nom: '' })));
+    await assertFails(crear(solicitudDelFormulari({ cognoms: '' })));
+  });
+
+  it('rebutja camps massa llargs', async () => {
+    await assertFails(crear(solicitudDelFormulari({ nom: 'a'.repeat(81) })));
+    await assertFails(crear(solicitudDelFormulari({ cognoms: 'a'.repeat(81) })));
+    await assertFails(crear(solicitudDelFormulari({ poblacio: 'a'.repeat(81) })));
+    await assertFails(crear(solicitudDelFormulari({ codiPostal: '1'.repeat(11) })));
+    await assertFails(crear(solicitudDelFormulari({ dni: 'D'.repeat(21) })));
+    await assertFails(crear(solicitudDelFormulari({ telefon: '6'.repeat(26) })));
+    await assertFails(crear(solicitudDelFormulari({ comentaris: 'x'.repeat(2001) })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: `${'a'.repeat(243)}@example.com` })));
+  });
+
+  it('rebutja un telèfon amb caràcters estranys', async () => {
+    await assertFails(crear(solicitudDelFormulari({ telefon: '<a href=x>600</a>' })));
+  });
+
+  it('rebutja un correu que no és un sol text amb format de correu', async () => {
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: ['a@example.com', 'b@example.com'] })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: { to: 'a@example.com' } })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: 'no-es-un-correu' })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: 'a@example.com, b@example.com' })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: 'a@example.com,b' })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: 'Nom <a@example.com>' })));
+    await assertFails(crear(solicitudDelFormulari({ correuElectronic: 'a@example.com\nBcc: b@example.com' })));
+  });
+
+  it('rebutja els consentiments si no són exactament true', async () => {
+    await assertFails(crear(solicitudDelFormulari({ acceptaPrivacitat: false })));
+    await assertFails(crear(solicitudDelFormulari({ acceptaDadesPersonals: false })));
+    await assertFails(crear(solicitudDelFormulari({ acceptaPrivacitat: 'true' })));
+  });
+
+  it('rebutja un estat que no sigui pendent', async () => {
+    await assertFails(crear(solicitudDelFormulari({ estat: 'aprovada' })));
+    await assertFails(crear(solicitudDelFormulari({ estat: 'descartada' })));
+  });
+
+  it('rebutja un timestamp posat pel client', async () => {
+    await assertFails(crear(solicitudDelFormulari({ timestamp: new Date('2020-01-01') })));
+    await assertFails(crear(solicitudDelFormulari({ timestamp: 'ara' })));
+  });
+
+  it('impedeix a un visitant no autenticat modificar o esborrar una sol·licitud', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'solicituds/1'), { ...SOLICITUD_VALIDA, timestamp: new Date() });
+    });
+    await assertFails(updateDoc(doc(anon(), 'solicituds/1'), { estat: 'aprovada' }));
+    await assertFails(deleteDoc(doc(anon(), 'solicituds/1')));
   });
 
   it('impedeix llegir sol·licituds a un visitant no autenticat', async () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
     await setDoc(doc(adminDb, 'solicituds/1'), SOLICITUD_VALIDA);
-    const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(getDoc(doc(anonDb, 'solicituds/1')));
+    await assertFails(getDoc(doc(anon(), 'solicituds/1')));
   });
 
-  it('permet a un admin llegir i esborrar sol·licituds', async () => {
+  it('permet a un admin llegir, aprovar i esborrar sol·licituds', async () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
     await setDoc(doc(adminDb, 'solicituds/1'), SOLICITUD_VALIDA);
     await assertSucceeds(getDoc(doc(adminDb, 'solicituds/1')));
+    await assertSucceeds(updateDoc(doc(adminDb, 'solicituds/1'), { estat: 'aprovada' }));
     await assertSucceeds(deleteDoc(doc(adminDb, 'solicituds/1')));
   });
 });

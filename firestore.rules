@@ -10,12 +10,36 @@ service cloud.firestore {
 
     // Formulari públic d'alta: qualsevol visitant pot crear una sol·licitud,
     // però només l'admin la pot llegir, actualitzar (aprovar/descartar) o esborrar.
+    // Només s'accepta exactament el que envia web/public/js/fes-te-socia-form.js, amb tipus i mides
+    // acotats: cada sol·licitud dispara correus (notificarNovaSolicitud) i no pot portar-ne de qualsevol.
+    function textFins(valor, minim, maxim) {
+      return valor is string && valor.size() >= minim && valor.size() <= maxim;
+    }
+    function correuValid(valor) {
+      return valor == ''
+        || (textFins(valor, 6, 254) && valor.matches('^[^@\\s,;<>"]+@[^@\\s,;<>"]+\\.[^@\\s,;<>"]+$'));
+    }
+    function solicitudValida(d) {
+      return d.keys().hasOnly(['nom', 'cognoms', 'dni', 'poblacio', 'codiPostal', 'telefon', 'correuElectronic',
+          'comentaris', 'acceptaPrivacitat', 'acceptaDadesPersonals', 'timestamp', 'estat'])
+        && d.keys().hasAll(['nom', 'cognoms', 'poblacio', 'codiPostal', 'telefon', 'acceptaPrivacitat',
+          'acceptaDadesPersonals', 'timestamp', 'estat'])
+        && textFins(d.nom, 1, 80)
+        && textFins(d.cognoms, 1, 80)
+        && textFins(d.poblacio, 1, 80)
+        && textFins(d.codiPostal, 1, 10)
+        && d.telefon is string && d.telefon.matches('^[0-9+ ().-]{6,25}$')
+        && textFins(d.get('dni', ''), 0, 20)
+        && textFins(d.get('comentaris', ''), 0, 2000)
+        && correuValid(d.get('correuElectronic', ''))
+        && d.acceptaPrivacitat == true
+        && d.acceptaDadesPersonals == true
+        && d.estat == 'pendent'
+        && d.timestamp == request.time;
+    }
+
     match /solicituds/{id} {
-      allow create: if request.resource.data.keys().hasAll(
-          ['nom', 'cognoms', 'poblacio', 'codiPostal', 'telefon', 'acceptaPrivacitat', 'acceptaDadesPersonals']
-        )
-        && request.resource.data.acceptaPrivacitat == true
-        && request.resource.data.acceptaDadesPersonals == true;
+      allow create: if solicitudValida(request.resource.data);
       allow read, update, delete: if isAdmin();
     }
 
