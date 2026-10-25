@@ -32,7 +32,7 @@ vi.mock('firebase/firestore', () => {
 });
 
 import {
-  addDoc, getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
+  addDoc, collection, getDoc, getDocs, writeBatch, __batchSet, __batchUpdate, __batchDelete, __batchCommit,
 } from 'firebase/firestore';
 import SociForm from './SociForm';
 import {
@@ -70,7 +70,14 @@ function renderExistent() {
 }
 
 const barra = () => document.querySelector('.barra-desar');
-const carrega = (dades) => getDoc.mockResolvedValueOnce({ data: () => dades });
+// El document desat: el llegeix la càrrega de la fitxa i també la relectura que es fa just abans de desar.
+const carrega = (dades) => getDoc.mockResolvedValue({ data: () => dades });
+// Simula que, entre obrir la fitxa i desar, una altra pantalla (escaneig, pagament...) ha canviat el document.
+const carregaICanviaAbansDeDesar = (alObrir, enDesar) => {
+  getDoc.mockResolvedValueOnce({ data: () => alObrir });
+  getDoc.mockResolvedValue({ data: () => enDesar });
+};
+beforeEach(() => getDoc.mockReset());
 const CAMPS_BUITS = {
   numeroSoci: '', nom: '', cognoms: '', poblacio: '', codiPostal: '',
   telefon: '', correuElectronic: '', dni: '', grupWhatsapp: '',
@@ -287,7 +294,7 @@ describe('SociForm — edició directa', () => {
     expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
   });
 
-  it('desa el document complet (inclosos els camps que el formulari no mostra) i es queda a la fitxa', async () => {
+  it('desa només els camps canviats (mai els que el formulari no mostra ni els no tocats) i es queda a la fitxa', async () => {
     carrega(SOCI_COMPLET);
     const user = userEvent.setup();
     renderExistent();
@@ -297,25 +304,23 @@ describe('SociForm — edició directa', () => {
     await esperaDesat();
     expect(__batchCommit).toHaveBeenCalledTimes(1);
     expect(__batchUpdate).toHaveBeenCalledTimes(1);
-    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...SOCI_COMPLET, telefon: '6000000001' });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { telefon: '6000000001' });
     expect(__batchSet).toHaveBeenCalledTimes(1);
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
     expect(addDoc).not.toHaveBeenCalled();
   });
 
-  it('afegeix al document els camps del formulari que no hi eren (buits), com abans', async () => {
+  it('no afegeix al document els camps del formulari que no hi eren: només escriu el canviat', async () => {
     carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: true });
     const user = userEvent.setup();
     renderExistent();
     await user.type(await screen.findByLabelText('DNI'), '1Z');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await esperaDesat();
-    expect(__batchUpdate).toHaveBeenCalledWith('1', {
-      ...CAMPS_BUITS, nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', actiu: true, dni: '1Z',
-    });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { dni: '1Z' });
   });
 
-  it('després de desar continua editable i un segon desat escriu tots dos canvis', async () => {
+  it('després de desar continua editable i un segon desat escriu només el canvi nou', async () => {
     carrega(SOCI_COMPLET);
     const user = userEvent.setup();
     renderExistent();
@@ -326,7 +331,8 @@ describe('SociForm — edició directa', () => {
     expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
-    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { ...SOCI_COMPLET, telefon: '6000000001', grupWhatsapp: 'Grup A' }]);
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { telefon: '6000000001' }]);
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { grupWhatsapp: 'Grup A' }]);
   });
 
   it('un doble clic a «Desar» fa una sola escriptura', async () => {
@@ -1019,9 +1025,7 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(__batchUpdate).toHaveBeenCalledWith('1', {
-      ...CAMPS_BUITS, nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', telefon: '600',
-    });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { telefon: '600' });
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Isabel M.' });
   });
 
@@ -1053,7 +1057,7 @@ describe('SociForm — sincronització de socisPublic en desar', () => {
     await user.type(await screen.findByLabelText('Telèfon'), '600');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(__batchUpdate).toHaveBeenCalledWith('1', expect.objectContaining({ actiu: false, telefon: '600' }));
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { telefon: '600' });
     expect(__batchSet).not.toHaveBeenCalled();
   });
 });
@@ -1076,7 +1080,7 @@ describe('SociForm — persona de l\'organització', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchSet).toHaveBeenCalledWith('tok-9', { numeroSoci: 9, nomPublic: 'Organització Cineclub Roda de Berà' });
-    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { ...CAMPS_BUITS, ...SOCI, organitzacio: true }]);
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { organitzacio: true }]);
   });
 
   it('el canvi es propaga al nom que mostren les propostes que ja havia fet', async () => {
@@ -1101,7 +1105,7 @@ describe('SociForm — persona de l\'organització', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Toni P.' });
-    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: false });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { organitzacio: false });
   });
 
   it('si no es canvia, no es toquen les propostes', async () => {
@@ -1112,7 +1116,7 @@ describe('SociForm — persona de l\'organització', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     expect(__batchUpdate).toHaveBeenCalledTimes(1);
-    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: true, telefon: '600' });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { telefon: '600' });
   });
 
   it('un soci sense el camp organitzacio no el rep en desar un altre canvi', async () => {
@@ -1139,7 +1143,147 @@ describe('SociForm — persona de l\'organització', () => {
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
     expect(__batchUpdate).toHaveBeenCalledWith(referencia, { nomProposant: 'Organització Cineclub Roda de Berà' });
     expect(__batchUpdate).toHaveBeenLastCalledWith(referencia, { nomProposant: 'Toni P.' });
-    expect(__batchUpdate).toHaveBeenCalledWith('1', { ...CAMPS_BUITS, ...SOCI, organitzacio: false });
+    expect(__batchUpdate).toHaveBeenCalledWith('1', { organitzacio: false });
+  });
+});
+
+describe('SociForm — canvis fets per altres pantalles mentre la fitxa és oberta', () => {
+  beforeEach(() => {
+    reiniciaEscriptures();
+    getDocs.mockClear();
+  });
+  afterEach(() => getDocs.mockResolvedValue({ docs: [] }));
+
+  it('desar el telèfon no desfà l\'inicPeriode d\'un escaneig ni el pagament registrats mentrestant', async () => {
+    const actual = {
+      ...SOCI_COMPLET, inicPeriode: '2026-10-24', ultimPagament: '2026-10-24', estatManual: null,
+    };
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, actual);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate.mock.calls).toEqual([['1', { telefon: '6000000001' }]]);
+    // La fitxa mostra el que hi ha desat ara, no el que hi havia en obrir-la.
+    expect(screen.getByText('Últim pagament: 24/10/2026')).toBeInTheDocument();
+  });
+
+  it('socisPublic es calcula amb el document actual: si el carnet s\'ha regenerat mentrestant, va al token nou', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, tokenCarnet: 'tok-2' });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate.mock.calls).toEqual([['1', { telefon: '6000000001' }]]);
+    expect(__batchSet.mock.calls).toEqual([['tok-2', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
+  });
+
+  it('si mentrestant s\'ha desactivat, desar no torna a publicar socisPublic', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, actiu: false });
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate.mock.calls).toEqual([['1', { telefon: '6000000001' }]]);
+    expect(__batchSet).not.toHaveBeenCalled();
+  });
+
+  it('si el soci ja no existeix en desar, no escriu res i la barra ho diu', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, undefined);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    expect(await within(barra()).findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
+    expect(__batchCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe('SociForm — nom de les propostes en canviar el nom', () => {
+  beforeEach(() => {
+    reiniciaEscriptures();
+    getDocs.mockClear();
+    collection.mockClear();
+  });
+  afterEach(() => getDocs.mockResolvedValue({ docs: [] }));
+
+  const proposta = (id, nomProposant) => ({ ref: { id }, data: () => ({ nomProposant }) });
+
+  it('canviar el nom actualitza el nomProposant de les seves propostes, al mateix lot', async () => {
+    carrega(SOCI_COMPLET);
+    getDocs.mockImplementation(async () => ({ docs: [proposta('p1', 'Anna V.')] }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Nom'));
+    await user.type(screen.getByLabelText('Nom'), 'Joana');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(__batchCommit).toHaveBeenCalledTimes(1);
+    expect(__batchUpdate.mock.calls).toEqual([
+      ['1', { nom: 'Joana' }],
+      [{ id: 'p1' }, { nomProposant: 'Joana V.' }],
+    ]);
+    expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Joana V.' });
+  });
+
+  it('canviar els cognoms també; les propostes que ja tenen el nom bo no es reescriuen', async () => {
+    carrega(SOCI_COMPLET);
+    getDocs.mockImplementation(async () => ({ docs: [proposta('p1', 'Anna V.'), proposta('p2', 'Anna P.')] }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Cognoms'));
+    await user.type(screen.getByLabelText('Cognoms'), 'Puig');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(__batchUpdate.mock.calls).toEqual([
+      ['1', { cognoms: 'Puig' }],
+      [{ id: 'p1' }, { nomProposant: 'Anna P.' }],
+    ]);
+  });
+
+  it('el nom de les propostes surt del document actual (p. ex. si mentrestant l\'han marcat de l\'organització)', async () => {
+    carregaICanviaAbansDeDesar(SOCI_COMPLET, { ...SOCI_COMPLET, organitzacio: true });
+    getDocs.mockImplementation(async () => ({ docs: [proposta('p1', 'Organització Cineclub Roda de Berà')] }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Nom'));
+    await user.type(screen.getByLabelText('Nom'), 'Joana');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    // La casella no s'ha tocat a la fitxa: no s'escriu, i el nom públic continua sent el de l'organització.
+    expect(__batchUpdate.mock.calls).toEqual([['1', { nom: 'Joana' }]]);
+  });
+
+  it('un canvi que no afecta el nom (telèfon) no consulta ni toca les propostes', async () => {
+    carrega(SOCI_COMPLET);
+    const user = userEvent.setup();
+    renderExistent();
+    await user.type(await screen.findByLabelText('Telèfon'), '1');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(collection).not.toHaveBeenCalledWith(expect.anything(), 'propostes');
+    expect(__batchUpdate.mock.calls).toEqual([['1', { telefon: '6000000001' }]]);
+  });
+
+  it('amb més de 450 propostes, les reparteix en lots de 450 (el primer, amb el soci i socisPublic)', async () => {
+    carrega(SOCI_COMPLET);
+    const propostes = Array.from({ length: 451 }, (_, i) => proposta(`p${i}`, 'Anna V.'));
+    getDocs.mockImplementation(async () => ({ docs: propostes }));
+    const user = userEvent.setup();
+    renderExistent();
+    await user.clear(await screen.findByLabelText('Nom'));
+    await user.type(screen.getByLabelText('Nom'), 'Joana');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await esperaDesat();
+    expect(writeBatch).toHaveBeenCalledTimes(2);
+    expect(__batchCommit).toHaveBeenCalledTimes(2);
+    expect(__batchUpdate).toHaveBeenCalledTimes(452);
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { nom: 'Joana' }]);
+    expect(__batchUpdate.mock.calls[451]).toEqual([{ id: 'p450' }, { nomProposant: 'Joana V.' }]);
   });
 });
 
@@ -1165,12 +1309,13 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
     expect(screen.getByLabelText('Telèfon')).toHaveValue('6000000001');
     expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
+    // La relectura abans de desar ja veu el soci desactivat.
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI_COMPLET, ...desactivacio }) });
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
-    expect(__batchUpdate.mock.calls[1]).toEqual(['1', {
-      ...SOCI_COMPLET, telefon: '6000000001', actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: desactivacio.dataDesactivacio,
-    }]);
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { telefon: '6000000001' }]);
     expect(__batchSet).not.toHaveBeenCalled();
+    expect(screen.getByText('Desactivat')).toBeInTheDocument();
   });
 
   it('regenerar el carnet amb un nom pendent sincronitza socisPublic amb el nom desat, i el desat posterior porta el token nou', async () => {
@@ -1186,9 +1331,11 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     expect(__batchDelete).toHaveBeenCalledWith('tok-1');
     expect(__batchSet).toHaveBeenCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna V.' });
     expect(screen.getByLabelText('Cognoms')).toHaveValue('Puig');
+    // La relectura abans de desar ja veu el token nou.
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...SOCI_COMPLET, tokenCarnet: 'token-nou' }) });
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(2));
-    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { ...SOCI_COMPLET, cognoms: 'Puig', tokenCarnet: 'token-nou' }]);
+    expect(__batchUpdate.mock.calls[1]).toEqual(['1', { cognoms: 'Puig' }]);
     expect(__batchSet).toHaveBeenLastCalledWith('token-nou', { numeroSoci: 7, nomPublic: 'Anna P.' });
   });
 

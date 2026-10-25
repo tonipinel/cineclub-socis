@@ -41,6 +41,13 @@ const CAMPS_FORMULARI = [
   ['grupWhatsapp', 'Grup WhatsApp'],
 ];
 
+// L'únic que la fitxa pot escriure en editar: els camps del formulari i la casella d'organització.
+const CAMPS_EDITABLES = [...CAMPS_FORMULARI.map(([camp]) => camp), 'organitzacio'];
+// Camps dels quals depèn el nom públic (`calcularNomPublic`), que es copia a cada proposta com a `nomProposant`.
+const CAMPS_NOM_PUBLIC = ['nom', 'cognoms', 'organitzacio'];
+// Un lot de Firestore admet 500 escriptures: el primer porta també el soci i socisPublic.
+const PROPOSTES_PER_LOT = 450;
+
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
   [ESTAT_PENDENT]: 'Pendent',
@@ -99,13 +106,15 @@ function FitxaSoci({ id, soci }) {
   const navigate = useNavigate();
   const { confirma } = useConfirmacio();
 
-  // Escriu el document desat amb només els camps canviats (els no tocats es conserven tal com eren, `null` inclòs).
   const onDesar = async ({ valors: v, canviats }) => {
-    const escrit = { ...desat, ...Object.fromEntries(canviats.map((camp) => [camp, v[camp]])) };
+    const canvis = Object.fromEntries(canviats
+      .filter((camp) => CAMPS_EDITABLES.includes(camp))
+      .map((camp) => [camp, v[camp]]));
     if (!editant) {
       const data = avui();
       const creat = await addDoc(collection(db, 'socis'), {
-        ...escrit,
+        ...desat,
+        ...canvis,
         dataAlta: data,
         ultimPagament: data,
         actiu: true,
@@ -114,17 +123,35 @@ function FitxaSoci({ id, soci }) {
       navigate(ROUTES.SOCIS_EDITAR.replace(':id', creat.id), { replace: true });
       return undefined;
     }
+    // Només s'escriuen els camps canviats: el que hagin desat mentrestant l'escaneig o un pagament (inicPeriode,
+    // ultimPagament, actiu, tokenCarnet...) es conserva. socisPublic i nomProposant depenen també de camps que la
+    // fitxa no edita (token, actiu, número), i per això es calculen amb el document rellegit just abans del lot,
+    // no amb el carregat en obrir la fitxa.
+    const ref = doc(db, 'socis', id);
+    const actual = (await getDoc(ref)).data();
+    if (!actual) throw new Error('El soci ja no existeix');
+    const nou = { ...CAMPS_INICIALS, ...actual, ...canvis };
     const batch = writeBatch(db);
-    batch.update(doc(db, 'socis', id), escrit);
-    if (estaActiu(escrit)) sincronitzarSociPublic(batch, db, escrit);
-    // El nom amb què es mostren les seves propostes es desa a cada
-    // proposta: si canvia el fet de ser de l'organització, s'hi propaga.
-    if (Boolean(escrit.organitzacio) !== Boolean(desat.organitzacio) && escrit.numeroSoci) {
-      const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(escrit.numeroSoci))));
-      propostes.docs.forEach((p) => batch.update(p.ref, { nomProposant: calcularNomPublic(escrit) }));
+    batch.update(ref, canvis);
+    if (estaActiu(nou)) sincronitzarSociPublic(batch, db, nou);
+    // El nom amb què es mostren les seves propostes es desa a cada proposta: si canvia, s'hi propaga.
+    const lotsAddicionals = [];
+    if (CAMPS_NOM_PUBLIC.some((camp) => camp in canvis) && nou.numeroSoci) {
+      const nomProposant = calcularNomPublic(nou);
+      const propostes = await getDocs(query(collection(db, 'propostes'), where('numeroSoci', '==', Number(nou.numeroSoci))));
+      const pendents = propostes.docs.filter((p) => p.data().nomProposant !== nomProposant);
+      // Amb més propostes de les que caben en un lot, la resta va en lots posteriors (cadascun atòmic). Si un
+      // falla, el soci ja és desat però el desat es dona per fallit i els canvis queden pendents: tornar a desar
+      // només reescriu les propostes que encara tenen el nom vell.
+      for (let i = 0; i < pendents.length; i += PROPOSTES_PER_LOT) {
+        const lot = i === 0 ? batch : writeBatch(db);
+        pendents.slice(i, i + PROPOSTES_PER_LOT).forEach((p) => lot.update(p.ref, { nomProposant }));
+        if (i > 0) lotsAddicionals.push(lot);
+      }
     }
     await batch.commit();
-    setDesat(escrit);
+    setDesat(nou);
+    for (const lot of lotsAddicionals) await lot.commit();
     return undefined;
   };
 
