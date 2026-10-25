@@ -561,7 +561,7 @@ function FitxaSoci({ id, soci }) {
               {sessionsPeriodeActual.map((s) => (
                 <Link key={s.id} className="soci-form__cartell" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
                   {imatgeDeSessio(s) ? (
-                    <img className="soci-form__cartell-imatge" src={imatgeDeSessio(s)} alt={s.titol} />
+                    <img className="soci-form__cartell-imatge" src={imatgeDeSessio(s)} alt={s.titol} loading="lazy" decoding="async" />
                   ) : (
                     <div className="soci-form__cartell-placeholder">{s.titol}</div>
                   )}

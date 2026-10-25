@@ -179,7 +179,7 @@ export default function TicketsLotPage() {
                 )}
                 <p className="tickets-graella__titol">APORTACIÓ ({lot.preu}€)</p>
                 <div className="tickets-graella__fila">
-                  <img className="tickets-graella__logo" src="/logo-cineclub.png" alt="" />
+                  <img className="tickets-graella__logo" src="/logo-cineclub.webp" alt="" />
                   {urlsPerCodi[codi] && (
                     <img className="tickets-graella__qr" src={urlsPerCodi[codi]} alt={`Codi QR ${codi}`} />
                   )}

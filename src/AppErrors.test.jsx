@@ -24,7 +24,7 @@ describe('App: error de render d\'una pantalla', () => {
   it('mostra el missatge amable, manté la capçalera i en canviar de ruta torna a funcionar', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Alguna cosa ha anat malament' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alguna cosa ha anat malament' })).toBeInTheDocument();
     expect(document.querySelector('.site-header')).toBeInTheDocument();
     await userEvent.click(screen.getAllByRole('link', { name: 'Socis' })[0]);
     expect(await screen.findByRole('heading', { level: 1, name: 'Llista de socis' })).toBeInTheDocument();

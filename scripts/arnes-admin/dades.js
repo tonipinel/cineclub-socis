@@ -124,7 +124,7 @@ export function dadesInicials() {
             'Associació Cultural i Recreativa de Veïns i Veïnes de la Platja Llarga',
             'Associació Cultural i Recreativa de Veïns i Amics del Cinema Independent de la Costa Daurada i el Camp de Tarragona',
           ],
-          galeria: [CARTELL_AMPLE, '/logo-cineclub.png', '/logo-marca.png', '/cinema-pattern.jpg', '/logo-footer.png'],
+          galeria: [CARTELL_AMPLE, '/logo-cineclub.webp', '/logo-marca.png'],
           cos: `## Sinopsi\n\n${'Paràgraf llarg amb molt de text per omplir l\'àrea. '.repeat(30)}\n\n## Context\n\n${URL_LLARGA}\n\n${PARAULA_LLARGA}\n\n`.repeat(3),
         }),
       },
@@ -229,7 +229,7 @@ export function dadesInicials() {
     nom: 'Distribuïdora de Cinema Independent i Clàssic del Mediterrani, Societat Limitada',
     web: URL_LLARGA,
     urlPublica: URL_LLARGA,
-    logo: '/logo-cineclub.png',
+    logo: '/logo-cineclub.webp',
     contacte: 'Maria Montserrat Immaculada Puigdollers-Vallverdú i Casademunt de la Torre',
     correu: CORREU_LLARG,
     preu: 350,
@@ -247,8 +247,8 @@ export function dadesInicials() {
     nom: 'Associació Cultural i Recreativa de Veïns i Amics del Cinema Independent de la Costa Daurada i el Camp de Tarragona',
     url: URL_LLARGA,
   };
-  d['entitats/e2'] = { nom: 'Ateneu Rodenc', url: 'https://ateneu.example/', logo: '/logo-cineclub.png' };
-  d['entitats/e3'] = { nom: 'Ajuntament de Roda de Berà', url: 'https://rodadebera.example/', logo: '/logo-cineclub.png' };
+  d['entitats/e2'] = { nom: 'Ateneu Rodenc', url: 'https://ateneu.example/', logo: '/logo-cineclub.webp' };
+  d['entitats/e3'] = { nom: 'Ajuntament de Roda de Berà', url: 'https://rodadebera.example/', logo: '/logo-cineclub.webp' };
 
   // --- Propostes (20) i dades internes.
   // Barreja d'estats amb 14 propostes efectives (aprovades o programades), perquè la votació tingui un top llarg.

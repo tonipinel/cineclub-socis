@@ -97,7 +97,7 @@ export default function SessionsList() {
           return (
             <li key={s.id} className="sessions-list__targeta">
               <Link className="sessions-list__enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>
-                {imatgeDeSessio(s) && <img className="sessions-list__imatge" src={imatgeDeSessio(s)} alt="" />}
+                {imatgeDeSessio(s) && <img className="sessions-list__imatge" src={imatgeDeSessio(s)} alt="" loading="lazy" decoding="async" />}
                 <div className={`sessions-list__info ${s.activa ? 'sessions-list__info--activa' : ''}`}>
                   <div className="sessions-list__capcalera-targeta">
                     <div className="sessions-list__nom-data">

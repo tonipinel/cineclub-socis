@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { collection, getDocs, onSnapshot, query } from 'firebase/firestore';
+import {
+  collection, getDocs, onSnapshot, query, Timestamp, where,
+} from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
   calcularEstatSoci, calcularVenciment, estaActiu, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
@@ -76,7 +78,10 @@ export default function SocisList() {
   }, [intent, falla]);
 
   useEffect(() => {
-    const q = query(collection(db, 'accessLog'));
+    // Només els últims 12 mesos (els que compta comptarAssistenciesRecents).
+    const faDotzeMesos = new Date();
+    faDotzeMesos.setMonth(faDotzeMesos.getMonth() - 12);
+    const q = query(collection(db, 'accessLog'), where('timestamp', '>=', Timestamp.fromDate(faDotzeMesos)));
     getDocs(q).then((snap) => {
       const entrades = snap.docs.map((d) => {
         const dades = d.data();

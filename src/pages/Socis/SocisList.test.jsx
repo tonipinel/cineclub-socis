@@ -8,6 +8,8 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   orderBy: vi.fn(),
+  where: vi.fn((...args) => args),
+  Timestamp: { fromDate: (d) => ({ data: d }) },
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   onSnapshot: vi.fn((q, callback) => {
     callback({
@@ -20,10 +22,19 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { getDocs, onSnapshot } from 'firebase/firestore';
+import { getDocs, onSnapshot, where } from 'firebase/firestore';
 import SocisList from './SocisList';
 
 describe('SocisList', () => {
+  it('només llegeix les assistències dels últims 12 mesos', () => {
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    const [camp, operador, valor] = where.mock.calls.at(-1);
+    expect([camp, operador]).toEqual(['timestamp', '>=']);
+    const mesos = (new Date() - valor.data) / (1000 * 60 * 60 * 24 * 30.4);
+    expect(mesos).toBeGreaterThan(11.9);
+    expect(mesos).toBeLessThan(12.1);
+  });
+
   it('mostra els socis carregats amb el seu estat', () => {
     render(<MemoryRouter><SocisList /></MemoryRouter>);
     expect(screen.getByText('Anna')).toBeInTheDocument();

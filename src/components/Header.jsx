@@ -147,10 +147,10 @@ export default function Header() {
         <div className="site-header__marca">
           {role === ROLE_ADMIN ? (
             <Link to={ROUTES.DASHBOARD}>
-              <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+              <img className="site-header__logo" src="/logo-cineclub.webp" alt="Cineclub Roda de Berà" />
             </Link>
           ) : (
-            <img className="site-header__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+            <img className="site-header__logo" src="/logo-cineclub.webp" alt="Cineclub Roda de Berà" />
           )}
         </div>
         {enllacos.length > 0 && (

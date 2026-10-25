@@ -31,7 +31,7 @@ export default function CarnetCard({ soci }) {
         <p className="carnet__numero">{numeroSociFormatat(soci.numeroSoci)}</p>
       </div>
       <div className="carnet__cos">
-        <img className="carnet__logo" src="/logo-cineclub.png" alt="Cineclub Roda de Berà" />
+        <img className="carnet__logo" src="/logo-cineclub.webp" alt="Cineclub Roda de Berà" />
         <div className="carnet__qr-bloc">
           <div className="carnet__qr-marc">
             <img className="carnet__qr" src={dataUrl} alt={`Codi QR del carnet de ${soci.nom} ${soci.cognoms}`} />

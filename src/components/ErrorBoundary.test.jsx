@@ -44,4 +44,15 @@ describe('ErrorBoundary', () => {
     rerender(<ErrorBoundary clauReinici="/b"><Fragil /></ErrorBoundary>);
     expect(screen.getByText('Contingut')).toBeInTheDocument();
   });
+
+  it('si falla la càrrega d\'un fragment, «Torna-ho a provar» recarrega la pàgina', async () => {
+    const recarrega = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload: recarrega });
+    function Fragment() { throw new TypeError('Failed to fetch dynamically imported module: /assets/x.js'); }
+    render(<ErrorBoundary><Fragment /></ErrorBoundary>);
+    expect(screen.getByRole('alert')).toHaveTextContent('No s\'ha pogut carregar aquesta pantalla');
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(recarrega).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });
