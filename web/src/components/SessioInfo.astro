@@ -8,6 +8,8 @@ const { sessio } = Astro.props;
 const { preu, queInclou, versioTipus, idioma, edatMinimaRecomanada: edat } = sessio.publica ?? {};
 const mapsUrl = `https://www.google.com/maps/search/?api=1&${new URLSearchParams({ query: `${site.venueName}, ${site.venueAddress}` })}`;
 const { sigles, explicacio } = versioInfo(versioTipus, idioma);
+// Edats amb icona a public/images/icaa/; la resta es mostren en text.
+const ICONES_ICAA = [7, 12, 16, 18];
 ---
 <div class="session-info-wrapper">
   <div class="session-info">
@@ -19,8 +21,9 @@ const { sigles, explicacio } = versioInfo(versioTipus, idioma);
     {queInclou && <InfoItem icon="chat-bubble-left-right" caption="Col·loqui després<br/> de la projecció" />}
     {sigles && <InfoItem text={sigles} caption={explicacio} />}
     {edat === 0 && <InfoItem logo="/images/icaa/icaa-tp.svg" caption="Recomanada per a tots els públics" />}
-    {edat != null && edat !== 0 && (
-      <InfoItem logo={`/images/icaa/icaa-${edat}.svg`} caption={`No recomanada per a menors de ${edat} anys`} />
+    {edat != null && edat !== 0 && (ICONES_ICAA.includes(edat)
+      ? <InfoItem logo={`/images/icaa/icaa-${edat}.svg`} caption={`No recomanada per a menors de ${edat} anys`} />
+      : <InfoItem text={`+${edat}`} caption={`No recomanada per a menors de ${edat} anys`} />
     )}
   </div>
 </div>

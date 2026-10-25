@@ -6,17 +6,20 @@ import SessionCard from '../../components/SessionCard.astro';
 import seccions from '../../data/seccions.json';
 import { dataCaCurtaHtml, dataIso } from '../../lib/format.js';
 import { renderMarkdown } from '../../lib/markdown.js';
-import { CACHE_AVUI } from '../../lib/cache.js';
+import { CACHE_AVUI, CACHE_CLIENT } from '../../lib/cache.js';
 import { paginaPerSlug } from '../../lib/pagines.js';
+import { sessionsLlistables } from '../../lib/sessio-camps.js';
 import { anysAmbSessions, sessionsPubliques } from '../../lib/sessions.js';
 import { elementsCalendari } from '../../lib/calendari.js';
 
 // Traducció de layouts/programacio/list.html. Títol, descripció i introducció: `pagines/programacio`.
-const [pagina, sessions] = await Promise.all([paginaPerSlug('programacio'), sessionsPubliques()]);
+const [pagina, publiques] = await Promise.all([paginaPerSlug('programacio'), sessionsPubliques()]);
+const sessions = sessionsLlistables(publiques);
 const calendari = elementsCalendari(sessions, new Date());
 const titol = pagina?.titol || 'Programació';
 // Els «Per determinar» del calendari depenen de la data de la petició: caché més curta.
-Astro.response.headers.set('Cache-Control', CACHE_AVUI);
+// Si s'ha hagut d'ometre alguna sessió dels llistats, encara més curta.
+Astro.response.headers.set('Cache-Control', sessions.length < publiques.length ? CACHE_CLIENT : CACHE_AVUI);
 // Hugo recorre `Site.Data.seccions` per ordre alfabètic de clau.
 const botonsSeccio = Object.entries(seccions).sort(([a], [b]) => (a < b ? -1 : 1));
 ---

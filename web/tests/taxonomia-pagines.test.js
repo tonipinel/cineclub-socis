@@ -53,12 +53,12 @@ const terme = (Ruta, taxonomia, slug) => renderitza(Ruta, `/${taxonomia}/${encod
 beforeEach(() => ambDb());
 
 describe('índex de taxonomies', () => {
-  it('/directors/ té el títol «directors» al head i el h1 de Hugo', async () => {
+  it('/directors/ té al head el mateix títol i text que el h1 i l\'entradeta (no la clau ni el lema)', async () => {
     const { status, html } = await renderitza(IndexDirectors, '/directors/');
     expect(status).toBe(200);
-    expect(html).toContain('<title>directors · Cineclub Roda de Berà</title>');
-    expect(html).toContain('<meta property="og:title" content="directors">');
-    expect(html).toContain('<meta name="description" content="Un espai per viure i compartir cinema durant tot l\'any!">');
+    expect(html).toContain('<title>Directors i directores · Cineclub Roda de Berà</title>');
+    expect(html).toContain('<meta property="og:title" content="Directors i directores">');
+    expect(html).toContain('<meta name="description" content="Totes les directores i directors de les pel·lícules programades pel Cineclub Roda de Berà.">');
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/directors/">');
     expect(html).toContain('<h1 class="page-hero__title">Directors i directores</h1>');
     expect(html).toContain('<p class="page-hero__hook">Totes les directores i directors de les pel·lícules programades pel Cineclub Roda de Berà.</p>');

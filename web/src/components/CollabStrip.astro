@@ -3,7 +3,10 @@ import { entitatPerNom } from '../lib/entitats.js';
 
 // Traducció de partials/collab-strip.html.
 const { sessio } = Astro.props;
-const { organitza, participa = [], collabora = [] } = sessio.publica ?? {};
+const llista = (valor) => (Array.isArray(valor) ? valor : []);
+const organitza = sessio.publica?.organitza;
+const participa = llista(sessio.publica?.participa);
+const collabora = llista(sessio.publica?.collabora);
 const grups = [
   { etiqueta: 'Participen', repetida: 'Participa', noms: participa },
   { etiqueta: 'Col·laboren', repetida: 'Col·labora', noms: collabora },
@@ -14,7 +17,7 @@ const entitat = (nom) => entitatPerNom(nom);
 {(participa.length || collabora.length) ? (
   <div class="collab-strip-wrapper">
     <div class="collab-strip">
-      <div class="collab-strip__item">
+      {organitza && <div class="collab-strip__item">
         <span class="collab-strip__label">Organitza</span>
         {entitat(organitza)?.logo ? (
           entitat(organitza).url ? (
@@ -27,7 +30,7 @@ const entitat = (nom) => entitatPerNom(nom);
         ) : (
           <span class="collab-strip__entity">{organitza}</span>
         )}
-      </div>
+      </div>}
       {grups.map((grup) => (
         <div class="collab-strip__group">
           <span class="collab-strip__label collab-strip__label--group">{grup.etiqueta}</span>

@@ -5,6 +5,21 @@
       "path": "/propostes/",
       "camps": ["sitemap"],
       "motiu": "Pàgina nova de la web: les propostes de programació, abans a associacio.cineclubrodadebera.cat. No existeix a Hugo, per això només surt al sitemap de la web nova."
+    },
+    {
+      "path": "/directors/",
+      "camps": ["title", "description"],
+      "motiu": "Títol i descripció en català (els del h1 i l'entradeta); Hugo hi posava la clau de la taxonomia i el lema del web."
+    },
+    {
+      "path": "/generes/",
+      "camps": ["title", "description"],
+      "motiu": "Títol i descripció en català (els del h1 i l'entradeta); Hugo hi posava la clau de la taxonomia i el lema del web."
+    },
+    {
+      "path": "/interprets/",
+      "camps": ["title", "description"],
+      "motiu": "Títol i descripció en català (els del h1 i l'entradeta); Hugo hi posava la clau de la taxonomia i el lema del web."
     }
   ]
 }

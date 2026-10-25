@@ -1,5 +1,7 @@
 ---
 import SessioPagina from '../../../components/SessioPagina.astro';
+import { CACHE_CLIENT } from '../../../lib/cache.js';
+import { sessionsLlistables } from '../../../lib/sessio-camps.js';
 import { sessionsPubliques, trobaSessio } from '../../../lib/sessions.js';
 
 // /programacio/<any>/<slug>/. Les sessions inexistents o no publicades donen el 404 de la web.
@@ -7,5 +9,9 @@ const { any, slug } = Astro.params;
 const sessions = /^\d{4}$/.test(any ?? '') ? await sessionsPubliques() : [];
 const sessio = trobaSessio(sessions, any, slug);
 if (!sessio) return Astro.rewrite('/404');
+// «Sessions relacionades» només amb les que es poden pintar com a targeta; si se n'ha omès cap, el CDN
+// no guarda gaire la pàgina.
+const relacionables = sessionsLlistables(sessions);
+if (relacionables.length < sessions.length) Astro.response.headers.set('Cache-Control', CACHE_CLIENT);
 ---
-<SessioPagina sessio={sessio} sessions={sessions} />
+<SessioPagina sessio={sessio} sessions={relacionables} />

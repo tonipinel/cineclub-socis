@@ -12,7 +12,7 @@ const HOOKS = {
   generes: 'Tots els gèneres de les pel·lícules programades pel Cineclub Roda de Berà.',
 };
 ---
-<BaseLayout titol={taxonomia}>
+<BaseLayout titol={TITOLS[taxonomia]} descripcio={HOOKS[taxonomia]}>
   <section class="page-hero">
     <h1 class="page-hero__title">{TITOLS[taxonomia]}</h1>
     <p class="page-hero__hook">{HOOKS[taxonomia]}</p>

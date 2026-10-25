@@ -1,5 +1,7 @@
 ---
 import TaxonomiaTerme from '../../components/TaxonomiaTerme.astro';
+import { CACHE_CLIENT } from '../../lib/cache.js';
+import { sessionsLlistables } from '../../lib/sessio-camps.js';
 import { sessionsPubliques } from '../../lib/sessions.js';
 import { paramTermeValid, termesDe, trobaTerme } from '../../lib/taxonomies.js';
 
@@ -8,5 +10,10 @@ import { paramTermeValid, termesDe, trobaTerme } from '../../lib/taxonomies.js';
 if (!paramTermeValid(Astro.params.terme)) return Astro.rewrite('/404');
 const terme = trobaTerme(termesDe(await sessionsPubliques(), 'generes'), Astro.params.terme);
 if (!terme) return Astro.rewrite('/404');
+const sessions = sessionsLlistables(terme.sessions);
+// Sense cap sessió que es pugui pintar, el terme és com si no existís.
+if (!sessions.length) return Astro.rewrite('/404');
+// Si s'ha hagut d'ometre alguna sessió, el CDN no guarda gaire la pàgina.
+if (sessions.length < terme.sessions.length) Astro.response.headers.set('Cache-Control', CACHE_CLIENT);
 ---
-<TaxonomiaTerme taxonomia="generes" terme={terme} />
+<TaxonomiaTerme taxonomia="generes" terme={terme} sessions={sessions} />

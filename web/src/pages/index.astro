@@ -6,20 +6,23 @@ import Mosaic from '../components/Mosaic.astro';
 import site from '../data/site.json';
 import { resizedUrl } from '../lib/images.js';
 import { renderMarkdown } from '../lib/markdown.js';
-import { CACHE_AVUI } from '../lib/cache.js';
+import { CACHE_AVUI, CACHE_CLIENT } from '../lib/cache.js';
 import { paginaPerSlug } from '../lib/pagines.js';
+import { sessionsLlistables } from '../lib/sessio-camps.js';
 import { sessionsMosaic, sessionsPubliques } from '../lib/sessions.js';
 
 // Traducció de layouts/index.html. Dades: `pagines/portada` (features, membership_benefits,
 // cos en Markdown i imatges per nom de fitxer) i les sessions publicades.
-const [pagina, sessions] = await Promise.all([paginaPerSlug('portada'), sessionsPubliques()]);
+const [pagina, publiques] = await Promise.all([paginaPerSlug('portada'), sessionsPubliques()]);
+const sessions = sessionsLlistables(publiques);
 // Firestore pot tornar `null` (o res) en llistes i mapes: es tracten com a buits.
 const llista = (valor) => (Array.isArray(valor) ? valor : []);
 const features = llista(pagina?.dades?.features);
 const beneficis = llista(pagina?.dades?.membership_benefits);
 const imatges = pagina?.imatges ?? {};
 // El mosaic depèn de la data de la petició: caché més curta que la resta de pàgines.
-Astro.response.headers.set('Cache-Control', CACHE_AVUI);
+// Si s'ha hagut d'ometre alguna sessió dels llistats, encara més curta.
+Astro.response.headers.set('Cache-Control', sessions.length < publiques.length ? CACHE_CLIENT : CACHE_AVUI);
 const imatge = (nom, ample) => (imatges[nom] ? resizedUrl(imatges[nom], ample) : '');
 const [tagline1, tagline2 = ''] = site.tagline.split('cinema');
 const logo = imatge('hero-logo.png', 600);

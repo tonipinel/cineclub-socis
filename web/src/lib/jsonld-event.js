@@ -1,6 +1,6 @@
 import site from '../data/site.json';
 import { entitatPerNom } from './entitats.js';
-import { dataIso, dataIsoMesMinuts } from './format.js';
+import { dataIso, dataIsoMesMinuts, retalla } from './format.js';
 import { renderMarkdown } from './markdown.js';
 import { titolSessio, urlSessio } from './sessio-camps.js';
 
@@ -20,12 +20,6 @@ const decodifica = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (tot,
 const BLOC = /<\/?(?:br|p|div|li|ul|ol|h[1-6]|blockquote|pre|hr|table|thead|tbody|tr|td|th|section|article)(?:\s[^>]*)?\/?>/gi;
 const textPlaDe = (html) => decodifica(html.replace(BLOC, ' ').replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
 
-function retalla(text) {
-  if (text.length <= MAX_DESCRIPCIO) return text;
-  const tros = text.slice(0, MAX_DESCRIPCIO - 1);
-  const final = tros.lastIndexOf(' ');
-  return `${(final > 0 ? tros.slice(0, final) : tros).replace(/[\s,;:.]+$/, '')}…`;
-}
 
 // Text pla de la sessió: `sinopsiCartell` (que pot dur `<br/>`) o, si no hi és, el primer paràgraf
 // del cos. Sense cap dels dos, cadena buida.
@@ -33,7 +27,7 @@ export function descripcioEvent(sessio) {
   const p = sessio.publica ?? {};
   let text = typeof p.sinopsiCartell === 'string' ? textPlaDe(p.sinopsiCartell) : '';
   if (!text) text = textPlaDe(renderMarkdown(p.cos).match(/<p>([\s\S]*?)<\/p>/)?.[1] ?? '');
-  return retalla(text);
+  return retalla(text, MAX_DESCRIPCIO);
 }
 
 const IDIOMES = {

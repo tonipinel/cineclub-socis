@@ -18,16 +18,104 @@ const dataValida = (data) => {
 };
 const horaValida = (hora) => horaNormal(hora) ?? '00:00';
 
-// Una sessió publicada sense `data` vàlida s'ignora (no es pot ni ordenar ni pintar) i una
-// `hora` absent val 00:00, perquè un sol document dolent no pugui fer caure tot el web.
-// La lectura es memoritza ~60 s (vegeu memo.js).
+// Un slug que pot anar tal qual en un segment de URL (els de Hugo poden dur accents).
+const slugValid = (slug) => typeof slug === 'string' && /^[^\s/?#%\\]+$/.test(slug);
+
+// `publica` l'edita l'admin a mà: qualsevol camp pot ser `null` o d'un altre tipus. Aquí cada camp
+// pren el tipus que esperen les plantilles (textos nets, llistes només de textos, nombres vàlids) i
+// el valor que no hi encaixa s'omet, només aquell camp. Els camps que no són aquí no arriben a la web.
+const CAMPS_TEXT = [
+  'titolEspanya', 'guio', 'pais', 'idioma', 'versioIdiomatica', 'fotografia', 'muntatge', 'musica', 'produccio',
+  'premisDestacats', 'versioTipus', 'suportDistribucio', 'suportDistribucioId', 'seccio', 'organitza', 'descripcio',
+  'hook', 'actualitzatEl',
+];
+// Títols i any: un nombre també val («1917», 2021 de YAML).
+const CAMPS_TEXT_O_NOMBRE = ['titol', 'titolOriginal', 'titolTraduit', 'any'];
+// Markdown i HTML: no es retallen (l'indentació inicial compta).
+const CAMPS_TEXT_LLIURE = ['cos', 'sinopsiCartell'];
+const CAMPS_LLISTA = ['directors', 'interprets', 'generes', 'participa', 'collabora', 'aliases'];
+
+const buit = (v) => v === undefined || v === null || v === '';
+const text = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+const textONombre = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : text(v));
+const textLliure = (v) => (typeof v === 'string' && v.trim() ? v : undefined);
+// Absoluta http(s) o relativa a l'arrel: res que no es pugui posar a un `src`.
+const imatge = (v) => {
+  const url = text(v);
+  if (!url || !/^(https?:\/\/|\/(?!\/))/i.test(url)) return undefined;
+  try {
+    new URL(url, 'https://cineclubrodadebera.cat/');
+    return url;
+  } catch {
+    return undefined;
+  }
+};
+// Un sol valor també és una llista d'un element (com fa l'admin amb `llistaDe`).
+const llistaDe = (v, element) => (Array.isArray(v) ? v : buit(v) ? [] : [v]).map(element).filter(Boolean);
+// Nombre >= 0, també en text («5», «0», «4,5»).
+const nombre = (v) => {
+  const n = typeof v === 'number' ? v
+    : typeof v === 'string' && /^\d+(?:[.,]\d+)?$/.test(v.trim()) ? Number(v.trim().replace(',', '.')) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+};
+const NORMALITZADORS = {
+  ...Object.fromEntries(CAMPS_TEXT.map((c) => [c, text])),
+  ...Object.fromEntries(CAMPS_TEXT_O_NOMBRE.map((c) => [c, textONombre])),
+  ...Object.fromEntries(CAMPS_TEXT_LLIURE.map((c) => [c, textLliure])),
+  cartell: imatge,
+  preu: nombre,
+  durada: (v) => (nombre(v) > 0 ? nombre(v) : undefined),
+  edatMinimaRecomanada: (v) => (Number.isInteger(nombre(v)) ? nombre(v) : undefined),
+  queInclou: (v) => (v === true ? true : text(v)),
+  trailerYoutubeId: (v) => (typeof v === 'string' && /^[A-Za-z0-9_-]{11}$/.test(v.trim()) ? v.trim() : undefined),
+};
+
+// La `publica` neta i els noms dels camps que duien un valor que no s'ha pogut fer servir (un camp
+// buit, `null` o `false` no compta com a error).
+function normalitzaPublica(brut) {
+  const origen = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut : {};
+  const publica = {};
+  const ignorats = [];
+  for (const [camp, normalitza] of Object.entries(NORMALITZADORS)) {
+    const valor = normalitza(origen[camp]);
+    if (valor !== undefined) publica[camp] = valor;
+    else if (!buit(origen[camp]) && origen[camp] !== false) ignorats.push(camp);
+  }
+  for (const camp of [...CAMPS_LLISTA, 'galeria']) {
+    const valor = origen[camp];
+    publica[camp] = llistaDe(valor, camp === 'galeria' ? imatge : text);
+    const presents = Array.isArray(valor) ? valor.filter((x) => !buit(x)).length : buit(valor) ? 0 : 1;
+    if (publica[camp].length < presents) ignorats.push(camp);
+  }
+  return { publica, ignorats };
+}
+
+// Sessió neta: `titol` de text (sense cap títol, el slug), `hora` HH:MM i `publica` normalitzada.
+// Es registra quins camps s'han ignorat (mai els valors) per poder-los corregir a l'admin.
+function normalitzaSessio(s) {
+  const { publica, ignorats } = normalitzaPublica(s.publica);
+  if (ignorats.length) console.warn(`sessió ${s.id}: camps de publica ignorats per tipus invàlid: ${ignorats.join(', ')}`);
+  return { ...s, titol: textONombre(s.titol) ?? publica.titol ?? s.slug, hora: horaValida(s.hora), publica };
+}
+
+// Les no publicades no compten; una publicada que no es pot fer servir es registra (id i motiu, sense valors).
+function publicable(s) {
+  if (s.publicada !== true) return false;
+  const motiu = !slugValid(s.slug) ? 'slug invàlid' : !dataValida(s.data) ? 'data invàlida' : null;
+  if (motiu) console.warn(`sessió ${s.id} descartada: ${motiu}`);
+  return !motiu;
+}
+
+// Una sessió publicada sense `data` vàlida o sense un slug que pugui anar a la URL s'ignora (no es
+// pot ni ordenar ni enllaçar); la resta es normalitza (`normalitzaSessio`), perquè un sol document
+// dolent no pugui fer caure tot el web. La lectura es memoritza ~60 s (vegeu memo.js).
 export function sessionsPubliques(db = getDb()) {
   return memo.obte(db, 'sessions', async () => {
     const snap = await llegir(db.collection('sessions').get());
     return snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((s) => s.publicada === true && s.slug && dataValida(s.data))
-      .map((s) => ({ ...s, hora: horaValida(s.hora) }))
+      .filter(publicable)
+      .map(normalitzaSessio)
       .sort(ascendent);
   });
 }

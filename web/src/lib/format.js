@@ -11,6 +11,14 @@ export function urlize(text) {
     .replace(/[^\p{L}\p{N}\p{M}.\-_]/gu, '');
 }
 
+// `text` de com a molt `max` caràcters (comptat el `…`), tallat a la darrera paraula sencera.
+export function retalla(text, max) {
+  if (text.length <= max) return text;
+  const tros = text.slice(0, max - 1);
+  const final = tros.lastIndexOf(' ');
+  return `${(final > 0 ? tros.slice(0, final) : tros).replace(/[\s,;:.]+$/, '')}…`;
+}
+
 // Hora `H:MM` o `HH:MM` com a `HH:MM` (amb zero a l'esquerra, perquè l'ordre per text sigui l'horari);
 // qualsevol altra cosa o una hora fora de rang, null.
 export function horaNormal(hora) {

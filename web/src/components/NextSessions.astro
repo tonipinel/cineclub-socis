@@ -1,6 +1,6 @@
 ---
 import SessionCard from './SessionCard.astro';
-import { dataIso } from '../lib/format.js';
+import { targetaSessio } from '../lib/sessio-camps.js';
 import { sessionsDescendents } from '../lib/sessions.js';
 
 // Traducció de partials/next-sessions.html. El servidor no sap quina és «avui» (la pàgina
@@ -13,7 +13,7 @@ const { sessions } = Astro.props;
     <h2>Properes sessions</h2>
     <div class="next-session__grid" data-next-session-grid>
       {sessionsDescendents(sessions).map((s) => (
-        <div class="next-session__item" data-session-date={dataIso(s.data, s.hora || '00:00')} hidden>
+        <div class="next-session__item" data-session-date={targetaSessio(s).dataIso} hidden>
           <SessionCard sessio={s} />
         </div>
       ))}
