@@ -49,13 +49,31 @@ describe('middleware', () => {
     vi.restoreAllMocks();
   });
 
-  it('afegeix nosniff i frame-ancestors a totes les respostes (200, 404, 500)', async () => {
+  it('afegeix les capçaleres de seguretat a totes les respostes (200, 400, 404, 500)', async () => {
     const { onRequest } = await carrega(true);
     const trencat = () => Promise.reject(new Error('caiguda'));
-    for (const res of [await onRequest(context(), ok), await onRequest(context('/x'), no404), await onRequest(context(), trencat)]) {
+    const dolenta = () => Promise.resolve(new Response('x', { status: 400 }));
+    const respostes = [
+      await onRequest(context(), ok),
+      await onRequest(context('/x'), no404),
+      await onRequest(context('/api/img.webp'), dolenta),
+      await onRequest(context(), trencat),
+    ];
+    expect(respostes.map((r) => r.status)).toEqual([200, 404, 400, 500]);
+    for (const res of respostes) {
       expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
       expect(res.headers.get('Content-Security-Policy')).toBe("frame-ancestors 'self'");
+      expect(res.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+      expect(res.headers.get('Permissions-Policy')).toBe('camera=(self), microphone=(), geolocation=(), payment=()');
+      expect(res.headers.get('Strict-Transport-Security')).toBe('max-age=31536000');
     }
+  });
+
+  it('les capçaleres de seguretat no toquen el Cache-Control', async () => {
+    const { onRequest } = await carrega(true);
+    const ambCache = () => Promise.resolve(new Response('x', { status: 200, headers: { 'Cache-Control': 'public, max-age=1' } }));
+    expect((await onRequest(context('/robots.txt'), ambCache)).headers.get('Cache-Control')).toBe('public, max-age=1');
+    expect((await onRequest(context('/x'), no404)).headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=300');
   });
 
   it('serveix /programacio/<any>/<slug>/cartell.html (sense barra final) reescrivint a la ruta del cartell', async () => {

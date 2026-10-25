@@ -23,7 +23,18 @@ const IMATGE = /\.(?:jpg|jpeg|png|webp)$/;
 // entitats i distribuïdores. Els estàtics, les imatges i els endpoints de dades (.xml, .txt, .webp, .jpg) no hi passen.
 const esPaginaHtml = (pathname) => pathname.endsWith('/') || CARTELL.test(pathname);
 
-const redirect301 = (desti) => new Response(null, { status: 301, headers: { Location: desti } });
+// Les mateixes que firebase.json posa als estàtics de Hosting. Hosting no afegeix HSTS a les respostes
+// 4xx de la funció, així que es posa aquí per a totes. Sense includeSubDomains: el domini arrel en té d'altres.
+// La càmera és per al lector de carnets de /propostes/.
+const CAPCALERES_SEGURETAT = {
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "frame-ancestors 'self'",
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(), payment=()',
+  'Strict-Transport-Security': 'max-age=31536000',
+};
+
+const redirect301 =(desti) => new Response(null, { status: 301, headers: { Location: desti } });
 
 // Un 404 pot ser una URL antiga de Hugo: un `alias` d'una sessió publicada (tots sota /programacio/), una
 // imatge d'una sessió (/programacio/<any>/<slug>/<fitxer>) o una imatge d'una pàgina (/<fitxer> de la
@@ -68,8 +79,7 @@ export const onRequest = async (context, next) => {
   // Si falta algun catàleg (entitats o distribuïdores mai llegits en aquesta instància) la pàgina pot sortir
   // sense logos: el CDN no la pot guardar gaire.
   if (html && response.status === 200 && !(entitatsCarregades() && distribuidoresCarregades())) headers.set('Cache-Control', CACHE_CLIENT);
-  headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Content-Security-Policy', "frame-ancestors 'self'");
+  for (const [clau, valor] of Object.entries(CAPCALERES_SEGURETAT)) headers.set(clau, valor);
   if (!INDEXABLE) headers.set('X-Robots-Tag', 'noindex');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 };
