@@ -208,3 +208,25 @@ describe('TicketsLotPage', () => {
     expect(await screen.findByText('Llistat de lots')).toBeInTheDocument();
   });
 });
+
+describe('TicketsLotPage: errors de càrrega', () => {
+  it.each([[0], [1]])('si falla l\'oient %i (lot o entrades), mostra l\'error i «Torna-ho a provar» es torna a subscriure', async (quin) => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockReset();
+    onSnapshot.mockImplementation(() => () => {});
+    const ok = [
+      (q, cb) => { cb({ exists: () => true, data: () => LOT }); return () => {}; },
+      (q, cb) => { cb({ docs: [] }); return () => {}; },
+    ];
+    const falla = (q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; };
+    onSnapshot
+      .mockImplementationOnce(quin === 0 ? falla : ok[0])
+      .mockImplementationOnce(quin === 1 ? falla : ok[1]);
+    renderLot();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el lot de tiquets.");
+    onSnapshot.mockImplementationOnce(ok[0]).mockImplementationOnce(ok[1]);
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText(/T-000001.*T-000003/)).toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+});

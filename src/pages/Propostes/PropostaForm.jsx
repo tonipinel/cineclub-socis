@@ -24,6 +24,8 @@ import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import Pestanyes from '../../components/Pestanyes';
 import BarraDesar from '../../components/BarraDesar';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega, { DocumentInexistent } from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import {
   CAMPS_INTERNS, ETIQUETA_PESTANYA, PESTANYA_DEL_CAMP, PESTANYES,
 } from './campsProposta';
@@ -497,6 +499,9 @@ function CarregaProposta({ id }) {
   const [tandes, setTandes] = useState([]);
   // `undefined` fins que s'han llegit les sessions; després, la sessió o `null` (també si la lectura falla).
   const [sessio, setSessio] = useState(undefined);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     let actiu = true;
@@ -509,12 +514,10 @@ function CarregaProposta({ id }) {
       silenciosa(getDocs(collection(db, 'distribuidores'))
         .then((snap) => docsDe(snap).sort((a, b) => String(a.nom ?? '').localeCompare(String(b.nom ?? ''), 'ca'))), []),
     ]).then(([proposta, socis, interna, distribuidores]) => {
-      if (actiu) setCarregada(proposta ? { proposta, socis, interna, distribuidores } : { error: true });
-    }).catch(() => {
-      if (actiu) setCarregada({ error: true });
-    });
+      if (actiu) setCarregada(proposta ? { proposta, socis, interna, distribuidores } : { inexistent: true });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id]);
+  }, [id, intent, falla]);
 
   // Només lectura i opcional: si falla, el Resum mostra «—» i la capçalera no en mostra res.
   useEffect(() => {
@@ -537,14 +540,12 @@ function CarregaProposta({ id }) {
     return () => { actiu = false; };
   }, [id]);
 
-  if (!carregada) return <Carregant />;
-  if (carregada.error) {
-    return (
-      <PaginaAdmin amplada="fitxa" titol="Proposta" tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}>
-        <p className="form__error" role="alert">No s&apos;ha pogut carregar la proposta.</p>
-      </PaginaAdmin>
-    );
+  const tornar = { to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' };
+  if (errorCarrega) {
+    return <ErrorCarrega amplada="fitxa" titol="Proposta" tornar={tornar} missatge="No s'ha pogut carregar la proposta." onReintenta={reintenta} />;
   }
+  if (!carregada) return <Carregant />;
+  if (carregada.inexistent) return <DocumentInexistent titol="Proposta" missatge="Aquesta proposta no existeix." tornar={tornar} />;
   return <FitxaProposta id={id} carregada={carregada} tandes={tandes} sessio={sessio} />;
 }
 

@@ -338,4 +338,19 @@ describe('Header', () => {
     expect(entrada(container, 'Programació')).toHaveTextContent(/^Programació$/);
     expect(container.querySelector('.site-header__badge')).toBeNull();
   });
+
+  it('si un oient dels badges falla, el badge s\'amaga i l\'error només es registra', () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = renderAdmin('/socis');
+    emetComptador(0, 3);
+    emetPropostes(['Anna P.']);
+    act(() => {
+      mockOnSnapshot.mock.calls[0][2](new Error('permission-denied'));
+      mockOnSnapshot.mock.calls[1][2](new Error('permission-denied'));
+    });
+    expect(container.querySelector('.site-header__badge')).toBeNull();
+    expect(entrada(container, 'Socis')).toHaveTextContent(/^Socis$/);
+    expect(errorConsola).toHaveBeenCalledTimes(2);
+    errorConsola.mockRestore();
+  });
 });

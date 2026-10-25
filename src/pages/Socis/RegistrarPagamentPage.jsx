@@ -18,6 +18,8 @@ import {
 import { sincronitzarSociPublic } from '../../lib/propostes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 // Entre totes les sessions, la que té la data més propera a avui (abans o
 // després): és la millor conjectura per defecte de a quina sessió correspon
@@ -59,13 +61,18 @@ export default function RegistrarPagamentPage() {
   const [teQuotes, setTeQuotes] = useState(false);
   const [error, setError] = useState(null);
   const [desant, setDesant] = useState(false);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
+    let actiu = true;
     Promise.all([
       getDoc(doc(db, 'socis', id)),
       getDoc(doc(db, 'configuracio', 'associacio')),
       getDocs(collection(db, 'sessions')),
     ]).then(async ([sociSnap, configSnap, sessionsSnap]) => {
+      if (!actiu) return;
       const dadesSoci = sociSnap.data();
       if (!dadesSoci) {
         navigate(ROUTES.SOCIS, { replace: true });
@@ -82,6 +89,7 @@ export default function RegistrarPagamentPage() {
           where('categoria', '==', CATEGORIA_QUOTA_SOCI)
         ));
         ambQuotes = pagamentsExistents.docs.length > 0;
+        if (!actiu) return;
       }
       const renovacio = tipusPagamentQuota(dadesSoci, { teQuotes: ambQuotes }) === 'renovacio';
       setSoci({ id: sociSnap.id, ...dadesSoci });
@@ -97,8 +105,9 @@ export default function RegistrarPagamentPage() {
         setSessionId(sessioMesPropera(totesSessions, avui()) ?? '');
       }
       setCarregant(false);
-    });
-  }, [id, navigate]);
+    }).catch((e) => { if (actiu) falla(e); });
+    return () => { actiu = false; };
+  }, [id, navigate, intent, falla]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,6 +195,17 @@ export default function RegistrarPagamentPage() {
     }
   };
 
+  if (errorCarrega) {
+    return (
+      <ErrorCarrega
+        amplada="formulari"
+        titol="Registrar pagament"
+        tornar={{ to: ROUTES.SOCIS_EDITAR.replace(':id', id), etiqueta: 'Fitxa del soci/a' }}
+        missatge="No s'ha pogut carregar el soci."
+        onReintenta={reintenta}
+      />
+    );
+  }
   if (carregant) return <Carregant />;
 
   const quotaPrevista = data ? novaQuota(soci, data, { renovacio: esRenovacio }) : null;

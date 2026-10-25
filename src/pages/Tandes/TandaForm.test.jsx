@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  render, screen, waitFor, within,
+  fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -119,7 +119,7 @@ const AVIS_OBERTA = "Ja hi ha una tanda oberta. Tanca-la abans d'obrir-ne una al
 
 describe('TandaForm', () => {
   describe('si la càrrega inicial falla', () => {
-    const ERROR = "No s'ha pogut carregar la tanda. Torna-ho a provar.";
+    const ERROR = "No s'ha pogut carregar la tanda.";
 
     it('de les propostes, mostra un avís amb el títol i l\'enllaç a Tandes, no el carregador', async () => {
       getDocs.mockRejectedValue(new Error('permission-denied'));
@@ -137,6 +137,9 @@ describe('TandaForm', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(ERROR);
       expect(screen.getByRole('heading', { level: 1, name: 'Tanda' })).toBeInTheDocument();
       expect(screen.queryByAltText('Carregant…')).not.toBeInTheDocument();
+      const lectures = getDoc.mock.calls.length;
+      fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+      await waitFor(() => expect(getDoc.mock.calls.length).toBeGreaterThan(lectures));
     });
   });
 

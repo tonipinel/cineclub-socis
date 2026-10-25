@@ -16,6 +16,7 @@
 @import "./components/_dashboard.css";
 @import "./components/_top-votacio.css";
 @import "./components/_carregant.css";
+@import "./components/_errors.css";
 @import "./components/_configuracio.css";
 @import "./components/_usuaris-taquilla.css";
 @import "./components/_propostes.css";

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent, screen, waitFor, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   MemoryRouter, Routes, Route, useLocation, useNavigationType,
@@ -1068,6 +1070,18 @@ describe('MovimentForm — preselecció de sessió des de la URL', () => {
 });
 
 describe('MovimentForm — càrrega', () => {
+  it('si no es poden llegir les sessions, ho diu sota el selector i «Torna-ho a provar» les torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    ambSessions({ id: 's1', titol: 'The Artist', data: '2026-03-05' });
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    renderRuta('/comptabilitat/nou');
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les sessions.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('option', { name: 'The Artist' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+
   it('navega al llistat si el moviment no existeix', async () => {
     renderRuta('/comptabilitat/inexistent');
     expect(await screen.findByText('Llibre de moviments')).toBeInTheDocument();
@@ -1076,11 +1090,14 @@ describe('MovimentForm — càrrega', () => {
 
   it('si no es pot carregar, ho diu i no mostra el formulari', async () => {
     getDoc.mockRejectedValueOnce(new Error('offline'));
+    bd['moviments/1'] = { tipus: 'despesa', concepte: 'Lloguer', data: '2026-03-01', total: 40 };
     renderRuta('/comptabilitat/1');
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el moviment. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el moviment.");
     expect(screen.getByRole('heading', { level: 1, name: 'Moviment' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '← Comptabilitat' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Concepte')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByLabelText('Concepte')).toBeInTheDocument();
   });
 });
 

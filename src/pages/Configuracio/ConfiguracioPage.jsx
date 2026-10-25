@@ -4,10 +4,12 @@ import { db } from '../../firebase/firebase';
 import BarraDesar from '../../components/BarraDesar';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 
 const QUOTA_PER_DEFECTE = '30';
-const ERROR_CARREGA = "No s'ha pogut carregar la configuració. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar la configuració.";
 const ERROR_QUOTA = 'La quota ha de ser un número igual o superior a 0.';
 
 // Valida la quota: en blanc, no numèrica o negativa és un error (abans es desava com a 0 sense avisar).
@@ -106,20 +108,22 @@ function FitxaConfiguracio({ dadesDesades }) {
 // La fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
 export default function ConfiguracioPage() {
   const [dadesDesades, setDadesDesades] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     let actiu = true;
     getDoc(doc(db, 'configuracio', 'associacio')).then((snap) => {
       if (actiu) setDadesDesades(snap.exists() ? snap.data() : {});
-    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, []);
+  }, [intent, falla]);
 
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="formulari" titol="Configuració de l'associació">
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

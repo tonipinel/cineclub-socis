@@ -4,6 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import { solicitudASoci } from '../../lib/solicitudASoci';
 import { ErrorComptadorSocis, maximNumeroSoci, reservarNumeroSoci } from '../../lib/numeroSoci';
@@ -42,13 +44,16 @@ export default function SolicitudsPendents() {
   const [errors, setErrors] = useState({});
   const [ultimaAprovacio, setUltimaAprovacio] = useState(null);
   const [errorDesfer, setErrorDesfer] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const q = query(collection(db, 'solicituds'), where('estat', 'in', ['pendent', 'descartada']));
     return onSnapshot(q, (snap) => {
       setSolicituds(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   const marcarProcessant = (id, actiu) => {
     setProcessant((prev) => {
@@ -201,9 +206,11 @@ export default function SolicitudsPendents() {
       )}
       {errorDesfer && <p className="form__error">{errorDesfer}</p>}
 
-      {solicitudsFiltrades.length === 0 && <p>{ETIQUETA_BUIDA[filtre]}</p>}
+      {/* L'avís «Desfer» es manté: l'error només substitueix la llista, que podria ser antiga. */}
+      {errorCarrega && <ErrorCarrega missatge="No s'han pogut carregar les sol·licituds." onReintenta={reintenta} />}
+      {!errorCarrega && solicitudsFiltrades.length === 0 && <p>{ETIQUETA_BUIDA[filtre]}</p>}
       <ul className="solicituds-pendents__llista">
-        {solicitudsFiltrades.map((s) => {
+        {!errorCarrega && solicitudsFiltrades.map((s) => {
           const enProces = processant.has(s.id);
           return (
             <li key={s.id} className="solicituds-pendents__item">

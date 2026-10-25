@@ -197,3 +197,9 @@ body.escaneig-body {
 .escaneig-log__sessio {
   @apply truncate text-black/60;
 }
+.escaneig__oients-reintent {
+  @apply shrink-0 cursor-pointer rounded-full border-2 border-white bg-transparent px-3 py-1 font-display text-xs font-bold text-white;
+}
+.escaneig__sense-sessio > .escaneig__fallit {
+  @apply mb-4 rounded;
+}

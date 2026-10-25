@@ -200,15 +200,28 @@ describe('PropostaForm: càrrega, capçalera i pestanyes', () => {
   });
 
   it.each([
-    ['falla la lectura', { falla: ['propostes/p1'] }],
+    ['falla la lectura', { falla: ['propostes/p1'] }, "No s'ha pogut carregar la proposta."],
     // `null` i no `undefined`, que faria servir la proposta per defecte de `preparar`.
-    ['no existeix', { proposta: null }],
-  ])('si la proposta %s, mostra un error amb l\'enllaç «← Propostes»', async (_cas, opcions) => {
+    ['no existeix', { proposta: null }, 'Aquesta proposta no existeix.'],
+  ])('si la proposta %s, mostra un error amb l\'enllaç «← Propostes»', async (_cas, opcions, missatge) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     preparar(opcions);
     renderFitxa();
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la proposta.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(missatge);
     expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    vi.mocked(console.error).mockRestore();
+  });
+
+  it('si falla la lectura de la proposta, «Torna-ho a provar» la torna a llegir', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    preparar({ falla: ['propostes/p1'] });
+    renderFitxa();
+    await screen.findByRole('alert');
+    preparar();
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findAllByRole('tab')).not.toHaveLength(0);
+    vi.mocked(console.error).mockRestore();
   });
 
   it('si fallen els socis, les distribuïdores, les tandes i les sessions, la fitxa es mostra igualment', async () => {

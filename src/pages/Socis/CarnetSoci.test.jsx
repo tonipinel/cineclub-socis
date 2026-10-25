@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -14,6 +14,7 @@ vi.mock('qrcode', () => ({
 }));
 
 import QRCode from 'qrcode';
+import { getDoc } from 'firebase/firestore';
 import CarnetSoci from './CarnetSoci';
 
 describe('CarnetSoci', () => {
@@ -26,5 +27,30 @@ describe('CarnetSoci', () => {
     expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tornar a la fitxa/ })).toHaveAttribute('href', '/socis/1');
     expect(QRCode.toDataURL).toHaveBeenCalledWith('CARNET-tok-1', { width: 400, margin: 0 });
+  });
+});
+
+describe('CarnetSoci: errors de càrrega', () => {
+  const pinta = () => render(
+    <MemoryRouter initialEntries={['/socis/x/carnet']}>
+      <Routes><Route path="/socis/:id/carnet" element={<CarnetSoci />} /></Routes>
+    </MemoryRouter>
+  );
+
+  it('un soci que no existeix mostra «Aquest soci no existeix» amb l\'enllaç als socis', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => undefined });
+    pinta();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Aquest soci no existeix.');
+    expect(screen.getByRole('link', { name: 'Torna a Socis' })).toHaveAttribute('href', '/socis');
+  });
+
+  it('si la lectura falla, ho diu i «Torna-ho a provar» torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDoc.mockRejectedValueOnce(new Error('unavailable'));
+    pinta();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el carnet.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

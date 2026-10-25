@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import {
+  fireEvent, render, screen, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -271,9 +273,12 @@ describe('ConfiguracioPage', () => {
   it('si la càrrega inicial falla, mostra un avís i no el carregador ni la barra', async () => {
     getDoc.mockRejectedValueOnce(new Error('permission-denied'));
     renderPagina();
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la configuració. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la configuració.");
     expect(screen.queryByText(/Carregant/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent("Configuració de l'associació");
     expect(barra()).not.toBeInTheDocument();
+    carrega({});
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('button', { name: 'Desar' })).toBeInTheDocument();
   });
 });

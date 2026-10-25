@@ -5,6 +5,10 @@ import { ambSocisPorta, dadesInicials, Timestamp } from '../dades.js';
 export { Timestamp };
 
 const magatzem = new Map(Object.entries(await ambSocisPorta(dadesInicials())));
+// `?falla-lectures` a la URL: totes les lectures fallen (getDoc/getDocs rebutgen i onSnapshot crida l'error), per
+// veure els estats d'error de càrrega de cada pantalla.
+const fallaLectures = new URLSearchParams(window.location.search).has('falla-lectures');
+const errorLectura = () => Object.assign(new Error('arnès: lectura fallida (?falla-lectures)'), { code: 'unavailable' });
 const oients = new Set();
 
 let comptador = 0;
@@ -98,16 +102,21 @@ function resolQuery(ref) {
 
 const snapshotDe = (ref) => (ref.tipus === 'doc' ? snapDoc(ref.path) : resolQuery(ref));
 
-export const getDoc = async (ref) => snapDoc(ref.path);
-export const getDocs = async (ref) => resolQuery(ref);
+export const getDoc = async (ref) => { if (fallaLectures) throw errorLectura(); return snapDoc(ref.path); };
+export const getDocs = async (ref) => { if (fallaLectures) throw errorLectura(); return resolQuery(ref); };
 export const getDocFromServer = getDoc;
 export const getDocsFromServer = getDocs;
 export const getCountFromServer = async (ref) => ({ data: () => ({ count: resolQuery(ref).size }) });
 
-// onSnapshot(ref, [opcions], next | { next }, [error]): l'error no es crida mai.
+// onSnapshot(ref, [opcions], next | { next, error }, [error]): l'error només es crida amb `?falla-lectures`.
 export function onSnapshot(ref, ...args) {
   if (args[0] && typeof args[0] === 'object' && !args[0].next) args.shift();
   const next = typeof args[0] === 'function' ? args[0] : args[0]?.next;
+  if (fallaLectures) {
+    const error = typeof args[0] === 'function' ? args[1] : args[0]?.error;
+    setTimeout(() => error?.(errorLectura()), 0);
+    return () => {};
+  }
   const oient = () => next?.(snapshotDe(ref));
   oients.add(oient);
   setTimeout(oient, 0);

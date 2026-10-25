@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../../firebase/firebase', () => ({ db: {} }));
@@ -22,7 +22,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { onSnapshot } from 'firebase/firestore';
+import { getDocs, onSnapshot } from 'firebase/firestore';
 import EstadistiquesSessio from './EstadistiquesSessio';
 
 describe('EstadistiquesSessio', () => {
@@ -40,5 +40,35 @@ describe('EstadistiquesSessio', () => {
     for (const titol of ['Entrades per franja horària', 'Desglossament econòmic', 'Moviments', 'Socis que han vingut', 'Aportacions']) {
       expect(screen.getByRole('heading', { level: 2, name: titol })).toBeInTheDocument();
     }
+  });
+});
+
+describe('EstadistiquesSessio: errors de càrrega', () => {
+  it('si falla un oient, no pinta xifres a zero: ho diu i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    render(
+      <MemoryRouter>
+        <EstadistiquesSessio id="ses2" sessio={{ data: '2026-03-05', hora: '19:00' }} />
+      </MemoryRouter>
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les estadístiques de la sessió.");
+    expect(screen.queryByText("Resum d'assistència")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText("Resum d'assistència")).toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+
+  it('si falla una lectura secundària (socis o sessió anterior), es registra i la pestanya es mostra igualment', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable')).mockRejectedValueOnce(new Error('unavailable'));
+    render(
+      <MemoryRouter>
+        <EstadistiquesSessio id="ses2" sessio={{ data: '2026-03-05', hora: '19:00' }} />
+      </MemoryRouter>
+    );
+    expect(await screen.findByText("Resum d'assistència")).toBeInTheDocument();
+    await vi.waitFor(() => expect(errorConsola).toHaveBeenCalledTimes(2));
+    errorConsola.mockRestore();
   });
 });

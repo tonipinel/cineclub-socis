@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent, screen, waitFor, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   MemoryRouter, Routes, Route, useLocation, useNavigationType,
@@ -281,10 +283,28 @@ describe('SociForm — layout', () => {
 
   it('si la càrrega falla, mostra un avís (no el carregador) i l\'enllaç a la llista', async () => {
     getDoc.mockRejectedValueOnce(new Error('xarxa'));
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 });
     renderExistent();
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el soci. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el soci.");
     expect(screen.getByRole('link', { name: '← Socis' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Nom')).not.toBeInTheDocument();
+    const lectures = getDoc.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    await waitFor(() => expect(getDoc.mock.calls.length).toBeGreaterThan(lectures));
+  });
+
+  it('si falla la lectura dels pagaments o les assistències, la secció ho diu (no «cap pagament») i es pot reintentar', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    carrega({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: 7 });
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    renderExistent();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar els pagaments i les assistències.");
+    expect(screen.queryByText('Encara no hi ha cap pagament registrat.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Nom')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Encara no hi ha cap pagament registrat.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 
   it('un soci inexistent torna al llistat', async () => {

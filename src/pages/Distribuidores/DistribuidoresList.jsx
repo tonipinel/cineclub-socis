@@ -8,28 +8,24 @@ import { urlWeb } from '../../lib/distribuidores';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
 import PaginaAdmin from '../../components/PaginaAdmin';
-
-const ERROR_CARREGA = "No s'han pogut carregar les distribuïdores. Torna-ho a provar.";
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 export default function DistribuidoresList() {
   const [distribuidores, setDistribuidores] = useState(null);
-  const [error, setError] = useState(null);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     getDocs(collection(db, 'distribuidores')).then((snap) => {
       const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const nomDe = (d) => (typeof d.nom === 'string' ? d.nom : '');
       setDistribuidores(llista.sort((a, b) => nomDe(a).localeCompare(nomDe(b), 'ca')));
-    }).catch(() => setError(ERROR_CARREGA));
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
-  if (error) {
-    return (
-      <PaginaAdmin amplada="llista" titol="Distribuïdores">
-        <p className="form__error" role="alert">{error}</p>
-      </PaginaAdmin>
-    );
-  }
+  if (error) return <ErrorCarrega titol="Distribuïdores" missatge="No s'han pogut carregar les distribuïdores." onReintenta={reintenta} />;
   if (distribuidores === null) return <Carregant />;
 
   return (

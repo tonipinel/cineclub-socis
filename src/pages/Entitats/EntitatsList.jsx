@@ -6,28 +6,24 @@ import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
 import PaginaAdmin from '../../components/PaginaAdmin';
-
-const ERROR_CARREGA = "No s'han pogut carregar les entitats. Torna-ho a provar.";
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 export default function EntitatsList() {
   const [entitats, setEntitats] = useState(null);
-  const [error, setError] = useState(null);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     getDocs(collection(db, 'entitats')).then((snap) => {
       const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const nomDe = (e) => (typeof e.nom === 'string' ? e.nom : '');
       setEntitats(llista.sort((a, b) => nomDe(a).localeCompare(nomDe(b), 'ca')));
-    }).catch(() => setError(ERROR_CARREGA));
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
-  if (error) {
-    return (
-      <PaginaAdmin amplada="llista" titol="Entitats">
-        <p className="form__error" role="alert">{error}</p>
-      </PaginaAdmin>
-    );
-  }
+  if (error) return <ErrorCarrega titol="Entitats" missatge="No s'han pogut carregar les entitats." onReintenta={reintenta} />;
   if (entitats === null) return <Carregant />;
 
   return (

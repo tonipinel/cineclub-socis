@@ -13,6 +13,8 @@ import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
 import EnllacAdjunt from '../../components/EnllacAdjunt';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const COLUMNES = [
   ['total', 'Import'],
@@ -61,18 +63,21 @@ export default function ComptabilitatPage() {
   const [fins, setFins] = useState('');
   const [filtresOberts, setFiltresOberts] = useState(false);
   const [ordenacio, setOrdenacio] = useState({ columna: 'data', direccio: 'desc' });
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const q = query(collection(db, 'moviments'));
     return onSnapshot(q, (snap) => {
       setMoviments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
       setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))).filter((s) => s.data));
-    });
+    }).catch((e) => console.error("No s'han pogut llegir les sessions per al filtre:", e));
   }, []);
 
   const canviarOrdenacio = (columna) => {
@@ -81,6 +86,9 @@ export default function ComptabilitatPage() {
       return { columna, direccio: actual.direccio === 'asc' ? 'desc' : 'asc' };
     });
   };
+
+  // Amb l'oient caigut, els saldos (0 €) i la llista buida semblarien reals.
+  if (errorCarrega) return <ErrorCarrega titol="Comptabilitat" missatge="No s'han pogut carregar els moviments." onReintenta={reintenta} />;
 
   const saldos = calcularSaldos(moviments);
   const movimentsFiltrats = ordenarMoviments(

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   MemoryRouter, Routes, Route, useNavigationType, useParams,
@@ -16,7 +16,7 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: vi.fn(() => 'TIMESTAMP'),
 }));
 
-import { addDoc } from 'firebase/firestore';
+import { addDoc, getDocs } from 'firebase/firestore';
 import PropostesNova from './PropostesNova';
 
 // Fitxa de la proposta: diu quina i com s'hi ha arribat (REPLACE: «enrere» no torna al formulari d'alta).
@@ -80,5 +80,17 @@ describe('PropostesNova: layout estàndard', () => {
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent("Nova proposta en nom d'un soci");
     expect(screen.getByRole('link', { name: '← Propostes' })).toHaveAttribute('href', '/propostes/pendents');
+  });
+});
+
+describe('PropostesNova: error de càrrega', () => {
+  it('si no es poden llegir els socis, ho diu i «Torna-ho a provar» els torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    renderPagina();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar els socis.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByLabelText(/Títol/)).toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

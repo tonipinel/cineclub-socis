@@ -95,6 +95,19 @@ describe('DashboardPage', () => {
     expect(await screen.findByText("No s'han pogut carregar les dades del dashboard.")).toBeInTheDocument();
   });
 
+  it('l\'error de càrrega s\'anuncia i «Torna-ho a provar» torna a llegir', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValue(new Error('boom'));
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les dades del dashboard.");
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    mockCarrega();
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('heading', { name: 'Noves altes de socis' })).toBeInTheDocument();
+    vi.mocked(console.error).mockRestore();
+  });
+
   it('usa el layout de fitxa amb un únic h1', async () => {
     mockCarrega();
     const { container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>);

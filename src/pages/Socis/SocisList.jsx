@@ -12,6 +12,8 @@ import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const ETIQUETES_ESTAT = {
   [ESTAT_AL_DIA]: 'Al dia',
@@ -62,13 +64,16 @@ export default function SocisList() {
   const [filtresOberts, setFiltresOberts] = useState(false);
   const [ordenacio, setOrdenacio] = useState({ columna: 'numeroSoci', direccio: 'desc' });
   const [seleccionats, setSeleccionats] = useState(new Set());
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const q = query(collection(db, 'socis'));
     return onSnapshot(q, (snap) => {
       setSocis(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'));
@@ -78,8 +83,8 @@ export default function SocisList() {
         return { ...dades, data: dades.timestamp?.toDate?.() };
       });
       setAssistenciesPerSoci(comptarAssistenciesRecents(entrades));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
   const canviarOrdenacio = (columna) => {
     setOrdenacio((actual) => {
@@ -113,6 +118,8 @@ export default function SocisList() {
       return nou;
     });
   };
+
+  if (errorCarrega) return <ErrorCarrega titol="Socis" missatge="No s'han pogut carregar els socis." onReintenta={reintenta} />;
 
   return (
     <PaginaAdmin

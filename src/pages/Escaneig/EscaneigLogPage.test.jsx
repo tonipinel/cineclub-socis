@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -158,5 +158,21 @@ describe('EscaneigLogPage', () => {
     const titols = screen.getAllByRole('heading', { level: 1 });
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent("Incidències d'escaneig");
+  });
+});
+
+describe('EscaneigLogPage: error de càrrega', () => {
+  it('si falla l\'oient d\'incidències, ho diu i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockReset();
+    onSnapshot
+      .mockImplementationOnce((q, callback) => { callback({ docs: [SESSIO_DOC] }); return () => {}; })
+      .mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    renderPagina();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les incidències.");
+    mockSessionsIErrors([SESSIO_DOC], []);
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Encara no s\'ha registrat cap incidència.')).toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

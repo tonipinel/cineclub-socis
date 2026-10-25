@@ -188,3 +188,23 @@ describe('SocisList', () => {
     expect(estat).toHaveValue('vencut');
   });
 });
+
+describe('SocisList: errors de càrrega', () => {
+  it('si l\'oient de socis falla, mostra l\'error i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(screen.getByRole('alert')).toHaveTextContent("No s'han pogut carregar els socis.");
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(screen.getByText('Anna')).toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+
+  it('si falla la lectura de les assistències, no mostra 0 assistències com si fos real', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    render(<MemoryRouter><SocisList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar els socis.");
+    errorConsola.mockRestore();
+  });
+});

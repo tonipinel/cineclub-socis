@@ -24,6 +24,8 @@ import BarraDesar from '../../components/BarraDesar';
 import BotoAfegir from '../../components/BotoAfegir';
 import CarnetCard from '../../components/CarnetCard';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 
@@ -86,7 +88,7 @@ const IconaCorreu = () => (
   </svg>
 );
 
-const ERROR_CARREGA = "No s'ha pogut carregar el soci. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar el soci.";
 const TORNAR = { to: ROUTES.SOCIS, etiqueta: 'Socis' };
 const MISSATGE_SOCI_INEXISTENT = 'Aquest soci ja no existeix: torna al llistat de socis.';
 
@@ -122,6 +124,10 @@ function FitxaSoci({ id, soci }) {
   const operantRef = useRef(false);
   const [assistencies, setAssistencies] = useState([]);
   const [pagaments, setPagaments] = useState([]);
+  // Pagaments i assistències: si no es poden llegir, la secció ho diu (una llista buida semblaria real).
+  const {
+    error: errorHistorial, falla: fallaHistorial, reintenta: reintentaHistorial, intent: intentHistorial,
+  } = useErrorCarrega();
   const [motiuDesactivacio, setMotiuDesactivacio] = useState('');
   const [mostrarFormDesactivacio, setMostrarFormDesactivacio] = useState(false);
   const navigate = useNavigate();
@@ -200,8 +206,8 @@ function FitxaSoci({ id, soci }) {
       const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.data && s.data <= avui());
       const entradesSoci = accessLogSnap.docs.map((d) => d.data());
       setAssistencies(assistenciaPerSessio(sessions, entradesSoci));
-    });
-  }, [editant, desat.numeroSoci]);
+    }).catch(fallaHistorial);
+  }, [editant, desat.numeroSoci, intentHistorial, fallaHistorial]);
 
   useEffect(() => {
     if (!editant || !desat.numeroSoci) return;
@@ -214,8 +220,8 @@ function FitxaSoci({ id, soci }) {
         .map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''));
       setPagaments(llista);
-    });
-  }, [editant, desat.numeroSoci]);
+    }).catch(fallaHistorial);
+  }, [editant, desat.numeroSoci, intentHistorial, fallaHistorial]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -527,7 +533,10 @@ function FitxaSoci({ id, soci }) {
               <h2 className="soci-form__subtitol">Pagaments de la quota</h2>
               <BotoAfegir to={ROUTES.SOCIS_PAGAMENT.replace(':id', id)} etiqueta="Registrar pagament" compacte />
             </div>
-            {pagaments.length > 0 ? (
+            {errorHistorial && (
+              <ErrorCarrega missatge="No s'han pogut carregar els pagaments i les assistències." onReintenta={reintentaHistorial} />
+            )}
+            {!errorHistorial && (pagaments.length > 0 ? (
               <ul className="soci-form__llista">
                 {pagaments.map((p) => (
                   <li key={p.id} className="soci-form__fila">
@@ -539,7 +548,7 @@ function FitxaSoci({ id, soci }) {
               </ul>
             ) : (
               <p className="soci-form__xifra-detall">Encara no hi ha cap pagament registrat.</p>
-            )}
+            ))}
           </div>
         </div>
       )}
@@ -586,7 +595,9 @@ function FitxaSoci({ id, soci }) {
 // Si s'edita, carrega el soci; la fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
 function CarregaSoci({ id }) {
   const [soci, setSoci] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -600,15 +611,15 @@ function CarregaSoci({ id }) {
         return;
       }
       setSoci({ ...CAMPS_INICIALS, ...dadesDoc });
-    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id, navigate]);
+  }, [id, navigate, intent, falla]);
 
   if (!id) return <FitxaSoci soci={CAMPS_INICIALS} />;
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="fitxa" titol="Fitxa del soci/a" tornar={TORNAR}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

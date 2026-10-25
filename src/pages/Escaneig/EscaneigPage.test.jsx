@@ -28,8 +28,9 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn(),
   getDocsFromServer: vi.fn(),
   onSnapshot: vi.fn((...args) => {
-    const callback = args.at(-1);
-    // La primera crida des del component és la subscripció a la sessió activa.
+    const callback = args.find((a) => typeof a === 'function');
+    // La primera crida des del component és la subscripció a la sessió activa. El primer callback és el de
+    // dades (el segon, si n'hi ha, és el d'error).
     callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
     return () => {};
   }),
@@ -223,17 +224,17 @@ describe('EscaneigPage', () => {
   it('mostra un error si el tiquet pertany a un lot anul·lat', async () => {
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => ({ numeroInicial: 1, quantitat: 150, anulat: true }) }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -255,17 +256,17 @@ describe('EscaneigPage', () => {
   it('mostra un error si el tiquet no pertany a cap lot conegut, sense registrar-lo amb preu 0', async () => {
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -304,17 +305,17 @@ describe('EscaneigPage', () => {
     getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -338,17 +339,17 @@ describe('EscaneigPage', () => {
     });
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -387,17 +388,17 @@ describe('EscaneigPage', () => {
     });
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -456,17 +457,17 @@ describe('EscaneigPage', () => {
     getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
     onSnapshot
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [{ data: () => LOT_TIQUETS }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        const callback = args.at(-1);
+        const callback = args.find((a) => typeof a === 'function');
         callback({ docs: [] });
         return () => {};
       });
@@ -557,7 +558,7 @@ describe('EscaneigPage', () => {
   it('sense DEV, el fragment de mockup s\'ignora i cal una sessió real activa', async () => {
     vi.stubEnv('DEV', false);
     onSnapshot.mockImplementationOnce((...args) => {
-      const callback = args.at(-1);
+      const callback = args.find((a) => typeof a === 'function');
       callback({ docs: [] });
       return () => {};
     });
@@ -640,17 +641,17 @@ describe('EscaneigPage', () => {
       getDocsFromServer.mockResolvedValueOnce({ empty: true, docs: [] });
       onSnapshot
         .mockImplementationOnce((...args) => {
-          const callback = args.at(-1);
+          const callback = args.find((a) => typeof a === 'function');
           callback({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
           return () => {};
         })
         .mockImplementationOnce((...args) => {
-          const callback = args.at(-1);
+          const callback = args.find((a) => typeof a === 'function');
           callback({ docs: [{ data: () => LOT_TIQUETS }] });
           return () => {};
         })
         .mockImplementationOnce((...args) => {
-          const callback = args.at(-1);
+          const callback = args.find((a) => typeof a === 'function');
           callback({ docs: [] });
           return () => {};
         });
@@ -1070,7 +1071,7 @@ describe('EscaneigPage — sessions especials sense control', () => {
 
   it('una sessió senseControl, encara que sigui activa, no es tria: es comporta com si no hi hagués sessió activa', async () => {
     onSnapshot.mockImplementationOnce((...args) => {
-      const callback = args.at(-1);
+      const callback = args.find((a) => typeof a === 'function');
       callback({
         docs: [{ id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) }],
       });
@@ -1083,7 +1084,7 @@ describe('EscaneigPage — sessions especials sense control', () => {
 
   it('si la consulta retorna una senseControl i una de normal, tria la normal', async () => {
     onSnapshot.mockImplementationOnce((...args) => {
-      const callback = args.at(-1);
+      const callback = args.find((a) => typeof a === 'function');
       callback({
         docs: [
           { id: 'e1', data: () => ({ titol: 'Carretera a Gusen', activa: true, senseControl: true }) },
@@ -1123,16 +1124,16 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
     let callbackLots;
     onSnapshot
       .mockImplementationOnce((...args) => {
-        args.at(-1)({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
+        args.find((a) => typeof a === 'function')({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        callbackLots = args.at(-1);
+        callbackLots = args.find((a) => typeof a === 'function');
         if (lotsCarregats) callbackLots({ docs: lots.map((l) => ({ data: () => l })) });
         return () => {};
       })
       .mockImplementationOnce((...args) => {
-        args.at(-1)({ docs: accessLogDocs });
+        args.find((a) => typeof a === 'function')({ docs: accessLogDocs });
         return () => {};
       });
     return { carregarLots: () => callbackLots({ docs: lots.map((l) => ({ data: () => l })) }) };
@@ -1478,7 +1479,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
         .mockResolvedValue(SOCI_7());
       let emetreSessio;
       onSnapshot.mockImplementationOnce((...args) => {
-        emetreSessio = args.at(-1);
+        emetreSessio = args.find((a) => typeof a === 'function');
         emetreSessio({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       });
@@ -1520,7 +1521,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       addDoc.mockImplementation((col) => (col === 'accessLog' ? escriptura.promise : Promise.resolve({ id: 'e' })));
       let emetreSessio;
       onSnapshot.mockImplementationOnce((...args) => {
-        emetreSessio = args.at(-1);
+        emetreSessio = args.find((a) => typeof a === 'function');
         emetreSessio({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] });
         return () => {};
       });
@@ -1899,7 +1900,7 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
 
   describe('fons amb la imatge de la sessió activa', () => {
     const ambSessio = (dades) => onSnapshot.mockImplementationOnce((...args) => {
-      args.at(-1)({ docs: [{ id: SESSIO_ACTIVA.id, data: () => ({ ...SESSIO_ACTIVA, ...dades }) }] });
+      args.find((a) => typeof a === 'function')({ docs: [{ id: SESSIO_ACTIVA.id, data: () => ({ ...SESSIO_ACTIVA, ...dades }) }] });
       return () => {};
     });
     const fons = (container) => container.querySelector('.escaneig__contingut').style.backgroundImage;
@@ -1928,5 +1929,66 @@ describe('EscaneigPage — robustesa de l\'escaneig amb mala connexió', () => {
       await screen.findByRole('button', { name: 'Escanejar' });
       expect(fons(container)).toBe('');
     });
+  });
+});
+
+describe('EscaneigPage — oients que fallen', () => {
+  const errorDe = (args) => args.filter((a) => typeof a === 'function')[1];
+  const sessio = (...args) => { args.find((a) => typeof a === 'function')({ docs: [{ id: SESSIO_ACTIVA.id, data: () => SESSIO_ACTIVA }] }); return () => {}; };
+  const buit = (...args) => { args.find((a) => typeof a === 'function')({ docs: [] }); return () => {}; };
+  const falla = (...args) => { errorDe(args)(new Error('permission-denied')); return () => {}; };
+
+  beforeEach(() => {
+    window.location.hash = '';
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.mocked(console.error).mockRestore();
+    // Torna a la implementació per defecte (la sessió activa), per si un test l'ha canviada.
+    onSnapshot.mockReset();
+    onSnapshot.mockImplementation(sessio);
+  });
+
+  it('si no es pot llegir la sessió activa, no es queda carregant: ho diu i «Torna-ho a provar» es torna a subscriure', async () => {
+    onSnapshot.mockImplementationOnce(falla).mockImplementationOnce(buit);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la sessió activa.");
+    expect(document.querySelector('.carregant')).not.toBeInTheDocument();
+    onSnapshot.mockImplementationOnce(sessio).mockImplementationOnce(buit).mockImplementationOnce(buit);
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+
+  it('si cau l\'oient dels lots amb la sessió carregada, es pot continuar escanejant i un avís permet reintentar', async () => {
+    onSnapshot.mockImplementationOnce(sessio).mockImplementationOnce(falla).mockImplementationOnce(buit);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('No es reben les dades en directe');
+    onSnapshot.mockImplementation(buit);
+    onSnapshot.mockImplementationOnce(sessio);
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+  });
+
+  it('si cauen els lots però la sessió encara no ha arribat, continua carregant (no és un error d\'arrencada)', async () => {
+    const pendent = () => () => {};
+    onSnapshot.mockImplementationOnce(pendent).mockImplementationOnce(falla);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    await waitFor(() => expect(console.error).toHaveBeenCalled());
+    expect(document.querySelector('.carregant')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('sense sessió activa i amb un oient caigut, la pantalla «No hi ha cap sessió activa» mostra l\'avís i el reintent', async () => {
+    onSnapshot.mockImplementationOnce(buit).mockImplementationOnce(falla);
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    expect(await screen.findByText(/No hi ha cap sessió activa/)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('No es reben les dades en directe');
+    onSnapshot.mockImplementation(buit);
+    onSnapshot.mockImplementationOnce(sessio);
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('button', { name: 'Escanejar' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

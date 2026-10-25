@@ -12,10 +12,12 @@ import Carregant from '../../components/Carregant';
 import BarraDesar from '../../components/BarraDesar';
 import CartaPropostaTanda from '../../components/CartaPropostaTanda';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const ERROR_OBERTA = "Ja hi ha una tanda oberta. Tanca-la abans d'obrir-ne una altra.";
 const ERROR_TANCAR = "No s'ha pogut tancar. Torna-ho a provar.";
-const ERROR_CARREGA = "No s'ha pogut carregar la tanda. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar la tanda.";
 const TORNAR_TANDES = { to: ROUTES.TANDES, etiqueta: 'Tandes' };
 const ETIQUETES = { nom: 'Nom', propostes: 'Propostes aprovades', tanca: 'Tanca' };
 const CAMPS = Object.keys(ETIQUETES);
@@ -249,7 +251,9 @@ function FitxaTanda({ id, carregada }) {
 // La fitxa es munta quan hi ha les dades: el hook només llegeix `inicial` en muntar.
 function CarregaTanda({ id }) {
   const [carregada, setCarregada] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -283,14 +287,14 @@ function CarregaTanda({ id }) {
           aprovades, context, tanda, jaHiHaVots,
         });
       }
-    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id, navigate]);
+  }, [id, navigate, intent, falla]);
 
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="formulari" titol={id ? 'Tanda' : 'Nova tanda'} tornar={TORNAR_TANDES}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

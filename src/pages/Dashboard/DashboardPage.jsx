@@ -19,6 +19,8 @@ import * as ROUTES from '../../constants/routes';
 import TopVotacio from '../../components/TopVotacio';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const PESTANYES_EVOLUCIO = [
   ['real', 'Últims 12 mesos (real)'],
@@ -49,7 +51,9 @@ const CATEGORIES_DETALL_TANCAT_PER_DEFECTE = ['Gestió associació'];
 
 export default function DashboardPage() {
   const [dades, setDades] = useState(undefined);
-  const [error, setError] = useState(false);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
   const [votacio, setVotacio] = useState(null);
   const [pestanyaEvolucio, setPestanyaEvolucio] = useState('real');
   const [categoriesDetallTancat, setCategoriesDetallTancat] = useState(
@@ -79,8 +83,8 @@ export default function DashboardPage() {
         moviments: movimentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
         lots: lotsSnap.docs.map((d) => d.data()),
       });
-    }).catch(() => setError(true));
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
   // Lectures opcionals: si fallen, simplement no es mostra el bloc de votació.
   useEffect(() => {
@@ -108,11 +112,7 @@ export default function DashboardPage() {
   }, []);
 
   if (error) {
-    return (
-      <PaginaAdmin amplada="fitxa" titol="Dashboard">
-        <p className="dashboard__error">No s'han pogut carregar les dades del dashboard.</p>
-      </PaginaAdmin>
-    );
+    return <ErrorCarrega amplada="fitxa" titol="Dashboard" missatge="No s'han pogut carregar les dades del dashboard." onReintenta={reintenta} />;
   }
   if (!dades) return <Carregant />;
 

@@ -4,6 +4,8 @@ import { collection, doc, onSnapshot, orderBy, query, runTransaction } from 'fir
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import { avui, formatData } from '../../lib/data';
 
@@ -15,6 +17,9 @@ export default function TicketsPage() {
   const [preu, setPreu] = useState('5');
   const [generant, setGenerant] = useState(false);
   const [error, setError] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
   const { confirma } = useConfirmacio();
 
@@ -22,8 +27,8 @@ export default function TicketsPage() {
     const q = query(collection(db, 'lotsTiquets'), orderBy('numeroInicial', 'desc'));
     return onSnapshot(q, (snap) => {
       setLots(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   const handleGenerar = async () => {
     const n = Number(quantitat);
@@ -117,6 +122,7 @@ export default function TicketsPage() {
     >
       {error && <p className="form__error">{error}</p>}
 
+      {errorCarrega && <ErrorCarrega missatge="No s'han pogut carregar els lots de tiquets." onReintenta={reintenta} />}
       <ul className="tickets-llista">
         {lots.map((lot) => (
           <li key={lot.id} className="tickets-llista__item">

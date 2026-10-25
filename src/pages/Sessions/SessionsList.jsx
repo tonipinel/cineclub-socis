@@ -10,6 +10,8 @@ import * as ROUTES from '../../constants/routes';
 import BotoAfegir from '../../components/BotoAfegir';
 import EstrellaActiva from '../../components/EstrellaActiva';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import SincronitzarCalendari from './SincronitzarCalendari';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
@@ -21,33 +23,39 @@ export default function SessionsList() {
   const [socis, setSocis] = useState([]);
   const [sincronitzant, setSincronitzant] = useState(false);
   const tancarSincro = useCallback(() => setSincronitzant(false), []);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const q = query(collection(db, 'sessions'), orderBy('data', 'desc'));
     return onSnapshot(q, (snap) => {
       setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'));
     getDocs(q).then((snap) => {
       setResumPerSessioState(resumPerSessio(snap.docs.map((d) => d.data())));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     const q = query(collection(db, 'moviments'));
     getDocs(q).then((snap) => {
       setMoviments(snap.docs.map((d) => d.data()));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     getDocs(query(collection(db, 'socis'))).then((snap) => {
       setSocis(snap.docs.map((d) => d.data()));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
+
+  // Una lectura fallida donaria xifres falses (0 socis, rendibilitat sense moviments): millor dir-ho.
+  if (error) return <ErrorCarrega titol="Sessions" missatge="No s'han pogut carregar les sessions." onReintenta={reintenta} />;
 
   const rendibilitat = rendibilitatPerSessio(moviments, socis, sessions);
 

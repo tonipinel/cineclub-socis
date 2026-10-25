@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  useCallback, useEffect, useRef, useState,
+} from 'react';
 import { prepararLector } from '../../lib/lectorCodis';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
@@ -19,6 +21,7 @@ import {
 import { DIES_AVIS_RENOVACIO } from '../../lib/socis';
 import { imatgeDeSessio } from '../../lib/sessions';
 import Carregant from '../../components/Carregant';
+import ErrorCarrega, { TEXT_REINTENT } from '../../components/ErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import EstrellaActiva from '../../components/EstrellaActiva';
 
@@ -234,6 +237,25 @@ export default function EscaneigPage() {
   const [modeProva, setModeProva] = useState(false);
   const lotsRef = useRef([]);
   const [lotsCarregats, setLotsCarregats] = useState(false);
+  // Oients (sessions, lotsTiquets, accessLog) que han fallat: Firestore ja no els actualitzarà. Es continua amb les
+  // últimes dades rebudes (es pot seguir escanejant) i «Torna-ho a provar» es torna a subscriure a tots tres.
+  const [oientsCaiguts, setOientsCaiguts] = useState([]);
+  const [intentOients, setIntentOients] = useState(0);
+  const oientCaigut = useCallback((nom) => (e) => {
+    console.error(`L'oient de ${nom} de l'escaneig ha fallat:`, e);
+    setOientsCaiguts((caiguts) => (caiguts.includes(nom) ? caiguts : [...caiguts, nom]));
+  }, []);
+  const reintentaOients = () => {
+    setOientsCaiguts([]);
+    setIntentOients((n) => n + 1);
+  };
+  const hiHaOientCaigut = oientsCaiguts.length > 0;
+  const avisOients = (text) => (
+    <div className="escaneig__fallit">
+      <p className="escaneig__fallit-text" role="alert">{text}</p>
+      <button type="button" className="escaneig__oients-reintent" onClick={reintentaOients}>{TEXT_REINTENT}</button>
+    </div>
+  );
   // Valors actuals per a codi asíncron o callbacks creats abans (interval de
   // la càmera, «Comptar igualment»): les closures veurien valors antics.
   const missatgeRef = useRef(missatge);
@@ -287,16 +309,16 @@ export default function EscaneigPage() {
     return onSnapshot(q, (snap) => {
       const docSessio = snap.docs.find((d) => d.data().senseControl !== true);
       setSessioActiva(docSessio ? { id: docSessio.id, ...docSessio.data() } : null);
-    });
-  }, []);
+    }, oientCaigut('sessions'));
+  }, [intentOients, oientCaigut]);
 
   useEffect(() => {
     const q = query(collection(db, 'lotsTiquets'));
     return onSnapshot(q, (snap) => {
       lotsRef.current = snap.docs.map((d) => d.data());
       setLotsCarregats(true);
-    });
-  }, []);
+    }, oientCaigut('lotsTiquets'));
+  }, [intentOients, oientCaigut]);
 
   useEffect(() => {
     if (!sessioActiva) return;
@@ -304,9 +326,9 @@ export default function EscaneigPage() {
     return onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       setResum(resumAccessLog(snap.docs.map((d) => d.data())));
       setPendentsEnviar(snap.docs.filter((d) => d.metadata?.hasPendingWrites).length);
-    });
+    }, oientCaigut('accessLog'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessioActiva?.id]);
+  }, [sessioActiva?.id, intentOients]);
 
   // El WASM del lector (≈ 1 MB amb el polyfill d'iOS) es baixa mentre la
   // pantalla espera, no en clicar Escanejar. Si falla, s'avisa en escanejar.
@@ -895,12 +917,22 @@ export default function EscaneigPage() {
     setCodiManual('');
   };
 
-  if (!mockup && sessioActiva === undefined) return <Carregant />;
+  // Només l'oient de sessions decideix si es pot arrencar: si cauen els lots o les entrades, la sessió pot arribar igualment.
+  if (!mockup && sessioActiva === undefined) {
+    if (!oientsCaiguts.includes('sessions')) return <Carregant />;
+    return (
+      <div className="escaneig__sense-sessio">
+        <h1 className="titol-ocult">Escaneig d'entrades</h1>
+        <ErrorCarrega missatge="No s'ha pogut carregar la sessió activa. Comprova la connexió." onReintenta={reintentaOients} />
+      </div>
+    );
+  }
 
   if (!mockup && !sessioActiva) {
     return (
       <div className="escaneig__sense-sessio">
         <h1 className="titol-ocult">Escaneig d'entrades</h1>
+        {hiHaOientCaigut && avisOients("No es reben les dades en directe: potser ja hi ha una sessió activa que no es veu.")}
         <p>No hi ha cap sessió activa. Marca una sessió com a activa abans d'escanejar.</p>
       </div>
     );
@@ -916,11 +948,12 @@ export default function EscaneigPage() {
   return (
     <div className="escaneig">
       <h1 className="titol-ocult">Escaneig d'entrades</h1>
-      {(mockup || modeProva || !enLinia || pendentsEnviar > 0 || enviamentsFallits.length > 0) && (
+      {(mockup || modeProva || !enLinia || hiHaOientCaigut || pendentsEnviar > 0 || enviamentsFallits.length > 0) && (
         <div className="escaneig__avisos">
           {mockup && <p className="escaneig__mockup-avis">Mode mockup: #{hash}</p>}
           {modeProva && <p className="escaneig__prova-avis">Mode prova: no es desa res</p>}
           {!enLinia && <p className="escaneig__connexio-avis" role="status" aria-live="polite">Sense connexió</p>}
+          {hiHaOientCaigut && avisOients('No es reben les dades en directe (sessió, tiquets o recompte). Pots continuar escanejant.')}
           {enviamentsFallits.map((f) => (
             <div key={f.id} className="escaneig__fallit" role="alert">
               <p className="escaneig__fallit-text">

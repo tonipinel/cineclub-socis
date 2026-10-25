@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  render, screen, within, fireEvent, act,
+  render, screen, within, fireEvent, act, waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -134,8 +134,24 @@ describe('PropostesPendents', () => {
       return { docs: [] };
     });
     pintar();
-    expect(await screen.findByRole('alert')).toHaveTextContent('No s\'han pogut carregar les propostes. Torna-ho a provar.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No s\'han pogut carregar les propostes.');
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('«Torna-ho a provar» torna a llegir les propostes', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let falla = true;
+    getDocs.mockImplementation(async (nom) => {
+      if (nom === 'propostes' && falla) throw new Error('unavailable');
+      return { docs: [] };
+    });
+    pintar();
+    await screen.findByRole('alert');
+    falla = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Propostes de programació');
+    vi.mocked(console.error).mockRestore();
   });
 
   describe('distribuïdora i preu', () => {

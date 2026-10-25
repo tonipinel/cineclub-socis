@@ -9,6 +9,7 @@ import { aData, resumVotacio } from '../../lib/tandes';
 import TopVotacio from '../../components/TopVotacio';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 
 const TORNAR = { to: ROUTES.TANDES, etiqueta: 'Tandes' };
@@ -43,7 +44,10 @@ export default function TandaResultats() {
   const [errorEsborrar, setErrorEsborrar] = useState(null);
 
   useEffect(() => {
-    const alFallar = () => setError(true);
+    const alFallar = (e) => {
+      console.error("No s'han pogut llegir els resultats de la tanda:", e);
+      setError(true);
+    };
     const desubscriureTanda = onSnapshot(doc(db, 'tandes', id), (snap) => {
       const dades = snap.data();
       if (!dades) {
@@ -70,7 +74,10 @@ export default function TandaResultats() {
         socis: socisSnap.docs.map((d) => d.data()),
         propostes: Object.fromEntries(propostesSnap.docs.map((d) => [d.id, d.data()])),
       });
-    }, () => setError(true));
+    }, (e) => {
+      console.error("No s'han pogut llegir els socis o les propostes:", e);
+      setError(true);
+    });
   }, [intent]);
 
   // Lectura opcional: sense sessions, cada pel·lícula enllaça a la fitxa de la proposta.
@@ -112,10 +119,7 @@ export default function TandaResultats() {
 
   if (error) {
     return (
-      <PaginaAdmin amplada="llista" titol="Resultats" tornar={TORNAR}>
-        <p className="tanda-resultats__error" role="alert">No s'han pogut carregar els resultats. Torna-ho a provar.</p>
-        <button type="button" className="btn" onClick={tornarAProvar}>Tornar a provar</button>
-      </PaginaAdmin>
+      <ErrorCarrega titol="Resultats" tornar={TORNAR} missatge="No s'han pogut carregar els resultats." onReintenta={tornarAProvar} />
     );
   }
 

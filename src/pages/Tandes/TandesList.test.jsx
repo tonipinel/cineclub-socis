@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -84,5 +84,20 @@ describe('TandesList: layout estàndard', () => {
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent('Tandes de votació');
     expect(boto).toHaveTextContent('Nova tanda');
+  });
+});
+
+
+describe('TandesList: error de càrrega', () => {
+  it('mostra l\'error i «Torna-ho a provar» torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    respon([TANCADA]);
+    render(<MemoryRouter><TandesList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les tandes.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Setembre')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

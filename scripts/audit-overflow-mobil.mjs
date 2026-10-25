@@ -53,6 +53,14 @@ export const RUTES = [
   '/propostes/pendents/p23', '/propostes/pendents/p23?pestanya=gestio', '/propostes/pendents/p23?pestanya=pellicula', '/propostes/pendents/p23?pestanya=mitjans',
   '/propostes/pendents/p24', '/propostes/pendents/p24?pestanya=pellicula', '/propostes/pendents/p24?pestanya=gestio', '/propostes/pendents/p24?pestanya=mitjans',
   '/tandes', '/tandes/nova', '/tandes/t1', '/tandes/t3', '/tandes/t1/resultats',
+  // Estats d'error: documents que no existeixen, lectures que fallen (`?falla-lectures`) i la sessió que no es pot
+  // comprovar (`?falla-sessio`), vegeu `scripts/arnes-admin/mocks/`.
+  '/sessions/no-existeix', '/propostes/pendents/no-existeix', '/socis/no-existeix/carnet',
+  '/dashboard?falla-lectures', '/socis?falla-lectures', '/socis/s1?falla-lectures', '/socis/s1/pagament?falla-lectures',
+  '/sessions?falla-lectures', '/sessions/ses2?falla-lectures', '/tickets?falla-lectures', '/tickets/lot1?falla-lectures',
+  '/comptabilitat?falla-lectures', '/comptabilitat/m1?falla-lectures', '/solicituds?falla-lectures',
+  '/propostes/pendents?falla-lectures', '/propostes/pendents/p1?falla-lectures', '/tandes?falla-lectures',
+  '/tandes/t1/resultats?falla-lectures', '/escaneig?falla-lectures', '/escaneig/log?falla-lectures', '/escaneig?falla-sessio',
 ];
 const AMPLADES = [375, 320];
 const AMPLADA_ESCRIPTORI = 1440;
@@ -135,6 +143,8 @@ const ESTATS_PER_RUTA = {
   '/propostes/pendents': ['filtres'],
   '/propostes/pendents?vista=tandes': ['filtres'],
   '/propostes/pendents?estat=aprovada&tanda=cap': ['filtres'],
+  // Amb la lectura fallida, el botó de filtres de la capçalera continua (i el panell, buit).
+  '/propostes/pendents?falla-lectures': ['filtres'],
 };
 
 const esLocal = (url) => {

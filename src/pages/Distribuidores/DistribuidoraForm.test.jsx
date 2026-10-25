@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent, screen, waitFor, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   MemoryRouter, Routes, Route, useLocation, useNavigationType,
@@ -554,10 +556,13 @@ describe('DistribuidoraForm', () => {
   it('si la càrrega inicial falla, mostra un avís i no el carregador', async () => {
     getDoc.mockRejectedValue(new Error('permission-denied'));
     renderExistent();
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la distribuïdora. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la distribuïdora.");
     expect(screen.queryByText(/Carregant/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Distribuïdora');
     expect(screen.getByRole('link', { name: '← Distribuïdores' })).toHaveAttribute('href', '/distribuidores');
+    const lectures = getDoc.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    await waitFor(() => expect(getDoc.mock.calls.length).toBeGreaterThan(lectures));
   });
 
   describe('logo', () => {

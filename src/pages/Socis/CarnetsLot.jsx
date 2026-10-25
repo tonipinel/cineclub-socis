@@ -4,6 +4,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import CarnetCard from '../../components/CarnetCard';
 import Carregant from '../../components/Carregant';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import * as ROUTES from '../../constants/routes';
 
 const COLUMNES = 3;
@@ -25,16 +27,30 @@ export default function CarnetsLot() {
   const [searchParams] = useSearchParams();
   const idsParam = searchParams.get('ids') ?? '';
   const [socis, setSocis] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const ids = idsParam.split(',').filter(Boolean);
     Promise.all(ids.map((id) => getDoc(doc(db, 'socis', id)))).then((snaps) => {
       setSocis(snaps.filter((snap) => snap.exists()).map((snap) => ({ id: snap.id, ...snap.data() })));
-    });
-  }, [idsParam]);
+    }).catch(falla);
+  }, [idsParam, intent, falla]);
 
   useMidaImpressioA4();
 
+  if (errorCarrega) {
+    return (
+      <ErrorCarrega
+        amplada="formulari"
+        titol="Carnets"
+        tornar={{ to: ROUTES.SOCIS, etiqueta: 'Socis' }}
+        missatge="No s'han pogut carregar els carnets."
+        onReintenta={reintenta}
+      />
+    );
+  }
   if (!socis) return <Carregant />;
 
   const placeholders = socis.length > 0 ? (COLUMNES - (socis.length % COLUMNES)) % COLUMNES : 0;

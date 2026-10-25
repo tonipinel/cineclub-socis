@@ -5,6 +5,7 @@ import BotoAfegir from '../../components/BotoAfegir';
 import Carregant from '../../components/Carregant';
 import EnllacContrasenya from '../../components/EnllacContrasenya';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
 import {
   filtrarUsuaris, formatData, llistarUsuaris, missatgeError,
 } from '../../lib/usuarisTaquilla';
@@ -12,11 +13,12 @@ import AccionsUsuari from './AccionsUsuari';
 import useAccionsUsuari from './useAccionsUsuari';
 
 const TITOL = 'Usuaris de taquilla';
-const ERROR_CARREGA = "No s'han pogut carregar els usuaris de taquilla. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'han pogut carregar els usuaris de taquilla.";
 
 export default function UsuarisTaquillaList() {
   const [usuaris, setUsuaris] = useState(null);
   const [errorCarrega, setErrorCarrega] = useState(null);
+  const [intent, setIntent] = useState(0);
   const [cerca, setCerca] = useState('');
   const accions = useAccionsUsuari({
     onCanviat: (uid, canvis) => setUsuaris((llista) => llista.map((u) => (u.uid === uid ? { ...u, ...canvis } : u))),
@@ -27,14 +29,21 @@ export default function UsuarisTaquillaList() {
     let actiu = true;
     llistarUsuaris()
       .then((llista) => { if (actiu) setUsuaris(llista); })
-      .catch((e) => { if (actiu) setErrorCarrega(missatgeError(e, ERROR_CARREGA)); });
+      .catch((e) => {
+        console.error("No s'han pogut llegir els usuaris de taquilla:", e);
+        if (actiu) setErrorCarrega(missatgeError(e, ERROR_CARREGA));
+      });
     return () => { actiu = false; };
-  }, []);
+  }, [intent]);
+  const reintenta = () => {
+    setErrorCarrega(null);
+    setIntent((n) => n + 1);
+  };
 
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="llista" titol={TITOL}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={errorCarrega} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

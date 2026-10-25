@@ -18,6 +18,8 @@ import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import Pestanyes from '../../components/Pestanyes';
 import BarraDesar from '../../components/BarraDesar';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega, { DocumentInexistent } from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import { ETIQUETA_PESTANYA, PESTANYA_DEL_CAMP, PESTANYES } from './camps';
 import CapcaleraSessio from './CapcaleraSessio';
 import DadesSessio, { TargetaSessio } from './pestanyes/DadesSessio';
@@ -29,6 +31,7 @@ const EstadistiquesSessio = lazy(() => import('./pestanyes/EstadistiquesSessio')
 const PESTANYES_EDICIO = { dades: DadesSessio, continguts: ContingutsSessio, mitjans: MitjansSessio };
 
 const ERROR_XARXA = "No s'ha pogut desar. Torna-ho a provar.";
+const TORNAR = { to: ROUTES.SESSIONS, etiqueta: 'Sessions' };
 const DURADA_DESAT = 2500;
 
 // Camps que `prepararDesat` pot calcular (URL de la primera publicació, cartell → imatge de reserva).
@@ -87,6 +90,8 @@ function FitxaSessio({ id }) {
   const [distribuidores, setDistribuidores] = useState([]);
   const [errorsPublica, setErrorsPublica] = useState({});
   const [carregant, setCarregant] = useState(editant);
+  const [inexistent, setInexistent] = useState(false);
+  const { error: errorCarrega, falla: fallaCarrega, reintenta, intent: intentCarrega } = useErrorCarrega();
   const [errorActiva, setErrorActiva] = useState(null);
   const [desant, setDesant] = useState(false);
   const [desatRecent, setDesatRecent] = useState(false);
@@ -108,21 +113,31 @@ function FitxaSessio({ id }) {
   useAvisSortida(hiHaCanvis && !desant);
 
   useEffect(() => {
-    if (!editant) return;
+    if (!editant) return undefined;
+    let actiu = true;
     getDoc(doc(db, 'sessions', id)).then((snap) => {
-      const { publica, ...sessio } = snap.data();
+      if (!actiu) return;
+      const desada = snap.data();
+      if (!desada) {
+        setInexistent(true);
+        return;
+      }
+      const { publica, ...sessio } = desada;
       const form = publicaAFormulari(publica);
-      setOriginal(snap.data());
+      setOriginal(desada);
       setDades({ ...CAMPS_INICIALS, ...sessio });
       setPublicaForm(form);
       setPublicaInicial(form);
       setCarregant(false);
-    });
-  }, [id, editant]);
+    }).catch((e) => { if (actiu) fallaCarrega(e); });
+    return () => { actiu = false; };
+  }, [id, editant, intentCarrega, fallaCarrega]);
 
+  // Només per avisar d'un slug repetit mentre s'edita (el desat torna a llegir les sessions): si falla, queda buida.
   useEffect(() => {
     if (!editant) return;
-    getDocs(collection(db, 'sessions')).then((snap) => setAltresSessions(sessionsDe(snap)));
+    getDocs(collection(db, 'sessions')).then((snap) => setAltresSessions(sessionsDe(snap)))
+      .catch((e) => console.error("No s'han pogut llegir les altres sessions:", e));
   }, [editant]);
 
   // Catàlegs d'entitats i de distribuïdores per als selectors de «Dades»; si no es poden llegir, queden buits
@@ -258,6 +273,12 @@ function FitxaSessio({ id }) {
     }
   };
 
+  if (inexistent) {
+    return <DocumentInexistent titol="Sessió" missatge="Aquesta sessió no existeix." tornar={TORNAR} />;
+  }
+  if (errorCarrega) {
+    return <ErrorCarrega amplada="fitxa" titol="Sessió" tornar={TORNAR} missatge="No s'ha pogut carregar la sessió." onReintenta={reintenta} />;
+  }
   if (carregant) return <Carregant />;
 
   const estat = estatBarra({
@@ -285,7 +306,7 @@ function FitxaSessio({ id }) {
         ambBarra
         className="fitxa-sessio"
         titol="Nova sessió"
-        tornar={{ to: ROUTES.SESSIONS, etiqueta: 'Sessions' }}
+        tornar={TORNAR}
         onSubmit={handleSubmit}
       >
         <div className="fitxa-sessio__contingut">

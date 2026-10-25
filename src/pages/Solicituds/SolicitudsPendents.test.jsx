@@ -499,3 +499,15 @@ describe('SolicitudsPendents', () => {
     expect(screen.getByRole('button', { name: 'Eliminar definitivament' })).toBeEnabled();
   });
 });
+
+describe('SolicitudsPendents: error de càrrega', () => {
+  it('si l\'oient de sol·licituds falla, mostra l\'error i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    renderAmbConfirmacio(<SolicitudsPendents />);
+    expect(screen.getByRole('alert')).toHaveTextContent("No s'han pogut carregar les sol·licituds.");
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(screen.getByText(/Anna/)).toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+});

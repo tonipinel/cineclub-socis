@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   act, screen, waitFor, within,
 } from '@testing-library/react';
@@ -394,14 +394,17 @@ describe('TandaResultats', () => {
   });
 
   describe('errors de càrrega', () => {
-    const MISSATGE = 'No s\'han pogut carregar els resultats. Torna-ho a provar.';
+    const MISSATGE = 'No s\'han pogut carregar els resultats.';
+    beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
+    afterEach(() => vi.mocked(console.error).mockRestore());
 
     it('mostra l\'error i deixa de carregar si falla onSnapshot', async () => {
       renderitza();
       await vi.waitFor(() => expect(subscripcions['tandes/t1/vots']).toBeDefined());
       emet('tandes/t1/vots-error', new Error('permission-denied'));
-      expect(await screen.findByText(MISSATGE)).toBeInTheDocument();
+      expect(await screen.findByRole('alert')).toHaveTextContent(MISSATGE);
       expect(screen.queryByAltText('Carregant…')).not.toBeInTheDocument();
+      expect(console.error).toHaveBeenCalled();
     });
 
     it('mostra l\'error si falla getDocs', async () => {
@@ -411,11 +414,11 @@ describe('TandaResultats', () => {
       expect(screen.queryByAltText('Carregant…')).not.toBeInTheDocument();
     });
 
-    it('«Tornar a provar» reintenta la càrrega', async () => {
+    it('«Torna-ho a provar» reintenta la càrrega', async () => {
       const usuari = userEvent.setup();
       getDocs.mockRejectedValueOnce(new Error('offline'));
       renderitza();
-      await usuari.click(await screen.findByRole('button', { name: 'Tornar a provar' }));
+      await usuari.click(await screen.findByRole('button', { name: 'Torna-ho a provar' }));
       await vi.waitFor(() => expect(subscripcions['tandes/t1'].length).toBeGreaterThan(1));
       const actual = (ruta) => subscripcions[ruta].at(-1);
       act(() => actual('tandes/t1')(snapTanda(TANDA)));

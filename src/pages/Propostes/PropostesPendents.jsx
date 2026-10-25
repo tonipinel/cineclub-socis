@@ -15,6 +15,8 @@ import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
 import BotoFiltres from '../../components/BotoFiltres';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const CLASSE_ESTAT = {
   pendent: 'badge--pendent', aprovada: 'badge--al-dia', rebutjada: 'badge--vencut', programada: 'badge--nou-registre',
@@ -353,7 +355,9 @@ function Llistat({ dades, filtresOberts }) {
 
 function GestioPropostes({ filtresOberts }) {
   const [dades, setDades] = useState(null);
-  const [error, setError] = useState(false);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     Promise.all([
@@ -370,10 +374,10 @@ function GestioPropostes({ filtresOberts }) {
         tandes: ambId(tandesSnap),
         sessions: ambId(sessionsSnap),
       });
-    }, () => setError(true));
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
-  if (error) return <p role="alert">No s&apos;han pogut carregar les propostes. Torna-ho a provar.</p>;
+  if (error) return <ErrorCarrega missatge="No s'han pogut carregar les propostes." onReintenta={reintenta} />;
   if (dades === null) return <Carregant />;
   return <Llistat dades={dades} filtresOberts={filtresOberts} />;
 }

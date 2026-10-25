@@ -1833,3 +1833,31 @@ describe('SessionForm — descartar canvis', () => {
     expect(addDoc).not.toHaveBeenCalled();
   });
 });
+
+describe('SessionForm — errors de càrrega', () => {
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('una sessió que no existeix mostra «Aquesta sessió no existeix» amb l\'enllaç a les sessions', async () => {
+    getDoc.mockResolvedValue({ data: () => undefined });
+    renderEnEdicio('/sessions/no-existeix');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Aquesta sessió no existeix.');
+    expect(screen.getByRole('link', { name: 'Torna a Sessions' })).toHaveAttribute('href', '/sessions');
+    expect(document.querySelector('.carregant')).not.toBeInTheDocument();
+  });
+
+  it('si la lectura falla, mostra l\'error i «Torna-ho a provar» torna a llegir', async () => {
+    getDoc.mockRejectedValueOnce(new Error('unavailable'));
+    getDoc.mockResolvedValueOnce({ data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }) });
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la sessió.");
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByLabelText('Títol')).toHaveValue('The Artist');
+    expect(getDoc).toHaveBeenCalledTimes(2);
+  });
+});

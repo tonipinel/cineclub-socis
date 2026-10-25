@@ -10,6 +10,8 @@ import { avui, formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 
 export default function TicketsLotPage() {
@@ -18,6 +20,9 @@ export default function TicketsLotPage() {
   const [entradesGeneriques, setEntradesGeneriques] = useState([]);
   const [urlsPerCodi, setUrlsPerCodi] = useState({});
   const [error, setError] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
   const { confirma } = useConfirmacio();
 
@@ -28,15 +33,15 @@ export default function TicketsLotPage() {
         return;
       }
       setLot({ id, ...snap.data() });
-    });
-  }, [id, navigate]);
+    }, falla);
+  }, [id, navigate, intent, falla]);
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'), where('tipus', '==', 'generic'));
     return onSnapshot(q, (snap) => {
       setEntradesGeneriques(snap.docs.map((d) => d.data()));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
   useEffect(() => {
     if (!lot) return;
@@ -98,6 +103,18 @@ export default function TicketsLotPage() {
     }
   };
 
+  // Sense les entrades, els tiquets usats semblarien disponibles: també és un error de càrrega.
+  if (errorCarrega) {
+    return (
+      <ErrorCarrega
+        amplada="fitxa"
+        titol="Lot de tiquets"
+        tornar={{ to: ROUTES.TICKETS, etiqueta: 'Tiquets' }}
+        missatge="No s'ha pogut carregar el lot de tiquets."
+        onReintenta={reintenta}
+      />
+    );
+  }
   if (lot === undefined) return <Carregant />;
 
   const tiquets = tiquetsDelLot(lot, entradesGeneriques);

@@ -167,3 +167,24 @@ describe('SessionsList: layout estàndard', () => {
     expect(screen.getByRole('link', { name: 'Nova sessió' })).toHaveTextContent('Nova sessió');
   });
 });
+
+describe('SessionsList: errors de càrrega', () => {
+  it('si l\'oient de sessions falla, mostra l\'error i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les sessions.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText(/The Artist/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
+  });
+
+  it('si falla una lectura de les xifres (moviments), no mostra xifres falses: mostra l\'error', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockResolvedValueOnce({ docs: [] }).mockRejectedValueOnce(new Error('unavailable'));
+    renderAmbConfirmacio(<MemoryRouter><SessionsList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les sessions.");
+    errorConsola.mockRestore();
+  });
+});

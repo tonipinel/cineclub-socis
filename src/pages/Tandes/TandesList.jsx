@@ -8,19 +8,25 @@ import { aData, potCrearTanda } from '../../lib/tandes';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const aMillis = (valor) => aData(valor).getTime();
 
 export default function TandesList() {
   const [tandes, setTandes] = useState(null);
+  const {
+    error, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     getDocs(collection(db, 'tandes')).then((snap) => {
       const llista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setTandes(llista.sort((a, b) => aMillis(b.tanca) - aMillis(a.tanca)));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
+  if (error) return <ErrorCarrega titol="Tandes de votació" missatge="No s'han pogut carregar les tandes." onReintenta={reintenta} />;
   if (tandes === null) return <Carregant />;
 
   const ara = new Date();

@@ -30,7 +30,7 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { runTransaction } from 'firebase/firestore';
+import { onSnapshot, runTransaction } from 'firebase/firestore';
 import TicketsPage from './TicketsPage';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -142,5 +142,19 @@ describe('TicketsPage', () => {
     expect(runTransaction).not.toHaveBeenCalled();
     expect(hiHaDialegConfirmacio()).toBe(false);
     expect(screen.getByText(/número enter entre 1 i 500/)).toBeInTheDocument();
+  });
+});
+
+describe('TicketsPage: error de càrrega', () => {
+  it('si l\'oient de lots falla, ho diu (no una llista buida) i «Torna-ho a provar» es torna a subscriure', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onSnapshot.mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    renderAmbConfirmacio(<MemoryRouter><TicketsPage /></MemoryRouter>);
+    expect(screen.getByRole('alert')).toHaveTextContent("No s'han pogut carregar els lots de tiquets.");
+    expect(screen.getByRole('button', { name: 'Generar tiquets nous' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(screen.getByText(/T-000001/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

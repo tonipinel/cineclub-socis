@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -19,6 +19,7 @@ vi.mock('qrcode', () => ({
 }));
 
 import QRCode from 'qrcode';
+import { getDoc } from 'firebase/firestore';
 import CarnetsLot from './CarnetsLot';
 
 function renderAmb(ids) {
@@ -55,5 +56,17 @@ describe('CarnetsLot', () => {
     renderAmb('');
     expect(await screen.findByText('No s\'ha seleccionat cap soci.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Imprimir o desar com a PDF' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CarnetsLot: error de càrrega', () => {
+  it('si falla una lectura, ho diu i «Torna-ho a provar» torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDoc.mockRejectedValueOnce(new Error('unavailable'));
+    renderAmb('1,2');
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar els carnets.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Anna Vidal')).toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -76,7 +76,7 @@ describe('EntitatsList', () => {
   it('si la càrrega falla, mostra un avís i no el carregador', async () => {
     getDocs.mockRejectedValueOnce(new Error('permission-denied'));
     render(<MemoryRouter><EntitatsList /></MemoryRouter>);
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les entitats. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les entitats.");
     expect(screen.queryByText(/Carregant/)).not.toBeInTheDocument();
   });
 
@@ -98,5 +98,20 @@ describe('EntitatsList: layout estàndard', () => {
     expect(titols).toHaveLength(1);
     expect(titols[0]).toHaveTextContent('Entitats');
     expect(boto).toHaveTextContent('Nova entitat');
+  });
+});
+
+
+describe('EntitatsList: error de càrrega', () => {
+  it('mostra l\'error i «Torna-ho a provar» torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    getDocs.mockResolvedValueOnce(resposta([]));
+    render(<MemoryRouter><EntitatsList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les entitats.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Encara no hi ha cap entitat.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

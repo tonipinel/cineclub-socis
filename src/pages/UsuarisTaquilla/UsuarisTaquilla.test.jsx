@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent, render, screen, waitFor, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -101,6 +103,9 @@ describe('Usuaris de taquilla — llistat', () => {
     respostes.llistarUsuarisTaquilla = errorFn('internal', 'internal');
     renderRuta('/usuaris-taquilla');
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar els usuaris de taquilla.");
+    respostes.llistarUsuarisTaquilla = () => [];
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Encara no hi ha cap usuari de taquilla.')).toBeInTheDocument();
   });
 
   it('mostra un missatge clar si no hi ha permís', async () => {
@@ -288,6 +293,24 @@ describe('Usuaris de taquilla — fitxa', () => {
     expect(within(historial).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       expect.stringContaining('Desactivat'), expect.stringContaining('Creat'),
     ]);
+  });
+
+  it('si no es pot carregar l\'usuari, ho diu i «Torna-ho a provar» torna a llegir', async () => {
+    respostes.llistarUsuarisTaquilla = errorFn('internal', 'internal');
+    renderRuta('/usuaris-taquilla/u1');
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar l'usuari.");
+    respostes.llistarUsuarisTaquilla = () => USUARIS.map((u) => ({ ...u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Anna Puig' })).toBeInTheDocument();
+  });
+
+  it('si no es pot llegir l\'historial, ho diu dins la secció i es pot reintentar', async () => {
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    renderRuta('/usuaris-taquilla/u1');
+    const historial = (await screen.findByRole('heading', { name: 'Historial' })).closest('section');
+    expect(await within(historial).findByRole('alert')).toHaveTextContent("No s'ha pogut carregar l'historial.");
+    fireEvent.click(within(historial).getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await within(historial).findByText('Encara no hi ha cap canvi registrat.')).toBeInTheDocument();
   });
 
   it('usuari inexistent (o no de taquilla): avís', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {} }));
@@ -66,7 +66,7 @@ describe('DistribuidoresList', () => {
   it('si la càrrega falla, mostra un avís i no el carregador', async () => {
     getDocs.mockRejectedValueOnce(new Error('permission-denied'));
     render(<MemoryRouter><DistribuidoresList /></MemoryRouter>);
-    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les distribuïdores. Torna-ho a provar.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les distribuïdores.");
     expect(screen.queryByText(/Carregant/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Distribuïdores');
   });
@@ -92,5 +92,20 @@ describe('DistribuidoresList: layout estàndard', () => {
     expect(container.querySelector('.pagina-admin__tornar')).toBeNull();
     expect(screen.queryByRole('link', { name: /←/ })).not.toBeInTheDocument();
     expect(boto).toHaveTextContent('Nova distribuïdora');
+  });
+});
+
+
+describe('DistribuidoresList: error de càrrega', () => {
+  it('mostra l\'error i «Torna-ho a provar» torna a llegir', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getDocs.mockRejectedValueOnce(new Error('unavailable'));
+    getDocs.mockResolvedValueOnce({ docs: [] });
+    render(<MemoryRouter><DistribuidoresList /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'han pogut carregar les distribuïdores.");
+    fireEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByText('Encara no hi ha cap distribuïdora.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

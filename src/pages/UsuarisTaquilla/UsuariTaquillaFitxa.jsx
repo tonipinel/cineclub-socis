@@ -9,6 +9,7 @@ import BarraDesar from '../../components/BarraDesar';
 import Carregant from '../../components/Carregant';
 import EnllacContrasenya from '../../components/EnllacContrasenya';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
 import ZonaPerill from '../../components/ZonaPerill';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
@@ -18,7 +19,7 @@ import AccionsUsuari from './AccionsUsuari';
 import useAccionsUsuari from './useAccionsUsuari';
 
 const TORNAR = { to: ROUTES.USUARIS_TAQUILLA, etiqueta: 'Usuaris de taquilla' };
-const ERROR_CARREGA = "No s'ha pogut carregar l'usuari. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar l'usuari.";
 const NO_TROBAT = 'Aquest usuari no existeix o no és de taquilla.';
 const ERROR_HISTORIAL = "No s'ha pogut carregar l'historial.";
 const MAX_HISTORIAL = 20;
@@ -37,6 +38,7 @@ const ms = (t) => (typeof t?.toMillis === 'function' ? t.toMillis() : 0);
 function Historial({ uid, versio }) {
   const [entrades, setEntrades] = useState(null);
   const [error, setError] = useState(false);
+  const [intent, setIntent] = useState(0);
 
   useEffect(() => {
     let actiu = true;
@@ -48,14 +50,21 @@ function Historial({ uid, versio }) {
         setEntrades(llista.sort((a, b) => ms(b.timestamp) - ms(a.timestamp)).slice(0, MAX_HISTORIAL));
         setError(false);
       })
-      .catch(() => { if (actiu) setError(true); });
+      .catch((e) => {
+        console.error("No s'ha pogut llegir l'historial:", e);
+        if (actiu) setError(true);
+      });
     return () => { actiu = false; };
-  }, [uid, versio]);
+  }, [uid, versio, intent]);
+  const reintenta = () => {
+    setError(false);
+    setIntent((n) => n + 1);
+  };
 
   return (
     <section className="usuaris-taquilla__seccio" aria-labelledby="historial-titol">
       <h2 id="historial-titol" className="usuaris-taquilla__subtitol">Historial</h2>
-      {error && <p className="form__error" role="alert">{ERROR_HISTORIAL}</p>}
+      {error && <ErrorCarrega missatge={ERROR_HISTORIAL} onReintenta={reintenta} />}
       {!error && entrades === null && <p>Carregant l&apos;historial…</p>}
       {!error && entrades?.length === 0 && <p>Encara no hi ha cap canvi registrat.</p>}
       {!error && entrades?.length > 0 && (
@@ -215,6 +224,7 @@ function FitxaUsuari({ usuariInicial }) {
 
 function CarregaUsuari({ uid }) {
   const [estat, setEstat] = useState({ usuari: null, error: null });
+  const [intent, setIntent] = useState(0);
 
   useEffect(() => {
     let actiu = true;
@@ -222,17 +232,28 @@ function CarregaUsuari({ uid }) {
       .then((llista) => {
         if (!actiu) return;
         const usuari = llista.find((u) => u.uid === uid);
-        setEstat(usuari ? { usuari, error: null } : { usuari: null, error: NO_TROBAT });
+        setEstat(usuari ? { usuari, error: null } : { usuari: null, error: NO_TROBAT, inexistent: true });
       })
-      .catch((e) => { if (actiu) setEstat({ usuari: null, error: missatgeError(e, ERROR_CARREGA) }); });
+      .catch((e) => {
+        console.error("No s'ha pogut llegir l'usuari de taquilla:", e);
+        if (actiu) setEstat({ usuari: null, error: missatgeError(e, ERROR_CARREGA) });
+      });
     return () => { actiu = false; };
-  }, [uid]);
+  }, [uid, intent]);
+  const reintenta = () => {
+    setEstat({ usuari: null, error: null });
+    setIntent((n) => n + 1);
+  };
 
   if (estat.error) {
     return (
-      <PaginaAdmin amplada="formulari" titol="Usuari de taquilla" tornar={TORNAR}>
-        <p className="form__error" role="alert">{estat.error}</p>
-      </PaginaAdmin>
+      <ErrorCarrega
+        amplada="formulari"
+        titol="Usuari de taquilla"
+        tornar={TORNAR}
+        missatge={estat.error}
+        onReintenta={estat.inexistent ? undefined : reintenta}
+      />
     );
   }
   if (!estat.usuari) return <Carregant />;

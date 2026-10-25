@@ -7,6 +7,8 @@ import { etiquetaSoci } from '../../lib/socis';
 import { calcularNomPublic } from '../../lib/propostes';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 export default function PropostesNova() {
   const [socis, setSocis] = useState(null);
@@ -17,13 +19,27 @@ export default function PropostesNova() {
   const [error, setError] = useState(null);
   const [desant, setDesant] = useState(false);
   const navigate = useNavigate();
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     getDocs(collection(db, 'socis')).then((snap) => {
       setSocis(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }).catch(falla);
+  }, [intent, falla]);
 
+  if (errorCarrega) {
+    return (
+      <ErrorCarrega
+        amplada="formulari"
+        titol="Nova proposta en nom d'un soci"
+        tornar={{ to: ROUTES.PROPOSTES_PENDENTS, etiqueta: 'Propostes' }}
+        missatge="No s'han pogut carregar els socis."
+        onReintenta={reintenta}
+      />
+    );
+  }
   if (socis === null) return <Carregant />;
 
   const handleSubmit = async (e) => {

@@ -7,6 +7,8 @@ import * as ROUTES from '../../constants/routes';
 import { formatDataHora } from '../../lib/data';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 
 const MOTIU_ETIQUETES = {
   'codi-desconegut': 'Codi no reconegut',
@@ -47,22 +49,35 @@ const METODE_ETIQUETES = { qr: 'QR', manual: 'Manual' };
 export default function EscaneigLogPage() {
   const [errors, setErrors] = useState(null);
   const [sessions, setSessions] = useState({});
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => (
     onSnapshot(collection(db, 'sessions'), (snap) => {
       const mapa = {};
       snap.docs.forEach((d) => { mapa[d.id] = d.data().titol; });
       setSessions(mapa);
-    })
-  ), []);
+    }, (e) => console.error("No s'han pogut llegir els títols de les sessions:", e))
+  ), [intent]);
 
   useEffect(() => {
     const q = query(collection(db, 'escaneigErrors'), orderBy('timestamp', 'desc'), limit(200));
     return onSnapshot(q, (snap) => {
       setErrors(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
+    }, falla);
+  }, [intent, falla]);
 
+  if (errorCarrega) {
+    return (
+      <ErrorCarrega
+        titol="Incidències d'escaneig"
+        tornar={{ to: ROUTES.ESCANEIG, etiqueta: 'Escaneig' }}
+        missatge="No s'han pogut carregar les incidències."
+        onReintenta={reintenta}
+      />
+    );
+  }
   if (errors === null) return <Carregant />;
 
   return (

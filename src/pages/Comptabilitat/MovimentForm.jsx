@@ -18,6 +18,8 @@ import BarraDesar from '../../components/BarraDesar';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import SelectorFitxer from '../../components/SelectorFitxer';
 import ZonaPerill from '../../components/ZonaPerill';
 import * as ROUTES from '../../constants/routes';
@@ -60,7 +62,7 @@ function categoriesDisponibles(tipus, categoriaActual) {
 }
 
 const CAMPS = ['data', 'concepte', 'tipus', 'categoria', 'metodePagament', 'direccio', 'preuUnitari', 'quantitat', 'sessionId'];
-const ERROR_CARREGA = "No s'ha pogut carregar el moviment. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar el moviment.";
 const ETIQUETES = {
   data: 'Data', concepte: 'Concepte', sessionId: 'Sessió', preuUnitari: 'Preu unitari', quantitat: 'Quantitat',
 };
@@ -111,6 +113,10 @@ function FitxaMoviment({ id, moviment }) {
   // Document tal com és a Firestore: base de numeroSoci, tipusQuota i adjunt en desar i en eliminar.
   const [desat, setDesat] = useState(moviment);
   const [sessions, setSessions] = useState([]);
+  // Sense la llista, el selector de sessió quedaria buit com si no n'hi hagués cap.
+  const {
+    error: errorSessions, falla: fallaSessions, reintenta: reintentaSessions, intent: intentSessions,
+  } = useErrorCarrega();
   const [url, setUrl] = useState(null);
   const [errorAdjunt, setErrorAdjunt] = useState(null);
   const [errorEliminar, setErrorEliminar] = useState(null);
@@ -218,8 +224,8 @@ function FitxaMoviment({ id, moviment }) {
   useEffect(() => {
     getDocs(collection(db, 'sessions')).then((snap) => {
       setSessions(sessionsAmbControl(snap.docs.map((d) => ({ id: d.id, ...d.data() }))).filter((s) => s.data));
-    });
-  }, []);
+    }).catch(fallaSessions);
+  }, [intentSessions, fallaSessions]);
 
   const adjuntDesat = desat?.adjunt;
   const pathAdjunt = adjuntDesat?.path;
@@ -420,6 +426,7 @@ function FitxaMoviment({ id, moviment }) {
             ))}
           </select>
           {errorCamp('sessionId')}
+          {errorSessions && <ErrorCarrega missatge="No s'han pogut carregar les sessions." onReintenta={reintentaSessions} />}
         </div>
       )}
 
@@ -497,7 +504,9 @@ function FitxaMoviment({ id, moviment }) {
 // Si s'edita, carrega el moviment; la fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
 function CarregaMoviment({ id }) {
   const [moviment, setMoviment] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -511,15 +520,15 @@ function CarregaMoviment({ id }) {
         return;
       }
       setMoviment(dadesDoc);
-    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id, navigate]);
+  }, [id, navigate, intent, falla]);
 
   if (!id) return <FitxaMoviment moviment={null} />;
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="fitxa" titol="Moviment" tornar={TORNAR_COMPTABILITAT}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

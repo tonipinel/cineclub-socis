@@ -8,7 +8,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   query: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
-  onSnapshot: (q, callback) => {
+  onSnapshot: vi.fn((q, callback) => {
     callback({
       docs: [
         {
@@ -35,12 +35,12 @@ vi.mock('firebase/firestore', () => ({
       ],
     });
     return () => {};
-  },
+  }),
 }));
 
 vi.mock('../../lib/adjunts', () => ({ urlAdjunt: vi.fn().mockResolvedValue('https://storage.test/factura.pdf') }));
 
-import { getDocs } from 'firebase/firestore';
+import { getDocs, onSnapshot } from 'firebase/firestore';
 import ComptabilitatPage from './ComptabilitatPage';
 
 describe('ComptabilitatPage', () => {
@@ -197,5 +197,18 @@ describe('ComptabilitatPage — sessions especials sense control', () => {
     render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
     await screen.findByRole('option', { name: 'The Artist' });
     expect(screen.queryByRole('option', { name: 'Esborrany sense data' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ComptabilitatPage: error de càrrega', () => {
+  it('si l\'oient de moviments falla, no mostra saldos de 0 € com si fossin reals: mostra l\'error i permet reintentar', async () => {
+    const errorConsola = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(onSnapshot).mockImplementationOnce((q, _cb, onError) => { onError(new Error('permission-denied')); return () => {}; });
+    render(<MemoryRouter><ComptabilitatPage /></MemoryRouter>);
+    expect(screen.getByRole('alert')).toHaveTextContent("No s'han pogut carregar els moviments.");
+    expect(screen.queryByText(/0,00/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(screen.getByText('Quotes de març')).toBeInTheDocument();
+    errorConsola.mockRestore();
   });
 });

@@ -1,0 +1,13 @@
+/* Errors de càrrega i de render: missatge i accions («Torna-ho a provar», «Torna a l'inici») */
+.error-carrega {
+  @apply flex flex-col items-start gap-4 py-4;
+}
+.error-carrega__missatge {
+  @apply font-body text-base text-red-700 wrap-anywhere;
+}
+.error-carrega__accions {
+  @apply flex flex-wrap gap-3;
+}
+.error-carrega__boto {
+  @apply no-underline;
+}

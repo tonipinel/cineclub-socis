@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -828,5 +828,29 @@ describe('RegistrarPagamentPage — renovació sempre encadenada; alta després 
     expect(await screen.findByText(/La fitxa del soci ha canviat i ara aquest pagament seria una alta\. Reobre la pàgina/)).toBeInTheDocument();
     expect(__txUpdate).not.toHaveBeenCalled();
     expect(__txSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('RegistrarPagamentPage: errors de càrrega', () => {
+  beforeEach(() => {
+    getDoc.mockReset();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => vi.mocked(console.error).mockRestore());
+
+  it('si no es pot saber si ja té quotes, no endevina alta o renovació: mostra l\'error i permet reintentar', async () => {
+    const soci = { id: '1', data: () => ({ nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7' }) };
+    const config = { data: () => ({ quotaAnual: 35 }) };
+    getDoc.mockResolvedValueOnce(soci).mockResolvedValueOnce(config).mockResolvedValueOnce(soci).mockResolvedValueOnce(config);
+    getDocs
+      .mockResolvedValueOnce({ docs: [] })
+      .mockRejectedValueOnce(new Error('unavailable'));
+    renderPagina();
+    expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el soci.");
+    expect(screen.queryByLabelText('Import (€)')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
+    expect(await screen.findByLabelText('Import (€)')).toHaveValue(35);
   });
 });

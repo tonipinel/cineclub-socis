@@ -10,12 +10,14 @@ import CampLogo from '../../components/CampLogo';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import ZonaPerill from '../../components/ZonaPerill';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import { missatgeBloqueigEliminar } from '../../lib/blocatgeEliminar';
 import { camiLogoEntitat, sessionsQueUsen, validarEntitat } from '../../lib/entitats';
 
-const ERROR_CARREGA = "No s'ha pogut carregar l'entitat. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar l'entitat.";
 const ETIQUETES = { nom: 'Nom', url: 'Pàgina web pública' };
 const CAMPS = Object.keys(ETIQUETES);
 
@@ -177,7 +179,9 @@ function FitxaEntitat({ id, carregada }) {
 // La fitxa es munta quan hi ha les dades: el hook només llegeix `inicial` en muntar.
 function CarregaEntitat({ id }) {
   const [carregada, setCarregada] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -195,14 +199,14 @@ function CarregaEntitat({ id }) {
       }
       if (actiu) setCarregada({ altres, entitat });
     };
-    carrega().catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    carrega().catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id, navigate]);
+  }, [id, navigate, intent, falla]);
 
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="formulari" titol={id ? 'Entitat' : 'Nova entitat'} tornar={{ to: ROUTES.ENTITATS, etiqueta: 'Entitats' }}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

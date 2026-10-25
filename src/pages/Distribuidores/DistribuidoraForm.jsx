@@ -10,6 +10,8 @@ import CampLogo from '../../components/CampLogo';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
 import PaginaAdmin from '../../components/PaginaAdmin';
+import ErrorCarrega from '../../components/ErrorCarrega';
+import useErrorCarrega from '../../lib/useErrorCarrega';
 import TextareaAutomatic from '../../components/TextareaAutomatic';
 import ZonaPerill from '../../components/ZonaPerill';
 import useFitxaEditable from '../../lib/useFitxaEditable';
@@ -21,7 +23,7 @@ import {
 const CAMPS_BUITS = {
   nom: '', web: '', urlPublica: '', contacte: '', correu: '', preu: '', condicions: '', logo: '',
 };
-const ERROR_CARREGA = "No s'ha pogut carregar la distribuïdora. Torna-ho a provar.";
+const ERROR_CARREGA = "No s'ha pogut carregar la distribuïdora.";
 const ETIQUETES = {
   nom: 'Nom', urlPublica: 'Pàgina web pública', correu: 'Correu electrònic', preu: 'Preu per defecte',
 };
@@ -212,7 +214,9 @@ function FitxaDistribuidora({ id, distribuidora }) {
 // Si s'edita, carrega la distribuïdora; la fitxa es munta quan hi ha les dades (el hook només llegeix `inicial` en muntar).
 function CarregaDistribuidora({ id }) {
   const [distribuidora, setDistribuidora] = useState(null);
-  const [errorCarrega, setErrorCarrega] = useState(null);
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -226,15 +230,15 @@ function CarregaDistribuidora({ id }) {
         return;
       }
       setDistribuidora(dadesDoc);
-    }).catch(() => { if (actiu) setErrorCarrega(ERROR_CARREGA); });
+    }).catch((e) => { if (actiu) falla(e); });
     return () => { actiu = false; };
-  }, [id, navigate]);
+  }, [id, navigate, intent, falla]);
 
   if (!id) return <FitxaDistribuidora distribuidora={null} />;
   if (errorCarrega) {
     return (
       <PaginaAdmin amplada="formulari" titol="Distribuïdora" tornar={{ to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' }}>
-        <p className="form__error" role="alert">{errorCarrega}</p>
+        <ErrorCarrega missatge={ERROR_CARREGA} onReintenta={reintenta} />
       </PaginaAdmin>
     );
   }

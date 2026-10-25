@@ -13,6 +13,8 @@ import { formatData } from '../../../lib/data';
 import { sessionsAmbControl } from '../../../lib/sessions';
 import * as ROUTES from '../../../constants/routes';
 import BotoAfegir from '../../../components/BotoAfegir';
+import ErrorCarrega from '../../../components/ErrorCarrega';
+import useErrorCarrega from '../../../lib/useErrorCarrega';
 
 const RESUM_INICIAL = { socisDistints: 0, entradesGeneriques: 0, importGeneric: 0 };
 
@@ -48,6 +50,9 @@ export default function EstadistiquesSessio({ id, sessio }) {
   const [moviments, setMoviments] = useState([]);
   const [entradesAccessLog, setEntradesAccessLog] = useState([]);
   const [socisPerNumero, setSocisPerNumero] = useState({});
+  const {
+    error: errorCarrega, falla, reintenta, intent,
+  } = useErrorCarrega();
 
   useEffect(() => {
     const q = query(collection(db, 'accessLog'), where('sessionId', '==', id));
@@ -55,8 +60,8 @@ export default function EstadistiquesSessio({ id, sessio }) {
       const entrades = snap.docs.map((d) => d.data());
       setResum(resumAccessLog(entrades));
       setEntradesAccessLog(entrades);
-    });
-  }, [id]);
+    }, falla);
+  }, [id, intent, falla]);
 
   useEffect(() => {
     const q = query(collection(db, 'moviments'), where('sessionId', '==', id));
@@ -64,8 +69,8 @@ export default function EstadistiquesSessio({ id, sessio }) {
       const dades = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setResumEconomic(resumEconomicSessio(dades));
       setMoviments(dades);
-    });
-  }, [id]);
+    }, falla);
+  }, [id, intent, falla]);
 
   useEffect(() => {
     if (!dades.data) return;
@@ -79,7 +84,7 @@ export default function EstadistiquesSessio({ id, sessio }) {
       }
       const logSnap = await getDocs(query(collection(db, 'accessLog'), where('sessionId', '==', anterior.id)));
       if (!cancelat) setResumAnterior(resumAccessLog(logSnap.docs.map((d) => d.data())));
-    });
+    }).catch((e) => console.error("No s'ha pogut llegir la sessió anterior per comparar:", e));
     return () => { cancelat = true; };
   }, [dades.data]);
 
@@ -91,8 +96,11 @@ export default function EstadistiquesSessio({ id, sessio }) {
         if (soci.numeroSoci) mapa[soci.numeroSoci] = { id: d.id, nom: soci.nom, cognoms: soci.cognoms };
       });
       setSocisPerNumero(mapa);
-    });
+    }).catch((e) => console.error("No s'han pogut llegir els noms dels socis:", e));
   }, []);
+
+  // Sense accessLog o moviments, les xifres a zero (i l'avís d'aportacions) semblarien reals.
+  if (errorCarrega) return <ErrorCarrega missatge="No s'han pogut carregar les estadístiques de la sessió." onReintenta={reintenta} />;
 
   const entradesOrdenades = [...entradesAccessLog].sort(
     (a, b) => (a.timestamp?.toDate?.() ?? 0) - (b.timestamp?.toDate?.() ?? 0)

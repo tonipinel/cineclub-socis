@@ -113,12 +113,17 @@ export default function Header() {
   useEffect(() => {
     if (role !== ROLE_ADMIN) return undefined;
     const qSolicituds = query(collection(db, 'solicituds'), where('estat', '==', 'pendent'));
-    const unsubSolicituds = onSnapshot(qSolicituds, (snap) => setComptadorSolicituds(snap.size));
+    // Si un oient falla, el badge s'amaga (un comptador antic seria enganyós) i l'error només es registra.
+    const fallaBadge = (amaga) => (e) => {
+      console.error("No s'ha pogut llegir un comptador de la capçalera:", e);
+      amaga(0);
+    };
+    const unsubSolicituds = onSnapshot(qSolicituds, (snap) => setComptadorSolicituds(snap.size), fallaBadge(setComptadorSolicituds));
     const qPropostes = query(collection(db, 'propostes'), where('estat', '==', 'pendent'));
     const unsubPropostes = onSnapshot(qPropostes, (snap) => {
       // Les de l'organització són de l'equip: no cal revisar-les, així que no compten al badge.
       setComptadorPropostes(snap.docs.filter((d) => d.data().nomProposant !== NOM_ORGANITZACIO).length);
-    });
+    }, fallaBadge(setComptadorPropostes));
     return () => { unsubSolicituds(); unsubPropostes(); };
   }, [role]);
 
