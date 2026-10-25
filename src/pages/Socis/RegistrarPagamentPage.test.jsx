@@ -200,7 +200,8 @@ describe('RegistrarPagamentPage', () => {
     expect(__txUpdate.mock.calls).toEqual([
       ['socis', { ultimNumeroSoci: 42 }],
       ['1', {
-        ultimPagament: AVUI, vigenciaDes: AVUI, estatManual: null, inicPeriode: null, numeroSoci: 42,
+        ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'primer-escaneig', estatManual: null, inicPeriode: null,
+        reiniciQuota: false, numeroSoci: 42,
       }],
     ]);
     expect(__txSet.mock.calls[0]).toEqual(['tok-x', { numeroSoci: 42, nomPublic: 'Anna V.' }]);
@@ -255,18 +256,18 @@ describe('RegistrarPagamentPage', () => {
     expect(screen.getByRole('button', { name: 'Registrar pagament' })).toBeEnabled();
   });
 
-  it('si mentrestant un altre pagament ja li ha assignat número, el reutilitza i no en reserva cap de nou', async () => {
-    __docsTransaccio.set('1', { nom: 'Anna', cognoms: 'Vidal', numeroSoci: 42, tokenCarnet: 'tok-x' });
+  // Fix round 1: abans es desava en silenci com a renovació encadenada (sessionId buit), tot i que l'usuari havia vist
+  // el text d'alta i triat sessió. Ara no escriu res i demana reobrir la pàgina.
+  it('si mentrestant un altre pagament ja ha registrat l\'alta, no escriu res, no reserva cap número i demana reobrir', async () => {
+    __docsTransaccio.set('1', {
+      nom: 'Anna', cognoms: 'Vidal', numeroSoci: 42, tokenCarnet: 'tok-x', ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'primer-escaneig',
+    });
     await registraPrimerPagament();
-    await screen.findByText('Fitxa del soci');
+    expect(await screen.findByText(/La fitxa del soci ha canviat i ara aquest pagament seria una renovació\. Reobre la pàgina/))
+      .toBeInTheDocument();
     expect(__txGet.mock.calls).toEqual([['1']]);
-    expect(__txUpdate.mock.calls).toEqual([
-      ['1', { ultimPagament: AVUI, vigenciaDes: AVUI, estatManual: null, inicPeriode: null }],
-    ]);
-    expect(__txSet.mock.calls[0]).toEqual(['tok-x', { numeroSoci: 42, nomPublic: 'Anna V.' }]);
-    expect(__txSet.mock.calls[1][1].numeroSoci).toBe(42);
-    // L'alta ja l'ha registrada l'altre pagament: aquest compta com a renovació (sense sessió).
-    expect(__txSet.mock.calls[1][1]).toEqual(expect.objectContaining({ tipusQuota: 'renovacio', sessionId: '' }));
+    expect(__txUpdate).not.toHaveBeenCalled();
+    expect(__txSet).not.toHaveBeenCalled();
     expect(__docsTransaccio.get('socis')).toEqual({ ultimNumeroSoci: 41 });
   });
 
@@ -276,9 +277,10 @@ describe('RegistrarPagamentPage', () => {
     await screen.findByText('Fitxa del soci');
     primera.unmount();
     await registraPrimerPagament();
-    await screen.findByText('Fitxa del soci');
+    // El segon ja no es desa com a renovació en silenci: demana reobrir la pàgina (Fix round 1).
+    expect(await screen.findByText(/seria una renovació\. Reobre la pàgina/)).toBeInTheDocument();
     const moviments = __txSet.mock.calls.filter(([ref]) => ref === 'moviments').map(([, m]) => m);
-    expect(moviments.map((m) => [m.numeroSoci, m.tipusQuota, m.sessionId])).toEqual([[42, 'alta', 's1'], [42, 'renovacio', '']]);
+    expect(moviments.map((m) => [m.numeroSoci, m.tipusQuota, m.sessionId])).toEqual([[42, 'alta', 's1']]);
     expect(__txUpdate.mock.calls.filter(([ref]) => ref === 'socis')).toEqual([['socis', { ultimNumeroSoci: 42 }]]);
     expect(__docsTransaccio.get('1').numeroSoci).toBe(42);
   });
@@ -424,7 +426,8 @@ describe('RegistrarPagamentPage', () => {
     expect(__txSet).toHaveBeenCalledTimes(1);
   });
 
-  // Pagament d'una renovació, amb la sessió per defecte, per comprovar exactament el que s'escriu al lot.
+  // Pagament d'un soci amb número però sense cap quota ni data (una alta), amb la sessió per defecte, per comprovar
+  // exactament el que s'escriu al lot.
   async function registraPagament(soci) {
     sincronitzarSociPublic.mockClear();
     getDoc
@@ -441,8 +444,10 @@ describe('RegistrarPagamentPage', () => {
     await vi.waitFor(() => expect(__txCommit).toHaveBeenCalledTimes(1));
   }
 
-  // Aquests socis no tenen cap data de quota: tant si és alta com renovació, la quota comença el dia del pagament.
-  const ACTUALITZACIO_SOCI = { ultimPagament: AVUI, vigenciaDes: AVUI, estatManual: null, inicPeriode: null };
+  // Aquests socis no tenen cap data de quota: és una alta i la quota comença el dia del pagament.
+  const ACTUALITZACIO_SOCI = {
+    ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'primer-escaneig', estatManual: null, inicPeriode: null, reiniciQuota: false,
+  };
 
   it('passa a l\'helper l\'estat d\'activació real del soci, i per a un soci actiu escriu exactament el soci, socisPublic i el moviment', async () => {
     await registraPagament({ nom: 'Isabel', cognoms: 'Mondéjar', numeroSoci: '7', tokenCarnet: 'tok-1', actiu: true });
@@ -645,13 +650,18 @@ describe('RegistrarPagamentPage — inici de la quota (renovacions anticipades)'
   it('pagant abans que venci, la quota nova comença el dia que venç l\'actual i el moviment es data avui', async () => {
     const soci = { ...SOCI, ultimPagament: dia(20, -1), inicPeriode: dia(20, -1) }; // venç d'aquí a 20 dies
     const avis = await renova(soci);
-    expect(avis).toBe(`La quota nova comptarà a partir del ${formatData(dia(20))}, quan venci l'actual.`);
+    expect(avis).toBe(
+      `La quota nova comptarà a partir del ${formatData(dia(20))}, quan venci l'actual, i vencerà el ${formatData(dia(20, 1))}.`,
+    );
     expect(__txUpdate.mock.calls).toEqual([
-      ['1', { ultimPagament: AVUI, vigenciaDes: dia(20), estatManual: null, inicPeriode: null }],
+      ['1', {
+        ultimPagament: AVUI, vigenciaDes: dia(20), modeVigencia: 'encadenada', estatManual: null, inicPeriode: null, reiniciQuota: false,
+      }],
     ]);
     expect(__txSet.mock.calls[1]).toEqual(['moviments', {
       data: AVUI,
       vencimentAnterior: dia(20),
+      modeVigencia: 'encadenada',
       concepte: 'Quota Anna Vidal',
       tipus: 'ingres',
       categoria: 'Quotes socis',
@@ -668,9 +678,11 @@ describe('RegistrarPagamentPage — inici de la quota (renovacions anticipades)'
   it('pagant quan ja ha vençut, la quota comença el dia del pagament', async () => {
     const soci = { ...SOCI, ultimPagament: dia(-40, -1), inicPeriode: dia(-38, -1) }; // va vèncer fa 38 dies
     const avis = await renova(soci);
-    expect(avis).toBe(`La quota nova comptarà a partir del ${formatData(AVUI)}.`);
+    expect(avis).toBe(`La quota nova comptarà a partir del ${formatData(AVUI)} i vencerà el ${formatData(dia(0, 1))}.`);
     expect(__txUpdate.mock.calls).toEqual([
-      ['1', { ultimPagament: AVUI, vigenciaDes: AVUI, estatManual: null, inicPeriode: null }],
+      ['1', {
+        ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'encadenada', estatManual: null, inicPeriode: null, reiniciQuota: false,
+      }],
     ]);
     expect(__txSet.mock.calls[1][1]).toEqual(expect.objectContaining({ data: AVUI, vencimentAnterior: dia(-38) }));
   });
@@ -689,16 +701,19 @@ describe('RegistrarPagamentPage — inici de la quota (renovacions anticipades)'
     getDocs.mockResolvedValueOnce({ docs: [{ id: 's1', data: () => ({ titol: 'The Artist', data: AVUI }) }] });
     const user = userEvent.setup();
     renderPagina();
-    expect(await screen.findByText(`La quota nova comptarà a partir del ${formatData(AVUI)}.`)).toHaveClass(
+    expect(await screen.findByText(`La quota nova comptarà des del primer escaneig a partir del ${formatData(AVUI)}.`)).toHaveClass(
       'pagament-form__avis', 'pagament-form__avis--info',
     );
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
     await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     expect(__txUpdate.mock.calls).toEqual([
-      ['1', { ultimPagament: AVUI, vigenciaDes: AVUI, estatManual: null, inicPeriode: null }],
+      ['1', {
+        ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'primer-escaneig', estatManual: null, inicPeriode: null, reiniciQuota: false,
+      }],
     ]);
     expect(__txSet.mock.calls[1][1]).not.toHaveProperty('vencimentAnterior');
+    expect(__txSet.mock.calls[1][1].modeVigencia).toBe('primer-escaneig');
   });
 
   it('si es canvia la data del pagament, l\'avís i el que es desa la segueixen', async () => {
@@ -715,16 +730,103 @@ describe('RegistrarPagamentPage — inici de la quota (renovacions anticipades)'
     await user.clear(campData);
     await user.type(campData, '2026-11-14');
     expect(screen.getByText(/La quota nova comptarà a partir del/)).toHaveTextContent(
-      "La quota nova comptarà a partir del 15/11/2026, quan venci l'actual.",
+      "La quota nova comptarà a partir del 15/11/2026, quan venci l'actual, i vencerà el 15/11/2027.",
     );
     await user.clear(campData);
     await user.type(campData, '2026-11-16');
     expect(screen.getByText(/La quota nova comptarà a partir del/)).toHaveTextContent(
-      'La quota nova comptarà a partir del 16/11/2026.',
+      'La quota nova comptarà a partir del 16/11/2026 i vencerà el 16/11/2027.',
     );
     await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
     await acceptaDialeg('Registra');
     await screen.findByText('Fitxa del soci');
     expect(__txUpdate.mock.calls[0][1]).toEqual(expect.objectContaining({ ultimPagament: '2026-11-16', vigenciaDes: '2026-11-16' }));
+  });
+});
+
+describe('RegistrarPagamentPage — renovació sempre encadenada; alta després d\'una baixa', () => {
+  beforeEach(() => {
+    runTransaction.mockClear();
+    __txSet.mockClear();
+    __txUpdate.mockClear();
+    __txCommit.mockClear();
+    __txCommit.mockResolvedValue(undefined);
+    __txGet.mockClear();
+    getDoc.mockClear();
+    __docsTransaccio.clear();
+    getDocs.mockReset();
+    getDocs.mockResolvedValue({ docs: [] });
+  });
+
+  const SESSIO = { id: 's1', data: () => ({ titol: 'The Artist', data: AVUI }) };
+  async function carrega(soci, { quotes = [] } = {}) {
+    getDoc
+      .mockResolvedValueOnce({ id: '1', data: () => soci })
+      .mockResolvedValueOnce({ data: () => ({ quotaAnual: 30 }) });
+    getDocs
+      .mockResolvedValueOnce({ docs: [SESSIO] })
+      .mockResolvedValueOnce({ docs: quotes.map((data) => ({ data: () => ({ categoria: 'Quotes socis', data }) })) });
+    renderPagina();
+    await screen.findByLabelText('Import (€)');
+  }
+  async function registra() {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Registrar pagament' }));
+    await acceptaDialeg('Registra');
+  }
+  const BASE = { nom: 'Anna', cognoms: 'Vidal', numeroSoci: '7', tokenCarnet: 'tok-x', actiu: true };
+
+  it('un soci importat sense cap quota i encara al dia renova encadenat (no és una alta)', async () => {
+    await carrega({ ...BASE, ultimPagament: '2026-08-29', notaImportacio: 'Estat pagament original: Pagat.' });
+    expect(screen.getByText(/pagament de renovació/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sessió')).not.toBeInTheDocument();
+    await registra();
+    await screen.findByText('Fitxa del soci');
+    expect(__txUpdate.mock.calls[0][1]).toEqual(expect.objectContaining({ vigenciaDes: '2027-08-29', modeVigencia: 'encadenada' }));
+    expect(__txSet.mock.calls[1][1]).toEqual(expect.objectContaining({
+      tipusQuota: 'renovacio', vencimentAnterior: '2027-08-29', modeVigencia: 'encadenada', sessionId: '',
+    }));
+  });
+
+  it.each([
+    ['desactivat', { actiu: false, dataDesactivacio: '2026-05-01' }],
+    ['reactivat sense haver pagat des de la baixa', { reiniciQuota: true }],
+  ])('un soci %s amb quotes paga com a alta: sessió, primer escaneig i sense encadenar', async (_nom, extra) => {
+    await carrega({ ...BASE, ultimPagament: '2026-03-01', inicPeriode: '2026-03-05', ...extra }, { quotes: ['2026-03-01'] });
+    expect(screen.getByLabelText('Sessió')).toBeInTheDocument();
+    expect(screen.getByText(/La quota nova comptarà des del primer escaneig/)).toHaveTextContent(
+      `La quota nova comptarà des del primer escaneig a partir del ${formatData(AVUI)}. És una alta nova perquè el soci s'ha donat de baixa.`,
+    );
+    await registra();
+    await screen.findByText('Fitxa del soci');
+    expect(__txUpdate.mock.calls).toEqual([['1', {
+      ultimPagament: AVUI, vigenciaDes: AVUI, modeVigencia: 'primer-escaneig', estatManual: null, inicPeriode: null, reiniciQuota: false,
+    }]]);
+    expect(__txSet.mock.calls.at(-1)[1]).toEqual(expect.objectContaining({ tipusQuota: 'alta', sessionId: 's1', modeVigencia: 'primer-escaneig' }));
+    expect(__txSet.mock.calls.at(-1)[1]).not.toHaveProperty('vencimentAnterior');
+  });
+
+  it('un soci de baixa amb la quota encara vigent avisa que es perd la quota actual', async () => {
+    const ultim = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 10).toLocaleDateString('sv-SE');
+    const fins = new Date(new Date().getFullYear() + 1, new Date().getMonth() - 2, 10).toLocaleDateString('sv-SE');
+    await carrega({ ...BASE, ultimPagament: ultim, actiu: false, reiniciQuota: true }, { quotes: [ultim] });
+    expect(screen.getByText(/La quota actual/)).toHaveTextContent(
+      `La quota actual (fins al ${formatData(fins)}) es perd: aquest pagament torna a començar l'any.`,
+    );
+  });
+
+  it('un soci de baixa amb la quota ja vençuda no mostra l\'avís de quota perduda', async () => {
+    await carrega({ ...BASE, ultimPagament: '2020-01-01', actiu: false }, { quotes: ['2020-01-01'] });
+    expect(screen.getByText(/des del primer escaneig/)).toBeInTheDocument();
+    expect(screen.queryByText(/La quota actual/)).not.toBeInTheDocument();
+  });
+
+  it('si en confirmar el pagament ja seria una alta (l\'han desactivat mentrestant), no escriu res i ho explica', async () => {
+    __docsTransaccio.set('1', { ...BASE, ultimPagament: '2026-03-01', actiu: false });
+    await carrega({ ...BASE, ultimPagament: '2026-03-01' }, { quotes: ['2026-03-01'] });
+    await registra();
+    expect(await screen.findByText(/La fitxa del soci ha canviat i ara aquest pagament seria una alta\. Reobre la pàgina/)).toBeInTheDocument();
+    expect(__txUpdate).not.toHaveBeenCalled();
+    expect(__txSet).not.toHaveBeenCalled();
   });
 });

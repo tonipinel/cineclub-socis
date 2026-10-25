@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   calcularEstatSoci, calcularPeriodes, calcularVenciment, diesFinsVenciment, iniciPeriodeActual, iniciVigencia,
-  inicPeriodeEnEscanejar, novaQuota, sincronitzacioQuotes, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
+  inicPeriodeEnEscanejar, novaQuota, reiniciQuotaEnReactivar, sincronitzacioQuotes, tipusPagamentQuota,
+  ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE, VIGENCIA_ENCADENADA, VIGENCIA_PRIMER_ESCANEIG,
 } from './estatSoci';
 import { dadesInicials } from '../../scripts/arnes-admin/dades';
 
@@ -87,8 +88,9 @@ describe('diesFinsVenciment', () => {
 // --- Renovacions anticipades -------------------------------------------------------------------------------------
 // Regla de la propietat: si es renova (paga) ABANS que venci el període actual, els 12 mesos nous comencen quan
 // acaba l'actual (venciment nou = venciment antic + 12 mesos, sense perdre cap dia); si ja havia vençut, comencen el
-// dia del pagament. Damunt d'això continua la regla d'activació: l'any compta des del primer escaneig fet DINS del
-// període pagat (inicPeriode), mai abans.
+// dia del pagament. Les fitxes d'abans (sense modeVigencia) mantenen la regla d'activació: l'any compta des del primer
+// escaneig fet DINS del període pagat (inicPeriode), mai abans. Per a les quotes noves, vegeu més avall «Renovació
+// sempre encadenada».
 
 // Còpia literal de calcularVenciment tal com era abans d'aquest canvi: és la referència de compatibilitat.
 function vencimentAntic(soci) {
@@ -182,35 +184,35 @@ describe('novaQuota (inici de la quota que es paga ara)', () => {
     ['mesos després del venciment', '2027-03-02', '2027-03-02'],
   ])('renovació %s', (_nom, dataPagament, vigenciaDes) => {
     expect(novaQuota(vigent, dataPagament, { renovacio: true })).toEqual({
-      vigenciaDes, vencimentAnterior: '2026-11-15',
+      vigenciaDes, vencimentAnterior: '2026-11-15', modeVigencia: VIGENCIA_ENCADENADA,
     });
   });
 
   it('el venciment anterior inclou l\'activació del període actual (no es perden els dies fins al primer escaneig)', () => {
     const soci = { numeroSoci: 1, ultimPagament: '2025-11-15', inicPeriode: '2025-12-03' };
     expect(novaQuota(soci, '2026-10-25', { renovacio: true })).toEqual({
-      vigenciaDes: '2026-12-03', vencimentAnterior: '2026-12-03',
+      vigenciaDes: '2026-12-03', vencimentAnterior: '2026-12-03', modeVigencia: VIGENCIA_ENCADENADA,
     });
   });
 
   it('una alta comença el dia del pagament, encara que la fitxa ja tingui una data provisional (sol·licitud aprovada)', () => {
     expect(novaQuota({ numeroSoci: 1, ultimPagament: '2026-10-20' }, '2026-10-25', { renovacio: false }))
-      .toEqual({ vigenciaDes: '2026-10-25', vencimentAnterior: null });
+      .toEqual({ vigenciaDes: '2026-10-25', vencimentAnterior: null, modeVigencia: VIGENCIA_PRIMER_ESCANEIG });
   });
 
   it('una renovació d\'un soci sense cap data comença el dia del pagament', () => {
     expect(novaQuota({ numeroSoci: 1 }, '2026-10-25', { renovacio: true }))
-      .toEqual({ vigenciaDes: '2026-10-25', vencimentAnterior: null });
+      .toEqual({ vigenciaDes: '2026-10-25', vencimentAnterior: null, modeVigencia: VIGENCIA_ENCADENADA });
   });
 
   it('31 de desembre / 1 de gener: pagar el 31/12 una quota que venç l\'1/1 encadena a l\'1/1', () => {
     expect(novaQuota({ numeroSoci: 1, ultimPagament: '2026-01-01' }, '2026-12-31', { renovacio: true }))
-      .toEqual({ vigenciaDes: '2027-01-01', vencimentAnterior: '2027-01-01' });
+      .toEqual({ vigenciaDes: '2027-01-01', vencimentAnterior: '2027-01-01', modeVigencia: VIGENCIA_ENCADENADA });
   });
 
   it('any de traspàs: una quota del 29/02 venç l\'1/03 i la renovació anticipada comença l\'1/03', () => {
     expect(novaQuota({ numeroSoci: 1, ultimPagament: '2024-02-29' }, '2025-02-01', { renovacio: true }))
-      .toEqual({ vigenciaDes: '2025-03-01', vencimentAnterior: '2025-03-01' });
+      .toEqual({ vigenciaDes: '2025-03-01', vencimentAnterior: '2025-03-01', modeVigencia: VIGENCIA_ENCADENADA });
   });
 
   it('dues renovacions anticipades seguides s\'encadenen: cada una suma un any', () => {
@@ -395,5 +397,193 @@ describe('ordre de l\'historial: el resultat no depèn de l\'ordre dels moviment
       resultats.forEach((r) => expect(r).toEqual(resultats[0]));
     }
     expect(calcularPeriodes(ambId).map((p) => p.id)).toEqual(['a', 'z']);
+  });
+});
+
+// --- Renovació sempre encadenada (decisió de la propietat, 2026-10-25) -------------------------------------------
+// «Mantén el año desde el primer escaneo, pero la renovación es siempre encadenada, excepto en el caso de que se dé de
+// baja y luego se vuelva a dar de alta, que volvería a ser en el primer escaneo.»
+// - Alta (primer pagament, o el primer després d'una baixa): l'any compta des del primer escaneig a partir del pagament.
+// - Renovació: comença exactament quan acaba la quota actual (o el dia del pagament si ja havia vençut sense donar-se
+//   de baixa) i dura 12 mesos justos: l'activació (primer escaneig) no la retarda ni l'allarga.
+// Les fitxes i moviments desats abans no tenen `modeVigencia` i es comporten exactament com abans.
+describe('tipusPagamentQuota (alta o renovació: una sola funció)', () => {
+  const actiu = { numeroSoci: 7, ultimPagament: '2026-03-01', actiu: true };
+  it.each([
+    ['fitxa nova sense número (Nou registre)', { ultimPagament: '2026-10-20', actiu: true }, false, 'alta'],
+    ['sol·licitud aprovada: número i data provisional, sense cap quota', { ...actiu, ultimPagament: '2026-10-20' }, false, 'alta'],
+    ['importat de l\'Excel sense cap quota, al dia', { ...actiu, notaImportacio: 'Estat pagament original: Pagat.' }, false, 'renovacio'],
+    ['importat sense cap quota, vençut però mai donat de baixa', { ...actiu, ultimPagament: '2024-01-01', notaImportacio: 'x' }, false, 'renovacio'],
+    ['actiu amb historial de quotes', actiu, true, 'renovacio'],
+    ['actiu amb historial, vençut (sense baixa)', { ...actiu, ultimPagament: '2024-01-01' }, true, 'renovacio'],
+    ['actiu i pendent manual', { ...actiu, estatManual: 'pendent' }, true, 'renovacio'],
+    ['actiu sense el camp actiu (dades antigues)', { numeroSoci: 7, ultimPagament: '2026-03-01' }, true, 'renovacio'],
+    ['desactivat (de baixa)', { ...actiu, actiu: false, dataDesactivacio: '2026-05-01' }, true, 'alta'],
+    ['desactivat i importat sense quotes', { ...actiu, actiu: false, notaImportacio: 'x' }, false, 'alta'],
+    ['reactivat, encara sense pagar des de la baixa', { ...actiu, reiniciQuota: true }, true, 'alta'],
+    ['reactivat i ja pagat (alta nova feta: reiniciQuota false)', { ...actiu, reiniciQuota: false }, true, 'renovacio'],
+    // Fix round 1: ja ha pagat l'alta nova mentre seguia desactivat (la marca és false): el segon pagament encadena.
+    ['desactivat que ja ha pagat l\'alta nova (reiniciQuota false)', { ...actiu, actiu: false, reiniciQuota: false }, true, 'renovacio'],
+    ['desactivat amb la marca de baixa (reiniciQuota true)', { ...actiu, actiu: false, reiniciQuota: true }, true, 'alta'],
+    ['amb número però sense cap data', { numeroSoci: 7, actiu: true }, true, 'alta'],
+  ])('%s → %s', (_nom, soci, teQuotes, esperat) => {
+    expect(tipusPagamentQuota(soci, { teQuotes })).toBe(esperat);
+  });
+});
+
+describe('reiniciQuotaEnReactivar (marca de baixa en reactivar)', () => {
+  it('una baixa feta amb l\'app nova ja porta la marca: es conserva', () => {
+    expect(reiniciQuotaEnReactivar({ actiu: false, reiniciQuota: true, dataDesactivacio: '2026-05-01' })).toBe(true);
+    expect(reiniciQuotaEnReactivar({ actiu: false, reiniciQuota: false, dataDesactivacio: '2026-05-01', ultimPagament: '2026-06-01' }))
+      .toBe(false);
+  });
+
+  it('una baixa d\'abans (sense marca): la propera quota és una alta, si no ha pagat després de la baixa', () => {
+    expect(reiniciQuotaEnReactivar({ actiu: false, dataDesactivacio: '2026-05-01', ultimPagament: '2026-03-01' })).toBe(true);
+    expect(reiniciQuotaEnReactivar({ actiu: false, dataDesactivacio: '2026-05-01', ultimPagament: '2026-05-01' })).toBe(true);
+    expect(reiniciQuotaEnReactivar({ actiu: false, dataDesactivacio: '2026-05-01', ultimPagament: '2026-06-01' })).toBe(false);
+    expect(reiniciQuotaEnReactivar({ actiu: false })).toBe(true);
+  });
+});
+
+describe('novaQuota amb la renovació sempre encadenada', () => {
+  it('renovació anticipada: comença al venciment actual i desa el mode encadenat', () => {
+    expect(novaQuota({ numeroSoci: 1, ultimPagament: '2025-11-15' }, '2026-10-01', { renovacio: true })).toEqual({
+      vigenciaDes: '2026-11-15', vencimentAnterior: '2026-11-15', modeVigencia: VIGENCIA_ENCADENADA,
+    });
+  });
+
+  it('renovació d\'un soci vençut (sense baixa): comença el dia del pagament, també encadenada', () => {
+    expect(novaQuota({ numeroSoci: 1, ultimPagament: '2025-01-15' }, '2026-10-01', { renovacio: true })).toEqual({
+      vigenciaDes: '2026-10-01', vencimentAnterior: '2026-01-15', modeVigencia: VIGENCIA_ENCADENADA,
+    });
+  });
+
+  it('alta: comença el dia del pagament i espera el primer escaneig', () => {
+    expect(novaQuota({ numeroSoci: 1, ultimPagament: '2026-10-20', vigenciaDes: '2026-12-01' }, '2026-10-25', { renovacio: false }))
+      .toEqual({ vigenciaDes: '2026-10-25', vencimentAnterior: null, modeVigencia: VIGENCIA_PRIMER_ESCANEIG });
+  });
+
+  it('el venciment anterior d\'una quota encadenada no inclou cap activació (ni la d\'un escaneig fet després)', () => {
+    const soci = { numeroSoci: 1, ultimPagament: '2026-10-01', vigenciaDes: '2026-11-15', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: '2026-12-20' };
+    expect(novaQuota(soci, '2027-10-01', { renovacio: true }).vigenciaDes).toBe('2027-11-15');
+  });
+});
+
+describe('calcularVenciment amb el mode de vigència', () => {
+  it('quota encadenada: 12 mesos justos des de vigenciaDes, encara que hi hagi una activació posterior', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-11-15', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: '2026-12-20' };
+    expect(iso(calcularVenciment(soci))).toBe('2027-11-15');
+    expect(iniciPeriodeActual(soci)).toBe('2026-11-15');
+  });
+
+  it('quota encadenada d\'un soci vençut: venç 12 mesos després del pagament', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-10-01', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: '2026-10-30' };
+    expect(iso(calcularVenciment(soci))).toBe('2027-10-01');
+  });
+
+  it('alta (primer escaneig): l\'any compta des de l\'activació', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-10-01', modeVigencia: VIGENCIA_PRIMER_ESCANEIG, inicPeriode: '2026-10-30' };
+    expect(iso(calcularVenciment(soci))).toBe('2027-10-30');
+  });
+
+  it('sense modeVigencia (dades d\'abans) es manté la regla anterior, activació inclosa', () => {
+    expect(iso(calcularVenciment({ ultimPagament: '2026-10-01', vigenciaDes: '2026-11-15', inicPeriode: '2026-12-20' })))
+      .toBe('2027-12-20');
+  });
+});
+
+describe('inicPeriodeEnEscanejar amb el mode de vigència', () => {
+  it('en una quota encadenada l\'escaneig no fixa cap activació (no escriu res)', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-10-01', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: null };
+    expect(inicPeriodeEnEscanejar(soci, '2026-10-25')).toBeNull();
+  });
+
+  it('en una alta, el primer escaneig des del pagament fixa l\'activació', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-10-01', modeVigencia: VIGENCIA_PRIMER_ESCANEIG, inicPeriode: null };
+    expect(inicPeriodeEnEscanejar(soci, '2026-10-25')).toBe('2026-10-25');
+  });
+});
+
+describe('calcularPeriodes i sincronitzacioQuotes amb el mode de vigència', () => {
+  const alta = { id: 'a', data: '2025-11-15', tipusQuota: 'alta', modeVigencia: VIGENCIA_PRIMER_ESCANEIG };
+  const renovacio = { id: 'b', data: '2026-10-01', tipusQuota: 'renovacio', vencimentAnterior: '2026-12-03', modeVigencia: VIGENCIA_ENCADENADA };
+
+  it('l\'última quota encadenada no aplica l\'activació', () => {
+    expect(calcularPeriodes([alta, renovacio], { inicPeriode: '2027-01-10' }).at(-1))
+      .toEqual(expect.objectContaining({ vigenciaDes: '2026-12-03', inici: '2026-12-03', fi: '2027-12-03' }));
+  });
+
+  it('l\'última quota d\'alta sí que l\'aplica', () => {
+    expect(calcularPeriodes([alta], { inicPeriode: '2025-12-03' })[0])
+      .toEqual(expect.objectContaining({ vigenciaDes: '2025-11-15', inici: '2025-12-03', fi: '2026-12-03' }));
+  });
+
+  it('una alta després d\'una baixa no s\'encadena a la quota anterior: torna a començar el dia del pagament', () => {
+    const realta = { id: 'c', data: '2026-06-01', tipusQuota: 'alta', modeVigencia: VIGENCIA_PRIMER_ESCANEIG };
+    expect(calcularPeriodes([alta, realta], { inicPeriode: '2026-06-10' }).map((p) => [p.vigenciaDes, p.inici, p.fi])).toEqual([
+      ['2025-11-15', '2025-11-15', '2026-11-15'], ['2026-06-01', '2026-06-10', '2027-06-10'],
+    ]);
+  });
+
+  it('sincronitzar una fitxa que ja quadra no escriu res; si el mode no hi és, l\'escriu', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-12-03', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: null };
+    expect(sincronitzacioQuotes(soci, [alta, renovacio])).toEqual({});
+    expect(sincronitzacioQuotes({ ...soci, modeVigencia: undefined }, [alta, renovacio]))
+      .toEqual({ modeVigencia: VIGENCIA_ENCADENADA });
+  });
+
+  it('en eliminar la renovació encadenada, la fitxa torna a l\'alta i a la regla del primer escaneig', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-12-03', modeVigencia: VIGENCIA_ENCADENADA, inicPeriode: null };
+    expect(sincronitzacioQuotes(soci, [alta])).toEqual({
+      ultimPagament: '2025-11-15', vigenciaDes: '2025-11-15', modeVigencia: VIGENCIA_PRIMER_ESCANEIG,
+    });
+  });
+
+  it('en eliminar l\'única quota nova d\'un historial antic, el mode es treu (null) i torna la regla anterior', () => {
+    const soci = { ultimPagament: '2026-10-01', vigenciaDes: '2026-11-15', modeVigencia: VIGENCIA_ENCADENADA };
+    expect(sincronitzacioQuotes(soci, [{ data: '2025-11-15' }]))
+      .toEqual({ ultimPagament: '2025-11-15', vigenciaDes: '2025-11-15', modeVigencia: null });
+  });
+});
+
+describe('cicle complet: alta, renovacions, baixa i alta nova', () => {
+  // Simula el que escriuen el pagament (novaQuota), l'escaneig (inicPeriodeEnEscanejar) i la baixa/reactivació.
+  function paga(soci, data, teQuotes = true) {
+    const tipus = tipusPagamentQuota(soci, { teQuotes });
+    const { vigenciaDes, modeVigencia } = novaQuota(soci, data, { renovacio: tipus === 'renovacio' });
+    return { tipus, soci: { ...soci, ultimPagament: data, vigenciaDes, modeVigencia, inicPeriode: null, reiniciQuota: false } };
+  }
+  const escaneja = (soci, dia) => ({ ...soci, inicPeriode: inicPeriodeEnEscanejar(soci, dia) });
+
+  it('alta → activació → renovació anticipada → renovació vençuda → baixa → reactivació → alta nova', () => {
+    let soci = { ultimPagament: '2025-10-20', numeroSoci: 9, actiu: true }; // sol·licitud aprovada
+    let r = paga(soci, '2025-10-25', false);
+    expect(r.tipus).toBe('alta');
+    soci = escaneja(r.soci, '2025-11-07');
+    expect(iso(calcularVenciment(soci))).toBe('2026-11-07');
+
+    r = paga(soci, '2026-10-01'); // anticipada
+    expect(r.tipus).toBe('renovacio');
+    soci = escaneja(escaneja(r.soci, '2026-10-15'), '2026-11-20');
+    expect(soci.inicPeriode).toBeNull();
+    expect(iso(calcularVenciment(soci))).toBe('2027-11-07');
+
+    r = paga(soci, '2028-01-10'); // ja havia vençut, sense baixa
+    expect(r.tipus).toBe('renovacio');
+    soci = escaneja(r.soci, '2028-02-01');
+    expect(iso(calcularVenciment(soci))).toBe('2029-01-10');
+
+    soci = { ...soci, actiu: false, reiniciQuota: true, dataDesactivacio: '2028-06-01' }; // baixa
+    soci = { ...soci, actiu: true, reiniciQuota: reiniciQuotaEnReactivar(soci), dataDesactivacio: null }; // reactivació
+    expect(iso(calcularVenciment(soci))).toBe('2029-01-10'); // reactivar no canvia res fins que pagui
+    r = paga(soci, '2028-09-01');
+    expect(r.tipus).toBe('alta');
+    soci = escaneja(r.soci, '2028-09-20');
+    expect(iso(calcularVenciment(soci))).toBe('2029-09-20');
+
+    r = paga(soci, '2029-09-01'); // la següent ja torna a ser una renovació encadenada
+    expect(r.tipus).toBe('renovacio');
+    expect(iso(calcularVenciment(r.soci))).toBe('2030-09-20');
   });
 });

@@ -508,6 +508,20 @@ describe('MovimentForm — numeroSoci', () => {
     });
   });
 
+  it('conserva el modeVigencia d\'una quota en desar (és el que diu si s\'encadena o compta des del primer escaneig)', async () => {
+    const user = userEvent.setup();
+    await renderExistent({
+      ...MOVIMENT_EXISTENT, tipusQuota: 'renovacio', vencimentAnterior: '2026-04-01', modeVigencia: 'encadenada',
+    });
+    await user.type(screen.getByLabelText('Concepte'), '!');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(setDoc.mock.calls[0][1]).toEqual({
+      ...MOVIMENT_EXISTENT, concepte: 'Quotes de març!', tipusQuota: 'renovacio', vencimentAnterior: '2026-04-01',
+      modeVigencia: 'encadenada',
+    });
+  });
+
   it('mostra "Alta nova" com a tipus de quota per defecte', async () => {
     await renderExistent({ ...MOVIMENT_EXISTENT, tipusQuota: 'alta' });
     expect(screen.getByLabelText('Tipus de quota')).toHaveValue('Alta nova');
@@ -598,6 +612,29 @@ describe('MovimentForm — sincronització de la fitxa del soci amb l\'historial
       expect(updateDoc).not.toHaveBeenCalled();
       unmount();
     }
+  });
+
+  it('una renovació encadenada no aplica l\'activació en sincronitzar; en eliminar-la, la fitxa torna a l\'alta', async () => {
+    const alta = { data: '2025-08-06', tipusQuota: 'alta', modeVigencia: 'primer-escaneig' };
+    const renovacio = { data: '2026-07-20', tipusQuota: 'renovacio', vencimentAnterior: '2026-08-20', modeVigencia: 'encadenada' };
+    const soci = { ultimPagament: '2026-07-20', vigenciaDes: '2026-08-20', modeVigencia: 'encadenada', inicPeriode: null };
+    ambHistorial(soci, alta, renovacio);
+    const user = userEvent.setup();
+    const { unmount } = await renderExistent({ ...QUOTA, ...renovacio });
+    await user.type(screen.getByLabelText('Concepte'), '!');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(updateDoc).not.toHaveBeenCalled();
+    unmount();
+
+    ambHistorial(soci, alta);
+    await renderExistent({ ...QUOTA, ...renovacio });
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await acceptaDialeg('Elimina');
+    await screen.findByText('Llibre de moviments');
+    expect(updateDoc.mock.calls).toEqual([['socis/abc', {
+      ultimPagament: '2025-08-06', vigenciaDes: '2025-08-06', modeVigencia: 'primer-escaneig',
+    }]]);
   });
 
   it('no toca res si el moviment desat no té numeroSoci', async () => {

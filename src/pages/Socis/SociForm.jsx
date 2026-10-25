@@ -11,7 +11,7 @@ import {
   calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic,
 } from '../../lib/propostes';
 import {
-  calcularEstatSoci, calcularVenciment, estaActiu, iniciPeriodeActual, iniciVigencia, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
+  calcularEstatSoci, calcularVenciment, estaActiu, iniciPeriodeActual, iniciVigencia, reiniciQuotaEnReactivar, ESTAT_AL_DIA, ESTAT_PENDENT, ESTAT_VENCUT, ESTAT_NOU_REGISTRE,
 } from '../../lib/estatSoci';
 import { assistenciaPerSessio } from '../../lib/escaneig';
 import { formatEuros, ETIQUETES_METODE, CATEGORIA_QUOTA_SOCI } from '../../lib/moviments';
@@ -215,13 +215,18 @@ function FitxaSoci({ id, soci }) {
       return;
     }
     const confirmat = await confirma({
-      missatge: "Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig.",
+      missatge: "Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig."
+        + " El proper pagament comptarà com una alta nova (l'any tornarà a començar al primer escaneig)"
+        + " i es perdran els dies que quedin de la quota actual.",
       perill: true,
       etiquetaAcceptar: 'Desactiva',
     });
     if (!confirmat) return;
     await opera(async () => {
-      const actualitzacio = { actiu: false, motiuDesactivacio: motiuDesactivacio.trim(), dataDesactivacio: avui() };
+      // reiniciQuota: després d'una baixa, la propera quota és una alta (compta des del primer escaneig, no s'encadena).
+      const actualitzacio = {
+        actiu: false, motiuDesactivacio: motiuDesactivacio.trim(), dataDesactivacio: avui(), reiniciQuota: true,
+      };
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacio);
       esborrarSociPublic(batch, db, desat.tokenCarnet);
@@ -254,7 +259,9 @@ function FitxaSoci({ id, soci }) {
     const confirmat = await confirma({ missatge: 'Segur que vols reactivar aquest soci?', etiquetaAcceptar: 'Reactiva' });
     if (!confirmat) return;
     await opera(async () => {
-      const actualitzacio = { actiu: true, motiuDesactivacio: null, dataDesactivacio: null };
+      const actualitzacio = {
+        actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: reiniciQuotaEnReactivar(desat),
+      };
       const batch = writeBatch(db);
       batch.update(doc(db, 'socis', id), actualitzacio);
       sincronitzarSociPublic(batch, db, { ...desat, ...actualitzacio });

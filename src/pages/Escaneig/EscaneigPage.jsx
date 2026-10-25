@@ -520,10 +520,10 @@ export default function EscaneigPage() {
       });
       return;
     }
-    // L'any de soci compta des del primer cop que fa servir el carnet dins de
-    // la quota pagada: si encara no ho ha fet, aquesta entrada el fixa ara (mai
-    // abans que comenci la quota, p. ex. en una renovació anticipada; vegeu
-    // inicPeriodeEnEscanejar). Calculem aquí el valor que tindria (encara que
+    // En una alta, l'any de soci compta des del primer cop que fa servir el
+    // carnet dins de la quota pagada: si encara no ho ha fet, aquesta entrada
+    // el fixa ara (mai abans que comenci la quota; una renovació encadenada no
+    // en té; vegeu inicPeriodeEnEscanejar). Calculem aquí el valor que tindria (encara que
     // en mode prova no s'arribi a desar) perquè l'estat i el venciment
     // mostrats reflecteixin sempre el resultat final.
     const inicPeriodeNou = inicPeriodeEnEscanejar(soci, avui());

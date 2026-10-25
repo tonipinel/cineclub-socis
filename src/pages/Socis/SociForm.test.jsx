@@ -909,12 +909,17 @@ describe('SociForm — desactivació', () => {
     const dialeg = await dialegConfirmacio();
     expect(dialeg).toHaveAttribute('role', 'alertdialog');
     expect(dialeg).toHaveTextContent("Segur que vols desactivar aquest soci? El seu carnet deixarà de funcionar a l'escaneig.");
+    expect(dialeg).toHaveTextContent(
+      "El proper pagament comptarà com una alta nova (l'any tornarà a començar al primer escaneig) i es perdran els dies que quedin de la quota actual.",
+    );
     expect(__batchCommit).not.toHaveBeenCalled();
     await acceptaDialeg('Desactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(false);
     expect(actualitzacio.motiuDesactivacio).toBe('Mal comportament');
+    // Donar-se de baixa trenca l'encadenament: la propera quota serà una alta.
+    expect(actualitzacio.reiniciQuota).toBe(true);
     expect(__batchDelete).toHaveBeenCalledWith('tok-1');
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
   });
@@ -974,6 +979,7 @@ describe('SociForm — desactivació', () => {
     const [, actualitzacio] = __batchUpdate.mock.calls[0];
     expect(actualitzacio.actiu).toBe(true);
     expect(actualitzacio.motiuDesactivacio).toBe(null);
+    expect(actualitzacio.reiniciQuota).toBe(true);
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
   });
 });
@@ -1322,7 +1328,9 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     await acceptaDialeg('Desactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
     const [, desactivacio] = __batchUpdate.mock.calls[0];
-    expect(desactivacio).toEqual({ actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: expect.any(String) });
+    expect(desactivacio).toEqual({
+      actiu: false, motiuDesactivacio: 'Baixa', dataDesactivacio: expect.any(String), reiniciQuota: true,
+    });
     expect(await screen.findByText('Desactivat')).toBeInTheDocument();
     expect(screen.getByLabelText('Telèfon')).toHaveValue('6000000001');
     expect(within(barra()).getByText('Hi ha canvis sense desar')).toBeInTheDocument();
@@ -1367,7 +1375,10 @@ describe('SociForm — accions de la fitxa amb canvis pendents', () => {
     await user.click(screen.getByRole('button', { name: 'Reactivar soci' }));
     await acceptaDialeg('Reactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(__batchUpdate.mock.calls[0]).toEqual(['1', { actiu: true, motiuDesactivacio: null, dataDesactivacio: null }]);
+    // Baixa d'abans (sense marca) però amb un pagament posterior a la baixa: la propera quota segueix sent renovació.
+    expect(__batchUpdate.mock.calls[0]).toEqual(['1', {
+      actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: false,
+    }]);
     expect(__batchSet).toHaveBeenCalledWith('tok-1', { numeroSoci: 7, nomPublic: 'Anna V.' });
     expect(screen.getByLabelText('Cognoms')).toHaveValue('Puig');
   });
@@ -1505,7 +1516,10 @@ describe('SociForm — regenerar carnet', () => {
     await user.click(await screen.findByRole('button', { name: 'Reactivar soci' }));
     await acceptaDialeg('Reactiva');
     await vi.waitFor(() => expect(__batchCommit).toHaveBeenCalledTimes(1));
-    expect(__batchUpdate.mock.calls).toEqual([['1', { actiu: true, motiuDesactivacio: null, dataDesactivacio: null }]]);
+    // Baixa d'abans (sense marca) i sense cap pagament després: la propera quota serà una alta (primer escaneig).
+    expect(__batchUpdate.mock.calls).toEqual([['1', {
+      actiu: true, motiuDesactivacio: null, dataDesactivacio: null, reiniciQuota: true,
+    }]]);
     expect(__batchSet.mock.calls).toEqual([['token-actual', { numeroSoci: 7, nomPublic: 'Anna V.' }]]);
     expect(__batchDelete).not.toHaveBeenCalled();
     expect(await screen.findByRole('button', { name: 'Regenerar carnet' })).toBeInTheDocument();

@@ -11,7 +11,7 @@ describe('comparar', () => {
       { id: 'b', numeroSoci: 2, nom: 'Bet', ultimPagament: '2026-05-01' },
     ];
     const moviments = [quota(1, '2026-03-01'), quota(2, '2025-05-01'), quota(2, '2026-05-01')];
-    expect(comparar(socis, moviments)).toEqual({ canvis: [], senseQuotes: 0 });
+    expect(comparar(socis, moviments)).toEqual({ canvis: [], senseQuotes: 0, properaAlta: 0 });
   });
 
   it('llista el bug de l\'escaneig abans de la data pagada (canvia ja en desplegar)', () => {
@@ -33,7 +33,7 @@ describe('comparar', () => {
   it('una fitxa amb vigenciaDes (ja de l\'app nova) no es compara amb la fórmula anterior', () => {
     const socis = [{ numeroSoci: 5, ultimPagament: '2026-10-20', vigenciaDes: '2026-11-15' }];
     const moviments = [quota(5, '2025-11-15'), quota(5, '2026-10-20', { vencimentAnterior: '2026-11-15' })];
-    expect(comparar(socis, moviments)).toEqual({ canvis: [], senseQuotes: 0 });
+    expect(comparar(socis, moviments)).toEqual({ canvis: [], senseQuotes: 0, properaAlta: 0 });
   });
 
   it('si una fitxa de l\'app nova no quadra amb l\'historial, surt amb «abans» buit', () => {
@@ -46,11 +46,24 @@ describe('comparar', () => {
 
   it('compta els socis amb número però sense cap moviment de quota, i salta els que no tenen número o data', () => {
     const socis = [
-      { id: 'a', numeroSoci: 1, ultimPagament: '2026-01-01' },
+      { id: 'a', numeroSoci: 1, ultimPagament: '2026-01-01', notaImportacio: 'x' },
       { id: 'b', numeroSoci: '', ultimPagament: '2026-01-01' },
       { id: 'c', numeroSoci: 4 },
     ];
-    expect(comparar(socis, [])).toEqual({ canvis: [], senseQuotes: 1 });
+    expect(comparar(socis, [])).toEqual({ canvis: [], senseQuotes: 1, properaAlta: 0 });
+  });
+
+  // Renovació sempre encadenada: compta qui pagarà la propera quota com a alta (primer escaneig) i no encadenada.
+  it('compta els socis la propera quota dels quals serà una alta (sol·licitud sense pagar, de baixa o reactivat)', () => {
+    const socis = [
+      { numeroSoci: 1, ultimPagament: '2026-10-20' }, // sol·licitud aprovada sense cap quota
+      { numeroSoci: 2, ultimPagament: '2026-01-01', actiu: false }, // de baixa
+      { numeroSoci: 3, ultimPagament: '2026-01-01', reiniciQuota: true }, // reactivat sense pagar
+      { numeroSoci: 4, ultimPagament: '2026-01-01' }, // renovarà encadenat
+      { numeroSoci: 5, ultimPagament: '2026-01-01', notaImportacio: 'x' }, // importat: renovarà encadenat
+    ];
+    const moviments = [quota(2, '2026-01-01'), quota(3, '2026-01-01'), quota(4, '2026-01-01')];
+    expect(comparar(socis, moviments)).toEqual({ canvis: [], senseQuotes: 2, properaAlta: 3 });
   });
 });
 
@@ -72,8 +85,8 @@ describe('executar', () => {
     expect(resultat.canvis).toHaveLength(1);
     expect(linies.join('\n')).not.toMatch(/Anna|\(a\)/);
     expect(linies).toEqual([
-      "=== Venciments amb la regla de renovacions anticipades (INFORME: no s'escriu res) ===",
-      'Socis: 1 | amb algun canvi: 1 | amb número però sense cap quota: 0',
+      "=== Venciments amb la renovació sempre encadenada (INFORME: no s'escriu res) ===",
+      'Socis: 1 | amb algun canvi: 1 | amb número però sense cap quota: 0 | la propera quota serà una alta: 0',
       "Soci 1: abans 2027-11-02 | ara 2027-12-01 | amb l'historial 2027-12-01",
     ]);
   });

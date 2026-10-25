@@ -126,7 +126,7 @@ export function ordenarMoviments(moviments, { columna = 'data', direccio = 'desc
 }
 
 // Període de vigència de cada quota segons l'historial de cada soci (vegeu calcularPeriodes a estatSoci.js): una
-// renovació anticipada compta des del venciment de l'anterior, i l'última, des de l'activació del carnet.
+// renovació anticipada compta des del venciment de l'anterior, i l'última, si és una alta, des de l'activació del carnet.
 function periodesDeQuotes(moviments, socis) {
   const socisPerNumero = new Map(socis.map((soci) => [Number(soci.numeroSoci), soci]));
   // Una quota sense número de soci no s'encadena amb cap altra: és un historial propi.

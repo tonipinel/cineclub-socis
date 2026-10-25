@@ -747,6 +747,35 @@ describe('EscaneigPage — inicPeriode (any de soci des del primer ús del carne
     expect(updateDoc).not.toHaveBeenCalled();
     expect(screen.getByText(`Venç el ${formatData(dia(20, 1))}`)).toBeInTheDocument();
   });
+
+  // Renovació sempre encadenada: la quota ja ha començat, però no espera cap escaneig (12 mesos justos).
+  it('en una quota encadenada ja començada, no fixa inicPeriode i el venciment és un any després de vigenciaDes', async () => {
+    const ara = new Date();
+    const dia = (dies, anys = 0) => new Date(ara.getFullYear() + anys, ara.getMonth(), ara.getDate() + dies);
+    getDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{
+        ref: { id: 'soci-7' },
+        data: () => ({
+          nom: 'Anna',
+          cognoms: 'Vidal',
+          numeroSoci: 7,
+          ultimPagament: dia(-40).toLocaleDateString('sv-SE'),
+          vigenciaDes: dia(-10).toLocaleDateString('sv-SE'),
+          modeVigencia: 'encadenada',
+          inicPeriode: null,
+        }),
+      }],
+    });
+    const user = userEvent.setup();
+    renderAmbConfirmacio(<MemoryRouter><EscaneigPage /></MemoryRouter>);
+    const input = await obrirCodiManual(user);
+    await user.type(input, 'SOCI-7');
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+    await screen.findByText('Anna Vidal');
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(screen.getByText(`Venç el ${formatData(dia(-10, 1))}`)).toBeInTheDocument();
+  });
 });
 
 describe('EscaneigPage — sessions especials sense control', () => {

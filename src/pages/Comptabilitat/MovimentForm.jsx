@@ -26,7 +26,7 @@ import * as ROUTES from '../../constants/routes';
 // successives, distingides pel camp `tipusQuota`). Aquest formulari és
 // genèric i no en sap res del soci: per això, cada cop que es desa o
 // s'elimina un moviment de quota, la fitxa del soci (ultimPagament,
-// vigenciaDes i, si cal, inicPeriode) es recalcula amb tot l'historial de
+// vigenciaDes, modeVigencia i, si cal, inicPeriode) es recalcula amb tot l'historial de
 // quotes que en queda (sincronitzacioQuotes, a estatSoci.js), i només
 // s'escriu el que canvia: editar el concepte o el mètode no toca res.
 async function sincronitzarUltimPagament(numeroSoci) {
@@ -170,6 +170,7 @@ function FitxaMoviment({ id, moviment }) {
         ...(desat?.numeroSoci != null ? { numeroSoci: desat.numeroSoci } : {}),
         ...(desat?.tipusQuota != null ? { tipusQuota: desat.tipusQuota } : {}),
         ...(desat?.vencimentAnterior != null ? { vencimentAnterior: desat.vencimentAnterior } : {}),
+        ...(desat?.modeVigencia != null ? { modeVigencia: desat.modeVigencia } : {}),
         ...(adjuntFinal ? { adjunt: adjuntFinal } : {}),
       };
       const nou = v.tipus === TIPUS_MOVIMENT.TRASPAS
