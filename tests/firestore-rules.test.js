@@ -403,6 +403,69 @@ describe('firestore.rules — propostes', () => {
     await assertSucceeds(getDoc(doc(anonDb, 'propostes/1')));
   });
 
+  it('permet a un visitant no autenticat llegir una proposta programada', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'propostes/1'), { ...PROPOSTA_VALIDA, estat: 'programada' });
+    });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(anonDb, 'propostes/1')));
+  });
+
+  it('impedeix a un visitant o a taquilla llegir una proposta rebutjada', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'propostes/1'), { ...PROPOSTA_VALIDA, estat: 'rebutjada', comentari: 'Privat' });
+    });
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'propostes/1')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('t-uid', { role: 'taquilla' }).firestore(), 'propostes/1')));
+  });
+
+  it('impedeix llegir una proposta amb qualsevol altre estat (llista blanca)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'propostes/1'), { ...PROPOSTA_VALIDA, estat: 'arxivada' });
+      await setDoc(doc(ctx.firestore(), 'propostes/2'), { titol: 'Sense estat', numeroSoci: 7 });
+    });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anonDb, 'propostes/1')));
+    await assertFails(getDoc(doc(anonDb, 'propostes/2')));
+  });
+
+  describe('consultes públiques', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, 'propostes/a'), { ...PROPOSTA_VALIDA, estat: 'aprovada' });
+        await setDoc(doc(db, 'propostes/p'), { ...PROPOSTA_VALIDA, estat: 'programada' });
+        await setDoc(doc(db, 'propostes/r'), { ...PROPOSTA_VALIDA, estat: 'rebutjada' });
+        await setDoc(doc(db, 'propostes/n'), PROPOSTA_VALIDA);
+      });
+    });
+    const anonDb = () => testEnv.unauthenticatedContext().firestore();
+
+    it("permet la consulta de la web (estat in ['aprovada', 'programada'])", async () => {
+      const snap = await assertSucceeds(getDocs(query(collection(anonDb(), 'propostes'),
+        where('estat', 'in', ['aprovada', 'programada']))));
+      expect(snap.docs.map((d) => d.id).sort()).toEqual(['a', 'p']);
+    });
+
+    it("permet la consulta estat == 'aprovada'", async () => {
+      await assertSucceeds(getDocs(query(collection(anonDb(), 'propostes'), where('estat', '==', 'aprovada'))));
+    });
+
+    it('denega llistar sense filtre, amb estat != pendent o demanant les rebutjades', async () => {
+      await assertFails(getDocs(collection(anonDb(), 'propostes')));
+      await assertFails(getDocs(query(collection(anonDb(), 'propostes'), where('estat', '!=', 'pendent'))));
+      await assertFails(getDocs(query(collection(anonDb(), 'propostes'), where('estat', '==', 'rebutjada'))));
+      await assertFails(getDocs(query(collection(anonDb(), 'propostes'),
+        where('estat', 'in', ['aprovada', 'rebutjada']))));
+    });
+
+    it("permet a l'admin llistar-les totes", async () => {
+      const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+      const snap = await assertSucceeds(getDocs(collection(adminDb, 'propostes')));
+      expect(snap.size).toBe(4);
+    });
+  });
+
   it('impedeix a un visitant no autenticat actualitzar o esborrar una proposta', async () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
     await setDoc(doc(adminDb, 'propostes/1'), PROPOSTA_VALIDA);

@@ -104,13 +104,16 @@ service cloud.firestore {
     // (identificació pel carnet físic, no per Firebase Auth) — o per un
     // admin en nom d'un soci que l'hi ha proposat de viva veu, amb la
     // mateixa forma de document — però només queden visibles públicament
-    // un cop aprovades.
+    // les aprovades o programades. És una llista blanca: les pendents i les
+    // rebutjades (amb el número de soci i el comentari) no es veuen mai.
+    // La web les consulta amb `where('estat', 'in', ['aprovada', 'programada'])`
+    // (useEstatVotacio.js); qualsevol consulta que pugui tornar-ne d'altres es denega.
     match /propostes/{id} {
       allow create: if request.resource.data.keys().hasAll(['titol', 'numeroSoci', 'estat'])
         && request.resource.data.estat == 'pendent'
         // `campsEditats` el posa només l'admin en editar la fitxa (protegeix camps de TMDB).
         && !request.resource.data.keys().hasAny(['campsEditats']);
-      allow read: if resource.data.estat != 'pendent' || isAdmin();
+      allow read: if resource.data.estat in ['aprovada', 'programada'] || isAdmin();
       allow update, delete: if isAdmin();
 
       // Sistema antic de votació (retirat): tancat per a tothom. Els vots
