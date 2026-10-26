@@ -67,8 +67,31 @@ service cloud.firestore {
 
     // Registre d'auditoria d'accessos: es pot crear i llegir, però mai modificar
     // ni esborrar (igual que les sol·licituds ja aprovades/descartades).
+    // Cada entrada de soci pot activar el carnet (Cloud Function activarCarnetEnEscanejar, functions/activacio-carnet.js),
+    // així que taquilla només pot crear exactament el que envia la porta (src/pages/Escaneig/EscaneigPage.jsx,
+    // registrarGeneric i processarSociTrobat): hora del servidor (serverTimestamp(), també des de la cua de l'SDK, que
+    // la resol en arribar), el seu propi uid i cap camp més. Ni data passada/futura ni `escanejatPer:
+    // 'importacio-historica'` (les entrades importades de l'històric només les crea l'Admin SDK o l'admin).
+    function entradaPortaValida(d) {
+      return d.keys().hasOnly(['sessionId', 'timestamp', 'escanejatPer', 'tipus', 'numeroSoci', 'codiTiquet',
+          'preuAplicat', 'metode'])
+        && d.timestamp == request.time
+        && d.escanejatPer == request.auth.uid
+        && d.sessionId is string
+        && d.metode is string
+        && ((d.tipus == 'soci'
+            && d.keys().hasAll(['numeroSoci'])
+            && !d.keys().hasAny(['codiTiquet', 'preuAplicat'])
+            && d.numeroSoci is number)
+          || (d.tipus == 'generic'
+            && d.keys().hasAll(['codiTiquet', 'preuAplicat'])
+            && !d.keys().hasAny(['numeroSoci'])
+            && d.codiTiquet is string
+            && (d.preuAplicat is number || d.preuAplicat == null)));
+    }
     match /accessLog/{id} {
-      allow create, read: if isStaff();
+      allow read: if isStaff();
+      allow create: if isAdmin() || (isStaff() && entradaPortaValida(request.resource.data));
     }
 
     // Registre de diagnòstic de codis que l'escaneig no ha pogut resoldre

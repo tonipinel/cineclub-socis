@@ -32,8 +32,8 @@ function numeroValid(valor) {
 
 // Data (Europe/Madrid) d'una entrada que pot activar un carnet, o null si no n'és cap: només `tipus === 'soci'`, amb
 // número i timestamp vàlids i no importada. El mode prova no desa res a l'accessLog. `creada` (createTime del
-// document) limita el timestamp: el posa el client i les regles no l'obliguen a ser l'hora del servidor; una entrada
-// amb data futura no pot endarrerir el venciment.
+// document) limita el timestamp: les regles obliguen taquilla a l'hora del servidor, però l'admin (i l'Admin SDK) en
+// poden posar qualsevol; una entrada amb data futura no pot endarrerir el venciment.
 function dataEntrada(entrada, creada) {
   if (!entrada || entrada.tipus !== 'soci' || entrada.escanejatPer === IMPORTACIO_HISTORICA) return null;
   if (!numeroValid(entrada.numeroSoci)) return null;

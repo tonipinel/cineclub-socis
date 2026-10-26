@@ -208,24 +208,102 @@ describe('firestore.rules — sessions', () => {
   });
 });
 
+// Exactament el que envia la porta (src/pages/Escaneig/EscaneigPage.jsx: processarSociTrobat i registrarGeneric).
+function entradaSoci(uid, canvis = {}) {
+  return {
+    sessionId: 's1', timestamp: serverTimestamp(), escanejatPer: uid, tipus: 'soci', numeroSoci: 7, metode: 'qr',
+    ...canvis,
+  };
+}
+
+function entradaGenerica(uid, canvis = {}) {
+  return {
+    sessionId: 's1', timestamp: serverTimestamp(), escanejatPer: uid, tipus: 'generic',
+    codiTiquet: 'T-000123', preuAplicat: 5, metode: 'manual',
+    ...canvis,
+  };
+}
+
 describe('firestore.rules — accessLog', () => {
+  const taquilla = () => testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
+  const DIA = 24 * 60 * 60 * 1000;
+
   it('impedeix a un visitant no autenticat crear ni llegir accessLog', async () => {
     const anonDb = testEnv.unauthenticatedContext().firestore();
-    await assertFails(setDoc(doc(anonDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci' }));
+    await assertFails(setDoc(doc(anonDb, 'accessLog/1'), entradaSoci('anon')));
     await assertFails(getDoc(doc(anonDb, 'accessLog/1')));
   });
 
-  it('permet a taquilla crear i llegir accessLog', async () => {
-    const taquillaDb = testEnv.authenticatedContext('taquilla-uid', { role: 'taquilla' }).firestore();
-    await assertSucceeds(setDoc(doc(taquillaDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci', numeroSoci: 7 }));
-    await assertSucceeds(getDoc(doc(taquillaDb, 'accessLog/1')));
+  it('impedeix a un usuari sense rol crear ni llegir accessLog', async () => {
+    const senseRolDb = testEnv.authenticatedContext('sense-rol').firestore();
+    await assertFails(setDoc(doc(senseRolDb, 'accessLog/1'), entradaSoci('sense-rol')));
+    await assertFails(getDoc(doc(senseRolDb, 'accessLog/1')));
   });
 
-  it('impedeix actualitzar o esborrar accessLog fins i tot a un admin', async () => {
+  it('permet a taquilla crear les entrades de la porta (soci i genèrica) i llegir-les', async () => {
+    const db = taquilla();
+    await assertSucceeds(setDoc(doc(db, 'accessLog/1'), entradaSoci('taquilla-uid')));
+    await assertSucceeds(setDoc(doc(db, 'accessLog/2'), entradaSoci('taquilla-uid', { metode: 'manual' })));
+    await assertSucceeds(setDoc(doc(db, 'accessLog/3'), entradaGenerica('taquilla-uid')));
+    await assertSucceeds(setDoc(doc(db, 'accessLog/4'), entradaGenerica('taquilla-uid', { preuAplicat: 3.5, metode: 'qr' })));
+    await assertSucceeds(setDoc(doc(db, 'accessLog/5'), entradaGenerica('taquilla-uid', { preuAplicat: 0 })));
+    await assertSucceeds(getDoc(doc(db, 'accessLog/1')));
+  });
+
+  it('impedeix a taquilla posar una data que no sigui la del servidor', async () => {
+    const db = taquilla();
+    const passat = new Date(Date.now() - 200 * DIA);
+    const futur = new Date(Date.now() + 200 * DIA);
+    await assertFails(setDoc(doc(db, 'accessLog/1'), entradaSoci('taquilla-uid', { timestamp: passat })));
+    await assertFails(setDoc(doc(db, 'accessLog/2'), entradaSoci('taquilla-uid', { timestamp: futur })));
+    await assertFails(setDoc(doc(db, 'accessLog/3'), entradaGenerica('taquilla-uid', { timestamp: passat })));
+    await assertFails(setDoc(doc(db, 'accessLog/4'), sense(entradaSoci('taquilla-uid'), 'timestamp')));
+  });
+
+  it("impedeix a taquilla signar com un altre o com a 'importacio-historica'", async () => {
+    const db = taquilla();
+    await assertFails(setDoc(doc(db, 'accessLog/1'), entradaSoci('admin-uid')));
+    await assertFails(setDoc(doc(db, 'accessLog/2'), entradaSoci('importacio-historica')));
+    await assertFails(setDoc(doc(db, 'accessLog/3'), entradaGenerica('importacio-historica')));
+    await assertFails(setDoc(doc(db, 'accessLog/4'), sense(entradaSoci('taquilla-uid'), 'escanejatPer')));
+  });
+
+  it('impedeix a taquilla afegir camps o barrejar els de soci i genèrica', async () => {
+    const db = taquilla();
+    await assertFails(setDoc(doc(db, 'accessLog/1'), entradaSoci('taquilla-uid', { inicPeriode: '2025-01-01' })));
+    await assertFails(setDoc(doc(db, 'accessLog/2'), entradaSoci('taquilla-uid', { codiTiquet: 'T-000123' })));
+    await assertFails(setDoc(doc(db, 'accessLog/3'), entradaGenerica('taquilla-uid', { numeroSoci: 7 })));
+  });
+
+  it('impedeix a taquilla un tipus desconegut o camps amb tipus de dada incorrecte', async () => {
+    const db = taquilla();
+    await assertFails(setDoc(doc(db, 'accessLog/1'), entradaSoci('taquilla-uid', { tipus: 'convidat' })));
+    await assertFails(setDoc(doc(db, 'accessLog/2'), sense(entradaSoci('taquilla-uid'), 'tipus')));
+    await assertFails(setDoc(doc(db, 'accessLog/3'), entradaSoci('taquilla-uid', { numeroSoci: '7' })));
+    await assertFails(setDoc(doc(db, 'accessLog/4'), sense(entradaSoci('taquilla-uid'), 'numeroSoci')));
+    await assertFails(setDoc(doc(db, 'accessLog/5'), entradaGenerica('taquilla-uid', { preuAplicat: '5' })));
+    await assertFails(setDoc(doc(db, 'accessLog/6'), entradaGenerica('taquilla-uid', { codiTiquet: 123 })));
+    await assertFails(setDoc(doc(db, 'accessLog/7'), entradaSoci('taquilla-uid', { sessionId: 1 })));
+    await assertFails(setDoc(doc(db, 'accessLog/8'), sense(entradaSoci('taquilla-uid'), 'metode')));
+  });
+
+  it("permet a l'admin crear qualsevol entrada (també les de l'històric) i llegir-les", async () => {
     const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
-    await setDoc(doc(adminDb, 'accessLog/1'), { sessionId: 's1', tipus: 'soci', numeroSoci: 7 });
+    await assertSucceeds(setDoc(doc(adminDb, 'accessLog/1'), entradaSoci('admin-uid')));
+    await assertSucceeds(setDoc(doc(adminDb, 'accessLog/2'), entradaSoci('importacio-historica', {
+      timestamp: new Date(Date.now() - 200 * DIA),
+    })));
+    await assertSucceeds(setDoc(doc(adminDb, 'accessLog/3'), { sessionId: 's1', tipus: 'soci', numeroSoci: 7 }));
+    await assertSucceeds(getDoc(doc(adminDb, 'accessLog/2')));
+  });
+
+  it('impedeix actualitzar o esborrar accessLog a taquilla i fins i tot a un admin', async () => {
+    const adminDb = testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+    await setDoc(doc(adminDb, 'accessLog/1'), entradaSoci('taquilla-uid'));
     await assertFails(updateDoc(doc(adminDb, 'accessLog/1'), { tipus: 'generic' }));
     await assertFails(deleteDoc(doc(adminDb, 'accessLog/1')));
+    await assertFails(updateDoc(doc(taquilla(), 'accessLog/1'), { numeroSoci: 8 }));
+    await assertFails(deleteDoc(doc(taquilla(), 'accessLog/1')));
   });
 });
 
