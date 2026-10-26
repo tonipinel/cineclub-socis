@@ -156,6 +156,39 @@ describe('prepararDesat', () => {
     expect(r.canvis.publica.actualitzatEl).toBe('2026-10-23');
   });
 
+  it('actualitzatEl: un formulari de la fitxa tocat però que en desar queda igual no la marca ni l\'escriu', async () => {
+    const publica = { titol: 'Peli', hook: 'Un hook.', actualitzatEl: '2026-01-01' };
+    const original = { titol: 'Peli', data: '2026-03-05', publicada: true, slug: 'peli', publica };
+    const inicial = publicaAFormulari(publica);
+    // Mateix contingut amb espais de més: el formulari és diferent, la fitxa desada no.
+    const r = await preparar({
+      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, hook: 'Un hook.  ' }, publicaInicial: inicial,
+    });
+    expect(r.errors).toEqual({});
+    expect(r.canvis).not.toHaveProperty('publica');
+  });
+
+  it('actualitzatEl: un canvi real d\'un camp publicat la marca amb el dia (Europe/Madrid)', async () => {
+    const publica = { titol: 'Peli', hook: 'Un hook.', actualitzatEl: '2026-01-01' };
+    const original = { titol: 'Peli', data: '2026-03-05', publicada: true, slug: 'peli', publica };
+    const inicial = publicaAFormulari(publica);
+    const r = await preparar({
+      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, hook: 'Un altre hook.' }, publicaInicial: inicial,
+    });
+    expect(r.canvis.publica.hook).toBe('Un altre hook.');
+    expect(r.canvis.publica.actualitzatEl).toBe('2026-10-23');
+  });
+
+  it('actualitzatEl: canviar només camps de gestió (hora, activa) no la mou', async () => {
+    const publica = { titol: 'Peli', actualitzatEl: '2026-01-01' };
+    const original = { titol: 'Peli', data: '2026-03-05', hora: '19:00', publicada: true, slug: 'peli', activa: false, publica };
+    const inicial = publicaAFormulari(publica);
+    const r = await preparar({
+      original, dades: { ...CAMPS_INICIALS, ...original, hora: '20:00', activa: true }, publicaForm: inicial, publicaInicial: inicial,
+    });
+    expect(r.canvis).toEqual({ hora: '20:00' });
+  });
+
   it('MISSATGE_ALIAS i CAMPS_INICIALS s\'exporten amb els valors originals', async () => {
     expect(MISSATGE_ALIAS).toBe("Això trencarà l'URL anterior; s'afegirà com a alias perquè continuï funcionant.");
     expect(CAMPS_INICIALS).toEqual({ titol: '', data: '', hora: '19:00', urlProgramacio: '', imatgeUrl: '' });

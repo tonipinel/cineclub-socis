@@ -106,6 +106,12 @@ function publicable(s) {
   return !motiu;
 }
 
+// `modificadaEl`: l'última escriptura del document a Firestore (`updateTime`), per al `lastmod` del sitemap.
+const modificadaEl = (doc) => {
+  const instant = doc.updateTime?.toDate?.();
+  return instant && !Number.isNaN(instant.getTime()) ? { modificadaEl: instant.toISOString() } : {};
+};
+
 // Una sessió publicada sense `data` vàlida o sense un slug que pugui anar a la URL s'ignora (no es
 // pot ni ordenar ni enllaçar); la resta es normalitza (`normalitzaSessio`), perquè un sol document
 // dolent no pugui fer caure tot el web. La lectura es memoritza ~60 s (vegeu memo.js).
@@ -113,7 +119,7 @@ export function sessionsPubliques(db = getDb()) {
   return memo.obte(db, 'sessions', async () => {
     const snap = await llegir(db.collection('sessions').where('publicada', '==', true).get());
     return snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .map((doc) => ({ id: doc.id, ...doc.data(), ...modificadaEl(doc) }))
       .filter(publicable)
       .map(normalitzaSessio)
       .sort(ascendent);

@@ -2,13 +2,19 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import '../../styles/pagina-propostes.css';
 import IllaPropostes from '../../components/propostes/IllaPropostes.jsx';
+import { SITE_URL } from '../../lib/env.js';
 
 const descripcio = "Les persones sòcies del Cineclub Roda de Berà proposen pel·lícules i, amb un 👍 o 👎 a cada tanda de pel·lícules, triem la programació del proper trimestre.";
 ---
-<BaseLayout titol="Propostes de programació" descripcio={descripcio}>
+<BaseLayout
+  titol="Propostes de programació"
+  descripcio={descripcio}
+  imatgeOg={`${SITE_URL}/propostes/votar/og.jpg`}
+  imatgeOgMida={{ ample: 1200, alt: 630, tipus: 'image/jpeg' }}
+>
   <div class="propostes-app">
     <section class="propostes-intro">
-      <h1 class="propostes-intro__titol">Propostes</h1>
+      <h1 class="propostes-intro__titol">Propostes de pel·lícules</h1>
       <p class="propostes-intro__text">
         Les persones sòcies podeu proposar pel·lícules. La junta busca la distribuïdora de cada proposta i
         les que s'ajusten a les nostres possibilitats (pressupost, disponibilitat, etc.) entren a la propera

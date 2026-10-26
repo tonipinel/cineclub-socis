@@ -3,7 +3,7 @@ import { dataIso } from './format.js';
 import { SLUGS_CONTINGUT, paginaPerSlug } from './pagines.js';
 import { urlSessioCodificada, urlTerme } from './sessio-camps.js';
 import { sessionsPubliques } from './sessions.js';
-import { termesDe } from './taxonomies.js';
+import { termeIndexable, termesDe } from './taxonomies.js';
 import { creaMemo } from './memo.js';
 import { escapaXml } from './xml.js';
 
@@ -30,13 +30,29 @@ const manualValid = (valor) => {
 };
 const instant = (lastmod) => Date.parse(lastmod);
 
-// `lastmod` d'una sessió. Com Hugo, és la data i hora de la sessió amb l'ofset d'Europe/Madrid.
-// Un editor pot forçar una altra data amb `publica.actualitzatEl` (`2026-11-02` o
-// `2026-11-02T10:15:00+01:00`, amb zona) quan canvia el contingut de la fitxa; un valor que no és
-// una data vàlida d'aquest format s'ignora.
-export const lastmodSessio = (sessio) => {
+// `lastmod` d'una sessió: quan va canviar el contingut de la fitxa, mai una data futura.
+//   1. `publica.actualitzatEl` (`2026-11-02` o `2026-11-02T10:15:00+01:00`, amb zona): l'admin l'escriu en desar
+//      canvis de contingut de la fitxa (també es pot posar a mà). Un valor que no és una data vàlida d'aquest
+//      format, o que és futur, s'ignora.
+//   2. La data i hora de la sessió, si ja ha passat.
+//   3. Una sessió futura sense `actualitzatEl`: l'última escriptura del document (`updateTime`, `modificadaEl`),
+//      sense mil·lisegons i limitada a ara. Va al final perquè també es mou amb escriptures que no són de
+//      contingut (activar-la a l'escaneig, importacions); sense cap de les tres, no n'hi ha.
+// Dia d'avui a Europe/Madrid (`AAAA-MM-DD`): l'admin escriu `actualitzatEl` amb el dia de Madrid, que pot anar
+// per davant del dia UTC.
+const diaMadrid = (ara) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ara);
+const noFutur = (valor, ara) => (valor.length === 10 ? valor <= diaMadrid(ara) : instant(valor) <= ara.getTime());
+
+export const lastmodSessio = (sessio, ara = new Date()) => {
   const manual = sessio.publica?.actualitzatEl;
-  return manualValid(manual) ? manual : dataIso(sessio.data, sessio.hora);
+  if (manualValid(manual) && noFutur(manual, ara)) return manual;
+  const dataSessio = dataIso(sessio.data, sessio.hora);
+  if (instant(dataSessio) <= ara.getTime()) return dataSessio;
+  if (isoValid(sessio.modificadaEl)) {
+    const ms = Math.min(instant(sessio.modificadaEl), ara.getTime());
+    return new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
+  }
+  return null;
 };
 
 // `lastmod` d'una pàgina de contingut: el `date` del seu front matter (`pagines/*.dades.date`), amb el
@@ -61,16 +77,17 @@ const lastmodPropostes = (db) => memo.obte(db, 'lastmod-propostes', async () => 
   return null;
 });
 
-const mesRecent = (lastmods) => lastmods.reduce((a, b) => (a === null || instant(b) > instant(a) ? b : a), null);
+const mesRecent = (lastmods) => lastmods.filter(Boolean).reduce((a, b) => (a === null || instant(b) > instant(a) ? b : a), null);
 
 // Entrades `{ cami, lastmod? }` del sitemap (camins amb barra final i percent-encoded, com els de
 // Hugo). Surten de les mateixes funcions que les pàgines (`sessionsPubliques`, `termesDe`,
 // `paginaPerSlug`): una URL que aquí apareix també es resol allà, i un terme sense sessions
-// publicades no hi apareix. `lastmod` reprodueix el de Hugo: sessions = la seva data; termes i
-// índexs de taxonomia = la sessió més recent que contenen; portada, programació i pàgines = el
-// `date` del seu front matter (les que no en tenen, no emeten `lastmod`); /propostes/ (pàgina nova,
-// no és a Hugo) = la proposta aprovada més recent.
-export async function entradesSitemap(db = getDb()) {
+// publicades no hi apareix; tampoc els que no s'indexen (`termeIndexable`). `lastmod`: sessions =
+// `lastmodSessio`; termes i índexs de taxonomia = la sessió amb el `lastmod` més recent que contenen;
+// portada i programació (pinten les sessions) = el més recent entre el `date` del seu front matter i el
+// de totes les sessions; pàgines = el `date` del seu front matter (les que no en tenen, no emeten
+// `lastmod`); /propostes/ = la proposta aprovada més recent.
+export async function entradesSitemap(db = getDb(), ara = new Date()) {
   const [sessions, portada, programacio, pagines, lastmodProp] = await Promise.all([
     sessionsPubliques(db),
     paginaPerSlug('portada', db),
@@ -78,18 +95,19 @@ export async function entradesSitemap(db = getDb()) {
     Promise.all(PAGINES.map((slug) => paginaPerSlug(slug, db))),
     lastmodPropostes(db),
   ]);
-  const lastmodsDe = (llista) => mesRecent(llista.map(lastmodSessio));
+  const lastmodsDe = (llista) => mesRecent(llista.map((s) => lastmodSessio(s, ara)));
+  const lastmodSessions = lastmodsDe(sessions);
   const entrada = (cami, lastmod) => (lastmod ? { cami, lastmod } : { cami });
   return [
-    entrada('/', lastmodPagina(portada)),
-    entrada('/programacio/', lastmodPagina(programacio)),
+    entrada('/', mesRecent([lastmodPagina(portada), lastmodSessions])),
+    entrada('/programacio/', mesRecent([lastmodPagina(programacio), lastmodSessions])),
     entrada('/propostes/', lastmodProp),
-    ...sessions.map((s) => entrada(urlSessioCodificada(s), lastmodSessio(s))),
+    ...sessions.map((s) => entrada(urlSessioCodificada(s), lastmodSessio(s, ara))),
     ...TAXONOMIES.flatMap((taxonomia) => {
       const termes = termesDe(sessions, taxonomia);
       return [
         entrada(`/${taxonomia}/`, lastmodsDe(termes.flatMap((t) => t.sessions))),
-        ...termes.map((terme) => entrada(urlTerme(taxonomia, terme.nom), lastmodsDe(terme.sessions))),
+        ...termes.filter(termeIndexable).map((terme) => entrada(urlTerme(taxonomia, terme.nom), lastmodsDe(terme.sessions))),
       ];
     }),
     ...PAGINES.flatMap((slug, i) => (pagines[i] ? [entrada(`/${slug}/`, lastmodPagina(pagines[i]))] : [])),

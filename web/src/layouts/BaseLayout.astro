@@ -7,18 +7,23 @@ import SiteFooter from '../components/SiteFooter.astro';
 import site from '../data/site.json';
 import { INDEXABLE, SITE_URL } from '../lib/env.js';
 
-// titol: absent a la portada. canonical i imatgeOg: URLs absolutes. noindex: pàgines que no
-// s'han d'indexar mai (el 404). titolSocial: el títol d'og:title i twitter:title si ha de ser un altre que
-// `titol` (p. ex. amb el nom del Cineclub, per a la previsualització de WhatsApp).
+// titol: absent a la portada. titolComplet: el <title> sencer, sense « · Cineclub» (la portada).
+// canonical i imatgeOg: URLs absolutes. imatgeOgMida: `{ ample, alt, tipus }` de la imatgeOg (la per
+// defecte ja en porta). noindex: pàgines que no s'han d'indexar (el 404, termes amb una sola sessió): no
+// emeten canonical. titolSocial: el títol d'og:title i twitter:title si ha de ser un altre que `titol`
+// (p. ex. amb el nom del Cineclub, per a la previsualització de WhatsApp).
+const OG_PER_DEFECTE = `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`;
 const {
   titol,
+  titolComplet,
   descripcio = site.tagline,
-  imatgeOg = `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
+  imatgeOg = OG_PER_DEFECTE,
+  imatgeOgMida = imatgeOg === OG_PER_DEFECTE ? { ample: 1220, alt: 784, tipus: 'image/png' } : undefined,
   canonical = new URL(Astro.url.pathname, SITE_URL).href,
   noindex = false,
   titolSocial: titolSocialProp,
 } = Astro.props;
-const titolPagina = titol ? `${titol} · ${site.title}` : site.title;
+const titolPagina = titolComplet || (titol ? `${titol} · ${site.title}` : site.title);
 const titolSocial = titolSocialProp || titol || site.title;
 ---
 <!DOCTYPE html>
@@ -28,7 +33,7 @@ const titolSocial = titolSocialProp || titol || site.title;
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{titolPagina}</title>
   <meta name="description" content={descripcio}>
-  <link rel="canonical" href={canonical}>
+  {!noindex && <link rel="canonical" href={canonical}>}
   {noindex && <meta name="robots" content="noindex,follow">}
   {INDEXABLE && !noindex && <meta name="robots" content="index,follow,max-image-preview:large">}
   <meta property="og:site_name" content={site.title}>
@@ -38,6 +43,9 @@ const titolSocial = titolSocialProp || titol || site.title;
   <meta property="og:description" content={descripcio}>
   <meta property="og:url" content={canonical}>
   <meta property="og:image" content={imatgeOg}>
+  {imatgeOgMida?.tipus && <meta property="og:image:type" content={imatgeOgMida.tipus}>}
+  {imatgeOgMida && <meta property="og:image:width" content={String(imatgeOgMida.ample)}>}
+  {imatgeOgMida && <meta property="og:image:height" content={String(imatgeOgMida.alt)}>}
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content={titolSocial}>
   <meta name="twitter:description" content={descripcio}>

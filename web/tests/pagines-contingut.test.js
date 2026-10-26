@@ -101,10 +101,12 @@ describe('/preguntes-frequents/', () => {
     });
   });
 
-  it('emet el JSON-LD FAQPage amb totes les preguntes, byte a byte com Hugo', async () => {
+  it('emet el JSON-LD FAQPage amb totes les preguntes, com Hugo però amb les entitats HTML decodificades', async () => {
     const { html } = await contingut('preguntes-frequents');
     const json = html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1];
-    expect(json).toBe(llegeix('hugo-faq-jsonld.txt'));
+    const hugo = llegeix('hugo-faq-jsonld.txt').replaceAll('\\u0026rsquo;', '’').replaceAll('\\u0026hellip;', '…');
+    expect(json).toBe(hugo);
+    expect(json).not.toMatch(/\\u0026[a-z]+;/);
     expect(JSON.parse(json).mainEntity).toHaveLength(16);
   });
 

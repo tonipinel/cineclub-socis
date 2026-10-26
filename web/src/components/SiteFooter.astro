@@ -1,5 +1,6 @@
 ---
 import site from '../data/site.json';
+import { MAPS_URL } from '../lib/lloc.js';
 ---
 <footer class="site-footer">
   <div class="site-footer__inner">
@@ -22,6 +23,9 @@ import site from '../data/site.json';
       </a>
     </div>
   </div>
+  <address class="site-footer__adreca">
+    <a class="site-footer__link" href={MAPS_URL} target="_blank" rel="noopener">{site.venueName} · {site.venueAddress}<span class="site-footer__nova-pestanya"> (s'obre en una pestanya nova)</span></a>
+  </address>
   <p class="site-footer__atribucio">Dades i cartells de pel·lícules de <a class="site-footer__link" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Aquest producte utilitza l'API de TMDB però no està avalat ni certificat per TMDB.</p>
   <p class="site-footer__copyright">&copy; {new Date().getFullYear()} {site.title}</p>
 </footer>

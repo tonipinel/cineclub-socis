@@ -109,7 +109,6 @@ describe('pàgina d\'un terme', () => {
     const { status, html } = await terme(TermeDirectors, 'directors', 'alauda-ruiz-de-azúa');
     expect(status).toBe(200);
     expect(html).toContain('<title>Alauda Ruiz de Azúa · Cineclub Roda de Berà</title>');
-    expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/directors/alauda-ruiz-de-az%C3%BAa/">');
     expect(html).toContain('<h1 class="page-hero__title">Alauda Ruiz de Azúa</h1>');
     expect(html).toContain('<p class="page-hero__hook">Pel·lícules dirigides per Alauda Ruiz de Azúa programades pel Cineclub Roda de Berà\n(1 sessió).</p>');
   });
@@ -122,12 +121,26 @@ describe('pàgina d\'un terme', () => {
     expect(html).toContain('<h1 class="page-hero__title">Alauda Ruiz de Azúa</h1>');
   });
 
-  it('la mateixa canònica tant si la petició és literal com codificada', async () => {
-    const literal = await renderitza(TermeDirectors, '/directors/alauda-ruiz-de-azúa/', { terme: 'alauda-ruiz-de-azúa' });
-    const codificada = await renderitza(TermeDirectors, '/directors/alauda-ruiz-de-az%C3%BAa/', { terme: 'alauda-ruiz-de-azúa' });
+  it('la mateixa canònica (NFC, percent-encoded) si la petició és literal, codificada o en NFD', async () => {
+    const slug = 'patricia-lópez-arnaiz';
+    const literal = await renderitza(TermeInterprets, `/interprets/${slug}/`, { terme: slug });
+    const codificada = await renderitza(TermeInterprets, '/interprets/patricia-l%C3%B3pez-arnaiz/', { terme: slug });
+    const nfd = await renderitza(TermeInterprets, '/interprets/patricia-lo%CC%81pez-arnaiz/', { terme: slug.normalize('NFD') });
     const canonica = (html) => html.match(/<link rel="canonical" href="([^"]+)"/)[1];
-    expect(canonica(literal.html)).toBe('https://cineclub-web.web.app/directors/alauda-ruiz-de-az%C3%BAa/');
+    expect(canonica(literal.html)).toBe('https://cineclub-web.web.app/interprets/patricia-l%C3%B3pez-arnaiz/');
     expect(canonica(codificada.html)).toBe(canonica(literal.html));
+    expect(nfd.status).toBe(200);
+    expect(canonica(nfd.html)).toBe(canonica(literal.html));
+  });
+
+  it('un terme amb una sola sessió és noindex,follow i no té canonical; amb dues o més, sí que s\'indexa', async () => {
+    const un = await terme(TermeDirectors, 'directors', 'alauda-ruiz-de-azúa');
+    expect(un.html).toContain('<meta name="robots" content="noindex,follow">');
+    expect(un.html).not.toContain('rel="canonical"');
+    expect(un.html).toContain('href="/programacio/2026/domingos/"');
+    const dos = await terme(TermeInterprets, 'interprets', 'patricia-lópez-arnaiz');
+    expect(dos.html).not.toContain('noindex');
+    expect(dos.html).toContain('<link rel="canonical"');
   });
 
   it('un gènere llista les seves sessions, de la més nova a la més antiga, i el recompte en plural', async () => {

@@ -10,8 +10,9 @@ import RelatedSessions from './RelatedSessions.astro';
 import JsonLdEvent from './JsonLdEvent.astro';
 import JsonLdBreadcrumb from './JsonLdBreadcrumb.astro';
 import { CARTELL_ACTIU, SITE_URL } from '../lib/env.js';
+import { camiOgSessio } from '../lib/og-sessio.js';
 import { renderMarkdown } from '../lib/markdown.js';
-import { descripcioSessio, titolSessio, urlSessio } from '../lib/sessio-camps.js';
+import { descripcioSessio, titolPaginaSessio, titolSessio, urlSessio } from '../lib/sessio-camps.js';
 
 // Traducció de layouts/programacio/single.html. `sessions`: totes les sessions publicades
 // (per a «Sessions relacionades»).
@@ -21,10 +22,11 @@ const url = urlSessio(sessio);
 const { trailerYoutubeId, cartell, cos } = sessio.publica ?? {};
 ---
 <BaseLayout
-  titol={titol}
+  titol={titolPaginaSessio(sessio)}
   descripcio={descripcioSessio(sessio)}
   canonical={new URL(url, SITE_URL).href}
-  imatgeOg={cartell || undefined}
+  imatgeOg={cartell ? new URL(camiOgSessio(sessio), SITE_URL).href : undefined}
+  imatgeOgMida={cartell ? { ample: 1200, alt: 630, tipus: 'image/jpeg' } : undefined}
 >
   <Fragment slot="head">
     <JsonLdEvent sessio={sessio} />

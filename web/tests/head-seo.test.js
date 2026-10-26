@@ -43,6 +43,11 @@ describe('etiquetes del head invisibles per a SEO', () => {
     expect(await render({ PUBLIC_INDEXABLE: '' }, '404')).toContain('content="noindex,follow"');
   });
 
+  it('una pàgina noindex (el 404) no emet canonical; les indexables sí', async () => {
+    expect(await render({ PUBLIC_INDEXABLE: 'true' }, '404')).not.toContain('rel="canonical"');
+    expect(await render({ PUBLIC_INDEXABLE: 'true' })).toContain('<link rel="canonical"');
+  });
+
   it.each([['true'], ['']])('og:site_name i og:locale sempre (PUBLIC_INDEXABLE=%j)', async (indexable) => {
     const html = await render({ PUBLIC_INDEXABLE: indexable });
     expect(html).toContain('<meta property="og:site_name" content="Cineclub Roda de Berà">');

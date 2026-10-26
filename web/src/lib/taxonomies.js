@@ -32,6 +32,11 @@ export function termesDe(sessions, camp) {
   return [...perSlug.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'ca'));
 }
 
+// Un terme amb una sola sessió publicada és una pàgina gairebé buida: no s'indexa (noindex,follow) ni va
+// al sitemap, però es manté enllaçada per als visitants.
+export const MIN_SESSIONS_INDEXABLE = 2;
+export const termeIndexable = (terme) => terme.sessions.length >= MIN_SESSIONS_INDEXABLE;
+
 // `param` és el segment de la URL ja decodificat (`alauda-ruiz-de-azúa`, tant si el navegador
 // va demanar `azúa` com `az%C3%BAa`). Es compara amb el slug exacte, normalitzat a NFC.
 export const trobaTerme = (termes, param) => {

@@ -1,49 +1,38 @@
 ---
 import SessionCard from './SessionCard.astro';
 import { targetaSessio } from '../lib/sessio-camps.js';
-import { sessionsDescendents } from '../lib/sessions.js';
+import { properesSessions } from '../lib/sessions.js';
 
-// Traducció de partials/next-sessions.html. El servidor no sap quina és «avui» (la pàgina
-// es guarda a la memòria cau durant hores): emet totes les sessions amagades i el script de
-// Hugo, tal qual, mostra les 3 properes al navegador.
+// «Properes sessions»: les 3 properes segons l'hora de la petició, visibles al HTML (també per als
+// cercadors). Les pàgines que l'usen caduquen aviat al CDN (CACHE_AVUI), però una còpia guardada pot
+// tenir alguna sessió que ja ha passat: el script l'amaga al navegador (i el bloc, si no en queda cap).
 const { sessions } = Astro.props;
+const properes = properesSessions(sessions, new Date());
 ---
-<div class="next-session-wrapper" data-next-session-wrapper hidden>
-  <section class="next-session">
-    <h2>Properes sessions</h2>
-    <div class="next-session__grid" data-next-session-grid>
-      {sessionsDescendents(sessions).map((s) => (
-        <div class="next-session__item" data-session-date={targetaSessio(s).dataIso} hidden>
-          <SessionCard sessio={s} />
-        </div>
-      ))}
-    </div>
-  </section>
-</div>
+{properes.length > 0 && (
+  <div class="next-session-wrapper" data-next-session-wrapper>
+    <section class="next-session">
+      <h2>Properes sessions</h2>
+      <div class="next-session__grid" data-next-session-grid>
+        {properes.map((s) => (
+          <div class="next-session__item" data-session-date={targetaSessio(s).dataIso}>
+            <SessionCard sessio={s} />
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+)}
 <script is:inline>
 (function () {
   var wrapper = document.querySelector("[data-next-session-wrapper]");
-  var grid = document.querySelector("[data-next-session-grid]");
-  if (!wrapper || !grid) return;
-
-  var items = Array.prototype.slice.call(grid.querySelectorAll("[data-session-date]"));
+  if (!wrapper) return;
   var now = new Date();
-
-  var upcoming = items
-    .filter(function (el) {
-      return new Date(el.getAttribute("data-session-date")) >= now;
-    })
-    .sort(function (a, b) {
-      return new Date(a.getAttribute("data-session-date")) - new Date(b.getAttribute("data-session-date"));
-    })
-    .slice(0, 3);
-
-  if (!upcoming.length) return;
-
-  upcoming.forEach(function (el) {
-    el.hidden = false;
-    grid.appendChild(el);
+  var queden = 0;
+  wrapper.querySelectorAll("[data-session-date]").forEach(function (el) {
+    if (new Date(el.getAttribute("data-session-date")) < now) el.hidden = true;
+    else queden += 1;
   });
-  wrapper.hidden = false;
+  if (!queden) wrapper.hidden = true;
 })();
 </script>

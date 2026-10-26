@@ -13,6 +13,8 @@ export const MISSATGE_ALIAS = "Això trencarà l'URL anterior; s'afegirà com a 
 
 const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+const senseActualitzatEl = ({ actualitzatEl: _data, ...resta } = {}) => resta;
+
 // Noms de camp diferents (la fitxa pública es compara amb el formulari inicial). Ignora `activa`.
 export function campsCanviats(dades, original, publicaForm, publicaInicial) {
   const abans = { ...CAMPS_INICIALS, ...original };
@@ -50,7 +52,13 @@ export async function prepararDesat({
     aliasNou = true;
     publica = { ...netejarPublica(publica), aliases: afegirAlias(publica?.aliases, camiAntic) };
   }
-  if (publicaCanviada || aliasNou) {
+  // `publica.actualitzatEl` (el `lastmod` del sitemap) només es mou amb un canvi real de la fitxa pública (no amb un
+  // formulari tocat i desfet o que en desar queda igual) o amb un alias nou (canvi de data o slug publicats). Mai
+  // amb `activa` ni amb els camps de gestió.
+  const abans = { ...CAMPS_INICIALS, ...original };
+  const publicaReal = publicaCanviada
+    && !igual(senseActualitzatEl(publica), senseActualitzatEl(netejarPublica(original.publica)));
+  if (publicaReal || aliasNou) {
     publica = marcarActualitzada(publica, ara);
     nou.publica = publica;
     if (publica.cartell && publica.cartell !== original.publica?.cartell) nou.imatgeUrl = publica.cartell;
@@ -58,7 +66,6 @@ export async function prepararDesat({
   // El camp `activa` és exclusiu de "Marcar com a activa": un "Desar" normal mai l'ha de sobreescriure
   // amb l'estat local, que pot haver quedat desactualitzat.
   const { activa: _activaActual, ...dadesADesar } = nou;
-  const abans = { ...CAMPS_INICIALS, ...original };
   const canvis = Object.fromEntries(Object.entries(dadesADesar).filter(([camp, valor]) => !igual(valor, abans[camp])));
   return { errors: {}, cancelat: false, dadesADesar, canvis, publicaFinal: publica };
 }

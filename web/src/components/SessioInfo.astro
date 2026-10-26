@@ -2,18 +2,18 @@
 import InfoItem from './InfoItem.astro';
 import { versioInfo } from '../lib/versio.js';
 import site from '../data/site.json';
+import { MAPS_URL } from '../lib/lloc.js';
 
 // Traducció del bloc `session-info` de layouts/programacio/single.html.
 const { sessio } = Astro.props;
 const { preu, queInclou, versioTipus, idioma, edatMinimaRecomanada: edat } = sessio.publica ?? {};
-const mapsUrl = `https://www.google.com/maps/search/?api=1&${new URLSearchParams({ query: `${site.venueName}, ${site.venueAddress}` })}`;
 const { sigles, explicacio } = versioInfo(versioTipus, idioma);
 // Edats amb icona a public/images/icaa/; la resta es mostren en text.
 const ICONES_ICAA = [7, 12, 16, 18];
 ---
 <div class="session-info-wrapper">
   <div class="session-info">
-    <InfoItem icon="map-pin" href={mapsUrl} external={true} caption={site.venueName} />
+    <InfoItem icon="map-pin" href={MAPS_URL} external={true} caption={site.venueName} />
     {preu === 0 && <InfoItem icon="ticket" price="0€" caption="Entrada gratuïta" />}
     {preu != null && preu !== 0 && (
       <InfoItem icon="ticket" price={`${preu}€`} href="/fes-te-socia/" caption="Aportació requerida<br>(Gratuït per a socis/es)" />

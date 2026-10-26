@@ -2,16 +2,36 @@
 import site from '../data/site.json';
 import { SITE_URL } from '../lib/env.js';
 import { jsonLd } from '../lib/jsonld.js';
+import { idOrganitzacio, llocJsonLd } from '../lib/lloc.js';
 
-// Traducció de partials/jsonld-organization.html (claus en ordre alfabètic, com el jsonify de Hugo).
+// Portada: el web (WebSite, el nom que Google mostra als resultats) i l'organització, amb el domicili i el
+// lloc de les projeccions (tots dos, el Teatre del Casino). Les sessions hi apunten amb el mateix `@id` (`organizer`).
 const json = jsonLd({
   '@context': 'https://schema.org',
-  '@type': 'Organization',
-  email: site.contactEmail,
-  logo: `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
-  name: site.title,
-  sameAs: [site.instagramURL, site.facebookURL].filter(Boolean),
-  url: `${SITE_URL}/`,
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#web`,
+      inLanguage: 'ca',
+      name: site.title,
+      publisher: { '@id': idOrganitzacio() },
+      url: `${SITE_URL}/`,
+    },
+    {
+      '@type': 'Organization',
+      '@id': idOrganitzacio(),
+      // El Teatre del Casino és també el domicili de l'associació.
+      address: llocJsonLd().address,
+      areaServed: site.venuePostal.addressLocality,
+      description: site.description,
+      email: site.contactEmail,
+      location: llocJsonLd(),
+      logo: `${SITE_URL}/images/entitats/cineclub-roda-de-bera.png`,
+      name: site.title,
+      sameAs: [site.instagramURL, site.facebookURL].filter(Boolean),
+      url: `${SITE_URL}/`,
+    },
+  ],
 });
 ---
 <script type="application/ld+json" set:html={json}></script>

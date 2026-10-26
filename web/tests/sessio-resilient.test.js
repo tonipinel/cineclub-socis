@@ -187,10 +187,17 @@ describe('normalització de les sessions a sessionsPubliques', () => {
 
 describe('descripcioSessio sense dades', () => {
   it('omet l\'any i els directors quan no hi són', () => {
-    expect(descripcioSessio({ titol: 'X', publica: {} })).toBe('X. Sessió del Cineclub Roda de Berà a Roda de Berà.');
-    expect(descripcioSessio({ titol: 'X', publica: { any: 2021 } })).toBe('X (2021). Sessió del Cineclub Roda de Berà a Roda de Berà.');
-    expect(descripcioSessio({ titol: 'X', publica: { directors: ['A', 'B'] } })).toBe('X, dirigida per A, B. Sessió del Cineclub Roda de Berà a Roda de Berà.');
-    expect(descripcioSessio({ titol: 'X', publica: { any: 2021, directors: ['A'] } })).toBe('X (2021), dirigida per A. Sessió del Cineclub Roda de Berà a Roda de Berà.');
+    const quan = ' Projecció el dijous 8 d\'octubre de 2026 a les 19:00 h al Teatre del Casino Municipal de Roda de Berà.';
+    const base = { titol: 'X', data: '2026-10-08', hora: '19:00' };
+    expect(descripcioSessio({ ...base, publica: {} })).toBe(`X.${quan}`);
+    expect(descripcioSessio({ ...base, publica: { any: 2021 } })).toBe(`X (2021).${quan}`);
+    expect(descripcioSessio({ ...base, publica: { directors: ['A', 'B'] } })).toBe(`X, dirigida per A, B.${quan}`);
+    expect(descripcioSessio({ ...base, publica: { any: 2021, directors: ['A'] } })).toBe(`X (2021), dirigida per A.${quan}`);
+  });
+
+  it('sense hora (00:00, el valor per defecte) omet «a les»', () => {
+    expect(descripcioSessio({ titol: 'X', data: '2026-04-02', hora: '00:00', publica: {} }))
+      .toBe('X. Projecció el dijous 2 d\'abril de 2026 al Teatre del Casino Municipal de Roda de Berà.');
   });
 });
 
@@ -206,14 +213,21 @@ describe('sessionsLlistables', () => {
 
 describe('pàgines amb una sessió dolenta', () => {
   it('la portada es pinta sencera, amb les sessions bones i sense restes de valors buits', async () => {
-    const { status, html, headers } = await renderitza(Portada, '/');
-    expect(status).toBe(200);
-    expect(headers.get('Cache-Control')).toBe(CACHE_AVUI);
-    expect(html).toContain('<h3 class="session-card__title">Pig</h3>');
-    expect(html).toContain('<h3 class="session-card__title">20.000 especies de abejas</h3>');
-    expect(html).toContain('<h3 class="session-card__title">La trencada</h3>');
-    expect(html).toContain('</html>');
-    expect(html).not.toMatch(RESTES);
+    // «Properes sessions» només pinta les 3 properes: la data és d'abans de totes.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-03-01T12:00:00+01:00'));
+    try {
+      const { status, html, headers } = await renderitza(Portada, '/');
+      expect(status).toBe(200);
+      expect(headers.get('Cache-Control')).toBe(CACHE_AVUI);
+      expect(html).toContain('<h3 class="session-card__title">La trencada</h3>');
+      expect(html).toContain('<h3 class="session-card__title">Sense publica</h3>');
+      expect(html).toContain('<h3 class="session-card__title">Publica text</h3>');
+      expect(html).toContain('</html>');
+      expect(html).not.toMatch(RESTES);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('/programacio/ es pinta sencera i sense restes de valors buits', async () => {
@@ -230,7 +244,7 @@ describe('pàgines amb una sessió dolenta', () => {
     const { status, html } = await renderitza(RutaSessio, '/programacio/2026/la-trencada/', { any: '2026', slug: 'la-trencada' });
     expect(status).toBe(200);
     expect(html).toContain('<title>La trencada · Cineclub Roda de Berà</title>');
-    expect(html).toContain('<meta name="description" content="La trencada. Sessió del Cineclub Roda de Berà a Roda de Berà.">');
+    expect(html).toContain(`<meta name="description" content="La trencada. Projecció el dijous 2 d'abril de 2026 al Teatre del Casino Municipal de Roda de Berà.">`);
     expect(html).toContain('<h1 class="session-hero__title">La trencada</h1>');
     expect(html).toContain('Versió Original');
     expect(html).not.toContain('<iframe');

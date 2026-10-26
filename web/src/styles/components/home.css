@@ -1,6 +1,9 @@
 .hero {
   @apply flex flex-col items-center gap-6 border-b-[6px] border-dashed border-white bg-transparent px-6 py-16 text-center text-white;
 }
+.hero__titol {
+  @apply w-full max-w-md font-display text-3xl font-bold uppercase;
+}
 .hero__logo {
   @apply h-auto w-full max-w-md;
 }

@@ -78,7 +78,7 @@ describe('portada', () => {
   it('pinta el hero, el títol del web i el menú «Inici» actiu', async () => {
     const { status, html } = await renderitza(Portada, '/');
     expect(status).toBe(200);
-    expect(html).toContain('<title>Cineclub Roda de Berà</title>');
+    expect(html).toContain('<title>Cineclub Roda de Berà · Cinema en versió original cada mes</title>');
     expect(html).toContain('<span class="hero__tagline--white">Un espai per viure i compartir </span><br>');
     expect(html).toContain('<span class="hero__tagline--gold">cinema durant tot l&#39;any!</span>');
     expect(html).toContain('class="site-header__link site-header__link--active" href="/">Inici</a>');
@@ -87,9 +87,64 @@ describe('portada', () => {
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/">');
   });
 
-  it('inclou el JSON-LD de l\'organització', async () => {
+  it('inclou el JSON-LD del web (WebSite) i de l\'organització, amb el domicili i el lloc de les projeccions (sense sameAs inventats)', async () => {
     const { html } = await renderitza(Portada, '/');
-    expect(html).toContain('<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","email":"cineclub.rodadebera@gmail.com","logo":"https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png","name":"Cineclub Roda de Berà","sameAs":["https://www.instagram.com/cineclub.rodadebera","https://www.facebook.com/cineclub.rodadebera"],"url":"https://cineclub-web.web.app/"}</script>');
+    const blocs = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+    expect(blocs).toHaveLength(1);
+    expect(blocs[0]['@context']).toBe('https://schema.org');
+    const [web, org] = blocs[0]['@graph'];
+    expect(web).toEqual({
+      '@type': 'WebSite',
+      '@id': 'https://cineclub-web.web.app/#web',
+      inLanguage: 'ca',
+      name: 'Cineclub Roda de Berà',
+      publisher: { '@id': 'https://cineclub-web.web.app/#organitzacio' },
+      url: 'https://cineclub-web.web.app/',
+    });
+    const adreca = {
+      '@type': 'PostalAddress', streetAddress: 'Plaça dels Pins, 6', postalCode: '43883', addressLocality: 'Roda de Berà', addressRegion: 'Tarragona', addressCountry: 'ES',
+    };
+    expect(org).toEqual({
+      '@type': 'Organization',
+      '@id': 'https://cineclub-web.web.app/#organitzacio',
+      address: adreca,
+      areaServed: 'Roda de Berà',
+      description: 'Cineclub de Roda de Berà (Tarragona): cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.',
+      email: 'cineclub.rodadebera@gmail.com',
+      location: {
+        '@type': 'Place',
+        address: {
+          '@type': 'PostalAddress', streetAddress: 'Plaça dels Pins, 6', postalCode: '43883', addressLocality: 'Roda de Berà', addressRegion: 'Tarragona', addressCountry: 'ES',
+        },
+        name: 'Teatre del Casino Municipal de Roda de Berà',
+      },
+      logo: 'https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png',
+      name: 'Cineclub Roda de Berà',
+      sameAs: ['https://www.instagram.com/cineclub.rodadebera', 'https://www.facebook.com/cineclub.rodadebera'],
+      url: 'https://cineclub-web.web.app/',
+    });
+  });
+
+  it('el <head> de la portada: descripció pròpia i mides de l\'og:image per defecte', async () => {
+    const { html } = await renderitza(Portada, '/');
+    expect(html).toContain('<meta name="description" content="Cineclub de Roda de Berà (Tarragona): cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.">');
+    expect(html).toContain('<meta property="og:title" content="Cineclub Roda de Berà">');
+    expect(html).toContain('<meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1220"><meta property="og:image:height" content="784">');
+  });
+
+  it('un sol h1, amb el nom del Cineclub (el logo, o el text si no hi ha logo); el lema és un paràgraf', async () => {
+    const { html } = await renderitza(Portada, '/');
+    expect(html.match(/<h1\b/g)).toHaveLength(1);
+    expect(html).toMatch(/<h1 class="hero__titol"><img class="hero__logo" [^>]*alt="Cineclub Roda de Berà"><\/h1>/);
+    expect(html).toContain('<p class="hero__tagline">');
+    ambDb({});
+    const sense = (await renderitza(Portada, '/')).html;
+    expect(sense).toContain('<h1 class="hero__titol">Cineclub Roda de Berà</h1>');
+  });
+
+  it('el peu porta l\'adreça del Teatre del Casino amb l\'enllaç a Google Maps', async () => {
+    const { html } = await renderitza(Portada, '/');
+    expect(html).toMatch(/<address class="site-footer__adreca"><a class="site-footer__link" href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=[^"]+" target="_blank" rel="noopener">Teatre del Casino Municipal de Roda de Berà · Plaça dels Pins, 6, 43883 Roda de Berà \(Tarragona\)<span class="site-footer__nova-pestanya"> \(s(?:'|&#39;)obre en una pestanya nova\)<\/span><\/a><\/address>/);
   });
 
   it('serveix les imatges de la pàgina redimensionades (600, 500, 200 i 160)', async () => {
@@ -129,20 +184,23 @@ describe('portada', () => {
     expect(html).toContain('<h2 id="un-nou-espai-de-cinema-a-roda-de-berà">Un nou espai de cinema<br><span class="text-gold">A Roda de Berà</span></h2>');
   });
 
-  it('«Properes sessions» emet totes les publicades amagades, amb la data ISO, i no les no publicades', async () => {
+  it('«Properes sessions» pinta al servidor, visibles, les 3 properes (no les passades ni les no publicades)', async () => {
+    vi.setSystemTime(new Date('2026-06-01T12:00:00+02:00'));
     const { html } = await renderitza(Portada, '/');
-    const dates = [...html.matchAll(/class="next-session__item" data-session-date="([^"]+)" hidden/g)].map((m) => m[1]);
-    // De la més nova a la més antiga (com Hugo), també les passades: filtra el script del navegador.
-    expect(dates).toEqual([
-      '2026-10-22T19:00:00+02:00',
-      '2026-10-08T19:00:00+02:00',
-      '2026-06-25T19:00:00+02:00',
-      '2026-03-05T19:00:00+01:00',
-      '2025-05-01T19:00:00+02:00',
-    ]);
+    const dates = [...html.matchAll(/class="next-session__item" data-session-date="([^"]+)">/g)].map((m) => m[1]);
+    expect(dates).toEqual(['2026-06-25T19:00:00+02:00', '2026-10-08T19:00:00+02:00', '2026-10-22T19:00:00+02:00']);
     expect(html).not.toContain('esborrany');
-    expect(html).toContain('<div class="next-session-wrapper" data-next-session-wrapper hidden>');
-    expect(html).toContain('var upcoming = items');
+    expect(html).toContain('<div class="next-session-wrapper" data-next-session-wrapper>');
+    expect(html).not.toMatch(/data-next-session-wrapper hidden|next-session__item"[^>]*hidden/);
+    // El script només amaga, al navegador, les que hagin passat mentre la pàgina era al CDN.
+    expect(html).toContain('el.hidden = true');
+  });
+
+  it('«Properes sessions» no surt si no n\'hi ha cap de futura', async () => {
+    vi.setSystemTime(new Date('2026-10-23T12:00:00+02:00'));
+    const { html } = await renderitza(Portada, '/');
+    expect(html).not.toContain('next-session__item');
+    expect(html).not.toContain('Properes sessions');
   });
 
   it('el mosaic porta fins a 9 cartells a 300: la resta en ordre descendent i les properes al final', async () => {
@@ -208,7 +266,7 @@ describe('robustesa davant de dades de Firestore absents o nul·les', () => {
     ambDb({});
     const { status, html } = await renderitza(Portada, '/');
     expect(status).toBe(200);
-    expect(html).toContain('<title>Cineclub Roda de Berà</title>');
+    expect(html).toContain('<title>Cineclub Roda de Berà · Cinema en versió original cada mes</title>');
     expect(html).not.toContain('class="features__item"');
     expect(html).not.toContain('hero__logo');
     expect(html).toContain('<ul class="membership-teaser__list"></ul>');

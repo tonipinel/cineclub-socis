@@ -1,11 +1,14 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import SessionCard from './SessionCard.astro';
-import { descripcioTerme } from '../lib/sessio-camps.js';
+import { descripcioTerme, urlTerme } from '../lib/sessio-camps.js';
+import { termeIndexable } from '../lib/taxonomies.js';
+import { SITE_URL } from '../lib/env.js';
 
 // Traducció de la branca «terme» de layouts/_default/taxonomy.html. `terme`: `{ nom }`; `sessions`: les
 // seves sessions llistables (`sessionsLlistables`), de la més antiga a la més nova
-// (`.Pages.ByDate.Reverse` les mostra a l'inrevés).
+// (`.Pages.ByDate.Reverse` les mostra a l'inrevés). El canonical és el de `urlTerme` (NFC), encara que
+// s'hi arribi per una grafia NFD.
 const { taxonomia, terme, sessions } = Astro.props;
 const { nom } = terme;
 const n = sessions.length;
@@ -16,7 +19,12 @@ const text = {
 }[taxonomia];
 const hook = `${text}\n(${n} ${n === 1 ? 'sessió' : 'sessions'}).`;
 ---
-<BaseLayout titol={nom} descripcio={descripcioTerme(text, sessions)}>
+<BaseLayout
+  titol={nom}
+  descripcio={descripcioTerme(text, sessions)}
+  canonical={new URL(urlTerme(taxonomia, nom), SITE_URL).href}
+  noindex={!termeIndexable(terme)}
+>
   <section class="page-hero">
     <h1 class="page-hero__title">{nom}</h1>
     <p class="page-hero__hook">{hook}</p>

@@ -55,10 +55,10 @@ describe('/propostes/', () => {
     expect(html).toMatch(/renderer-url="[^"]+"/);
   });
 
-  it('renderitza al servidor un únic h1 «Propostes» i l\'explicació de com funcionen les propostes, fora de l\'illa', async () => {
+  it('renderitza al servidor un únic h1 «Propostes de pel·lícules» i l\'explicació de com funcionen les propostes, fora de l\'illa', async () => {
     const { html } = await renderitza('/propostes/');
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
-    expect(html).toMatch(/<h1 class="propostes-intro__titol">Propostes<\/h1>/);
+    expect(html).toMatch(/<h1 class="propostes-intro__titol">Propostes de pel·lícules<\/h1>/);
     const intro = html.match(/<section class="propostes-intro"[\s\S]*?<\/section>/)?.[0];
     expect(intro).toBeDefined();
     expect(intro).toContain('Les persones sòcies podeu proposar pel·lícules.');
@@ -129,12 +129,12 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
 
   const meta = (html, atribut, nom) => html.match(new RegExp(`<meta ${atribut}="${nom}" content="([^"]*)"`))?.[1];
 
-  it('té el títol, la descripció i el canonical de la pàgina', async () => {
+  it('té el títol i la descripció de la pàgina, i cap canonical (és noindex; l\'og:url sí que hi és)', async () => {
     const { status, html } = await renderitza('/propostes/votar/', { PUBLIC_SITE_URL: 'https://cineclubrodadebera.cat' });
     expect(status).toBe(200);
     expect(extreuTitol(html)).toBe('Vota les propostes · Cineclub Roda de Berà');
     expect(extreuDescripcio(html)).toBe('Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·lícules proposades per les persones sòcies.');
-    expect(extreuCanonical(html)).toBe('https://cineclubrodadebera.cat/propostes/votar/');
+    expect(html).not.toContain('rel="canonical"');
   });
 
   it.each([['true'], ['']])('no s\'indexa mai: noindex,follow amb PUBLIC_INDEXABLE=%j', async (indexable) => {
@@ -173,11 +173,12 @@ describe('/propostes/votar/ (pàgina per compartir per WhatsApp)', () => {
     expect(html).not.toContain('fonts.googleapis.com');
   });
 
-  it('no canvia el <head> de /propostes/ ni de /propostes/proposar/ (títol social = títol)', async () => {
+  it('/propostes/ comparteix el collage de la tanda com a og:image; el títol social de /propostes/ i /propostes/proposar/ = títol', async () => {
     const propostes = (await renderitza('/propostes/')).html;
     expect(meta(propostes, 'property', 'og:title')).toBe('Propostes de programació');
-    expect(meta(propostes, 'property', 'og:image')).toBe('https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png');
-    expect(propostes).not.toContain('og:image:width');
+    expect(meta(propostes, 'property', 'og:image')).toBe('https://cineclub-web.web.app/propostes/votar/og.jpg');
+    expect(meta(propostes, 'property', 'og:image:width')).toBe('1200');
+    expect(meta(propostes, 'property', 'og:image:height')).toBe('630');
     expect(propostes).toContain('<meta name="twitter:card" content="summary_large_image">');
     const proposar = (await renderitza('/propostes/proposar/')).html;
     expect(meta(proposar, 'property', 'og:title')).toBe('Proposa una pel·lícula');

@@ -29,17 +29,19 @@ const logo = imatge('hero-logo.png', 600);
 const poster = imatge('neix-espai.png', 500);
 const iconaSocia = imatge('fes-te-socia.png', 160);
 ---
-<BaseLayout>
+<BaseLayout titolComplet={`${site.title} · Cinema en versió original cada mes`} descripcio={site.description}>
   <Fragment slot="head">
     <JsonLdOrganization />
   </Fragment>
 
   <section class="hero">
-    {logo && <img class="hero__logo" src={logo} width="600" height="386" fetchpriority="high" alt="Cineclub Roda de Berà">}
-    <h1 class="hero__tagline">
+    <h1 class="hero__titol">
+      {logo ? <img class="hero__logo" src={logo} width="600" height="386" fetchpriority="high" alt={site.title}> : site.title}
+    </h1>
+    <p class="hero__tagline">
       <span class="hero__tagline--white">{tagline1}</span><br>
       <span class="hero__tagline--gold">cinema{tagline2}</span>
-    </h1>
+    </p>
     <a class="btn" href="/fes-te-socia/">Fes-te sòcia/soci</a>
   </section>
 

@@ -1,4 +1,5 @@
-import { dataCaCurtaHtml, dataIso, retalla, urlize } from './format.js';
+import site from '../data/site.json';
+import { dataCa, dataCaCurtaHtml, dataIso, retalla, urlize } from './format.js';
 import { resizedUrl, srcsetOf } from './images.js';
 
 // Camps derivats d'una sessió de Firestore (`{ titol, data, hora, slug, publica: {...} }`) amb
@@ -8,6 +9,18 @@ export const anyDe = (sessio) => sessio.data.slice(0, 4);
 
 // `.Title` de Hugo: el `title` del front matter viu a `publica.titol`; si no hi és, el títol de gestió.
 export const titolSessio = (sessio) => sessio.publica?.titol || sessio.titol;
+
+// <title> i og:title d'una sessió: el títol traduït al davant quan n'hi ha un de diferent (les cerques
+// locals es fan amb el títol en català), i l'original entre parèntesis si el <title> sencer (amb « · » i el
+// nom del Cineclub) no passa de MAX_TITOL caràcters; si en passa, només el traduït.
+const MAX_TITOL = 60;
+export const titolPaginaSessio = (sessio) => {
+  const titol = String(titolSessio(sessio));
+  const traduit = sessio.publica?.titolTraduit;
+  if (!traduit || traduit.toLowerCase() === titol.toLowerCase()) return titol;
+  const complet = `${traduit} (${titol})`;
+  return `${complet} · ${site.title}`.length <= MAX_TITOL ? complet : traduit;
+};
 
 export const urlSessio = (sessio) => `/programacio/${anyDe(sessio)}/${sessio.slug}/`;
 
@@ -19,15 +32,17 @@ export const urlTerme = (taxonomia, nom) => `/${taxonomia}/${encodeURIComponent(
 
 const llista = (valor) => (Array.isArray(valor) ? valor : []);
 
-// Descripció de `partials/head.html` per a les pàgines de sessió. Sense any o sense directors,
-// la frase els omet.
+// Descripció de les pàgines de sessió: `descripcio` o `hook` si l'editor n'ha escrit; si no, el títol (any,
+// directors) i quan i on es projecta. Sense any o sense directors, la frase els omet.
 export function descripcioSessio(sessio) {
   const p = sessio.publica ?? {};
   if (p.descripcio) return p.descripcio;
   if (p.hook) return p.hook;
   const any = p.any ? ` (${p.any})` : '';
   const directors = llista(p.directors).length ? `, dirigida per ${p.directors.join(', ')}` : '';
-  return `${titolSessio(sessio)}${any}${directors}. Sessió del Cineclub Roda de Berà a Roda de Berà.`;
+  const dia = dataCa(sessio.data).principal;
+  const quan = `${dia[0].toLowerCase()}${dia.slice(1)} de ${anyDe(sessio)}${sessio.hora && sessio.hora !== '00:00' ? ` a les ${sessio.hora} h` : ''}`;
+  return `${titolSessio(sessio)}${any}${directors}. Projecció el ${quan} al ${site.venueName}.`;
 }
 
 // Descripció d'una pàgina de terme: `text` (qui o què és el terme), el nombre de sessions i els

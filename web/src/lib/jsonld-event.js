@@ -1,5 +1,6 @@
 import site from '../data/site.json';
 import { entitatPerNom } from './entitats.js';
+import { idOrganitzacio, llocJsonLd } from './lloc.js';
 import { dataIso, dataIsoMesMinuts, retalla } from './format.js';
 import { renderMarkdown } from './markdown.js';
 import { titolSessio, urlSessio } from './sessio-camps.js';
@@ -11,7 +12,7 @@ import { titolSessio, urlSessio } from './sessio-camps.js';
 const MAX_DESCRIPCIO = 300;
 
 const ENTITATS = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', mldr: '…', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“', mdash: '—', ndash: '–', laquo: '«', raquo: '»' };
-const decodifica = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (tot, nom) => {
+export const decodifica = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (tot, nom) => {
   if (nom[0] === '#') return String.fromCodePoint(nom[1].toLowerCase() === 'x' ? parseInt(nom.slice(2), 16) : parseInt(nom.slice(1), 10));
   return ENTITATS[nom.toLowerCase()] ?? tot;
 });
@@ -53,10 +54,23 @@ const absoluta = (url, base) => new URL(url, `${base}/`).href;
 
 function organitzador(organitza, base) {
   if (!organitza || organitza.toLowerCase() === 'cineclub' || organitza === site.title) {
-    return { '@type': 'Organization', name: site.title, url: `${base}/` };
+    return { '@id': idOrganitzacio(base), '@type': 'Organization', name: site.title, url: `${base}/` };
   }
   const url = entitatPerNom(organitza)?.url;
   return { '@type': 'Organization', name: organitza, ...(url ? { url } : {}) };
+}
+
+// La pel·lícula: títol original, directors, any, cartell i durada (minuts), els que hi hagi.
+function pellicula(p, titol, base) {
+  const directors = Array.isArray(p.directors) ? p.directors : [];
+  return {
+    '@type': 'Movie',
+    ...(p.any ? { dateCreated: String(p.any) } : {}),
+    ...(directors.length ? { director: directors.map((name) => ({ '@type': 'Person', name })) } : {}),
+    ...(Math.round(Number(p.durada)) > 0 ? { duration: `PT${Math.round(Number(p.durada))}M` } : {}),
+    ...(p.cartell ? { image: absoluta(p.cartell, base) } : {}),
+    name: p.titolOriginal || titol,
+  };
 }
 
 export function eventJsonLd(sessio, base) {
@@ -75,7 +89,7 @@ export function eventJsonLd(sessio, base) {
     eventStatus: 'https://schema.org/EventScheduled',
     ...(imatges.length ? { image: imatges } : {}),
     ...(idiomes.length ? { inLanguage: idiomes.length === 1 ? idiomes[0] : idiomes } : {}),
-    location: { '@type': 'Place', address: site.venueAddress, name: site.venueName },
+    location: llocJsonLd(),
     name: titol,
     offers: {
       '@type': 'Offer',
@@ -86,6 +100,6 @@ export function eventJsonLd(sessio, base) {
     },
     organizer: organitzador(p.organitza, base),
     startDate: dataIso(sessio.data, sessio.hora),
-    workPresented: { '@type': 'Movie', name: p.titolOriginal || titol },
+    workPresented: pellicula(p, titol, base),
   });
 }

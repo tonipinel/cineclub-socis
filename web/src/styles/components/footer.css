@@ -31,6 +31,12 @@
 .site-footer__icon svg {
   @apply h-4 w-4;
 }
+.site-footer__adreca {
+  @apply mx-auto max-w-6xl px-4 pb-4 text-center text-sm not-italic;
+}
+.site-footer__nova-pestanya {
+  @apply sr-only;
+}
 .site-footer__atribucio {
   @apply mx-auto max-w-6xl px-4 pb-6 text-center text-xs;
   color: rgb(255 255 255 / 0.5);

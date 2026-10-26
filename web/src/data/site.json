@@ -7,5 +7,13 @@
   "membershipFormURL": "/fes-te-socia/#inscriu-te",
   "contactEmail": "cineclub.rodadebera@gmail.com",
   "venueName": "Teatre del Casino Municipal de Roda de Berà",
-  "venueAddress": "Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)"
+  "venueAddress": "Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)",
+  "description": "Cineclub de Roda de Berà (Tarragona): cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.",
+  "venuePostal": {
+    "streetAddress": "Plaça dels Pins, 6",
+    "postalCode": "43883",
+    "addressLocality": "Roda de Berà",
+    "addressRegion": "Tarragona",
+    "addressCountry": "ES"
+  }
 }

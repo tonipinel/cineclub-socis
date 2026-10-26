@@ -13,11 +13,9 @@ const descripcio = "Escaneja el teu carnet i dona el teu 👍 o 👎 a les pel·
   titolSocial="Vota les propostes · Cineclub Roda de Berà"
   descripcio={descripcio}
   imatgeOg={`${SITE_URL}/propostes/votar/og.jpg`}
+  imatgeOgMida={{ ample: 1200, alt: 630, tipus: 'image/jpeg' }}
   noindex
 >
-  <meta slot="head" property="og:image:type" content="image/jpeg">
-  <meta slot="head" property="og:image:width" content="1200">
-  <meta slot="head" property="og:image:height" content="630">
   <div class="propostes-app">
     <IllaVotar client:only="react">
       <div slot="fallback" class="carregant" role="status"><span class="carregant__spinner" role="img" aria-label="Carregant…"></span></div>

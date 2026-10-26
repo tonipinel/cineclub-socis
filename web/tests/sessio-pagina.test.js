@@ -5,6 +5,7 @@ import RutaSessio from '../src/pages/programacio/[any]/[slug].astro';
 import Pagina404 from '../src/pages/404.astro';
 import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
 import { conWhere } from './helpers/firestore.js';
+import { versioOg } from '../src/lib/og-sessio.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -229,14 +230,37 @@ describe('pàgina de sessió', () => {
     expect(html).toContain('href="/programacio/2026/una-altra/"');
   });
 
-  it('porta el títol, la descripció, la canònica i l\'og:image de head.html', async () => {
+  it('porta el títol (amb el traduït al davant), la descripció amb data i lloc, la canònica i l\'og:image', async () => {
     const html = await render(completa);
-    expect(html).toContain('<title>Pig · Cineclub Roda de Berà</title>');
-    expect(html).toContain('<meta name="description" content="Pig (2021), dirigida per Michael Sarnoski. Sessió del Cineclub Roda de Berà a Roda de Berà.">');
+    expect(html).toContain('<title>Porc (Pig) · Cineclub Roda de Berà</title>');
+    expect(html).toContain('<meta property="og:title" content="Porc (Pig)">');
+    expect(html).toContain('<h1 class="session-hero__title">Pig</h1>');
+    expect(html).toContain('<meta name="description" content="Pig (2021), dirigida per Michael Sarnoski. Projecció el dijous 25 de juny de 2026 a les 19:00 h al Teatre del Casino Municipal de Roda de Berà.">');
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/programacio/2026/pig/">');
-    expect(html).toContain(`<meta property="og:image" content="${completa.publica.cartell}">`);
+    // og:image: la imatge 1200 × 630 de la sessió (logo + cartell), versionada amb el cartell, amb les mides.
+    const v = versioOg(completa.publica.cartell);
+    expect(v).toMatch(/^[0-9a-f]{10}$/);
+    expect(html).toContain(`<meta property="og:image" content="https://cineclub-web.web.app/programacio/2026/pig/og.jpg?v=${v}"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">`);
     const senseCartell = await render(minima);
-    expect(senseCartell).toContain('<meta property="og:image" content="https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png">');
+    expect(senseCartell).toContain('<meta property="og:image" content="https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1220">');
+  });
+
+  it('un cartell nou canvia la versió de l\'og:image', () => {
+    expect(versioOg(`${completa.publica.cartell}x`)).not.toBe(versioOg(completa.publica.cartell));
+  });
+
+  it('si el <title> amb l\'original passés de 60 caràcters, només hi va el títol traduït', async () => {
+    const llarg = { ...completa, publica: { ...completa.publica, titol: 'Night of the Living Dead', titolTraduit: 'La nit dels morts vivents' } };
+    const html = await render(llarg);
+    expect(html).toContain('<title>La nit dels morts vivents · Cineclub Roda de Berà</title>');
+    expect(html).toContain('<h1 class="session-hero__title">Night of the Living Dead</h1>');
+  });
+
+  it('sense títol traduït, o si és el mateix, el títol de la pàgina és només el de la sessió', async () => {
+    const sense = { ...completa, publica: { ...completa.publica, titolTraduit: undefined } };
+    expect(await render(sense)).toContain('<title>Pig · Cineclub Roda de Berà</title>');
+    const igual = { ...completa, publica: { ...completa.publica, titolTraduit: 'pig' } };
+    expect(await render(igual)).toContain('<title>Pig · Cineclub Roda de Berà</title>');
   });
 
   it('usa el hook o la descripció com a descripció quan hi són', async () => {
@@ -257,12 +281,25 @@ describe('pàgina de sessió', () => {
       eventStatus: 'https://schema.org/EventScheduled',
       image: [`${STORAGE}poster.jpg?alt=media`, `${STORAGE}gallery-1.jpg?alt=media`],
       inLanguage: 'en',
-      location: { '@type': 'Place', address: 'Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)', name: 'Teatre del Casino Municipal de Roda de Berà' },
+      location: {
+        '@type': 'Place',
+        address: {
+          '@type': 'PostalAddress', addressCountry: 'ES', addressLocality: 'Roda de Berà', addressRegion: 'Tarragona', postalCode: '43883', streetAddress: 'Plaça dels Pins, 6',
+        },
+        name: 'Teatre del Casino Municipal de Roda de Berà',
+      },
       name: 'Pig',
       offers: { '@type': 'Offer', availability: 'https://schema.org/InStock', price: '5', priceCurrency: 'EUR', url: 'https://cineclub-web.web.app/programacio/2026/pig/' },
-      organizer: { '@type': 'Organization', name: 'Cineclub Roda de Berà', url: 'https://cineclub-web.web.app/' },
+      organizer: { '@id': 'https://cineclub-web.web.app/#organitzacio', '@type': 'Organization', name: 'Cineclub Roda de Berà', url: 'https://cineclub-web.web.app/' },
       startDate: '2026-06-25T19:00:00+02:00',
-      workPresented: { '@type': 'Movie', name: 'Pig' },
+      workPresented: {
+        '@type': 'Movie',
+        dateCreated: '2021',
+        director: [{ '@type': 'Person', name: 'Michael Sarnoski' }],
+        duration: 'PT92M',
+        image: `${STORAGE}poster.jpg?alt=media`,
+        name: 'Pig',
+      },
     });
     expect(html).toContain('"itemListElement":[{"@type":"ListItem","item":"https://cineclub-web.web.app/","name":"Inici","position":1},{"@type":"ListItem","item":"https://cineclub-web.web.app/programacio/","name":"Programació","position":2},{"@type":"ListItem","item":"https://cineclub-web.web.app/programacio/2026/pig/","name":"Pig","position":3}]');
   });

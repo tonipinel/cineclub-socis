@@ -47,12 +47,34 @@ describe('eventJsonLd: claus de Hugo (no han de canviar)', () => {
     expect(ev()).toMatchObject({
       '@context': 'https://schema.org',
       '@type': 'ScreeningEvent',
-      location: { '@type': 'Place', address: 'Plaça dels Pins, 6, 43883 Roda de Berà (Tarragona)', name: 'Teatre del Casino Municipal de Roda de Berà' },
       name: 'Pig',
       offers: { '@type': 'Offer', price: '5', priceCurrency: 'EUR', url: `${BASE}/programacio/2026/pig/` },
       startDate: '2026-06-25T19:00:00+02:00',
       workPresented: { '@type': 'Movie', name: 'Pig' },
     });
+  });
+
+  it('location: el Teatre del Casino amb una PostalAddress per camps', () => {
+    expect(ev().location).toEqual({
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress', streetAddress: 'Plaça dels Pins, 6', postalCode: '43883', addressLocality: 'Roda de Berà', addressRegion: 'Tarragona', addressCountry: 'ES',
+      },
+      name: 'Teatre del Casino Municipal de Roda de Berà',
+    });
+  });
+
+  it('workPresented: la pel·lícula amb directors, any, durada i cartell (els que hi hagi)', () => {
+    expect(ev(ambPublica({ directors: ['Michael Sarnoski'], any: 2021 })).workPresented).toEqual({
+      '@type': 'Movie',
+      dateCreated: '2021',
+      director: [{ '@type': 'Person', name: 'Michael Sarnoski' }],
+      duration: 'PT92M',
+      image: `${STORAGE}poster.jpg?alt=media`,
+      name: 'Pig',
+    });
+    expect(ev(ambPublica({ durada: undefined, cartell: undefined })).workPresented).toEqual({ '@type': 'Movie', name: 'Pig' });
+    expect(ev(ambPublica({ durada: 91.6 })).workPresented.duration).toBe('PT92M');
   });
 
   it('el preu és text i el títol de l\'obra és el títol original si n\'hi ha', () => {
@@ -137,8 +159,8 @@ describe('eventJsonLd: camps recomanats per Google', () => {
 });
 
 describe('eventJsonLd: organizer', () => {
-  it('sessions del cineclub: Organization amb el nom i la URL del web', () => {
-    expect(ev().organizer).toEqual({ '@type': 'Organization', name: 'Cineclub Roda de Berà', url: `${BASE}/` });
+  it('sessions del cineclub: Organization amb el nom, la URL i l\'@id de la portada', () => {
+    expect(ev().organizer).toEqual({ '@id': `${BASE}/#organitzacio`, '@type': 'Organization', name: 'Cineclub Roda de Berà', url: `${BASE}/` });
     expect(ev(ambPublica({ organitza: undefined })).organizer.name).toBe('Cineclub Roda de Berà');
   });
 

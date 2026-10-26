@@ -5,7 +5,10 @@ import { termesDe, trobaTerme } from '../src/lib/taxonomies.js';
 import { paginaPerSlug, SLUGS_CONTINGUT } from '../src/lib/pagines.js';
 
 function dbFals({ sessions = [], pagines = {}, propostes = [] }) {
-  const docs = (llista) => llista.map(({ id, ...dades }) => ({ id, data: () => dades }));
+  // `updateTime` (si el document de prova en porta) com el Timestamp de l'Admin SDK.
+  const docs = (llista) => llista.map(({ id, updateTime, ...dades }) => ({
+    id, data: () => dades, ...(updateTime ? { updateTime: { toDate: () => new Date(updateTime) } } : {}),
+  }));
   return {
     collection: (nom) => ({
       get: async () => ({ docs: docs(nom === 'sessions' ? sessions : []) }),
@@ -38,27 +41,25 @@ const pagines = {
 const db = dbFals({ sessions, pagines });
 
 describe('urlsSitemap', () => {
-  it('llista portada, programació, sessions publicades, taxonomies, termes i pàgines, amb barra final', async () => {
-    const urls = await urlsSitemap(db);
+  it('llista portada, programació, sessions publicades, taxonomies, termes indexables i pàgines, amb barra final', async () => {
+    const segona = sessio('segona', '2026-10-01', { directors: ['Alauda Ruiz de Azúa'], interprets: ['Miguel Garcés'], generes: ['Drama'] });
+    const urls = await urlsSitemap(dbFals({ sessions: [...sessions, segona], pagines }));
+    // Només els termes amb 2 sessions o més; els d'una sola (Romero, Terror, Duane Jones...) no s'indexen.
     expect([...urls].sort()).toEqual([
       '/',
       '/directors/',
       '/directors/alauda-ruiz-de-az%C3%BAa/',
-      '/directors/george-a.-romero/',
       '/fes-te-socia/',
       '/generes/',
       '/generes/drama/',
-      '/generes/terror/',
-      '/generes/zombis/',
       '/interprets/',
-      '/interprets/blanca-soroa/',
-      '/interprets/duane-jones/',
       '/interprets/miguel-garc%C3%A9s/',
       '/preguntes-frequents/',
       '/privacitat/',
       '/programacio/',
       '/programacio/2025/night-of-the-living-dead/',
       '/programacio/2026/los-domingos/',
+      '/programacio/2026/segona/',
       '/propostes/',
     ].sort());
     expect(urls.every((u) => u.startsWith('/') && u.endsWith('/'))).toBe(true);
@@ -133,15 +134,38 @@ describe('xmlSitemap', () => {
 });
 
 describe('lastmodSessio', () => {
-  it('és la data i hora de la sessió amb l\'ofset d\'Europe/Madrid (com Hugo)', () => {
-    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00' })).toBe('2026-10-22T19:00:00+02:00');
-    expect(lastmodSessio({ data: '2026-03-05', hora: '19:00' })).toBe('2026-03-05T19:00:00+01:00');
+  const ara = new Date('2026-10-26T12:00:00Z');
+
+  it('publica.actualitzatEl (l\'escriu l\'admin en desar canvis de contingut) té prioritat', () => {
+    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00', modificadaEl: '2026-10-25T10:00:00.000Z', publica: { actualitzatEl: '2026-10-23T09:00:00Z' } }, ara)).toBe('2026-10-23T09:00:00Z');
+  });
+
+  it('publica.actualitzatEl del dia d\'avui a Madrid val encara que a UTC sigui ahir', () => {
+    // 00:30 del 27 a Madrid = 23:30 del 26 UTC: l'admin hi escriu «2026-10-27».
+    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00', publica: { actualitzatEl: '2026-10-27' } }, new Date('2026-10-26T23:30:00Z'))).toBe('2026-10-27');
+    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00', publica: { actualitzatEl: '2026-10-28' } }, new Date('2026-10-26T23:30:00Z'))).toBe('2026-10-22T19:00:00+02:00');
+  });
+
+  it('publica.actualitzatEl futur s\'ignora', () => {
+    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00', publica: { actualitzatEl: '2026-12-01' } }, ara)).toBe('2026-10-22T19:00:00+02:00');
+  });
+
+  it('sense actualitzatEl: la data i hora de la sessió si ja ha passat (no l\'updateTime, que es mou amb activacions i importacions)', () => {
+    expect(lastmodSessio({ data: '2026-10-22', hora: '19:00', modificadaEl: '2026-10-25T10:00:00.000Z' }, ara)).toBe('2026-10-22T19:00:00+02:00');
+    expect(lastmodSessio({ data: '2026-03-05', hora: '19:00' }, ara)).toBe('2026-03-05T19:00:00+01:00');
+  });
+
+  it('una sessió futura sense actualitzatEl: l\'updateTime (limitat a ara, sense mil·lisegons); sense, cap', () => {
+    expect(lastmodSessio({ data: '2027-01-14', hora: '19:00', modificadaEl: '2026-10-25T10:00:00.123Z' }, ara)).toBe('2026-10-25T10:00:00Z');
+    expect(lastmodSessio({ data: '2027-01-14', hora: '19:00', modificadaEl: '2026-12-01T00:00:00.000Z' }, ara)).toBe('2026-10-26T12:00:00Z');
+    expect(lastmodSessio({ data: '2026-11-05', hora: '19:00' }, ara)).toBeNull();
   });
 
   it('publica.actualitzatEl (ISO) té prioritat sobre la data de la sessió', () => {
     const base = { data: '2026-10-22', hora: '19:00' };
-    expect(lastmodSessio({ ...base, publica: { actualitzatEl: '2026-10-30T10:15:00+01:00' } })).toBe('2026-10-30T10:15:00+01:00');
-    expect(lastmodSessio({ ...base, publica: { actualitzatEl: '2026-10-30' } })).toBe('2026-10-30');
+    const despres = new Date('2027-01-01T00:00:00Z');
+    expect(lastmodSessio({ ...base, publica: { actualitzatEl: '2026-10-30T10:15:00+01:00' } }, despres)).toBe('2026-10-30T10:15:00+01:00');
+    expect(lastmodSessio({ ...base, publica: { actualitzatEl: '2026-10-30' } }, despres)).toBe('2026-10-30');
   });
 
   it('ignora un actualitzatEl que no és una data ISO vàlida', () => {
@@ -156,7 +180,7 @@ describe('lastmodSessio: formats acceptats d\'actualitzatEl', () => {
   const base = { data: '2026-10-22', hora: '19:00' };
   it('accepta data sola, o hora amb Z o ofset (amb o sense segons i fracció)', () => {
     for (const bo of ['2026-10-30', '2024-02-29', '2026-10-30T10:15Z', '2026-10-30T10:15:00Z', '2026-10-30T10:15:00.123+01:00', '2026-10-30T10:15:00-05:30']) {
-      expect(lastmodSessio({ ...base, publica: { actualitzatEl: bo } }), bo).toBe(bo);
+      expect(lastmodSessio({ ...base, publica: { actualitzatEl: bo } }, new Date('2027-01-01T00:00:00Z')), bo).toBe(bo);
     }
   });
   it('el 29 de febrer d\'un any no de traspàs s\'ignora', () => {
@@ -203,15 +227,50 @@ describe('entradesSitemap (lastmod)', () => {
     privacitat: { slug: 'privacitat' },
     'fes-te-socia': { slug: 'fes-te-socia' },
   };
+  const ARA = new Date('2026-10-26T12:00:00Z');
   const entrades = async (extra = {}, pagines = paginesDades) => {
-    const llista = await entradesSitemap(dbFals({ sessions: llistaSessions, pagines, ...extra }));
+    const llista = await entradesSitemap(dbFals({ sessions: llistaSessions, pagines, ...extra }), ARA);
     return Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
   };
 
-  it('la portada i la programació usen la data del front matter de la seva pàgina', async () => {
+  it('la portada i la programació: el més recent entre el seu front matter i les sessions que pinten', async () => {
     const lm = await entrades();
-    expect(lm['/']).toBe('2026-08-20T00:00:00+00:00');
-    expect(lm['/programacio/']).toBe('2026-08-20T00:00:00+00:00');
+    expect(lm['/']).toBe('2026-10-08T19:00:00+02:00');
+    expect(lm['/programacio/']).toBe('2026-10-08T19:00:00+02:00');
+    const posterior = { ...paginesDades, portada: { dades: { date: '2026-10-20' } } };
+    expect((await entrades({}, posterior))['/']).toBe('2026-10-20T00:00:00+00:00');
+  });
+
+  it('amb updateTime de Firestore: només el fa servir la sessió futura (i el que la conté); res no és futur', async () => {
+    const futura = sessio('futura', '2027-01-14', { directors: ['Alauda Ruiz de Azúa'], interprets: ['Duane Jones'], generes: ['Drama'] }, { updateTime: '2026-10-25T10:00:00.000Z' });
+    const ambUpdate = llistaSessions.map((s) => ({ ...s, updateTime: '2026-10-24T09:00:00.000Z' }));
+    const llista = await entradesSitemap(dbFals({ sessions: [...ambUpdate, futura], pagines: paginesDades }), ARA);
+    const lm = Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
+    expect(lm['/programacio/2027/futura/']).toBe('2026-10-25T10:00:00Z');
+    expect(lm['/programacio/2026/los-domingos/']).toBe('2026-09-03T19:00:00+02:00');
+    expect(lm['/generes/drama/']).toBe('2026-10-25T10:00:00Z');
+    expect(lm['/directors/']).toBe('2026-10-25T10:00:00Z');
+    expect(lm['/']).toBe('2026-10-25T10:00:00Z');
+    for (const [cami, lastmod] of Object.entries(lm)) {
+      if (lastmod) expect(Date.parse(lastmod), cami).toBeLessThanOrEqual(ARA.getTime());
+    }
+  });
+
+  it('sense updateTime, una sessió futura no té lastmod i no avança el dels seus termes', async () => {
+    const futura = sessio('futura', '2027-01-14', { directors: ['Alauda Ruiz de Azúa'], interprets: ['Duane Jones'], generes: ['Drama'] });
+    const llista = await entradesSitemap(dbFals({ sessions: [...llistaSessions, futura], pagines: paginesDades }), ARA);
+    const lm = Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
+    expect(lm).toHaveProperty(['/programacio/2027/futura/'], null);
+    expect(lm['/generes/drama/']).toBe('2026-10-08T19:00:00+02:00');
+  });
+
+  it('els termes amb una sola sessió publicada no hi són (noindex); l\'índex de la taxonomia sí', async () => {
+    const lm = await entrades();
+    expect(lm).not.toHaveProperty(['/generes/terror/']);
+    expect(lm).not.toHaveProperty(['/directors/george-a.-romero/']);
+    expect(lm).not.toHaveProperty(['/interprets/miguel-garc%C3%A9s/']);
+    expect(lm).toHaveProperty(['/generes/drama/']);
+    expect(lm['/generes/']).toBe('2026-10-08T19:00:00+02:00');
   });
 
   it('cada sessió, la seva data amb ofset de Madrid', async () => {
@@ -224,7 +283,6 @@ describe('entradesSitemap (lastmod)', () => {
     const lm = await entrades();
     expect(lm['/directors/alauda-ruiz-de-az%C3%BAa/']).toBe('2026-10-08T19:00:00+02:00'); // l'oculta (2027) no compta
     expect(lm['/generes/drama/']).toBe('2026-10-08T19:00:00+02:00');
-    expect(lm['/generes/terror/']).toBe('2025-10-22T19:00:00+02:00');
     expect(lm['/interprets/duane-jones/']).toBe('2026-10-08T19:00:00+02:00');
     expect(lm['/generes/']).toBe('2026-10-08T19:00:00+02:00');
     expect(lm['/directors/']).toBe('2026-10-08T19:00:00+02:00');
@@ -264,20 +322,24 @@ describe('entradesSitemap (lastmod)', () => {
     for (const cami of ['/privacitat/', '/preguntes-frequents/', '/fes-te-socia/']) expect(lm[cami], cami).toBeNull();
   });
 
-  it('sense pàgina portada/programacio a Firestore tampoc no hi ha lastmod (però les URL hi són)', async () => {
+  it('sense pàgina portada/programacio a Firestore, el lastmod és el de les sessions (i sense sessions, cap)', async () => {
     const { portada, programacio, ...resta } = paginesDades;
     const lm = await entrades({}, resta);
-    expect(lm['/']).toBeNull();
-    expect(lm['/programacio/']).toBeNull();
+    expect(lm).toHaveProperty(['/']);
+    // Només la de les sessions que pinten.
+    expect(lm['/']).toBe('2026-10-08T19:00:00+02:00');
+    expect(lm['/programacio/']).toBe('2026-10-08T19:00:00+02:00');
+    const senseRes = await entradesSitemap(dbFals({ pagines: resta }), ARA);
+    expect(senseRes.find((e) => e.cami === '/')).toEqual({ cami: '/' });
   });
 
   it('actualitzatEl d\'una sessió reemplaça la seva data al sitemap, també al terme i a l\'índex', async () => {
-    const amb = llistaSessions.map((s) => (s.slug === 'un-altre' ? { ...s, publica: { ...s.publica, actualitzatEl: '2026-11-15T09:00:00+01:00' } } : s));
-    const llista = await entradesSitemap(dbFals({ sessions: amb, pagines: paginesDades }));
+    const amb = llistaSessions.map((s) => (s.slug === 'un-altre' ? { ...s, publica: { ...s.publica, actualitzatEl: '2026-10-15T09:00:00+02:00' } } : s));
+    const llista = await entradesSitemap(dbFals({ sessions: amb, pagines: paginesDades }), ARA);
     const lm = Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
-    expect(lm['/programacio/2026/un-altre/']).toBe('2026-11-15T09:00:00+01:00');
-    expect(lm['/generes/drama/']).toBe('2026-11-15T09:00:00+01:00');
-    expect(lm['/generes/']).toBe('2026-11-15T09:00:00+01:00');
+    expect(lm['/programacio/2026/un-altre/']).toBe('2026-10-15T09:00:00+02:00');
+    expect(lm['/generes/drama/']).toBe('2026-10-15T09:00:00+02:00');
+    expect(lm['/generes/']).toBe('2026-10-15T09:00:00+02:00');
     expect(lm['/programacio/2026/los-domingos/']).toBe('2026-09-03T19:00:00+02:00');
   });
 });

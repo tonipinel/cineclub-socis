@@ -82,6 +82,13 @@ function peca(buffer, { w, h }) {
 export async function componCollage(cartells, logo) {
   const valids = (await Promise.all(cartells.map(async (buffer) => ((await esRaster(buffer)) ? buffer : null)))).filter(Boolean);
   if (valids.length === 0) return null;
+  return compon(valids, logo);
+}
+
+// El mateix llenç només amb el logo centrat: la imatge de reserva quan no hi ha cap cartell.
+export const componNomesLogo = (logo) => compon([], logo);
+
+async function compon(valids, logo) {
   const { cells, logo: lloc } = calcularLayoutCollage(valids.length);
   const peces = await Promise.all(valids.map((buffer, i) => peca(buffer, cells[i])));
   const capes = [
