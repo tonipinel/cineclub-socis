@@ -53,12 +53,13 @@ export async function prepararDesat({
     publica = { ...netejarPublica(publica), aliases: afegirAlias(publica?.aliases, camiAntic) };
   }
   // `publica.actualitzatEl` (el `lastmod` del sitemap) només es mou amb un canvi real de la fitxa pública (no amb un
-  // formulari tocat i desfet o que en desar queda igual) o amb un alias nou (canvi de data o slug publicats). Mai
+  // formulari tocat i desfet o que en desar queda igual) o amb un alias nou (canvi de data o slug publicats) o amb un canvi d'hora d'una sessió publicada. Mai
   // amb `activa` ni amb els camps de gestió.
   const abans = { ...CAMPS_INICIALS, ...original };
   const publicaReal = publicaCanviada
     && !igual(senseActualitzatEl(publica), senseActualitzatEl(netejarPublica(original.publica)));
-  if (publicaReal || aliasNou) {
+  const horaPublicaCanviada = Boolean(nou.publicada) && nou.hora !== abans.hora;
+  if (publicaReal || aliasNou || horaPublicaCanviada) {
     publica = marcarActualitzada(publica, ara);
     nou.publica = publica;
     if (publica.cartell && publica.cartell !== original.publica?.cartell) nou.imatgeUrl = publica.cartell;

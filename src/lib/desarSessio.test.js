@@ -179,14 +179,30 @@ describe('prepararDesat', () => {
     expect(r.canvis.publica.actualitzatEl).toBe('2026-10-23');
   });
 
-  it('actualitzatEl: canviar només camps de gestió (hora, activa) no la mou', async () => {
+  it('actualitzatEl: activar la sessió (activa) no la mou', async () => {
     const publica = { titol: 'Peli', actualitzatEl: '2026-01-01' };
     const original = { titol: 'Peli', data: '2026-03-05', hora: '19:00', publicada: true, slug: 'peli', activa: false, publica };
     const inicial = publicaAFormulari(publica);
     const r = await preparar({
-      original, dades: { ...CAMPS_INICIALS, ...original, hora: '20:00', activa: true }, publicaForm: inicial, publicaInicial: inicial,
+      original, dades: { ...CAMPS_INICIALS, ...original, activa: true }, publicaForm: inicial, publicaInicial: inicial,
     });
-    expect(r.canvis).toEqual({ hora: '20:00' });
+    expect(r.canvis).toEqual({});
+  });
+
+  it('actualitzatEl: canviar l\'hora d\'una sessió publicada la mou, però no la d\'una sense publicar', async () => {
+    const publica = { titol: 'Peli', actualitzatEl: '2026-01-01' };
+    const original = { titol: 'Peli', data: '2026-03-05', hora: '19:00', publicada: true, slug: 'peli', activa: false, publica };
+    const inicial = publicaAFormulari(publica);
+    const publicada = await preparar({
+      original, dades: { ...CAMPS_INICIALS, ...original, hora: '20:00' }, publicaForm: inicial, publicaInicial: inicial,
+    });
+    expect(publicada.canvis.hora).toBe('20:00');
+    expect(publicada.canvis.publica.actualitzatEl).not.toBe('2026-01-01');
+    const esborrany = { ...original, publicada: false };
+    const senseConfirmar = await preparar({
+      original: esborrany, dades: { ...CAMPS_INICIALS, ...esborrany, hora: '20:00' }, publicaForm: inicial, publicaInicial: inicial,
+    });
+    expect(senseConfirmar.canvis).toEqual({ hora: '20:00' });
   });
 
   it('MISSATGE_ALIAS i CAMPS_INICIALS s\'exporten amb els valors originals', async () => {

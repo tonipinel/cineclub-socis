@@ -793,7 +793,7 @@ describe('SessionForm — pàgina pública', () => {
       .toHaveAttribute('href', 'https://cineclubrodadebera.cat/programacio/2026/pig/');
   });
 
-  it('desar una sessió publicada sense tocar res públic no envia urlProgramacio, publica ni actualitzatEl', async () => {
+  it('desar una sessió publicada només amb un canvi d\'hora no envia urlProgramacio i en mou actualitzatEl', async () => {
     const user = carregar({
       ...GESTIO, slug: 'pig', publicada: true, urlProgramacio: 'https://cineclubrodadebera.cat/programacio/pig-de-hugo/',
       publica: { titol: 'Pig', actualitzatEl: '2026-01-01' },
@@ -802,7 +802,10 @@ describe('SessionForm — pàgina pública', () => {
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(await desat()).toEqual({ hora: '20:00' });
+    const dades = await desat();
+    expect(dades.hora).toBe('20:00');
+    expect(dades).not.toHaveProperty('urlProgramacio');
+    expect(dades.publica.actualitzatEl).not.toBe('2026-01-01');
   });
 
   it('una descripció llarga ja desada no impedeix desar altres canvis', async () => {
@@ -814,7 +817,9 @@ describe('SessionForm — pàgina pública', () => {
     await user.clear(screen.getByLabelText('Hora d\'inici'));
     await user.type(screen.getByLabelText('Hora d\'inici'), '20:00');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    expect(await desat()).toEqual({ hora: '20:00' });
+    const dades = await desat();
+    expect(dades.hora).toBe('20:00');
+    expect(Object.keys(dades).sort()).toEqual(['hora', 'publica']);
   });
 
   it('editar la descripció d\'una sessió publicada a més de 160 caràcters avisa però desa', async () => {
