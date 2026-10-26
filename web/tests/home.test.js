@@ -87,7 +87,7 @@ describe('portada', () => {
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/">');
   });
 
-  it('inclou el JSON-LD del web (WebSite) i de l\'organització, amb el domicili i el lloc de les projeccions (sense sameAs inventats)', async () => {
+  it('inclou el JSON-LD del web (WebSite) i de l\'organització, amb el domicili i el lloc de les projeccions (sameAs només amb perfils reals)', async () => {
     const { html } = await renderitza(Portada, '/');
     const blocs = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
     expect(blocs).toHaveLength(1);
@@ -120,7 +120,7 @@ describe('portada', () => {
       },
       logo: 'https://cineclub-web.web.app/images/entitats/cineclub-roda-de-bera.png',
       name: 'Cineclub Roda de Berà',
-      sameAs: ['https://www.instagram.com/cineclub.rodadebera', 'https://www.facebook.com/cineclub.rodadebera'],
+      sameAs: ['https://www.instagram.com/cineclub.rodadebera', 'https://www.facebook.com/cineclub.rodadebera', 'https://www.google.com/maps?cid=17769984405956494360'],
       url: 'https://cineclub-web.web.app/',
     });
   });
