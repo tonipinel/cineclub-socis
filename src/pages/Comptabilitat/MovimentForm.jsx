@@ -80,7 +80,9 @@ function valorsFormulari(parametres, desat) {
     concepte: parametres.get('concepte') ?? '',
     tipus,
     categoria: categoria && disponibles.includes(categoria) ? categoria : disponibles[0],
-    metodePagament: METODES_INGRES[0],
+    metodePagament: METODES_INGRES.includes(parametres.get('metodePagament')) && tipus === TIPUS_MOVIMENT.INGRES
+      ? parametres.get('metodePagament')
+      : METODES_INGRES[0],
     direccio: DIRECCIONS_TRASPAS[0],
     preuUnitari: parametres.get('preuUnitari') ?? '',
     quantitat: parametres.get('quantitat') ?? '1',
@@ -286,6 +288,15 @@ function FitxaMoviment({ id, moviment }) {
     desa();
   };
 
+  const handleTreureAdjunt = async () => {
+    const confirmat = await confirma({
+      missatge: 'Segur que vols treure el document? S\'esborrarà en desar el moviment.',
+      perill: true,
+      etiquetaAcceptar: 'Treu',
+    });
+    if (confirmat) canvia('treureAdjunt', adjuntDesat.path);
+  };
+
   const handleEliminar = async () => {
     const confirmat = await confirma({
       missatge: 'Segur que vols eliminar aquest moviment? Aquesta acció no es pot desfer.',
@@ -457,19 +468,30 @@ function FitxaMoviment({ id, moviment }) {
       <div className="form__field" role="group" aria-labelledby="adjunt-titol">
         <span className="form__label" id="adjunt-titol">Document / factura</span>
         {mostraAdjuntDesat && (
-          <p className="moviment-form__adjunt">
-            {urlAdjuntActual ? (
-              <a className="enllac" href={urlAdjuntActual} target="_blank" rel="noreferrer">{adjuntDesat.nom}</a>
-            ) : adjuntDesat.nom}
-            <button
-              className="moviment-form__adjunt-treure"
-              type="button"
-              disabled={desant}
-              onClick={() => canvia('treureAdjunt', adjuntDesat.path)}
-            >
-              Treure
-            </button>
-          </p>
+          <>
+            <p className="moviment-form__adjunt">
+              <span className="moviment-form__adjunt-nom">
+                {urlAdjuntActual ? (
+                  <a className="enllac" href={urlAdjuntActual} target="_blank" rel="noreferrer">{adjuntDesat.nom}</a>
+                ) : adjuntDesat.nom}
+              </span>
+              <button
+                className="moviment-form__adjunt-treure"
+                type="button"
+                disabled={desant}
+                onClick={handleTreureAdjunt}
+                aria-label="Treure"
+                title="Treure el document"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+                </svg>
+              </button>
+            </p>
+            {urlAdjuntActual && (/\.pdf$/i.test(adjuntDesat.nom)
+              ? <iframe className="moviment-form__previsualitzacio" src={urlAdjuntActual} title={`Previsualització de ${adjuntDesat.nom}`} />
+              : <img className="moviment-form__previsualitzacio moviment-form__previsualitzacio--imatge" src={urlAdjuntActual} alt={`Previsualització de ${adjuntDesat.nom}`} />)}
+          </>
         )}
         {editant && !adjuntDesat && <p className="moviment-form__adjunt">Cap document adjunt.</p>}
         <SelectorFitxer

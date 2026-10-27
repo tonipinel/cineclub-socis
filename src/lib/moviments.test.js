@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  aportacionsPerRegistrar,
   calcularTotal,
   calcularSaldos,
   filtrarMoviments,
@@ -799,5 +800,33 @@ describe('rendibilitatPerSessio — ordre dels moviments', () => {
     const esperat = { s1: 2, s2: 3 };
     expect(rendibilitatPerSessio([alta, renovacio], [], sessions)).toEqual(esperat);
     expect(rendibilitatPerSessio([renovacio, alta], [], sessions)).toEqual(esperat);
+  });
+});
+
+describe('aportacionsPerRegistrar', () => {
+  const entrades = [{ preuAplicat: 5 }, { preuAplicat: 5 }, { preuAplicat: 5 }];
+  const aportacio = (quantitat, metodePagament) => ({
+    tipus: 'ingres', categoria: 'Aportacions', quantitat, total: quantitat * 5, metodePagament,
+  });
+
+  it('proposa tot el que falta sense mètode si encara no hi ha cap moviment', () => {
+    expect(aportacionsPerRegistrar(entrades, [])).toEqual({
+      estat: 'pendent', quantitat: 3, import: 15, preuUnitari: 5, metode: undefined,
+    });
+  });
+
+  it("proposa l'altre mètode i el que queda si només n'hi ha un de registrat", () => {
+    expect(aportacionsPerRegistrar(entrades, [aportacio(2, 'efectiu')])).toMatchObject({
+      estat: 'pendent', quantitat: 1, import: 5, metode: 'datafon',
+    });
+    expect(aportacionsPerRegistrar(entrades, [aportacio(1, 'datafon')])).toMatchObject({ quantitat: 2, metode: 'efectiu' });
+  });
+
+  it('quadra quan els imports coincideixen', () => {
+    expect(aportacionsPerRegistrar(entrades, [aportacio(2, 'efectiu'), aportacio(1, 'datafon')])).toEqual({ estat: 'quadra' });
+  });
+
+  it('avisa quan els moviments superen el que s\'ha escanejat', () => {
+    expect(aportacionsPerRegistrar(entrades, [aportacio(4, 'efectiu')])).toEqual({ estat: 'sobra', import: 5 });
   });
 });

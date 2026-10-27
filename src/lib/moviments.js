@@ -235,6 +235,29 @@ export function resumEconomicSessio(moviments) {
   return { ingressosPerCategoria, ingressosTotal, despesesTotal, balanc: ingressosTotal - despesesTotal };
 }
 
+// Compara les entrades genèriques escanejades amb els moviments d'"Aportacions" ja registrats. Si falta import i
+// entrades, proposa el que queda (i l'altre mètode si fins ara se n'ha fet servir un de sol entre efectiu i dàtafon).
+export function aportacionsPerRegistrar(entrades, moviments) {
+  const registrades = moviments.filter((m) => m.tipus === TIPUS_MOVIMENT.INGRES && m.categoria === 'Aportacions');
+  const centims = (valor) => Math.round((Number(valor) || 0) * 100);
+  const escanejat = entrades.reduce((total, e) => total + centims(e.preuAplicat), 0);
+  const registrat = registrades.reduce((total, m) => total + centims(m.total), 0);
+  const diferencia = escanejat - registrat;
+  if (diferencia === 0) return { estat: 'quadra' };
+  if (diferencia < 0) return { estat: 'sobra', import: -diferencia / 100 };
+  const quantitat = entrades.length - registrades.reduce((total, m) => total + (Number(m.quantitat) || 0), 0);
+  if (quantitat <= 0) return { estat: 'desquadra', import: diferencia / 100 };
+  const metodes = [...new Set(registrades.map((m) => m.metodePagament))];
+  const altre = { efectiu: 'datafon', datafon: 'efectiu' }[metodes[0]];
+  return {
+    estat: 'pendent',
+    quantitat,
+    import: diferencia / 100,
+    preuUnitari: diferencia / 100 / quantitat,
+    metode: metodes.length === 1 ? altre : undefined,
+  };
+}
+
 const MESOS_REFERENCIA = 3;
 const MESOS_PREVISIO = 12;
 const NOMS_MES = [

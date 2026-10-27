@@ -708,6 +708,7 @@ describe('MovimentForm — eliminar', () => {
     const user = userEvent.setup();
     await renderExistent({ ...MOVIMENT_EXISTENT, numeroSoci: 7, adjunt: ADJUNT });
     await user.click(within(grupAdjunt()).getByRole('button', { name: 'Treure' }));
+    await acceptaDialeg('Treu');
     await user.type(screen.getByLabelText('Concepte'), '!');
     await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     await acceptaDialeg('Elimina');
@@ -1162,7 +1163,8 @@ describe('MovimentForm — document / factura adjunt', () => {
     await renderExistent({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT });
     expect(grupAdjunt()).toContainElement(screen.getByLabelText('Canviar el document'));
     await user.click(within(grupAdjunt()).getByRole('button', { name: 'Treure' }));
-    expect(screen.getByLabelText('Adjuntar un document')).toBeInTheDocument();
+    await acceptaDialeg('Treu');
+    expect(await screen.findByLabelText('Adjuntar un document')).toBeInTheDocument();
     expect(within(grupAdjunt()).queryByRole('link', { name: 'factura.pdf' })).not.toBeInTheDocument();
     expect(textBarra()).toBe('Hi ha canvis sense desar');
     await user.click(within(barra()).getByRole('button', { name: 'Descartar canvis' }));
@@ -1304,11 +1306,22 @@ describe('MovimentForm — document / factura adjunt', () => {
     expect(setDoc.mock.calls[1][1]).toEqual({ ...MOVIMENT_EXISTENT, concepte: 'Quotes de març!', adjunt: ADJUNT_NOU });
   });
 
+  it('no treu el document si es cancel·la la confirmació', async () => {
+    const user = userEvent.setup();
+    await renderExistent({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT });
+    await user.click(within(grupAdjunt()).getByRole('button', { name: 'Treure' }));
+    expect(await dialegConfirmacio()).toHaveTextContent('Segur que vols treure el document?');
+    await cancellaDialeg(user);
+    expect(within(grupAdjunt()).getByRole('link', { name: 'factura.pdf' })).toBeInTheDocument();
+    expect(textBarra()).not.toBe('Hi ha canvis sense desar');
+  });
+
   it('en treure el document, no el desa, l\'esborra de l\'emmagatzematge i se\'n pot adjuntar un altre després', async () => {
     pujarAdjunt.mockResolvedValue(ADJUNT_NOU);
     const user = userEvent.setup();
     await renderExistent({ ...MOVIMENT_EXISTENT, adjunt: ADJUNT });
     await user.click(within(grupAdjunt()).getByRole('button', { name: 'Treure' }));
+    await acceptaDialeg('Treu');
     await user.click(botoDesar());
     await esperaDesat();
     expect(setDoc.mock.calls[0][1]).toEqual(MOVIMENT_EXISTENT);

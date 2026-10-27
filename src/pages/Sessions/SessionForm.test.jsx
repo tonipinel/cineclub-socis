@@ -227,6 +227,37 @@ describe('SessionForm — desglossament econòmic', () => {
     getDocs.mockResolvedValue({ docs: [] });
   });
 
+  it('mostra el mètode de cada moviment i la icona del document adjunt', async () => {
+    getDoc.mockResolvedValueOnce({
+      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
+    });
+    onSnapshot
+      .mockImplementationOnce((q, callback) => {
+        callback({ docs: [] });
+        return () => {};
+      })
+      .mockImplementationOnce((q, callback) => {
+        callback({
+          docs: [
+            {
+              id: 'm1',
+              data: () => ({
+                tipus: 'despesa', concepte: 'Lloguer pel·lícula', data: '2026-03-05', metodePagament: 'banc', total: 30,
+                adjunt: { path: 'factures/x/lloguer.pdf', nom: 'lloguer.pdf' },
+              }),
+            },
+            { id: 'm2', data: () => ({ tipus: 'ingres', concepte: 'Quotes', data: '2026-03-05', metodePagament: 'efectiu', total: 10 }) },
+          ],
+        });
+        return () => {};
+      });
+    renderEnEdicio();
+    expect(await screen.findByText('Despesa · Banc')).toBeInTheDocument();
+    expect(screen.getByText('Ingrés · Efectiu')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Veure el document/ })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Veure el document lloguer.pdf' })).toBeInTheDocument();
+  });
+
   it('mostra els ingressos per categoria i detall (preu i mètode), les despeses i el balanç', async () => {
     getDoc.mockResolvedValueOnce({
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
@@ -279,7 +310,7 @@ describe('SessionForm — desglossament econòmic', () => {
     expect(desglossament.getByText('Balanç')).toBeInTheDocument();
     expect(desglossament.getByText('36.00€')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: "Afegir moviment d'aquesta sessió" })).toHaveAttribute(
-      'href', '/comptabilitat/nou?sessionId=1'
+      'href', '/comptabilitat/nou?sessionId=1&data=2026-03-05'
     );
   });
 
@@ -345,7 +376,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
         return () => {};
       });
     renderEnEdicio();
-    expect(await screen.findByText("Falta afegir les 2 aportacions d'aquesta sessió per un total de 10.00€.")).toBeInTheDocument();
+    expect(await screen.findByText("Falten 2 aportacions d'aquesta sessió per un total de 10.00€.")).toBeInTheDocument();
     const enllac = screen.getByRole('link', { name: 'Afegir-les ara' });
     expect(enllac).toHaveAttribute(
       'href',
@@ -375,7 +406,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
       });
     renderEnEdicio();
     await screen.findByText('Desglossament econòmic');
-    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Falten \d+ aportacions/)).not.toBeInTheDocument();
   });
 
   it('no avisa si no hi ha cap entrada genèrica escanejada', async () => {
@@ -384,7 +415,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
     });
     renderEnEdicio();
     await screen.findByText('Desglossament econòmic');
-    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Falten \d+ aportacions/)).not.toBeInTheDocument();
   });
 
   it('no compta les entrades genèriques a 0€ ni a l\'avís ni a l\'enllaç', async () => {
@@ -406,7 +437,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
         return () => {};
       });
     renderEnEdicio();
-    expect(await screen.findByText("Falta afegir les 1 aportacions d'aquesta sessió per un total de 5.00€.")).toBeInTheDocument();
+    expect(await screen.findByText("Falten 1 aportacions d'aquesta sessió per un total de 5.00€.")).toBeInTheDocument();
     const enllac = screen.getByRole('link', { name: 'Afegir-les ara' });
     expect(enllac).toHaveAttribute(
       'href',
@@ -429,7 +460,7 @@ describe('SessionForm — avís d\'aportacions pendents', () => {
       });
     renderEnEdicio();
     await screen.findByText('Desglossament econòmic');
-    expect(screen.queryByText(/Falta afegir/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Falten \d+ aportacions/)).not.toBeInTheDocument();
   });
 });
 

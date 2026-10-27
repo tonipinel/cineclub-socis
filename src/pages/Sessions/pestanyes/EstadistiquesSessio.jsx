@@ -7,12 +7,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { db } from '../../../firebase/firebase';
 import { resumAccessLog, entradesPerFranjaHorariaFixa } from '../../../lib/escaneig';
 import {
-  resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS,
+  resumEconomicSessio, ordenarMoviments, formatEuros, classeSigne, ETIQUETES_METODE, ETIQUETES_TIPUS, ETIQUETES_DIRECCIO,
+  aportacionsPerRegistrar,
 } from '../../../lib/moviments';
 import { formatData } from '../../../lib/data';
 import { sessionsAmbControl } from '../../../lib/sessions';
 import * as ROUTES from '../../../constants/routes';
 import BotoAfegir from '../../../components/BotoAfegir';
+import EnllacAdjunt from '../../../components/EnllacAdjunt';
 import ErrorCarrega from '../../../components/ErrorCarrega';
 import useErrorCarrega from '../../../lib/useErrorCarrega';
 
@@ -114,22 +116,20 @@ export default function EstadistiquesSessio({ id, sessio }) {
   const comparacioSocis = comparativa(resum.socisDistints, resumAnterior?.socisDistints);
   const comparacioAportacions = comparativa(resum.entradesGeneriques, resumAnterior?.entradesGeneriques);
   const comparacioTotal = comparativa(totalPersones, totalPersonesAnterior);
-  // Avisem si a la porta s'han escanejat entrades genèriques (no-socis) amb
-  // cost però encara no s'ha registrat el moviment d'"Aportacions"
-  // corresponent — un oblit fàcil, ja que és un pas manual separat de
-  // l'escaneig. Les entrades a 0€ (cortesies, mode prova, etc.) no compten:
-  // no generen cap aportació a registrar.
+  // Avisem si les aportacions escanejades (entrades genèriques amb cost) no quadren amb els moviments d'"Aportacions"
+  // registrats: un pas manual separat de l'escaneig, i el pagament pot ser en més d'un mètode.
   const entradesAportacio = entradesAccessLog.filter((e) => e.tipus === 'generic' && (e.preuAplicat ?? 0) > 0);
-  const importAportacions = entradesAportacio.reduce((total, e) => total + e.preuAplicat, 0);
-  const aportacionsPendents = entradesAportacio.length > 0 && !resumEconomic.ingressosPerCategoria['Aportacions'];
-  const enllacAfegirAportacions = `${ROUTES.COMPTABILITAT_NOU}?${new URLSearchParams({
+  const aportacions = aportacionsPerRegistrar(entradesAportacio, moviments);
+  const enllacAfegirMoviment = `${ROUTES.COMPTABILITAT_NOU}?${new URLSearchParams({ sessionId: id, data: dades.data ?? '' })}`;
+  const enllacAfegirAportacions = aportacions.estat === 'pendent' && `${ROUTES.COMPTABILITAT_NOU}?${new URLSearchParams({
     sessionId: id,
-    data: dades.data,
+    data: dades.data ?? '',
     tipus: 'ingres',
     categoria: 'Aportacions',
     concepte: 'Aportacions',
-    preuUnitari: String(importAportacions / entradesAportacio.length),
-    quantitat: String(entradesAportacio.length),
+    preuUnitari: String(aportacions.preuUnitari),
+    quantitat: String(aportacions.quantitat),
+    ...(aportacions.metode ? { metodePagament: aportacions.metode } : {}),
   })}`;
 
   return (
@@ -220,13 +220,23 @@ export default function EstadistiquesSessio({ id, sessio }) {
           <div className="session-form__bloc">
             <div className="session-form__capcalera">
               <h2 className="session-form__subtitol">Moviments</h2>
-              <BotoAfegir to={`${ROUTES.COMPTABILITAT_NOU}?sessionId=${id}`} etiqueta="Afegir moviment d'aquesta sessió" compacte />
+              <BotoAfegir to={enllacAfegirMoviment} etiqueta="Afegir moviment d'aquesta sessió" compacte />
             </div>
-            {aportacionsPendents && (
+            {aportacions.estat === 'pendent' && (
               <p className="session-form__avis">
-                Falta afegir les {entradesAportacio.length} aportacions d'aquesta sessió per un total de {formatEuros(importAportacions)}.
+                Falten {aportacions.quantitat} aportacions d'aquesta sessió per un total de {formatEuros(aportacions.import)}.
                 {' '}
                 <Link className="enllac" to={enllacAfegirAportacions}>Afegir-les ara</Link>
+              </p>
+            )}
+            {aportacions.estat === 'sobra' && (
+              <p className="session-form__avis">
+                Els moviments d'aportacions superen en {formatEuros(aportacions.import)} el que s'ha escanejat. Revisa'ls.
+              </p>
+            )}
+            {aportacions.estat === 'desquadra' && (
+              <p className="session-form__avis">
+                Als moviments d'aportacions els falten {formatEuros(aportacions.import)} respecte al que s'ha escanejat, però ja hi ha tantes entrades com aportacions. Revisa'ls.
               </p>
             )}
             {movimentsOrdenats.length === 0 && <p>Encara no hi ha cap moviment d'aquesta sessió.</p>}
@@ -234,11 +244,17 @@ export default function EstadistiquesSessio({ id, sessio }) {
               {movimentsOrdenats.map((moviment) => (
                 <li key={moviment.id} className="session-form__moviment-fila">
                   <span className="session-form__hora">{formatData(moviment.data)}</span>
-                  <Link className="enllac session-form__moviment-concepte" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
-                    {moviment.concepte}
-                  </Link>
+                  <span className="session-form__moviment-concepte">
+                    <Link className="enllac" to={ROUTES.COMPTABILITAT_EDITAR.replace(':id', moviment.id)}>
+                      {moviment.concepte}
+                    </Link>
+                    {moviment.adjunt && <EnllacAdjunt adjunt={moviment.adjunt} />}
+                  </span>
                   <span className={`badge badge--${moviment.tipus}`}>
-                    {ETIQUETES_TIPUS[moviment.tipus] ?? moviment.tipus}
+                    {[
+                      ETIQUETES_TIPUS[moviment.tipus] ?? moviment.tipus,
+                      moviment.tipus === 'traspas' ? ETIQUETES_DIRECCIO[moviment.direccio] : ETIQUETES_METODE[moviment.metodePagament],
+                    ].filter(Boolean).join(' · ')}
                   </span>
                   <span className={`session-form__moviment-total ${moviment.tipus === 'traspas' ? '' : classeSigne(moviment.tipus === 'despesa' ? -1 : 1)}`}>
                     {moviment.tipus === 'traspas' ? '' : moviment.tipus === 'despesa' ? '−' : '+'}

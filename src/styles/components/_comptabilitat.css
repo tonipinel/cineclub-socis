@@ -148,6 +148,15 @@
 .moviment-form__adjunt {
   @apply flex items-center justify-between gap-2 text-sm;
 }
+.moviment-form__adjunt-nom {
+  @apply mr-auto min-w-0 truncate;
+}
+.moviment-form__previsualitzacio {
+  @apply h-[70vh] w-full rounded border border-black/10 bg-black/5;
+}
+.moviment-form__previsualitzacio--imatge {
+  @apply h-auto max-h-[70vh] object-contain;
+}
 .moviment-form__adjunt-treure {
-  @apply text-xs font-semibold uppercase tracking-wide text-gold-dark underline decoration-dotted;
+  @apply p-1 text-gold-dark hover:text-black;
 }
