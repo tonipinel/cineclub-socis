@@ -10,6 +10,7 @@ describe('maxInstances', () => {
       desarFitxaNovaProposta: 5,
       cercarPellicules: 10,
       assignarPellicula: 10,
+      importarGaleriaSessio: 10,
       estatVotacio: 10,
       votarProposta: 10,
       rankingTanda: 10,

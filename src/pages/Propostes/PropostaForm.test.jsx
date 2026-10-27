@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('../../firebase/firebase', () => ({ db: {}, storage: { app: { options: { storageBucket: 'cinema.test' } } } }));
 vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn(), deleteObject: vi.fn() }));
-vi.mock('../../lib/pellicules', () => ({ cercarPellicules: vi.fn(), assignarPellicula: vi.fn() }));
+vi.mock('../../lib/pellicules', () => ({ cercarPellicules: vi.fn(), assignarPellicula: vi.fn(), importarGaleriaSessio: vi.fn() }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
@@ -24,7 +24,7 @@ import {
   collection, deleteDoc, doc, getDoc, getDocs, runTransaction, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
-import { assignarPellicula, cercarPellicules } from '../../lib/pellicules';
+import { assignarPellicula, cercarPellicules, importarGaleriaSessio } from '../../lib/pellicules';
 import PropostaForm from './PropostaForm';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -1386,13 +1386,13 @@ describe('PropostaForm: Programar sessió', () => {
 
   // `estatTx` i `sessioTx`: l'estat de la proposta i si la sessió existeix DINS de la transacció.
   function prepararProgramar({
-    sessionsDespres, estatTx = 'aprovada', sessioTx = false, proposta = APROVADA,
+    sessionsDespres, estatTx = 'aprovada', sessioTx = false, galeriaTx, proposta = APROVADA,
   } = {}) {
     preparar({ proposta, interna: INTERNA, sessionsDespres });
     tx = {
       get: vi.fn(async (ref) => (ref.path === 'propostes/p1'
         ? { data: () => ({ estat: estatTx }) }
-        : { exists: () => sessioTx })),
+        : { exists: () => sessioTx, data: () => (sessioTx ? { publica: { galeria: galeriaTx } } : undefined) })),
       set: vi.fn(),
       update: vi.fn(),
     };
@@ -1538,6 +1538,102 @@ describe('PropostaForm: Programar sessió', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut programar la sessió");
     expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
     senseEscriptures();
+  });
+
+  describe('galeria de TMDB', () => {
+    const AMB_IMATGES = { ...APROVADA, imatges: ['/a.jpg', '/b.jpg'] };
+    const AVIS = "No s'han pogut importar les imatges de TMDB; pots pujar-les a mà.";
+
+    beforeEach(() => {
+      importarGaleriaSessio.mockReset().mockResolvedValue({ estat: 'importada', galeria: ['u1', 'u2'], fallades: 0 });
+    });
+
+    it('després de crear la sessió hi importa la galeria i, quan acaba, obre la fitxa de la sessió', async () => {
+      prepararProgramar({ proposta: AMB_IMATGES });
+      let acaba;
+      importarGaleriaSessio.mockImplementation(() => new Promise((r) => { acaba = () => r({ estat: 'importada', galeria: ['u1'], fallades: 0 }); }));
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      await waitFor(() => expect(importarGaleriaSessio).toHaveBeenCalledWith('proposta-p1'));
+      expect(tx.set).toHaveBeenCalledTimes(1);
+      // La fitxa de la sessió no s'obre (ni la llegeix) fins que la galeria és escrita.
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      acaba();
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(hiHaDialegConfirmacio()).toBe(false);
+    });
+
+    it.each([
+      ['si la crida falla', () => importarGaleriaSessio.mockRejectedValue(new Error('internal')), AVIS],
+      ['si no se n\'ha pogut baixar cap', () => importarGaleriaSessio.mockResolvedValue({ estat: 'error', galeria: [], fallades: 2 }), AVIS],
+      ['si n\'ha fallat alguna', () => importarGaleriaSessio.mockResolvedValue({ estat: 'importada', galeria: ['u1', 'u2', 'u3'], fallades: 1 }),
+        "S'han importat 3 de 4 imatges de TMDB; la resta les pots pujar a mà."],
+    ])('%s, avisa sense perdre la sessió i n\'obre la fitxa', async (_nom, configura, text) => {
+      prepararProgramar({ proposta: AMB_IMATGES });
+      configura();
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      expect(await screen.findByText(text)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await acceptaDialeg('Entesos');
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(tx.set).toHaveBeenCalledTimes(1);
+      expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
+    });
+
+    it('sense imatges a la proposta no la crida', async () => {
+      prepararProgramar();
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(importarGaleriaSessio).not.toHaveBeenCalled();
+    });
+
+    it('si la sessió ja existia sense galeria, la torna a provar (la callable no sobreescriu res)', async () => {
+      prepararProgramar({ proposta: AMB_IMATGES, sessioTx: true });
+      importarGaleriaSessio.mockRejectedValue(new Error('internal'));
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      expect(await screen.findByText("Aquesta proposta ja té una sessió: s'obre per editar-la.")).toBeInTheDocument();
+      expect(importarGaleriaSessio).toHaveBeenCalledWith('proposta-p1');
+      await acceptaDialeg('Entesos');
+      expect(await screen.findByText(AVIS)).toBeInTheDocument();
+      await acceptaDialeg('Entesos');
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(tx.set).not.toHaveBeenCalled();
+    });
+
+    it.each([[['https://meva']], ['https://meva']])('si la sessió ja existia amb galeria (%j) no la crida', async (galeriaTx) => {
+      prepararProgramar({ proposta: AMB_IMATGES, sessioTx: true, galeriaTx });
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      await acceptaDialeg('Entesos');
+      expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
+      expect(importarGaleriaSessio).not.toHaveBeenCalled();
+    });
+
+    it('si l\'admin surt de la fitxa mentre s\'importa, després no l\'avisa ni el porta a la sessió', async () => {
+      prepararProgramar({ proposta: AMB_IMATGES });
+      let falla;
+      importarGaleriaSessio.mockImplementation(() => new Promise((_r, rebutja) => { falla = () => rebutja(new Error('x')); }));
+      const user = userEvent.setup();
+      renderFitxa();
+      await programar(user);
+      await waitFor(() => expect(importarGaleriaSessio).toHaveBeenCalled());
+      await user.click(screen.getByRole('link', { name: '← Propostes' }));
+      expect(await screen.findByText('Llistat de propostes')).toBeInTheDocument();
+      falla();
+      await new Promise((r) => { setTimeout(r, 20); });
+      expect(hiHaDialegConfirmacio()).toBe(false);
+      expect(screen.queryByText(AVIS)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      expect(screen.getByText('Llistat de propostes')).toBeInTheDocument();
+    });
   });
 
   it('un doble clic fa una sola transacció', async () => {

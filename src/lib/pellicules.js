@@ -12,3 +12,9 @@ export async function assignarPellicula(propostaId, tmdbId, { sobreescriure = fa
   const { data } = await httpsCallable(functions, 'assignarPellicula')({ propostaId, tmdbId, sobreescriure });
   return data;
 }
+
+// Escenes de TMDB de la proposta com a galeria de la sessió (vegeu functions/galeria-sessio.js).
+export async function importarGaleriaSessio(sessioId) {
+  const { data } = await httpsCallable(functions, 'importarGaleriaSessio', { timeout: 70_000 })({ sessioId });
+  return data;
+}

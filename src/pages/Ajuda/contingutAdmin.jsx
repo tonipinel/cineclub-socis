@@ -252,6 +252,7 @@ const TASQUES = {
           <ol>
             <li>Obre la proposta i toca «Programar sessió». Confirma-ho.</li>
             <li>Es crea una sessió sense publicar i sense data, la proposta passa a «Programada» i s'obre la fitxa de la sessió. Més endavant, «Veure la sessió» de la proposta hi torna.</li>
+            <li>La galeria s'omple amb les imatges de TMDB de la proposta. Mentre s'importen, no tinguis oberta la fitxa d'aquesta sessió en una altra pestanya: si hi desessis canvis, la galeria quedaria buida.</li>
           </ol>
           <p>O des de zero:</p>
           <ol>

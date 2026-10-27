@@ -16,6 +16,7 @@ const { gestionarNovaSolicitud, comptarDelFormulariDesDe } = require('./solicitu
 const { crearPropostaAmbDependencies } = require('./proposta');
 const { sincronitzarSociPorta } = require('./socis-porta');
 const { activarCarnet } = require('./activacio-carnet');
+const { importarGaleriaSessio } = require('./galeria-sessio');
 const usuaris = require('./usuaris');
 
 initializeApp();
@@ -110,6 +111,20 @@ exports.assignarPellicula = onCall({ secrets: SECRETS, maxInstances: MAX_CALLABL
     return await desarFitxa(propostaId, tmdbId, { sobreescriure: sobreescriure === true });
   } catch (error) {
     if (error.codi === 'not-found') throw new HttpsError('not-found', error.message);
+    throw error;
+  }
+});
+
+// En programar una sessió des d'una proposta, l'admin hi importa les escenes de TMDB de la proposta com a galeria
+// (només si encara no en té). La lògica (validació, límits, camí a Storage, transacció) és a `galeria-sessio.js`.
+exports.importarGaleriaSessio = onCall({ timeoutSeconds: 60, maxInstances: MAX_CALLABLES }, async (request) => {
+  try {
+    const { estat, galeria, fallades } = await importarGaleriaSessio({
+      auth: getAuth(), db: getFirestore(), bucket: getStorage().bucket(), log: (missatge) => logger.warn(missatge),
+    }, request);
+    return { estat, galeria, fallades };
+  } catch (error) {
+    if (error.codi) throw new HttpsError(error.codi, error.message);
     throw error;
   }
 });

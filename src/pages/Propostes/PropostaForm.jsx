@@ -17,7 +17,7 @@ import {
 import {
   CAMPS_PELLICULA, ETIQUETES_CAMPS, esCampEditat, fitxaAFormulari, prepararDesatFitxa,
 } from '../../lib/fitxaProposta';
-import { assignarPellicula } from '../../lib/pellicules';
+import { assignarPellicula, importarGaleriaSessio } from '../../lib/pellicules';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import Carregant from '../../components/Carregant';
 import { useConfirmacio } from '../../components/ConfirmacioProvider';
@@ -48,6 +48,16 @@ const ERROR_PROGRAMADA_MENTRESTANT = "No es pot eliminar: mentrestant s'ha progr
 // Per què la barra no deixa desar (els mateixos textos que la nota de «Programar sessió»).
 const MOTIU_TMDB = "S'està actualitzant la fitxa des de TMDB…";
 const MOTIU_PUJADA = "S'està pujant el cartell…";
+const AVIS_GALERIA = "No s'han pogut importar les imatges de TMDB; pots pujar-les a mà.";
+const galeriaBuida = (galeria) => galeria == null || galeria === '' || (Array.isArray(galeria) && galeria.length === 0);
+
+// Resultat de `importarGaleriaSessio` (null si la crida ha fallat) → el text de l'avís, o null si no cal.
+function avisImportacio(resultat) {
+  if (!resultat || resultat.estat === 'error') return AVIS_GALERIA;
+  if (resultat.estat !== 'importada' || !(resultat.fallades > 0)) return null;
+  const importades = resultat.galeria.length;
+  return `S'han importat ${importades} de ${importades + resultat.fallades} imatges de TMDB; la resta les pots pujar a mà.`;
+}
 
 const docsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 const perOrdreDePestanya = (a, b) => PESTANYES.indexOf(a) - PESTANYES.indexOf(b);
@@ -123,6 +133,11 @@ function FitxaProposta({
   const [clauCercador, setClauCercador] = useState(0);
   // Bloqueja un segon «Programar» mentre el diàleg de confirmació és obert.
   const programantRef = useRef(false);
+  const muntatRef = useRef(true);
+  useEffect(() => {
+    muntatRef.current = true;
+    return () => { muntatRef.current = false; };
+  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { confirma, avisa } = useConfirmacio();
@@ -288,16 +303,27 @@ function FitxaProposta({
       const propostaRef = doc(db, 'propostes', id);
       const sessioRef = doc(db, 'sessions', sessioId);
       const { sessio: novaSessio } = construirSessioDesDeProposta(proposta, { propostaId: id, avui: new Date() });
-      const existia = await runTransaction(db, async (tx) => {
+      const { existia, senseGaleria } = await runTransaction(db, async (tx) => {
         const estatTx = (await tx.get(propostaRef)).data()?.estat;
-        const existeix = (await tx.get(sessioRef)).exists();
+        const snapSessio = await tx.get(sessioRef);
+        const existeix = snapSessio.exists();
         if (!existeix && estatTx !== 'aprovada') throw new Error(ERROR_NO_APROVADA);
         if (!existeix) tx.set(sessioRef, novaSessio);
         if (estatTx === 'aprovada') tx.update(propostaRef, { estat: 'programada' });
-        return existeix;
+        return { existia: existeix, senseGaleria: !existeix || galeriaBuida(snapSessio.data?.()?.publica?.galeria) };
       });
+      // La galeria s'escriu ABANS d'obrir la fitxa (que llegeix la sessió en muntar-se): si no, un «Desar» posterior
+      // la tornaria a deixar buida. També es torna a provar amb una sessió que ja existia sense galeria (la callable
+      // no sobreescriu res). Si falla, la sessió ja hi és: només s'avisa.
+      let avisGaleria = null;
+      if (senseGaleria && Array.isArray(proposta.imatges) && proposta.imatges.length > 0) {
+        avisGaleria = avisImportacio(await importarGaleriaSessio(sessioId).catch(() => null));
+      }
+      // Si mentrestant l'admin ha sortit de la fitxa, no se l'avisa ni se l'hi porta.
+      if (!muntatRef.current) return;
       if (existia) await avisa({ missatge: 'Aquesta proposta ja té una sessió: s\'obre per editar-la.' });
-      navigate(ROUTES.SESSIONS_EDITAR.replace(':id', sessioId));
+      if (avisGaleria && muntatRef.current) await avisa({ missatge: avisGaleria });
+      if (muntatRef.current) navigate(ROUTES.SESSIONS_EDITAR.replace(':id', sessioId));
     } catch (e) {
       setErrorProgramar(e.message === ERROR_NO_APROVADA ? ERROR_NO_APROVADA : "No s'ha pogut programar la sessió. Torna-ho a provar.");
       setProgramant(false);
