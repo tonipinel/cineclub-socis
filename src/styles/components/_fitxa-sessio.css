@@ -118,6 +118,18 @@
 .fitxa-sessio__targeta {
   @apply flex min-w-0 flex-col gap-2 rounded border border-black/10 p-4;
 }
+.fitxa-sessio__targeta--privada {
+  @apply border-gold-dark/40 bg-gold/5;
+}
+.fitxa-sessio__privat {
+  @apply rounded-full bg-black px-3 py-0.5 font-body text-xs font-semibold normal-case tracking-normal text-white;
+}
+.fitxa-sessio__ajuda {
+  @apply text-xs text-black/70;
+}
+.fitxa-sessio__accions {
+  @apply flex flex-wrap items-center gap-4;
+}
 .fitxa-sessio__targeta-titol {
   @apply m-0 mb-2 font-display text-sm font-bold uppercase tracking-wide text-black;
 }

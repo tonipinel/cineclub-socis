@@ -1,3 +1,4 @@
+import { internaAFormulari } from '../../lib/internaProposta';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ref, uploadBytes } from 'firebase/storage';
@@ -63,11 +64,6 @@ const docsDe = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 const perOrdreDePestanya = (a, b) => PESTANYES.indexOf(a) - PESTANYES.indexOf(b);
 const pestanyaDe = (camp) => PESTANYA_DEL_CAMP[camp] ?? 'gestio';
 
-const internaAFormulari = (interna) => ({
-  preu: String(interna?.preu ?? ''),
-  condicions: interna?.condicions ?? '',
-  distribuidoraId: interna?.distribuidoraId ?? '',
-});
 
 // Sessions creades des de la proposta (consulta nova al servidor; el filtre local només reforça el `where`).
 async function sessionsDeLaProposta(id) {

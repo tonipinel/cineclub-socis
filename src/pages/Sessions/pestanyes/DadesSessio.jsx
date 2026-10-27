@@ -6,6 +6,7 @@ import * as ROUTES from '../../../constants/routes';
 import SelectorEntitats from '../../../components/SelectorEntitats';
 import { FITXA, GESTIO, SECCIONS, VERSIONS } from '../camps';
 import Camp from './Camp';
+import GestioInternaSessio from './GestioInternaSessio';
 
 const CAMPS_SESSIO = [
   ['titol', 'Títol original', 'text', "En l'idioma de la pel·lícula. És el títol principal de la web i de l'admin."],
@@ -56,7 +57,7 @@ export function TargetaSessio({ dades, onCanviDades, titolOriginalDesat = '' }) 
 
 export default function DadesSessio({
   dades, onCanviDades, form, onCanviForm, errors, altresSessions, urlPagina, entitats = [], organitzaDesat = '',
-  distribuidores = [], distribucioDesada = { nom: '', id: '' }, original = {},
+  distribuidores = [], distribucioDesada = { nom: '', id: '' }, original = {}, interna = null, onCanviInterna,
 }) {
   const slug = dades.slug ?? '';
   const any = typeof dades.data === 'string' ? dades.data.slice(0, 4) : '';
@@ -205,6 +206,8 @@ export default function DadesSessio({
           <Link className="enllac selector-entitats__gestionar" to={ROUTES.DISTRIBUIDORES}>Gestionar distribuïdores</Link>
         </div>
       </section>
+
+      {interna && <GestioInternaSessio interna={interna} onCanviInterna={onCanviInterna} distribuidores={distribuidores} />}
 
       <section className="fitxa-sessio__targeta" aria-labelledby="targeta-avancat">
         <h2 className="fitxa-sessio__targeta-titol" id="targeta-avancat">Avançat</h2>

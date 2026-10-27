@@ -3,10 +3,11 @@ import {
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch,
+  addDoc, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { publicaAFormulari, urlPublica } from '../../lib/sessioPublica';
+import { internaAFormulari, internaADesar, internaHaCanviat } from '../../lib/internaProposta';
 import {
   CAMPS_INICIALS, MISSATGE_ALIAS, campsCanviats, prepararDesat,
 } from '../../lib/desarSessio';
@@ -101,6 +102,10 @@ function FitxaSessio({ id }) {
   const [pujades, setPujades] = useState(0);
   // Cada «Descartar» remunta la pestanya perquè l'estat local dels components torni a partir dels valors desats.
   const [versioDescart, setVersioDescart] = useState(0);
+  // Gestió interna (privada): és la de la proposta d'origen (`propostesInternes/{propostaId}`), i es desa amb la sessió.
+  // `null` mentre no es llegeix (o si la sessió no ve d'una proposta); `internaInicial` és l'últim estat desat.
+  const [interna, setInterna] = useState(null);
+  const [internaInicial, setInternaInicial] = useState(null);
   const desantRef = useRef(false);
   const idsAEnfocar = useRef(null);
   const temporitzadorDesat = useRef(null);
@@ -109,7 +114,8 @@ function FitxaSessio({ id }) {
   const { confirma } = useConfirmacio();
 
   const canvis = campsCanviats(dades, original, publicaForm, publicaInicial);
-  const hiHaCanvis = canvis.dades.length > 0 || canvis.publica.length > 0;
+  const internaCanviada = internaHaCanviat(interna, internaInicial);
+  const hiHaCanvis = canvis.dades.length > 0 || canvis.publica.length > 0 || internaCanviada;
   useAvisSortida(hiHaCanvis && !desant);
 
   useEffect(() => {
@@ -132,6 +138,19 @@ function FitxaSessio({ id }) {
     }).catch((e) => { if (actiu) fallaCarrega(e); });
     return () => { actiu = false; };
   }, [id, editant, intentCarrega, fallaCarrega]);
+
+  const propostaId = original.propostaId;
+  useEffect(() => {
+    if (!editant || !propostaId) return undefined;
+    let actiu = true;
+    getDoc(doc(db, 'propostesInternes', propostaId)).then((snap) => {
+      if (!actiu) return;
+      const form = internaAFormulari(snap.data());
+      setInterna(form);
+      setInternaInicial(form);
+    }).catch(() => {});
+    return () => { actiu = false; };
+  }, [editant, propostaId]);
 
   // Només per avisar d'un slug repetit mentre s'edita (el desat torna a llegir les sessions): si falla, queda buida.
   useEffect(() => {
@@ -186,6 +205,11 @@ function FitxaSessio({ id }) {
     setPublicaForm((f) => ({ ...f, [camp]: typeof valor === 'function' ? valor(f[camp]) : valor }));
   };
 
+  const onCanviInterna = (camp, valor) => {
+    editat();
+    setInterna((i) => ({ ...i, [camp]: valor }));
+  };
+
   const onPujant = (comenca) => setPujades((n) => n + (comenca ? 1 : -1));
 
   // Torna a l'últim estat desat (o als camps buits d'una sessió nova): `original` i `publicaInicial` ja són
@@ -198,6 +222,7 @@ function FitxaSessio({ id }) {
     idsAEnfocar.current = null;
     setDades({ ...CAMPS_INICIALS, ...desat });
     setPublicaForm(publicaInicial);
+    setInterna(internaInicial);
     setVersioDescart((v) => v + 1);
   };
 
@@ -229,12 +254,14 @@ function FitxaSessio({ id }) {
       return;
     }
     if (Object.keys(canvisADesar).length > 0) await updateDoc(doc(db, 'sessions', id), canvisADesar);
+    if (internaCanviada) await setDoc(doc(db, 'propostesInternes', propostaId), internaADesar(interna));
     // El que s'ha desat passa a ser la nova línia base. L'estat viu conserva el que s'hagi escrit mentre es desava
     // i només rep els valors calculats en desar (URL, imatge de reserva i aliases).
     const aliases = publicaFinal?.aliases ?? publicaForm.aliases;
     const calculats = Object.fromEntries(CAMPS_CALCULATS
       .filter((camp) => dadesADesar[camp] !== dades[camp])
       .map((camp) => [camp, dadesADesar[camp]]));
+    if (internaCanviada) setInternaInicial(interna);
     setOriginal((o) => ({ ...o, ...dadesADesar }));
     setPublicaInicial({ ...publicaForm, aliases });
     setDades((d) => ({ ...d, ...calculats }));
@@ -287,7 +314,10 @@ function FitxaSessio({ id }) {
   const estat = estatBarra({
     desant, error: Boolean(errorDesat) || errorsBarra.length > 0, hiHaCanvis, desatRecent,
   });
-  const pestanyesCanviades = pestanyesAmbCanvis(canvis.dades, canvis.publica, PESTANYA_DEL_CAMP).sort(perOrdreDePestanya);
+  const pestanyesCanviades = [...new Set([
+    ...pestanyesAmbCanvis(canvis.dades, canvis.publica, PESTANYA_DEL_CAMP),
+    ...(internaCanviada ? ['dades'] : []),
+  ])].sort(perOrdreDePestanya);
   const barra = (
     <BarraDesar
       estat={estat}
@@ -364,6 +394,8 @@ function FitxaSessio({ id }) {
               distribuidores={distribuidores}
               distribucioDesada={{ nom: publicaInicial.suportDistribucio, id: publicaInicial.suportDistribucioId }}
               original={original}
+              interna={interna}
+              onCanviInterna={onCanviInterna}
               urlPagina={original.publicada ? urlPublica(original.data, original.slug) : ''}
               onPujant={onPujant}
             />

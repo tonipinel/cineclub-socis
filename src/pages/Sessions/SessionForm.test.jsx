@@ -8,6 +8,7 @@ vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn() }));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn().mockResolvedValue({ id: 'nova' }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
+  setDoc: vi.fn().mockResolvedValue(undefined),
   getDoc: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   doc: vi.fn(),
@@ -23,7 +24,9 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { addDoc, getDoc, getDocs, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
+import {
+  addDoc, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch, onSnapshot,
+} from 'firebase/firestore';
 import SessionForm from './SessionForm';
 import {
   acceptaDialeg, cancellaDialeg, dialegConfirmacio, hiHaDialegConfirmacio, renderAmbConfirmacio, tancaDialegAmbEsc,
@@ -662,9 +665,13 @@ describe('SessionForm — pàgina pública', () => {
 
   beforeEach(() => {
     getDoc.mockReset();
+    // Les sessions amb `propostaId` també llegeixen `propostesInternes` (targeta «Gestió interna»).
+    getDoc.mockResolvedValue({ data: () => undefined });
     getDocs.mockReset();
     getDocs.mockResolvedValue({ docs: [] });
     updateDoc.mockClear();
+    setDoc.mockClear();
+    doc.mockClear();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(ARA);
   });
@@ -719,6 +726,24 @@ describe('SessionForm — pàgina pública', () => {
       directors: ['Michael Sarnoski'], interprets: [], generes: [], participa: [], collabora: [], aliases: [],
     });
     expect(screen.queryByRole('alert', { name: 'No es pot publicar' })).not.toBeInTheDocument();
+  });
+
+  it('desa la gestió interna de la proposta amb el «Desar» de la sessió', async () => {
+    getDoc.mockResolvedValueOnce({ data: () => structuredClone(GESTIO) });
+    getDoc.mockResolvedValueOnce({ data: () => ({ preu: 10, condicions: '', distribuidoraId: 'd1' }) });
+    const user = userEvent.setup();
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    const preu = await screen.findByLabelText('Preu (€)', { selector: '#interna-preu' });
+    expect(preu).toHaveValue(10);
+    expect(screen.queryByRole('button', { name: 'Desar la gestió interna' })).not.toBeInTheDocument();
+    await user.clear(preu);
+    await user.type(preu, '25');
+    await user.type(screen.getByLabelText('Condicions especials'), ' 50% taquilla ');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'propostesInternes', 'p1');
+    expect(setDoc.mock.calls[0][1]).toEqual({ preu: 25, condicions: '50% taquilla', distribuidoraId: 'd1' });
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('el slug repetit el mateix any no deixa publicar', async () => {
