@@ -13,7 +13,7 @@ const ETIQUETES = [
   'Any', 'Durada (minuts)', 'Idioma', 'Gèneres', 'Fotografia', 'Muntatge', 'Música', 'Producció',
   'Intèrprets', 'Premis destacats', 'Versió', "Preu d'entrada (€)", 'Què inclou', 'Edat mínima recomanada',
   'Suport de distribució', 'Secció', 'Organitza', 'Participen', 'Col·laboren',
-  'URL de programació', 'URL de la imatge de reserva (si no hi ha cartell públic)',
+  'URL de la imatge de reserva (si no hi ha cartell públic)',
 ];
 
 const canvis = {};

@@ -15,7 +15,6 @@ const CAMPS_SESSIO = [
 ];
 
 const CAMPS_AVANCAT = [
-  ['urlProgramacio', 'URL de programació', 'text'],
   ['imatgeUrl', 'URL de la imatge de reserva (si no hi ha cartell públic)', 'text'],
 ];
 
