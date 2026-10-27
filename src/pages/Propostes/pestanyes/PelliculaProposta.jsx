@@ -111,7 +111,7 @@ export default function PelliculaProposta({
             <Camp camp="titolLocal" {...props} />
             <Camp camp="any" inputMode="numeric" {...props} />
             <Camp camp="durada" inputMode="numeric" {...props} />
-            {['directors', 'guionistes', 'paisos', 'idiomes', 'generes'].map((camp) => (
+            {['directors', 'guionistes', 'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes'].map((camp) => (
               <Camp key={camp} camp={camp} ajuda={AJUDA_LLISTA} {...props} />
             ))}
             <Camp camp="lema" {...props} />

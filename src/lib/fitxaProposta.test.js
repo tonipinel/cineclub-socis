@@ -14,6 +14,10 @@ const proposta = {
   durada: 99,
   directors: ['Jean-Pierre Jeunet', 'Marc Caro'],
   guionistes: ['Gilles Adrien'],
+  fotografia: ['Darius Khondji'],
+  muntatge: ['Hervé Schneid'],
+  musica: ['Carlos D\'Alessio'],
+  produccio: ['Constellation', 'UGC'],
   paisos: ['França'],
   idiomes: ['Francès', 'Anglès'],
   generes: ['Comèdia', 'Ciència-ficció'],
@@ -29,12 +33,14 @@ const formBuit = fitxaAFormulari({});
 describe('constants', () => {
   it('CAMPS_PELLICULA coincideix amb CAMPS_EDITABLES del servidor', () => {
     expect(CAMPS_PELLICULA).toEqual(CAMPS_EDITABLES);
-    expect(CAMPS_PELLICULA).toHaveLength(14);
+    expect(CAMPS_PELLICULA).toHaveLength(18);
   });
   it('totes les etiquetes existeixen', () => {
     expect(Object.keys(ETIQUETES_CAMPS)).toEqual(CAMPS_PELLICULA);
     expect(ETIQUETES_CAMPS.durada).toBe('Durada (minuts)');
     expect(ETIQUETES_CAMPS.titolLocal).toBe('Títol a Espanya');
+    expect([ETIQUETES_CAMPS.fotografia, ETIQUETES_CAMPS.muntatge, ETIQUETES_CAMPS.musica, ETIQUETES_CAMPS.produccio])
+      .toEqual(['Fotografia', 'Muntatge', 'Música', 'Producció']);
   });
 });
 
@@ -47,6 +53,10 @@ describe('fitxaAFormulari', () => {
       durada: '99',
       directors: 'Jean-Pierre Jeunet, Marc Caro',
       guionistes: 'Gilles Adrien',
+      fotografia: 'Darius Khondji',
+      muntatge: 'Hervé Schneid',
+      musica: 'Carlos D\'Alessio',
+      produccio: 'Constellation, UGC',
       paisos: 'França',
       idiomes: 'Francès, Anglès',
       generes: 'Comèdia, Ciència-ficció',
@@ -67,13 +77,13 @@ describe('formulariAFitxa', () => {
   it('converteix tots els camps', () => {
     const { valors, errors } = formulariAFitxa({
       ...ok, titolLocal: ' Local ', any: '1991', durada: '99', directors: 'A, B,, ,B, C',
-      guionistes: 'G', paisos: 'França, França', idiomes: '', generes: 'Drama',
+      guionistes: 'G', fotografia: 'F1, F2', muntatge: 'M', musica: '', produccio: 'P1, P1, P2', paisos: 'França, França', idiomes: '', generes: 'Drama',
       repartiment: 'X (Y)\n\nZ', lema: 'Lema', sinopsi: 'Sin', trailerUrl: 'http://t', imatgeUrl: 'https://i',
     });
     expect(errors).toEqual({});
     expect(valors).toEqual({
       titol: 'Títol', titolLocal: 'Local', any: 1991, durada: 99, directors: ['A', 'B', 'C'],
-      guionistes: ['G'], paisos: ['França'], idiomes: [], generes: ['Drama'],
+      guionistes: ['G'], fotografia: ['F1', 'F2'], muntatge: ['M'], musica: [], produccio: ['P1', 'P2'], paisos: ['França'], idiomes: [], generes: ['Drama'],
       repartiment: [{ nom: 'X', personatge: 'Y' }, { nom: 'Z', personatge: '' }],
       lema: 'Lema', sinopsi: 'Sin', trailerUrl: 'http://t', imatgeUrl: 'https://i',
     });

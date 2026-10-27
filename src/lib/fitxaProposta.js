@@ -2,8 +2,8 @@
 // i càlcul dels camps que l'admin ha editat a mà (`campsEditats`, que TMDB ja no sobreescriu).
 
 // Mateixa llista i ordre que `CAMPS_EDITABLES` de functions/fitxa-proposta.js (una prova ho vigila).
-export const CAMPS_PELLICULA = ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'paisos', 'idiomes',
-  'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
+export const CAMPS_PELLICULA = ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia', 'muntatge',
+  'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
 
 export const ETIQUETES_CAMPS = {
   titol: 'Títol',
@@ -12,6 +12,10 @@ export const ETIQUETES_CAMPS = {
   durada: 'Durada (minuts)',
   directors: 'Direcció',
   guionistes: 'Guió',
+  fotografia: 'Fotografia',
+  muntatge: 'Muntatge',
+  musica: 'Música',
+  produccio: 'Producció',
   paisos: 'Països',
   idiomes: 'Idiomes',
   generes: 'Gèneres',
@@ -22,7 +26,7 @@ export const ETIQUETES_CAMPS = {
   imatgeUrl: 'URL del cartell',
 };
 
-const LLISTES = ['directors', 'guionistes', 'paisos', 'idiomes', 'generes'];
+const LLISTES = ['directors', 'guionistes', 'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes'];
 const TEXTOS = ['titolLocal', 'lema', 'sinopsi'];
 const URLS = ['trailerUrl', 'imatgeUrl'];
 

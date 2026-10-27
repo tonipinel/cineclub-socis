@@ -387,6 +387,19 @@ describe('PropostaForm: Pel·lícula', () => {
     expect(screen.getAllByText('Editat a mà')).toHaveLength(1);
   });
 
+  it('editar la música (buida a TMDB) i la producció les desa com a llistes i les marca editades', async () => {
+    const { user } = await obrirPellicula({ ...PROPOSTA_TMDB, produccio: ['Claudie Ossard'], campsEditats: [] });
+    expect(screen.getByLabelText('Música')).toHaveValue('');
+    await user.type(screen.getByLabelText('Música'), 'Yann Tiersen');
+    await user.type(screen.getByLabelText('Producció'), ', UGC');
+    await user.click(botoDesar());
+    await esperaDesat();
+    expect(lot.update).toHaveBeenCalledWith(
+      { path: 'propostes/p1', id: 'p1' },
+      { musica: ['Yann Tiersen'], produccio: ['Claudie Ossard', 'UGC'], campsEditats: ['musica', 'produccio'] },
+    );
+  });
+
   it('editar la sinopsi la desa com a catalana i la marca editada; ja no avisa de l\'idioma', async () => {
     const { user } = await obrirPellicula({ ...PROPOSTA_TMDB, campsEditats: [] });
     const sinopsi = screen.getByLabelText('Sinopsi');

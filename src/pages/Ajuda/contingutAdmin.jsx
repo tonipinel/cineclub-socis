@@ -252,6 +252,8 @@ const TASQUES = {
           <ol>
             <li>Obre la proposta i toca «Programar sessió». Confirma-ho.</li>
             <li>Es crea una sessió sense publicar i sense data, la proposta passa a «Programada» i s'obre la fitxa de la sessió. Més endavant, «Veure la sessió» de la proposta hi torna.</li>
+            <li>La fitxa pública ja porta les dades de la pel·lícula de la proposta, incloses la fotografia, el muntatge, la música i la producció, que venen de TMDB. Es poden editar a la fitxa de la sessió i també, abans de programar-la, a la pestanya «Pel·lícula» de la proposta.</li>
+            <li>Revisa els noms de l'equip tècnic abans de publicar: alguns poden venir escrits en l'alfabet original.</li>
             <li>La galeria s'omple amb les imatges de TMDB de la proposta. Mentre s'importen, no tinguis oberta la fitxa d'aquesta sessió en una altra pestanya: si hi desessis canvis, la galeria quedaria buida.</li>
           </ol>
           <p>O des de zero:</p>

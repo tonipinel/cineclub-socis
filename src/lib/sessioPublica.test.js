@@ -156,6 +156,20 @@ describe('construirSessioDesDeProposta', () => {
     expect(r.sessio.publica.idioma).toBe('Japonès, Francès');
   });
 
+  it('copia fotografia, muntatge, música i producció com a text i omet els buits', () => {
+    const r = construirSessioDesDeProposta(
+      {
+        ...FLOATING_CLOUDS, fotografia: ['Masao Tamai'], muntatge: ['Hideshi Ohi', ' '], musica: ['Ichirō Saitō'], produccio: ['Toho', 'Altra'],
+      },
+      { propostaId: 'p', avui: AVUI },
+    );
+    expect(r.sessio.publica).toMatchObject({
+      fotografia: 'Masao Tamai', muntatge: 'Hideshi Ohi', musica: 'Ichirō Saitō', produccio: 'Toho, Altra',
+    });
+    const buida = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, fotografia: [], musica: null }, { propostaId: 'p' });
+    for (const camp of ['fotografia', 'muntatge', 'musica', 'produccio']) expect(buida.sessio.publica).not.toHaveProperty(camp);
+  });
+
   it('limita els intèrprets a 8 i en treu el personatge', () => {
     expect(sessio.publica.interprets).toEqual(Array.from({ length: 8 }, (_, i) => `Actor ${i + 1}`));
   });

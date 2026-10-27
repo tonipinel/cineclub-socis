@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import tmdb from './tmdb.js';
 
-const { cercarPellicules, detallPellicula, descarregarCartell } = tmdb;
+const { cercarPellicules, detallPellicula, creditsPellicula, descarregarCartell } = tmdb;
 
 const resposta = (dades, ok = true) => ({ ok, status: ok ? 200 : 401, json: async () => dades });
 
@@ -255,6 +255,70 @@ describe('detallPellicula', () => {
     expect(await detallPellicula(6, 'clau', fetchFn)).toMatchObject({
       durada: null, generes: [], directors: [], repartiment: [], lema: null, valoracio: null, trailerUrl: null,
     });
+  });
+});
+
+describe('crèdits tècnics', () => {
+  const BASE = { id: 5, title: 'X', original_title: 'X', original_language: 'es', overview: 'x' };
+  const ambCredits = (extra) => servidor({ detall: { 'ca-ES': { ...BASE, ...extra }, 'es-ES': BASE } });
+
+  it('extreu fotografia, muntatge, música i producció sense duplicats, en ordre i amb màxims', async () => {
+    const fetchFn = ambCredits({
+      credits: {
+        crew: [
+          { job: 'Director of Photography', name: 'Ana' },
+          { job: 'Editor', name: 'Bru' },
+          { job: 'Director of Photography', name: 'Ana' },
+          { job: 'Director of Photography', name: 'Cesc' },
+          { job: 'Director of Photography', name: 'Dani' },
+          { job: 'Director of Photography', name: 'Eva' },
+          { job: 'Original Music Composer', name: 'Fina' },
+          { job: 'Music', name: 'No hi ha de sortir' },
+          { job: 'Editor', name: ' ' },
+          { job: 'Camera Operator', name: 'Gil' },
+        ],
+      },
+      production_companies: [
+        { name: 'P1' }, { name: 'P2' }, { name: 'P1' }, { name: 'P3' }, { name: 'P4' }, { name: 'P5' },
+      ],
+    });
+    expect(await detallPellicula(5, 'clau', fetchFn)).toMatchObject({
+      fotografia: ['Ana', 'Cesc', 'Dani'],
+      muntatge: ['Bru'],
+      musica: ['Fina'],
+      produccio: ['P1', 'P2', 'P3', 'P4'],
+    });
+  });
+
+  it('descarta les productores sense nom', async () => {
+    const fetchFn = ambCredits({ production_companies: [{ name: '' }, { name: null }, {}, { name: ' P1 ' }, { name: 'P1' }] });
+    expect((await detallPellicula(5, 'clau', fetchFn)).produccio).toEqual(['P1']);
+  });
+
+  it('sense compositor de música original fa servir «Music»', async () => {
+    const fetchFn = ambCredits({ credits: { crew: [{ job: 'Music', name: 'Hug' }, { job: 'Music', name: 'Hug' }] } });
+    expect((await detallPellicula(5, 'clau', fetchFn)).musica).toEqual(['Hug']);
+  });
+
+  it('sense crèdits ni productores, llistes buides', async () => {
+    expect(await detallPellicula(5, 'clau', ambCredits({}))).toMatchObject({
+      fotografia: [], muntatge: [], musica: [], produccio: [],
+    });
+  });
+
+  it('creditsPellicula ho obté amb una sola consulta', async () => {
+    const fetchFn = vi.fn(async () => resposta({
+      ...BASE,
+      credits: { crew: [{ job: 'Editor', name: 'Bru' }] },
+      production_companies: [{ name: 'P1' }],
+    }));
+    expect(await creditsPellicula(5, 'clau', fetchFn)).toEqual({
+      fotografia: [], muntatge: ['Bru'], musica: [], produccio: ['P1'],
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn.mock.calls[0][0]).toContain('/movie/5?');
+    expect(fetchFn.mock.calls[0][0]).toContain('append_to_response=credits');
+    await expect(creditsPellicula('../x', 'clau', fetchFn)).rejects.toThrow('no vàlid');
   });
 });
 

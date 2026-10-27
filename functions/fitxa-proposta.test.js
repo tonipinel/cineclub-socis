@@ -7,8 +7,8 @@ const ordenat = (conjunt) => [...conjunt].sort();
 
 describe('CAMPS_EDITABLES', () => {
   it('llista els camps de la pel·lícula que l\'admin pot editar', () => {
-    expect(CAMPS_EDITABLES).toEqual(['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'paisos',
-      'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl']);
+    expect(CAMPS_EDITABLES).toEqual(['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia',
+      'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl']);
   });
 });
 
@@ -93,6 +93,7 @@ describe('desarFitxaAmbDependencies', () => {
   const pellicula = (extra = {}) => ({
     tmdbId: 10, titol: 'Film', titolLocal: 'Peli', any: 2020, sinopsi: 'Overview', sinopsiIdioma: 'en',
     durada: 100, directors: ['Dir'], generes: ['Drama'], escenes: ['/e.jpg'], guionistes: ['Guio'],
+    fotografia: ['Foto'], muntatge: ['Munt'], musica: ['Mus'], produccio: ['Prod A', 'Prod B'],
     repartiment: [{ nom: 'Actor', personatge: 'Paper' }], lema: 'Lema', paisos: ['França'], idiomes: ['Francès'],
     valoracio: 7.5, tmdbUrl: 'https://www.themoviedb.org/movie/10', trailerUrl: 'https://youtu.be/x',
     posterPath: '/p.jpg', ...extra,
@@ -100,6 +101,7 @@ describe('desarFitxaAmbDependencies', () => {
   const CANVIS_TMDB = {
     tmdbId: 10, titol: 'Film', titolLocal: 'Peli', any: 2020, sinopsi: 'Overview', sinopsiIdioma: 'en',
     durada: 100, directors: ['Dir'], generes: ['Drama'], imatges: ['/e.jpg'], guionistes: ['Guio'],
+    fotografia: ['Foto'], muntatge: ['Munt'], musica: ['Mus'], produccio: ['Prod A', 'Prod B'],
     repartiment: [{ nom: 'Actor', personatge: 'Paper' }], lema: 'Lema', paisos: ['França'], idiomes: ['Francès'],
     valoracio: 7.5, tmdbUrl: 'https://www.themoviedb.org/movie/10', trailerUrl: 'https://youtu.be/x',
   };
@@ -159,6 +161,16 @@ describe('desarFitxaAmbDependencies', () => {
     expect(update).toHaveBeenCalledWith(esperat);
     expect(resultat).toEqual({ ...esperat, directors: ['Meu'], sinopsi: 'Una història.', sinopsiIdioma: 'ca' });
     expect(resultat).not.toHaveProperty('campsEditats');
+  });
+
+  it('desa fotografia, muntatge, música i producció de TMDB, però no els que l\'admin ha editat', async () => {
+    const actual = { tmdbId: 10, musica: ['Meva'], campsEditats: ['musica'] };
+    const { deps, update } = dobles(actual, pellicula({ posterPath: null }));
+    const resultat = await desarFitxaAmbDependencies(deps, 'p1', 10);
+    const escrit = update.mock.calls[0][0];
+    expect(escrit).toMatchObject({ fotografia: ['Foto'], muntatge: ['Munt'], produccio: ['Prod A', 'Prod B'] });
+    expect(escrit).not.toHaveProperty('musica');
+    expect(resultat.musica).toEqual(['Meva']);
   });
 
   it('amb sobreescriure ho escriu tot i marca campsEditats per esborrar', async () => {

@@ -14,6 +14,10 @@ const PROPOSTA = {
   durada: 98,
   directors: ['Mathieu Kassovitz'],
   guionistes: ['Mathieu Kassovitz'],
+  fotografia: ['Pierre Aïm'],
+  muntatge: ['Mathieu Kassovitz', 'Scott Stevenson'],
+  musica: [],
+  produccio: ['Lazennec Productions', 'Canal+'],
   paisos: ['França'],
   idiomes: ['Francès'],
   generes: ['Drama', 'Crim'],
@@ -62,6 +66,10 @@ describe('PelliculaProposta', () => {
     expect(screen.getByLabelText('Durada (minuts)')).toHaveValue('98');
     expect(screen.getByLabelText('Direcció')).toHaveValue('Mathieu Kassovitz');
     expect(screen.getByLabelText('Gèneres')).toHaveValue('Drama, Crim');
+    expect(screen.getByLabelText('Fotografia')).toHaveValue('Pierre Aïm');
+    expect(screen.getByLabelText('Muntatge')).toHaveValue('Mathieu Kassovitz, Scott Stevenson');
+    expect(screen.getByLabelText('Música')).toHaveValue('');
+    expect(screen.getByLabelText('Producció')).toHaveValue('Lazennec Productions, Canal+');
     expect(screen.getByLabelText('Repartiment')).toHaveValue('Vincent Cassel (Vinz)\nHubert Koundé');
     expect(screen.getByLabelText('Lema')).toHaveValue('Fins ara tot va bé');
     expect(screen.getByLabelText('Sinopsi')).toHaveValue('Tres joves…');
@@ -70,14 +78,14 @@ describe('PelliculaProposta', () => {
     expect(screen.queryByLabelText('URL del tràiler')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('URL del cartell')).not.toBeInTheDocument();
     // L'id de cada camp és el seu nom (el focus en un error de validació hi compta).
-    for (const camp of ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi']) {
+    for (const camp of ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi']) {
       expect(document.getElementById(camp)).not.toBeNull();
     }
   });
 
   it('les llistes i el repartiment tenen l\'ajuda de format, lligada al camp', () => {
     pinta();
-    for (const etiqueta of ['Direcció', 'Guió', 'Països', 'Idiomes', 'Gèneres']) {
+    for (const etiqueta of ['Direcció', 'Guió', 'Fotografia', 'Muntatge', 'Música', 'Producció', 'Països', 'Idiomes', 'Gèneres']) {
       expect(descripcio(screen.getByLabelText(etiqueta))).toContain('Separats per comes');
     }
     expect(descripcio(screen.getByLabelText('Repartiment'))).toContain('Un actor per línia: Nom (Personatge)');
@@ -115,6 +123,8 @@ describe('PelliculaProposta', () => {
     const { canvia } = pinta();
     await user.type(screen.getByLabelText('Direcció'), 'x');
     expect(canvia).toHaveBeenLastCalledWith('directors', 'Mathieu Kassovitzx');
+    await user.type(screen.getByLabelText('Música'), 'z');
+    expect(canvia).toHaveBeenLastCalledWith('musica', 'z');
     await user.type(screen.getByLabelText('Repartiment'), 'y');
     expect(canvia).toHaveBeenLastCalledWith('repartiment', 'Vincent Cassel (Vinz)\nHubert Koundéy');
   });

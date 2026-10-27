@@ -160,6 +160,33 @@ function triarSinopsi(ca, es, en) {
 const MAXIM_TMDB_ID = 99_999_999;
 const esTmdbIdValid = (valor) => Number.isSafeInteger(valor) && valor > 0 && valor <= MAXIM_TMDB_ID;
 
+const MAXIM_PER_CARREC = 3;
+const MAXIM_PRODUCTORES = 4;
+
+// Noms únics i no buits, en l'ordre de TMDB.
+const unics = (noms, maxim) => [...new Set(noms.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean))]
+  .slice(0, maxim);
+
+const ambFeina = (equip, feina) => unics(equip.filter((c) => c.job === feina).map((c) => c.name), MAXIM_PER_CARREC);
+
+// Fotografia, muntatge, música i producció d'una resposta de detall de TMDB amb `credits`.
+function creditsTecnics(detall) {
+  const equip = detall.credits?.crew ?? [];
+  const compositors = ambFeina(equip, 'Original Music Composer');
+  return {
+    fotografia: ambFeina(equip, 'Director of Photography'),
+    muntatge: ambFeina(equip, 'Editor'),
+    musica: compositors.length ? compositors : ambFeina(equip, 'Music'),
+    produccio: unics((detall.production_companies ?? []).map((p) => p.name), MAXIM_PRODUCTORES),
+  };
+}
+
+// Només els crèdits tècnics, amb una sola consulta (per a l'script que omple les propostes antigues).
+async function creditsPellicula(tmdbId, clau, fetchFn = fetch) {
+  if (!esTmdbIdValid(tmdbId)) throw new Error('Identificador de TMDB no vàlid.');
+  return creditsTecnics(await obtenirJson(clau, `/movie/${tmdbId}`, { append_to_response: 'credits' }, fetchFn));
+}
+
 async function detallPellicula(tmdbId, clau, fetchFn = fetch) {
   if (!esTmdbIdValid(tmdbId)) throw new Error('Identificador de TMDB no vàlid.');
   const [ca, es] = await Promise.all([
@@ -192,6 +219,7 @@ async function detallPellicula(tmdbId, clau, fetchFn = fetch) {
     generes: (ca.genres ?? []).map((g) => GENERES_CATALA[g.id] ?? g.name),
     directors: equip.filter((c) => c.job === 'Director').map((c) => c.name),
     guionistes: [...new Set(equip.filter((c) => ['Screenplay', 'Writer'].includes(c.job)).map((c) => c.name))],
+    ...creditsTecnics(ca),
     repartiment: (ca.credits?.cast ?? []).slice(0, MAXIM_REPARTIMENT).map((a) => ({ nom: a.name, personatge: a.character || '' })),
     lema: ca.tagline || null,
     paisos: (ca.production_countries ?? []).map(nomPais),
@@ -211,4 +239,4 @@ async function descarregarCartell(posterPath, fetchFn = fetch) {
   };
 }
 
-module.exports = { cercarPellicules, detallPellicula, descarregarCartell, esTmdbIdValid };
+module.exports = { cercarPellicules, detallPellicula, creditsPellicula, descarregarCartell, esTmdbIdValid };
