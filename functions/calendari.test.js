@@ -41,16 +41,20 @@ describe('esdevenimentDesDeSessio', () => {
     expect(ev.iCalUID).toBe('la-pelicula-20261022@cineclubrodadebera.cat');
   });
 
-  it('afegeix el títol a Espanya si és diferent del títol (sense distingir majúscules)', () => {
-    const amb = esdevenimentDesDeSessio(sessio({ publica: { titol: 'Vermiglio', titolEspanya: 'La sombra' } }));
-    expect(amb.summary).toBe('Vermiglio (La sombra)');
-    const igual = esdevenimentDesDeSessio(sessio({ publica: { titol: 'Vermiglio', titolEspanya: 'vermiglio' } }));
-    expect(igual.summary).toBe('Vermiglio');
+  it('títol de l\'esdeveniment: l\'original i, entre parèntesis, el català o si no el d\'Espanya (sense distingir majúscules ni espais)', () => {
+    const resum = (publica) => esdevenimentDesDeSessio(sessio({ publica: { titol: 'Vermiglio', ...publica } })).summary;
+    expect(resum({})).toBe('Vermiglio');
+    expect(resum({ titolTraduit: "L'ombra" })).toBe("Vermiglio (L'ombra)");
+    expect(resum({ titolTraduit: ' vermiglio ' })).toBe('Vermiglio');
+    expect(resum({ titolEspanya: 'La sombra' })).toBe('Vermiglio (La sombra)');
+    expect(resum({ titolEspanya: 'VERMIGLIO ' })).toBe('Vermiglio');
+    expect(resum({ titolTraduit: "L'ombra", titolEspanya: 'La sombra' })).toBe("Vermiglio (L'ombra)");
+    expect(resum({ titolTraduit: 'vermiglio', titolEspanya: 'La sombra' })).toBe('Vermiglio (La sombra)');
   });
 
   it('sense cap títol usa el slug en lloc de petar', () => {
-    expect(esdevenimentDesDeSessio(sessio({ titol: undefined, publica: { titolEspanya: 'Otro' } })).summary)
-      .toBe('la-pelicula (Otro)');
+    expect(esdevenimentDesDeSessio(sessio({ titol: undefined, publica: { titolTraduit: 'Altre' } })).summary)
+      .toBe('la-pelicula (Altre)');
   });
 
   it('usa el títol de gestió si no hi ha publica.titol', () => {

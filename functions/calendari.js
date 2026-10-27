@@ -62,10 +62,10 @@ const extreuSinopsi = (cos) => cos.match(/## Sinopsi\s*\n([\s\S]*?)(?:\n##\s|$)/
 
 function titolEvent(sessio) {
   const original = String(sessio.publica?.titol || sessio.titol || sessio.slug);
-  const espanya = sessio.publica?.titolEspanya;
-  return espanya && String(espanya).trim().toLowerCase() !== original.trim().toLowerCase()
-    ? `${original} (${espanya})`
-    : original;
+  // Entre parèntesis, el títol en català si n'hi ha un de diferent; si no, el d'Espanya si és diferent.
+  const diferent = (t) => typeof t === 'string' && t.trim() && t.trim().toLowerCase() !== original.trim().toLowerCase();
+  const segon = [sessio.publica?.titolTraduit, sessio.publica?.titolEspanya].find(diferent);
+  return segon ? `${original} (${segon.trim()})` : original;
 }
 
 function sinopsiEvent(publica = {}) {

@@ -8,7 +8,7 @@ import { FITXA, GESTIO, SECCIONS, VERSIONS } from '../camps';
 import Camp from './Camp';
 
 const CAMPS_SESSIO = [
-  ['titol', 'Títol', 'text'],
+  ['titol', 'Títol original', 'text', "En l'idioma de la pel·lícula. És el títol principal de la web i de l'admin."],
   ['data', 'Data', 'date'],
   ['hora', "Hora d'inici", 'time'],
 ];
@@ -18,8 +18,8 @@ const CAMPS_AVANCAT = [
   ['imatgeUrl', 'URL de la imatge de reserva (si no hi ha cartell públic)', 'text'],
 ];
 
-function CampsSessio({ camps, dades, onCanviDades }) {
-  return camps.map(([camp, etiqueta, tipus]) => (
+function CampsSessio({ camps, dades, onCanviDades, avisos = {} }) {
+  return camps.map(([camp, etiqueta, tipus, ajuda]) => (
     <div className="form__field" key={camp}>
       <label className="form__label" htmlFor={camp}>{etiqueta}</label>
       <input
@@ -28,17 +28,27 @@ function CampsSessio({ camps, dades, onCanviDades }) {
         className="form__input"
         value={dades[camp] ?? ''}
         onChange={(e) => onCanviDades(camp, e.target.value)}
+        aria-describedby={ajuda ? `${camp}-ajuda` : undefined}
       />
+      {ajuda && <p id={`${camp}-ajuda`} className="form__ajuda">{ajuda}</p>}
+      {avisos[camp] && <p className="pagina-publica__avis">{avisos[camp]}</p>}
     </div>
   ));
 }
 
-export function TargetaSessio({ dades, onCanviDades }) {
+const normal = (t) => (typeof t === 'string' ? t.trim().toLowerCase() : '');
+
+// `titolOriginalDesat`: el `publica.titolOriginal` desat. Si és diferent del títol (una sessió sense migrar), avisa
+// abans que en desar se substitueixi.
+export function TargetaSessio({ dades, onCanviDades, titolOriginalDesat = '' }) {
+  const avisos = normal(titolOriginalDesat) && normal(titolOriginalDesat) !== normal(dades.titol)
+    ? { titol: `La fitxa pública té desat un altre títol original: «${titolOriginalDesat}». En desar, s'hi escriurà el d'aquest camp.` }
+    : {};
   return (
     <section className="fitxa-sessio__targeta" aria-labelledby="targeta-sessio">
       <h2 className="fitxa-sessio__targeta-titol" id="targeta-sessio">Sessió</h2>
       <div className="fitxa-sessio__graella">
-        <CampsSessio camps={CAMPS_SESSIO} dades={dades} onCanviDades={onCanviDades} />
+        <CampsSessio camps={CAMPS_SESSIO} dades={dades} onCanviDades={onCanviDades} avisos={avisos} />
       </div>
     </section>
   );
@@ -46,11 +56,11 @@ export function TargetaSessio({ dades, onCanviDades }) {
 
 export default function DadesSessio({
   dades, onCanviDades, form, onCanviForm, errors, altresSessions, urlPagina, entitats = [], organitzaDesat = '',
-  distribuidores = [], distribucioDesada = { nom: '', id: '' },
+  distribuidores = [], distribucioDesada = { nom: '', id: '' }, original = {},
 }) {
   const slug = dades.slug ?? '';
   const any = typeof dades.data === 'string' ? dades.data.slice(0, 4) : '';
-  const suggeriment = generarSlug(form.titol || dades.titol);
+  const suggeriment = generarSlug(dades.titol);
   const slugRepetit = slug && !slugDisponible(slug, dades.data, altresSessions, dades.id);
   const { avisos } = validarPublicable({ ...dades, publica: { cartell: form.cartell } }, altresSessions);
   const errorsPublicar = ['titol', 'data', 'slug'].filter((camp) => errors.publicar?.[camp]);
@@ -86,7 +96,7 @@ export default function DadesSessio({
 
   return (
     <div className="fitxa-sessio__targetes">
-      <TargetaSessio dades={dades} onCanviDades={onCanviDades} />
+      <TargetaSessio dades={dades} onCanviDades={onCanviDades} titolOriginalDesat={original.publica?.titolOriginal} />
 
       <section className="fitxa-sessio__targeta" aria-labelledby="targeta-publicacio">
         <h2 className="fitxa-sessio__targeta-titol" id="targeta-publicacio">Publicació</h2>

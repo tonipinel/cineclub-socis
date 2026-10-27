@@ -256,12 +256,16 @@ const TASQUES = {
           <p>O des de zero:</p>
           <ol>
             <li>Ves a «Programació › Sessions» i toca «Nova sessió».</li>
-            <li>Escriu el títol, la data i l'hora d'inici i desa.</li>
+            <li>Escriu el títol original, la data i l'hora d'inici i desa.</li>
           </ol>
           <p>Després, a la fitxa de la sessió:</p>
           <ol>
-            <li>A «Dades»: la pel·lícula, el preu d'entrada, el suport de distribució, qui organitza, participa i col·labora, i l'slug (la part de l'URL).</li>
-            <li>A «Continguts»: descripció, ganxo, sinopsi del cartell i textos editorials, amb vista prèvia.</li>
+            <li>
+              A «Dades», els títols: el «Títol original» (en l'idioma de la pel·lícula) és el principal de la web; el
+              «Títol en català», si n'hi ha, surt a sota; el «Títol a Espanya» només surt a la fitxa tècnica.
+            </li>
+            <li>També a «Dades»: la pel·lícula, el preu d'entrada, el suport de distribució, qui organitza, participa i col·labora, i l'slug (la part de l'URL).</li>
+            <li>A «Continguts»: descripció, sinopsi del cartell i textos editorials, amb vista prèvia.</li>
             <li>A «Mitjans»: el cartell, la galeria i el tràiler de YouTube.</li>
             <li>Per publicar-la, marca «Publicada» a «Dades» i desa. Si falta alguna dada, la barra de baix diu quina.</li>
           </ol>

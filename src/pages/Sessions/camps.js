@@ -1,17 +1,14 @@
 // Camps de la fitxa de sessió i a quina pestanya pertany cadascun.
 
 export const FITXA = [
-  ['titol', 'Títol públic'],
-  ['titolOriginal', 'Títol original'],
-  ['titolTraduit', 'Títol traduït'],
-  ['titolEspanya', 'Títol a Espanya'],
+  ['titolTraduit', 'Títol en català', 'Surt sota el títol original. Si és buit, no hi ha subtítol.'],
+  ['titolEspanya', 'Títol a Espanya', 'Només a la fitxa tècnica.'],
   ['directors', 'Direcció', 'Separats per comes'],
   ['guio', 'Guió'],
   ['pais', 'País'],
   ['any', 'Any'],
   ['durada', 'Durada (minuts)'],
   ['idioma', 'Idioma'],
-  ['versioIdiomatica', 'Versió idiomàtica'],
   ['generes', 'Gèneres', 'Separats per comes'],
   ['fotografia', 'Fotografia'],
   ['muntatge', 'Muntatge'],
@@ -43,10 +40,10 @@ export const ETIQUETA_PESTANYA = {
 const de = (camps, pestanya) => Object.fromEntries(camps.map((camp) => [camp, pestanya]));
 
 export const PESTANYA_DEL_CAMP = {
-  ...de(['titol', 'data', 'hora', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl', 'versioTipus', 'seccio'], 'dades'),
+  ...de(['titol', 'titolOriginal', 'data', 'hora', 'slug', 'publicada', 'urlProgramacio', 'imatgeUrl', 'versioTipus', 'seccio'], 'dades'),
   ...de(FITXA.map(([camp]) => camp), 'dades'),
   ...de(GESTIO.map(([camp]) => camp), 'dades'),
   ...de(['suportDistribucio', 'suportDistribucioId', 'organitza', 'participa', 'collabora'], 'dades'),
-  ...de(['descripcio', 'hook', 'sinopsiCartell', 'cos'], 'continguts'),
+  ...de(['descripcio', 'sinopsiCartell', 'cos'], 'continguts'),
   ...de(['cartell', 'galeria', 'trailerYoutubeId'], 'mitjans'),
 };

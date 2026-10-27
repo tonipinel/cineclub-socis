@@ -99,7 +99,7 @@ describe('construirSessioDesDeProposta', () => {
 
   it('crea els camps de gestió sense publicar', () => {
     expect(sessio).toMatchObject({
-      titol: 'Nubes flotantes',
+      titol: 'Floating Clouds',
       data: '',
       hora: '19:00',
       urlProgramacio: '',
@@ -111,22 +111,29 @@ describe('construirSessioDesDeProposta', () => {
     expect(sessio).not.toHaveProperty('activa');
   });
 
-  it('suggereix el slug del títol local', () => {
-    expect(slugSuggerit).toBe('nubes-flotantes');
+  it('suggereix el slug del títol original', () => {
+    expect(slugSuggerit).toBe('floating-clouds');
   });
 
-  it('usa el títol original si el local no dóna slug', () => {
-    const r = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titolLocal: '成瀬' }, { propostaId: 'p', avui: AVUI });
-    expect(r.slugSuggerit).toBe('floating-clouds');
-    const r2 = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titolLocal: undefined }, { propostaId: 'p', avui: AVUI });
-    expect(r2.slugSuggerit).toBe('floating-clouds');
-    expect(r2.sessio.titol).toBe('Floating Clouds');
+  it('usa el títol local si l\'original no dóna slug o no hi és', () => {
+    const r = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titol: '浮雲' }, { propostaId: 'p', avui: AVUI });
+    expect(r.slugSuggerit).toBe('nubes-flotantes');
+    expect(r.sessio.titol).toBe('浮雲');
+    const r2 = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titol: undefined }, { propostaId: 'p', avui: AVUI });
+    expect(r2.sessio.titol).toBe('Nubes flotantes');
+    expect(r2.sessio.publica.titol).toBe('Nubes flotantes');
+    expect(r2.sessio.publica).not.toHaveProperty('titolOriginal');
+    expect(r2.sessio.publica).not.toHaveProperty('titolEspanya');
+    const r3 = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titolLocal: 'FLOATING CLOUDS' }, { propostaId: 'p', avui: AVUI });
+    expect(r3.sessio.publica).not.toHaveProperty('titolEspanya');
   });
 
   it('mapeja la fitxa pública', () => {
     const p = sessio.publica;
-    expect(p.titol).toBe('Nubes flotantes');
+    expect(p.titol).toBe('Floating Clouds');
     expect(p.titolOriginal).toBe('Floating Clouds');
+    expect(p.titolEspanya).toBe('Nubes flotantes');
+    expect(p).not.toHaveProperty('titolTraduit');
     expect(p.directors).toEqual(['成瀬巳喜男']);
     expect(p.guio).toBe('水木洋子');
     expect(p.pais).toBe('Japó');
@@ -238,6 +245,7 @@ describe('construirSessioDesDeProposta', () => {
     expect(r.sessio.titol).toBe('Floating Clouds');
     expect(r.sessio.publica.titol).toBe('Floating Clouds');
     expect(r.sessio.publica.titolOriginal).toBe('Floating Clouds');
+    expect(r.sessio.publica).not.toHaveProperty('titolEspanya');
     expect(r.slugSuggerit).toBe('floating-clouds');
   });
 

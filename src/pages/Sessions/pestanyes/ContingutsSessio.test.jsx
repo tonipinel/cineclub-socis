@@ -28,7 +28,7 @@ function Arnes({ publica, errors = {} }) {
 describe('ContingutsSessio', () => {
   it('mostra els camps de text editorial', () => {
     render(<Arnes />);
-    for (const etiqueta of ['Descripció (SEO)', 'Ganxo', 'Sinopsi del cartell', 'Textos editorials (Markdown)']) {
+    for (const etiqueta of ['Descripció (SEO)', 'Sinopsi del cartell', 'Textos editorials (Markdown)']) {
       expect(screen.getByLabelText(etiqueta)).toBeInTheDocument();
     }
     // Migrada: abans 16 files fixes; ara el textarea creix amb el text (mínim 8 files).
@@ -49,11 +49,9 @@ describe('ContingutsSessio', () => {
   it('cada camp de text públic té la seva ajuda enllaçada', () => {
     render(<Arnes publica={{ descripcio: 'Hola' }} />);
     expect(screen.getByLabelText('Descripció (SEO)')).toHaveAccessibleDescription(
-      "4/160 caràcters Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa el Ganxo i, si tampoc n'hi ha, un text automàtic amb el títol, l'any i la direcció.",
+      "4/160 caràcters Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa un text automàtic amb el títol, l'any, la direcció i quan es projecta.",
     );
-    expect(screen.getByLabelText('Ganxo')).toHaveAccessibleDescription(
-      "Frase curta d'una línia que resumeix la pel·lícula. Només s'usa com a descripció de la pàgina quan «Descripció (SEO)» està buida; si ja l'has omplerta, no es mostra enlloc.",
-    );
+    expect(screen.queryByLabelText('Ganxo')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Sinopsi del cartell')).toHaveAccessibleDescription(
       "Text breu del cartell imprimible i de la descripció de l'esdeveniment per als cercadors. Si el deixes buit, s'usa la secció «Sinopsi» del text editorial.",
     );

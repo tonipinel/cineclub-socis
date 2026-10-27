@@ -6,6 +6,7 @@ import Pagina404 from '../src/pages/404.astro';
 import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
 import { conWhere } from './helpers/firestore.js';
 import { versioOg } from '../src/lib/og-sessio.js';
+import { targetaSessio } from '../src/lib/sessio-camps.js';
 
 vi.mock('../src/lib/db.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -232,8 +233,8 @@ describe('pàgina de sessió', () => {
 
   it('porta el títol (amb el traduït al davant), la descripció amb data i lloc, la canònica i l\'og:image', async () => {
     const html = await render(completa);
-    expect(html).toContain('<title>Porc (Pig) · Cineclub Roda de Berà</title>');
-    expect(html).toContain('<meta property="og:title" content="Porc (Pig)">');
+    expect(html).toContain('<title>Pig (Porc) · Cineclub Roda de Berà</title>');
+    expect(html).toContain('<meta property="og:title" content="Pig (Porc)">');
     expect(html).toContain('<h1 class="session-hero__title">Pig</h1>');
     expect(html).toContain('<meta name="description" content="Pig (2021), dirigida per Michael Sarnoski. Projecció el dijous 25 de juny de 2026 a les 19:00 h al Teatre del Casino Municipal de Roda de Berà.">');
     expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/programacio/2026/pig/">');
@@ -249,23 +250,33 @@ describe('pàgina de sessió', () => {
     expect(versioOg(`${completa.publica.cartell}x`)).not.toBe(versioOg(completa.publica.cartell));
   });
 
-  it('si el <title> amb l\'original passés de 60 caràcters, només hi va el títol traduït', async () => {
+  it('si el <title> amb el títol en català passés de 60 caràcters, només hi va l\'original', async () => {
     const llarg = { ...completa, publica: { ...completa.publica, titol: 'Night of the Living Dead', titolTraduit: 'La nit dels morts vivents' } };
     const html = await render(llarg);
-    expect(html).toContain('<title>La nit dels morts vivents · Cineclub Roda de Berà</title>');
+    expect(html).toContain('<title>Night of the Living Dead · Cineclub Roda de Berà</title>');
     expect(html).toContain('<h1 class="session-hero__title">Night of the Living Dead</h1>');
+    expect(html).toContain('<p class="session-hero__subtitle">La nit dels morts vivents</p>');
   });
 
-  it('sense títol traduït, o si és el mateix, el títol de la pàgina és només el de la sessió', async () => {
+  it('no pinta el subtítol si el títol en català és el mateix que el principal (ni a la targeta)', async () => {
+    const igual = { ...completa, publica: { ...completa.publica, titolTraduit: ' PIG ' } };
+    expect(await render(igual)).not.toContain('session-hero__subtitle');
+    expect(targetaSessio(igual).titolTraduit).toBe('');
+    expect(targetaSessio(completa).titolTraduit).toBe('Porc');
+  });
+
+  it('sense títol en català, o si és el mateix, el títol de la pàgina és només el de la sessió', async () => {
     const sense = { ...completa, publica: { ...completa.publica, titolTraduit: undefined } };
     expect(await render(sense)).toContain('<title>Pig · Cineclub Roda de Berà</title>');
     const igual = { ...completa, publica: { ...completa.publica, titolTraduit: 'pig' } };
     expect(await render(igual)).toContain('<title>Pig · Cineclub Roda de Berà</title>');
   });
 
-  it('usa el hook o la descripció com a descripció quan hi són', async () => {
-    const amb = { ...minima, publica: { ...minima.publica, hook: 'Un hook.' } };
-    expect(await render(amb)).toContain('<meta name="description" content="Un hook.">');
+  it('usa la descripció quan hi és; el hook antic ja no compta', async () => {
+    const ambHook = { ...minima, publica: { ...minima.publica, hook: 'Un hook.' } };
+    expect(await render(ambHook)).not.toContain('Un hook.');
+    const amb = { ...ambHook, publica: { ...ambHook.publica, descripcio: 'Una descripció.' } };
+    expect(await render(amb)).toContain('<meta name="description" content="Una descripció.">');
   });
 
   it('emet el JSON-LD de l\'esdeveniment i de les molles de pa amb l\'ordre de Hugo', async () => {

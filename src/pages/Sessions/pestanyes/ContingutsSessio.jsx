@@ -10,8 +10,7 @@ async function renderitzar(cos) {
   return DOMPurify.sanitize(await marked.parse(cos));
 }
 
-const AJUDA_DESCRIPCIO = "Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa el Ganxo i, si tampoc n'hi ha, un text automàtic amb el títol, l'any i la direcció.";
-const AJUDA_GANXO = "Frase curta d'una línia que resumeix la pel·lícula. Només s'usa com a descripció de la pàgina quan «Descripció (SEO)» està buida; si ja l'has omplerta, no es mostra enlloc.";
+const AJUDA_DESCRIPCIO = "Text que surt sota el títol als resultats de Google i quan es comparteix l'enllaç. Màxim 160 caràcters. Si el deixes buit, s'usa un text automàtic amb el títol, l'any, la direcció i quan es projecta.";
 const AJUDA_SINOPSI_CARTELL = "Text breu del cartell imprimible i de la descripció de l'esdeveniment per als cercadors. Si el deixes buit, s'usa la secció «Sinopsi» del text editorial.";
 
 function VistaPrevia({ cos }) {
@@ -54,7 +53,6 @@ export default function ContingutsSessio({ form, onCanviForm, errors }) {
           avis={form.descripcio.trim().length > 160 ? AVIS_DESCRIPCIO : ''}
           {...props}
         />
-        <Camp camp="hook" etiqueta="Ganxo" ajuda={AJUDA_GANXO} {...props} />
         <Camp camp="sinopsiCartell" etiqueta="Sinopsi del cartell" ajuda={AJUDA_SINOPSI_CARTELL} {...props}>
           <TextareaAutomatic
             id="publica-sinopsiCartell"

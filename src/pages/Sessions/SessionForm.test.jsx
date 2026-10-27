@@ -40,6 +40,17 @@ function renderEnEdicio(ruta = '/sessions/1') {
   );
 }
 
+// Un canvi de títol original escriu `titol` i, a la fitxa pública, `titol` i `titolOriginal` (i res més que `actualitzatEl`;
+// les llistes buides les afegeix `netejarPublica`).
+function esperaTitolSincronitzat(escrit, titol, publicaAbans) {
+  expect(Object.keys(escrit).sort()).toEqual(['publica', 'titol']);
+  expect(escrit.titol).toBe(titol);
+  expect(escrit.publica).toMatchObject({ ...publicaAbans, titol, titolOriginal: titol, actualitzatEl: '2026-10-22' });
+  const nous = Object.keys(escrit.publica).filter((camp) => !(camp in publicaAbans) && !Array.isArray(escrit.publica[camp]));
+  expect(nous.sort())
+    .toEqual(['actualitzatEl', 'titolOriginal'].filter((camp) => !(camp in publicaAbans)));
+}
+
 const pestanya = (nom) => screen.getByRole('tab', { name: new RegExp(`^${nom}`) });
 const textBarra = () => document.querySelector('.barra-desar__text').textContent;
 const notaBarra = () => document.querySelector('.barra-desar__nota').textContent;
@@ -72,7 +83,7 @@ describe('SessionForm — alta', () => {
     );
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
-    await user.type(screen.getByLabelText('Títol'), 'The Artist');
+    await user.type(screen.getByLabelText('Títol original'), 'The Artist');
     await user.type(screen.getByLabelText('Data'), '2026-03-05');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -98,7 +109,7 @@ describe('SessionForm — edició, camps sempre editables', () => {
       data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false }),
     });
     renderEnEdicio('/sessions/1?pestanya=dades');
-    const camp = await screen.findByLabelText('Títol');
+    const camp = await screen.findByLabelText('Títol original');
     expect(camp).not.toHaveAttribute('readonly');
     expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
@@ -181,25 +192,31 @@ describe('SessionForm — camps de la web pública', () => {
     updateDoc.mockClear();
   });
 
-  it('en desar una sessió, no esborra ni modifica `publica`, `slug` ni `publicada`', async () => {
-    const publica = { titolOriginal: 'The Artist', directors: ['Michel Hazanavicius'], galeria: [], cos: '## Sinopsi' };
+  it('canviar el títol original d\'una sessió publicada no toca slug, URL ni aliases i conserva la resta de `publica`', async () => {
+    const publica = {
+      titol: 'The Artist', titolOriginal: 'The Artist', titolTraduit: "L'artista", versioIdiomatica: 'V.O.S.E.',
+      directors: ['Michel Hazanavicius'], cos: '## Sinopsi',
+    };
     getDoc.mockResolvedValueOnce({
-      data: () => ({ titol: 'The Artist', data: '2026-03-05', activa: false, slug: 'the-artist', publicada: true, publica }),
+      data: () => ({
+        titol: 'The Artist', data: '2026-03-05', hora: '19:00', activa: false, slug: 'the-artist', publicada: true,
+        urlProgramacio: 'https://cineclubrodadebera.cat/programacio/2026/the-artist/', publica,
+      }),
     });
     const user = userEvent.setup();
     renderEnEdicio('/sessions/1?pestanya=dades');
-    // Migrat: la fitxa pública ja és visible a «Dades» i «Títol original» també val «The Artist».
-    await screen.findByLabelText('Títol');
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), "L'artista");
+    await screen.findByLabelText('Títol original');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'The Artist (2011)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const [, dadesDesades] = updateDoc.mock.calls[0];
-    expect(dadesDesades.titol).toBe("L'artista");
-    // `updateDoc` només toca els camps que rep: si hi són, han de tenir el mateix valor.
-    for (const [camp, valor] of Object.entries({ slug: 'the-artist', publicada: true, publica })) {
-      if (camp in dadesDesades) expect(dadesDesades[camp]).toEqual(valor);
-    }
+    expect(Object.keys(dadesDesades).sort()).toEqual(['publica', 'titol']);
+    expect(dadesDesades.titol).toBe('The Artist (2011)');
+    const { actualitzatEl: _data, ...desada } = dadesDesades.publica;
+    expect(desada).toEqual({
+      ...publica, titol: 'The Artist (2011)', titolOriginal: 'The Artist (2011)', aliases: [], interprets: [], generes: [], participa: [], collabora: [],
+    });
   });
 });
 
@@ -552,7 +569,7 @@ describe('SessionForm — sessions especials sense control', () => {
       data: () => ({ titol: 'Carretera a Gusen', data: '2026-03-05', activa: false, senseControl: true }),
     });
     renderEnEdicio();
-    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Títol original')).toBeInTheDocument();
     expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tab', { name: /Estadístiques/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desar' })).toBeInTheDocument();
@@ -651,7 +668,7 @@ describe('SessionForm — pàgina pública', () => {
     const alerta = await screen.findByRole('alert', { name: 'No es pot publicar' });
     expect(alerta).toHaveTextContent('Cal un slug.');
     expect(alerta).toHaveTextContent('Cal una data vàlida.');
-    expect(alerta).toHaveTextContent('Cal un títol.');
+    expect(alerta).toHaveTextContent('Cal el títol original.');
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
@@ -667,7 +684,7 @@ describe('SessionForm — pàgina pública', () => {
     expect(dades.slug).toBe('pig');
     expect(dades.urlProgramacio).toBe('https://cineclubrodadebera.cat/programacio/2026/pig/');
     expect(dades.publica).toEqual({
-      titol: 'Pig', seccio: 'cartellera', guio: 'Michael Sarnoski', actualitzatEl: '2026-10-22',
+      titol: 'Pig', titolOriginal: 'Pig', seccio: 'cartellera', guio: 'Michael Sarnoski', actualitzatEl: '2026-10-22',
       directors: ['Michael Sarnoski'], interprets: [], generes: [], participa: [], collabora: [], aliases: [],
     });
     expect(screen.queryByRole('alert', { name: 'No es pot publicar' })).not.toBeInTheDocument();
@@ -857,8 +874,8 @@ describe('SessionForm — pàgina pública', () => {
   it('no escriu els valors per defecte dels camps que la sessió no tenia', async () => {
     const user = carregar({ titol: 'Pig', data: '2026-10-08', activa: false });
     await obrir();
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig 2');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig 2');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await desat()).toEqual({ titol: 'Pig 2' });
   });
@@ -966,7 +983,7 @@ describe('SessionForm — pestanyes i barra de desar', () => {
 
   it('una sessió senseControl obre «Dades» i no té la pestanya «Estadístiques»', async () => {
     carregar({ ...SESSIO, senseControl: true });
-    expect(await screen.findByLabelText('Títol')).toHaveValue('Pig');
+    expect(await screen.findByLabelText('Títol original')).toHaveValue('Pig');
     expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Dades', 'Continguts', 'Mitjans']);
   });
@@ -979,7 +996,7 @@ describe('SessionForm — pestanyes i barra de desar', () => {
 
   it('?pestanya=estadistiques en una sessió senseControl cau a «Dades»', async () => {
     carregar({ ...SESSIO, senseControl: true }, '/sessions/ses2?pestanya=estadistiques');
-    expect(await screen.findByLabelText('Títol')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Títol original')).toBeInTheDocument();
     expect(pestanya('Dades')).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByText("Resum d'assistència")).not.toBeInTheDocument();
   });
@@ -995,23 +1012,23 @@ describe('SessionForm — pestanyes i barra de desar', () => {
 
   it('sense canvis diu «Sense canvis» i «Desar» està desactivat; en editar, diu quina pestanya té canvis', async () => {
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     expect(textBarra()).toBe('Sense canvis');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
-    await user.type(screen.getByLabelText('Títol'), ' 2');
+    await user.type(screen.getByLabelText('Títol original'), ' 2');
     expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
   });
 
   it('canviar de pestanya no perd els canvis sense desar', async () => {
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.clear(await screen.findByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.clear(await screen.findByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Nou');
     await user.click(pestanya('Continguts'));
     await user.type(screen.getByLabelText('Textos editorials (Markdown)'), '## Context');
     await user.click(pestanya('Mitjans'));
     await user.click(pestanya('Dades'));
-    expect(screen.getByLabelText('Títol')).toHaveValue('Nou');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Nou');
     await user.click(pestanya('Continguts'));
     expect(screen.getByLabelText('Textos editorials (Markdown)')).toHaveValue('## Context');
     expect(textBarra()).toBe('Hi ha canvis sense desar · Dades, Continguts');
@@ -1019,8 +1036,8 @@ describe('SessionForm — pestanyes i barra de desar', () => {
 
   it('desar envia només el títol, es queda a la fitxa i torna a «Sense canvis»', async () => {
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.clear(await screen.findByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.clear(await screen.findByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Nou');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
     expect(updateDoc).toHaveBeenCalledTimes(1);
@@ -1029,14 +1046,14 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     expect(screen.queryByText('Llistat de sessions')).not.toBeInTheDocument();
     await vi.waitFor(() => expect(textBarra()).toBe('Sense canvis'), { timeout: 4000 });
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
-    expect(screen.getByLabelText('Títol')).toHaveValue('Nou');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Nou');
   });
 
   it('un doble clic ràpid o dos submits seguits només escriuen una vegada', async () => {
     let resoldre;
     updateDoc.mockImplementation(() => new Promise((r) => { resoldre = r; }));
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.type(await screen.findByLabelText('Títol'), '!');
+    await user.type(await screen.findByLabelText('Títol original'), '!');
     const boto = screen.getByRole('button', { name: 'Desar' });
     await user.dblClick(boto);
     fireEvent.submit(boto.closest('form'));
@@ -1051,8 +1068,8 @@ describe('SessionForm — pestanyes i barra de desar', () => {
   it('si updateDoc falla, mostra l\'error, manté els canvis i es pot reintentar', async () => {
     updateDoc.mockRejectedValueOnce(new Error('xarxa'));
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.clear(await screen.findByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.clear(await screen.findByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Nou');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
     expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
@@ -1067,17 +1084,17 @@ describe('SessionForm — pestanyes i barra de desar', () => {
     let resoldre;
     updateDoc.mockImplementationOnce(() => new Promise((r) => { resoldre = r; }));
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.clear(await screen.findByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Nou');
+    await user.clear(await screen.findByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Nou');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    await user.type(screen.getByLabelText('Títol'), ' 2');
+    await user.type(screen.getByLabelText('Títol original'), ' 2');
     await user.clear(screen.getByLabelText("Hora d'inici"));
     await user.type(screen.getByLabelText("Hora d'inici"), '20:00');
     resoldre();
     await vi.waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Nou' })).toBeInTheDocument());
     expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Nou' });
-    expect(screen.getByLabelText('Títol')).toHaveValue('Nou 2');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Nou 2');
     expect(screen.getByLabelText("Hora d'inici")).toHaveValue('20:00');
     expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
@@ -1090,10 +1107,10 @@ describe('SessionForm — pestanyes i barra de desar', () => {
   it('en tornar a editar després d\'un error, el resum d\'error desapareix', async () => {
     updateDoc.mockRejectedValueOnce(new Error('xarxa'));
     const user = carregar(SESSIO, '/sessions/ses2?pestanya=dades');
-    await user.type(await screen.findByLabelText('Títol'), '!');
+    await user.type(await screen.findByLabelText('Títol original'), '!');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut desar. Torna-ho a provar.");
-    await user.type(screen.getByLabelText('Títol'), '?');
+    await user.type(screen.getByLabelText('Títol original'), '?');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
   });
@@ -1235,14 +1252,14 @@ describe('SessionForm — entitats del catàleg', () => {
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
   });
 
-  it('canviar només el títol desa exactament el títol, sense tocar publica', async () => {
+  it('canviar el títol original només canvia el títol i el títol públic i original de la fitxa', async () => {
     const user = carregar();
     await screen.findByRole('group', { name: 'Participen' });
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', SESSIO.publica);
   });
 
   it('afegir una entitat del catàleg a «Participen» conserva el nom antic i l\'organitzador', async () => {
@@ -1269,7 +1286,7 @@ describe('SessionForm — entitats del catàleg', () => {
       .toEqual(['— Tria una entitat —']);
   });
 
-  it('«cineclub» amb «Cineclub Roda de Berà» al catàleg es mostra sense avís i desar el títol escriu només el títol', async () => {
+  it('«cineclub» amb «Cineclub Roda de Berà» al catàleg es mostra sense avís i desar el títol no toca l\'organitzador', async () => {
     getDocs.mockImplementation((q) => Promise.resolve(q === 'entitats'
       ? { docs: [...ENTITATS, { id: 'e3', nom: 'Cineclub Roda de Berà' }].map(({ id, ...dades }) => ({ id, data: () => dades })) }
       : { docs: [] }));
@@ -1280,11 +1297,11 @@ describe('SessionForm — entitats del catàleg', () => {
     await vi.waitFor(() => expect(screen.getByRole('option', { name: 'Cineclub Roda de Berà', selected: true })).toBeInTheDocument());
     expect(select).toHaveValue('cineclub');
     expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', { titol: 'Pig', organitza: 'cineclub' });
   });
 
   it('tornar a triar l\'organitzador antic després de canviar-lo deixa la fitxa sense canvis', async () => {
@@ -1351,23 +1368,23 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
   });
 
-  it('canviar només el títol desa exactament el títol, sense tocar publica', async () => {
+  it('canviar el títol original només canvia el títol i el títol públic i original de la fitxa', async () => {
     const user = carregar();
     const select = await screen.findByLabelText('Suport de distribució');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', SESSIO.publica);
   });
 
   it('una sessió sense publica no la crea si només es canvia el títol', async () => {
     const { publica: _publica, ...senseP } = SESSIO;
     const user = carregar(senseP);
     await screen.findByLabelText('Suport de distribució');
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
@@ -1389,7 +1406,8 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     const canvis = updateDoc.mock.calls[0][1];
     expect(Object.keys(canvis)).toEqual(['publica']);
     expect(canvis.publica).toMatchObject({ titol: 'Pig', suportDistribucio: 'A Contracorriente', suportDistribucioId: 'd1' });
-    expect(campsDiferents(canvis.publica, SESSIO.publica)).toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId']);
+    // `titolOriginal` el completa el desat: la fitxa de prova no en tenia.
+    expect(campsDiferents(canvis.publica, SESSIO.publica)).toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId', 'titolOriginal']);
   });
 
   it('una sessió sense publica la crea només amb el nom i l\'id de la distribuïdora triada', async () => {
@@ -1401,7 +1419,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(campsDiferents(updateDoc.mock.calls[0][1].publica, {}))
-      .toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId']);
+      .toEqual(['actualitzatEl', 'suportDistribucio', 'suportDistribucioId', 'titol', 'titolOriginal']);
     expect(updateDoc.mock.calls[0][1].publica).toMatchObject({ suportDistribucio: 'B-team', suportDistribucioId: 'd2' });
   });
 
@@ -1438,25 +1456,25 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
     expect(textBarra()).toBe('Sense canvis');
     expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', { ...SESSIO.publica, suportDistribucio: 'B-team' });
   });
 
-  it('amb l\'id al catàleg mostra el nom actual, no marca canvis i desar el títol no toca publica', async () => {
+  it('amb l\'id al catàleg mostra el nom actual, no marca canvis i desar el títol conserva la distribuïdora', async () => {
     const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'Nom vell', suportDistribucioId: 'd1' } });
     const select = await screen.findByLabelText('Suport de distribució');
     await vi.waitFor(() => expect(select).toHaveValue('d1'));
     expect(triada(select)).toBe('A Contracorriente');
     expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
     expect(textBarra()).toBe('Sense canvis');
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', { ...SESSIO.publica, suportDistribucio: 'Nom vell', suportDistribucioId: 'd1' });
   });
 
   it('un id que ja no és al catàleg es conserva en desar un altre camp de publica', async () => {
@@ -1464,11 +1482,11 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     const select = await screen.findByLabelText('Suport de distribució');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
     expect(triada(select)).toBe('Esborrada (no és al catàleg)');
-    await user.type(screen.getByLabelText('Títol públic'), ' 2');
+    await user.type(screen.getByLabelText('Títol en català'), 'Porc');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const { publica } = updateDoc.mock.calls[0][1];
-    expect(publica).toMatchObject({ titol: 'Pig 2', suportDistribucio: 'Esborrada', suportDistribucioId: 'dX' });
+    expect(publica).toMatchObject({ titolTraduit: 'Porc', suportDistribucio: 'Esborrada', suportDistribucioId: 'dX' });
   });
 
   it('si el catàleg no es pot llegir, la fitxa es mostra igualment amb el nom antic', async () => {
@@ -1477,11 +1495,11 @@ describe('SessionForm — distribuïdores del catàleg', () => {
     const select = await screen.findByLabelText('Suport de distribució');
     expect(opcions(select)).toEqual(['—', 'A Contracorriente Films (no és al catàleg)']);
     expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig (2021)');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc.mock.calls[0][1]).toEqual({ titol: 'Pig (2021)' });
+    esperaTitolSincronitzat(updateDoc.mock.calls[0][1], 'Pig (2021)', SESSIO.publica);
   });
 
   it('una distribuïdora sense nom no buida el catàleg', async () => {
@@ -1550,13 +1568,13 @@ describe('SessionForm — descartar canvis', () => {
   }
 
   const editarTitol = async (user, valor) => {
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), valor);
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), valor);
   };
 
   it('sense canvis no mostra «Descartar canvis»', async () => {
     carregar();
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     expect(screen.queryByRole('button', { name: 'Descartar canvis' })).not.toBeInTheDocument();
   });
 
@@ -1567,7 +1585,7 @@ describe('SessionForm — descartar canvis', () => {
     await editarTitol(user, 'Pig 2');
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.selectOptions(screen.getByLabelText('Versió'), 'vo');
-    await user.type(screen.getByLabelText('Títol públic'), ' (2021)');
+    await user.type(screen.getByLabelText('Títol en català'), 'Porc');
     await user.clear(screen.getByLabelText('Slug'));
     await user.type(screen.getByLabelText('Slug'), 'pig-nou');
     await user.selectOptions(within(participen).getByLabelText('Participen'), 'Ajuntament de Roda de Berà');
@@ -1579,10 +1597,10 @@ describe('SessionForm — descartar canvis', () => {
 
     await user.click(descartar());
 
-    expect(screen.getByLabelText('Títol')).toHaveValue('Pig');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Pig');
     expect(screen.getByRole('checkbox', { name: 'Publicada' })).not.toBeChecked();
     expect(screen.getByLabelText('Versió')).toHaveValue('vose');
-    expect(screen.getByLabelText('Títol públic')).toHaveValue('Pig');
+    expect(screen.getByLabelText('Títol en català')).toHaveValue('');
     expect(screen.getByLabelText('Slug')).toHaveValue('pig');
     const participenDespres = screen.getByRole('group', { name: 'Participen' });
     expect(within(participenDespres).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Entitat Vella — no és al catàleg']);
@@ -1598,7 +1616,7 @@ describe('SessionForm — descartar canvis', () => {
     const user = carregar(SESSIO, 'continguts');
     const cos = await screen.findByLabelText('Textos editorials (Markdown)');
     await user.type(cos, ' Més.');
-    await user.type(screen.getByLabelText('Ganxo'), 'Un ganxo');
+    await user.type(screen.getByLabelText('Sinopsi del cartell'), 'Una sinopsi');
     await user.click(pestanya('Mitjans'));
     await user.clear(screen.getByLabelText('Tràiler de YouTube (URL o id)'));
     await user.type(screen.getByLabelText('Tràiler de YouTube (URL o id)'), 'xyz');
@@ -1609,7 +1627,7 @@ describe('SessionForm — descartar canvis', () => {
     expect(screen.getByLabelText('Tràiler de YouTube (URL o id)')).toHaveValue('dQw4w9WgXcQ');
     await user.click(pestanya('Continguts'));
     expect(screen.getByLabelText('Textos editorials (Markdown)')).toHaveValue('## Sinopsi\n\nText.');
-    expect(screen.getByLabelText('Ganxo')).toHaveValue('');
+    expect(screen.getByLabelText('Sinopsi del cartell')).toHaveValue('');
     expect(textBarra()).toBe('Sense canvis');
   });
 
@@ -1657,7 +1675,7 @@ describe('SessionForm — descartar canvis', () => {
     await user.upload(screen.getByLabelText('Pujar cartell'), new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
     await vi.waitFor(() => expect(pujades.pendents).toHaveLength(1));
     await user.click(pestanya('Dades'));
-    expect(screen.getByLabelText('Títol')).toBeInTheDocument();
+    expect(screen.getByLabelText('Títol original')).toBeInTheDocument();
     expect(descartar()).toBeDisabled();
     expect(desarBoto()).toBeDisabled();
     expect(notaBarra()).toBe("S'està pujant una imatge…");
@@ -1716,11 +1734,11 @@ describe('SessionForm — descartar canvis', () => {
 
   it('amb el teclat, després de descartar el focus passa a l\'estat de la barra (no es perd al body)', async () => {
     const user = carregar();
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     await editarTitol(user, 'Pig 2');
     descartar().focus();
     await user.keyboard('{Enter}');
-    expect(screen.getByLabelText('Títol')).toHaveValue('Pig');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Pig');
     expect(document.querySelector('.barra-desar__text')).toHaveFocus();
     expect(textBarra()).toBe('Sense canvis');
     // La navegació continua des de la barra: Maj+Tab torna a l'últim control del formulari, no al principi.
@@ -1734,7 +1752,7 @@ describe('SessionForm — descartar canvis', () => {
     let acabaDesat;
     updateDoc.mockImplementation(() => new Promise((resolve) => { acabaDesat = resolve; }));
     const user = carregar();
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     await editarTitol(user, 'Pig 2');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
@@ -1746,7 +1764,7 @@ describe('SessionForm — descartar canvis', () => {
 
   it('després d\'un desat torna als valors desats, no als de la càrrega', async () => {
     const user = carregar();
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     await editarTitol(user, 'Pig 2');
     await user.selectOptions(screen.getByLabelText('Versió'), 'vo');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -1754,7 +1772,7 @@ describe('SessionForm — descartar canvis', () => {
     await editarTitol(user, 'Pig 3');
     await user.selectOptions(screen.getByLabelText('Versió'), 'vosc');
     await user.click(descartar());
-    expect(screen.getByLabelText('Títol')).toHaveValue('Pig 2');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('Pig 2');
     expect(screen.getByLabelText('Versió')).toHaveValue('vo');
     expect(textBarra()).toBe('Sense canvis');
   });
@@ -1790,7 +1808,7 @@ describe('SessionForm — descartar canvis', () => {
 
   it('esborra els errors de validació', async () => {
     const user = carregar({ ...SESSIO, slug: '' });
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(screen.getByRole('button', { name: 'Desar' }));
     await screen.findByRole('alert', { name: 'No es pot publicar' });
@@ -1804,9 +1822,9 @@ describe('SessionForm — descartar canvis', () => {
 
   it('desar després de descartar escriu només els canvis reals', async () => {
     const user = carregar();
-    await screen.findByLabelText('Títol');
+    await screen.findByLabelText('Títol original');
     await editarTitol(user, 'Pig 2');
-    await user.type(screen.getByLabelText('Títol públic'), ' 2');
+    await user.type(screen.getByLabelText('Títol en català'), 'Porc');
     await user.click(screen.getByRole('checkbox', { name: 'Publicada' }));
     await user.click(descartar());
     await user.clear(screen.getByLabelText("Hora d'inici"));
@@ -1825,12 +1843,12 @@ describe('SessionForm — descartar canvis', () => {
         </Routes>
       </MemoryRouter>
     );
-    await user.type(screen.getByLabelText('Títol'), 'The Artist');
+    await user.type(screen.getByLabelText('Títol original'), 'The Artist');
     await user.type(screen.getByLabelText('Data'), '2026-03-05');
     await user.clear(screen.getByLabelText("Hora d'inici"));
     await user.type(screen.getByLabelText("Hora d'inici"), '21:00');
     await user.click(descartar());
-    expect(screen.getByLabelText('Títol')).toHaveValue('');
+    expect(screen.getByLabelText('Títol original')).toHaveValue('');
     expect(screen.getByLabelText('Data')).toHaveValue('');
     expect(screen.getByLabelText("Hora d'inici")).toHaveValue('19:00');
     expect(textBarra()).toBe('Sense canvis');
@@ -1862,7 +1880,7 @@ describe('SessionForm — errors de càrrega', () => {
     renderEnEdicio('/sessions/1?pestanya=dades');
     expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar la sessió.");
     await userEvent.click(screen.getByRole('button', { name: 'Torna-ho a provar' }));
-    expect(await screen.findByLabelText('Títol')).toHaveValue('The Artist');
+    expect(await screen.findByLabelText('Títol original')).toHaveValue('The Artist');
     expect(getDoc).toHaveBeenCalledTimes(2);
   });
 });

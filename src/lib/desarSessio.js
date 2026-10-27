@@ -2,7 +2,7 @@
 // Sense Firestore: les altres sessions i la confirmació de l'alies arriben per paràmetre.
 // `confirmarAlias` pot tornar un booleà o una promesa d'un booleà (el diàleg de confirmació).
 import {
-  afegirAlias, camiPublic, ERROR_DESCRIPCIO, formulariAPublica, marcarActualitzada, netejarPublica, urlPublica, validarPublicable,
+  afegirAlias, camiPublic, text, ERROR_DESCRIPCIO, formulariAPublica, marcarActualitzada, netejarPublica, urlPublica, validarPublicable,
 } from './sessioPublica';
 
 export const CAMPS_INICIALS = {
@@ -30,6 +30,12 @@ export async function prepararDesat({
 }) {
   const publicaCanviada = !igual(publicaForm, publicaInicial);
   const conversio = formulariAPublica(publicaForm);
+  // El títol original és un sol camp (el de la sessió): la fitxa pública que es desa sempre el porta, també la
+  // primera vegada que es crea `publica` en una sessió que no en tenia.
+  if (publicaCanviada) {
+    conversio.publica.titol = text(dades.titol);
+    conversio.publica.titolOriginal = text(dades.titol);
+  }
   // La fitxa pública desada sense tocar no bloqueja res (p. ex. una descripció llarga migrada de Hugo).
   const errors = publicaCanviada ? conversio.errors : {};
   let publica = publicaCanviada ? netejarPublica({ ...original.publica, ...conversio.publica }) : original.publica;

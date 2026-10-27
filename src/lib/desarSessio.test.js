@@ -25,6 +25,39 @@ describe('prepararDesat', () => {
     expect(r.publicaFinal).toBeUndefined();
   });
 
+  it('canviar el títol d\'una sessió publicada no toca slug, URL ni aliases, i conserva la versió idiomàtica i el ganxo antics', async () => {
+    const publica = {
+      titol: 'Pig', titolOriginal: 'Pig', titolTraduit: 'Porc', versioIdiomatica: 'V.O.S.E.', hook: 'Un ganxo.', aliases: [], actualitzatEl: '2026-01-01',
+    };
+    const original = {
+      titol: 'Pig', data: '2026-06-25', hora: '19:00', publicada: true, slug: 'pig', urlProgramacio: urlPublica('2026-06-25', 'pig'), imatgeUrl: '', publica,
+    };
+    const inicial = publicaAFormulari(publica);
+    expect(inicial).not.toHaveProperty('versioIdiomatica');
+    expect(inicial).not.toHaveProperty('hook');
+    const confirmarAlias = vi.fn(() => true);
+    const r = await preparar({
+      original,
+      dades: { ...CAMPS_INICIALS, ...original, titol: 'Pig!' },
+      publicaForm: { ...inicial, titol: 'Pig!', titolOriginal: 'Pig!' },
+      publicaInicial: inicial,
+      confirmarAlias,
+    });
+    expect(r.errors).toEqual({});
+    expect(confirmarAlias).not.toHaveBeenCalled();
+    expect(Object.keys(r.canvis).sort()).toEqual(['publica', 'titol']);
+    expect(r.canvis.publica).toMatchObject({
+      titol: 'Pig!', titolOriginal: 'Pig!', titolTraduit: 'Porc', versioIdiomatica: 'V.O.S.E.', hook: 'Un ganxo.', aliases: [], actualitzatEl: '2026-10-23',
+    });
+  });
+
+  it('una sessió sense publica que s\'omple per primer cop hi rep el títol original', async () => {
+    const original = { titol: 'Pig', data: '2026-06-25', hora: '19:00', urlProgramacio: '', imatgeUrl: '' };
+    const r = await preparar({ original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...formBuit, titolTraduit: 'Porc' } });
+    expect(r.errors).toEqual({});
+    expect(r.canvis.publica).toMatchObject({ titol: 'Pig', titolOriginal: 'Pig', titolTraduit: 'Porc' });
+  });
+
   it('no inclou mai activa, ni a dadesADesar ni a canvis', async () => {
     const original = { titol: 'Vell', activa: false };
     const r = await preparar({ original, dades: { ...CAMPS_INICIALS, ...original, titol: 'Nou', activa: true } });
@@ -157,25 +190,25 @@ describe('prepararDesat', () => {
   });
 
   it('actualitzatEl: un formulari de la fitxa tocat però que en desar queda igual no la marca ni l\'escriu', async () => {
-    const publica = { titol: 'Peli', hook: 'Un hook.', actualitzatEl: '2026-01-01' };
+    const publica = { titol: 'Peli', titolOriginal: 'Peli', descripcio: 'Una descripció.', actualitzatEl: '2026-01-01' };
     const original = { titol: 'Peli', data: '2026-03-05', publicada: true, slug: 'peli', publica };
     const inicial = publicaAFormulari(publica);
     // Mateix contingut amb espais de més: el formulari és diferent, la fitxa desada no.
     const r = await preparar({
-      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, hook: 'Un hook.  ' }, publicaInicial: inicial,
+      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, descripcio: 'Una descripció.  ' }, publicaInicial: inicial,
     });
     expect(r.errors).toEqual({});
     expect(r.canvis).not.toHaveProperty('publica');
   });
 
   it('actualitzatEl: un canvi real d\'un camp publicat la marca amb el dia (Europe/Madrid)', async () => {
-    const publica = { titol: 'Peli', hook: 'Un hook.', actualitzatEl: '2026-01-01' };
+    const publica = { titol: 'Peli', descripcio: 'Una descripció.', actualitzatEl: '2026-01-01' };
     const original = { titol: 'Peli', data: '2026-03-05', publicada: true, slug: 'peli', publica };
     const inicial = publicaAFormulari(publica);
     const r = await preparar({
-      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, hook: 'Un altre hook.' }, publicaInicial: inicial,
+      original, dades: { ...CAMPS_INICIALS, ...original }, publicaForm: { ...inicial, descripcio: 'Una altra descripció.' }, publicaInicial: inicial,
     });
-    expect(r.canvis.publica.hook).toBe('Un altre hook.');
+    expect(r.canvis.publica.descripcio).toBe('Una altra descripció.');
     expect(r.canvis.publica.actualitzatEl).toBe('2026-10-23');
   });
 
@@ -215,8 +248,8 @@ describe('campsCanviats', () => {
   it('llista els camps diferents i ignora activa', () => {
     const original = { titol: 'A', data: '2026-01-01', activa: false };
     const dades = { ...CAMPS_INICIALS, ...original, titol: 'B', activa: true };
-    const publicaForm = { ...formBuit, hook: 'x' };
-    expect(campsCanviats(dades, original, publicaForm, formBuit)).toEqual({ dades: ['titol'], publica: ['hook'] });
+    const publicaForm = { ...formBuit, descripcio: 'x' };
+    expect(campsCanviats(dades, original, publicaForm, formBuit)).toEqual({ dades: ['titol'], publica: ['descripcio'] });
   });
 
   it('sense canvis retorna llistes buides', () => {

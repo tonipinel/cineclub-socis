@@ -9,7 +9,7 @@ const FORMAT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LLISTES = ['directors', 'interprets', 'generes', 'participa', 'collabora', 'aliases'];
 
 const buit = (v) => v == null || v === '' || Number.isNaN(v) || (Array.isArray(v) && v.length === 0);
-const text = (v) => (typeof v === 'string' ? v.trim() : '');
+export const text = (v) => (typeof v === 'string' ? v.trim() : '');
 const llistaDe = (v) => (Array.isArray(v) ? v : buit(v) ? [] : [v]);
 const comLlista = (v) => (Array.isArray(v) ? v : buit(v) ? [] : [v]);
 
@@ -103,14 +103,18 @@ const nomsDe = (llista) => llistaDe(llista).map((r) => text(typeof r === 'string
 
 export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}) {
   proposta ??= {};
+  // El títol principal és l'original; el de la proposta a Espanya (`titolLocal`) només va a la fitxa. El títol en
+  // català (`titolTraduit`) no es dedueix: l'escriu qui programa, si n'hi ha.
   const titolOriginal = text(proposta.titol);
-  const titol = text(proposta.titolLocal) || titolOriginal;
-  const slugSuggerit = generarSlug(titol) || generarSlug(titolOriginal);
+  const titolLocal = text(proposta.titolLocal);
+  const titol = titolOriginal || titolLocal;
+  const slugSuggerit = generarSlug(titol) || generarSlug(titolLocal);
   const imatgeUrl = text(proposta.imatgeUrl);
 
   const publica = netejarPublica({
     titol,
     titolOriginal,
+    titolEspanya: titolOriginal && titolLocal.toLowerCase() !== titolOriginal.toLowerCase() ? titolLocal : '',
     directors: nomsDe(proposta.directors),
     guio: unir(proposta.guionistes),
     pais: unir(proposta.paisos),
@@ -146,7 +150,7 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
 export function validarPublicable(sessio, altresSessions = []) {
   const errors = {};
   const avisos = {};
-  if (!String(sessio.titol ?? '').trim()) errors.titol = 'Cal un títol.';
+  if (!String(sessio.titol ?? '').trim()) errors.titol = 'Cal el títol original.';
   if (!sessio.slug) errors.slug = 'Cal un slug.';
   else if (!FORMAT_SLUG.test(sessio.slug)) errors.slug = 'El slug només pot tenir minúscules, xifres i guions.';
   else if (dataValida(sessio.data) && !slugDisponible(sessio.slug, sessio.data, altresSessions, sessio.id)) {
@@ -194,8 +198,8 @@ export const AVIS_DESCRIPCIO = `La descripció passa de ${MAX_DESCRIPCIO} caràc
 export const ERROR_DESCRIPCIO = `La descripció no pot passar de ${MAX_DESCRIPCIO} caràcters.`;
 export const CAMPS_TEXT_PUBLICA = [
   'titol', 'titolOriginal', 'titolTraduit', 'titolEspanya', 'sinopsiCartell', 'guio', 'pais', 'any', 'idioma',
-  'versioIdiomatica', 'fotografia', 'muntatge', 'musica', 'produccio', 'premisDestacats', 'versioTipus', 'queInclou',
-  'suportDistribucio', 'suportDistribucioId', 'seccio', 'organitza', 'descripcio', 'hook', 'trailerYoutubeId', 'cos',
+  'fotografia', 'muntatge', 'musica', 'produccio', 'premisDestacats', 'versioTipus', 'queInclou',
+  'suportDistribucio', 'suportDistribucioId', 'seccio', 'organitza', 'descripcio', 'trailerYoutubeId', 'cos',
 ];
 
 // Text del formulari: llistes separades per comes i números com a text.

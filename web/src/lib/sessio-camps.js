@@ -7,19 +7,27 @@ import { resizedUrl, srcsetOf } from './images.js';
 
 export const anyDe = (sessio) => sessio.data.slice(0, 4);
 
-// `.Title` de Hugo: el `title` del front matter viu a `publica.titol`; si no hi és, el títol de gestió.
+// El títol principal (l'original de la pel·lícula): `publica.titol`; si no hi és, el títol de la sessió.
 export const titolSessio = (sessio) => sessio.publica?.titol || sessio.titol;
 
-// <title> i og:title d'una sessió: el títol traduït al davant quan n'hi ha un de diferent (les cerques
-// locals es fan amb el títol en català), i l'original entre parèntesis si el <title> sencer (amb « · » i el
-// nom del Cineclub) no passa de MAX_TITOL caràcters; si en passa, només el traduït.
+// El subtítol (el títol en català, `titolTraduit`): buit si no n'hi ha o si és el mateix que el principal
+// (sense distingir majúscules ni espais).
+export const subtitolSessio = (sessio) => {
+  const traduit = sessio.publica?.titolTraduit;
+  if (typeof traduit !== 'string' || !traduit.trim()) return '';
+  return traduit.trim().toLowerCase() === String(titolSessio(sessio) ?? '').trim().toLowerCase() ? '' : traduit;
+};
+
+// <title> i og:title d'una sessió: el títol original (el principal) i, entre parèntesis, el títol en català
+// (`titolTraduit`) quan n'hi ha un de diferent i el <title> sencer (amb « · » i el nom del Cineclub) no passa de
+// MAX_TITOL caràcters; si en passa, només l'original.
 const MAX_TITOL = 60;
 export const titolPaginaSessio = (sessio) => {
   const titol = String(titolSessio(sessio));
-  const traduit = sessio.publica?.titolTraduit;
-  if (!traduit || traduit.toLowerCase() === titol.toLowerCase()) return titol;
-  const complet = `${traduit} (${titol})`;
-  return `${complet} · ${site.title}`.length <= MAX_TITOL ? complet : traduit;
+  const traduit = subtitolSessio(sessio);
+  if (!traduit) return titol;
+  const complet = `${titol} (${traduit})`;
+  return `${complet} · ${site.title}`.length <= MAX_TITOL ? complet : titol;
 };
 
 export const urlSessio = (sessio) => `/programacio/${anyDe(sessio)}/${sessio.slug}/`;
@@ -32,12 +40,11 @@ export const urlTerme = (taxonomia, nom) => `/${taxonomia}/${encodeURIComponent(
 
 const llista = (valor) => (Array.isArray(valor) ? valor : []);
 
-// Descripció de les pàgines de sessió: `descripcio` o `hook` si l'editor n'ha escrit; si no, el títol (any,
+// Descripció de les pàgines de sessió: `descripcio` si l'editor n'ha escrit; si no, el títol (any,
 // directors) i quan i on es projecta. Sense any o sense directors, la frase els omet.
 export function descripcioSessio(sessio) {
   const p = sessio.publica ?? {};
   if (p.descripcio) return p.descripcio;
-  if (p.hook) return p.hook;
   const any = p.any ? ` (${p.any})` : '';
   const directors = llista(p.directors).length ? `, dirigida per ${p.directors.join(', ')}` : '';
   const dia = dataCa(sessio.data).principal;
@@ -55,7 +62,7 @@ export function descripcioTerme(text, sessions) {
 
 // Tot el que pinta una targeta de sessió (partials/session-card.html, cartell a 600 d'ample).
 export function targetaSessio(sessio) {
-  const { seccio, cartell, titolOriginal, titolTraduit, organitza } = sessio.publica ?? {};
+  const { seccio, cartell, titolOriginal, organitza } = sessio.publica ?? {};
   const participa = llista(sessio.publica?.participa);
   const collabora = llista(sessio.publica?.collabora);
   const titol = titolSessio(sessio);
@@ -72,7 +79,7 @@ export function targetaSessio(sessio) {
     dataHtml: dataCaCurtaHtml(sessio.data, sessio.hora),
     dataIso: dataIso(sessio.data, sessio.hora || '00:00'),
     titol,
-    titolTraduit,
+    titolTraduit: subtitolSessio(sessio),
     insignia: colabora ? `${noms}.` : organitza && organitza !== 'cineclub' ? `Amb ${organitza}` : '',
   };
 }

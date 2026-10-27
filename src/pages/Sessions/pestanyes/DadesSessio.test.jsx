@@ -8,9 +8,9 @@ import DadesSessio from './DadesSessio';
 
 // Migrades de PaginaPublicaSessio.test.jsx: camps, slug (suggeriment i repetit), aliases i avís de cartell.
 const ETIQUETES = [
-  'Títol', 'Data', "Hora d'inici", 'Slug',
-  'Títol públic', 'Títol original', 'Títol traduït', 'Títol a Espanya', 'Direcció', 'Guió', 'País',
-  'Any', 'Durada (minuts)', 'Idioma', 'Versió idiomàtica', 'Gèneres', 'Fotografia', 'Muntatge', 'Música', 'Producció',
+  'Títol original', 'Data', "Hora d'inici", 'Slug',
+  'Títol en català', 'Títol a Espanya', 'Direcció', 'Guió', 'País',
+  'Any', 'Durada (minuts)', 'Idioma', 'Gèneres', 'Fotografia', 'Muntatge', 'Música', 'Producció',
   'Intèrprets', 'Premis destacats', 'Versió', "Preu d'entrada (€)", 'Què inclou', 'Edat mínima recomanada',
   'Suport de distribució', 'Secció', 'Organitza', 'Participen', 'Col·laboren',
   'URL de programació', 'URL de la imatge de reserva (si no hi ha cartell públic)',
@@ -31,7 +31,7 @@ const DISTRIBUIDORES = [
 
 function Arnes({
   publica, sessio = {}, altresSessions = [], urlPagina = '', errors = {}, entitats = ENTITATS, onCanviForm, organitzaDesat,
-  distribuidores = DISTRIBUIDORES,
+  distribuidores = DISTRIBUIDORES, original = {},
 }) {
   const [form, setForm] = useState(publicaAFormulari(publica));
   const [dades, setDades] = useState({ titol: 'Pig', data: '2026-10-08', hora: '19:00', slug: '', publicada: false, ...sessio });
@@ -51,7 +51,7 @@ function Arnes({
         }}
         errors={errors}
         altresSessions={altresSessions}
-        original={{}}
+        original={original}
         urlPagina={urlPagina}
         entitats={entitats}
         organitzaDesat={organitzaDesat ?? publicaAFormulari(publica).organitza}
@@ -75,11 +75,38 @@ describe('DadesSessio', () => {
     expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
   });
 
+  it('només hi ha tres títols i no hi ha «Versió idiomàtica», encara que la sessió en tingui dades', () => {
+    render(<Arnes publica={{ titol: 'Pig', titolOriginal: 'Pig', titolTraduit: 'Porc', versioIdiomatica: 'V.O.S.E.' }} />);
+    expect(screen.getAllByLabelText(/^Títol/).map((el) => el.labels[0].textContent))
+      .toEqual(['Títol original', 'Títol en català', 'Títol a Espanya']);
+    expect(screen.getByLabelText('Títol en català')).toHaveValue('Porc');
+    expect(screen.queryByLabelText('Versió idiomàtica')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Títol públic')).not.toBeInTheDocument();
+  });
+
+  it('el títol original té ajuda i, en una sessió sense migrar, avisa que el títol original desat és un altre', async () => {
+    const user = userEvent.setup();
+    const publica = { titol: 'Hundraåringen', titolOriginal: 'Hundraåringen', titolTraduit: "L'avi" };
+    render(<Arnes sessio={{ titol: "L'avi" }} publica={publica} original={{ titol: "L'avi", publica }} />);
+    expect(screen.getByLabelText('Títol original')).toHaveAccessibleDescription(
+      "En l'idioma de la pel·lícula. És el títol principal de la web i de l'admin.",
+    );
+    expect(screen.getByText(/La fitxa pública té desat un altre títol original: «Hundraåringen»/)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'hundraåringen ');
+    expect(screen.queryByText(/un altre títol original/)).not.toBeInTheDocument();
+  });
+
+  it('sense títol original desat no avisa', () => {
+    render(<Arnes original={{ titol: 'Pig', publica: { titol: 'Pig' } }} />);
+    expect(screen.queryByText(/un altre títol original/)).not.toBeInTheDocument();
+  });
+
   it('els camps de gestió i de la fitxa criden el seu canvi', async () => {
     const user = userEvent.setup();
     render(<Arnes />);
-    await user.clear(screen.getByLabelText('Títol'));
-    await user.type(screen.getByLabelText('Títol'), 'Pig 2');
+    await user.clear(screen.getByLabelText('Títol original'));
+    await user.type(screen.getByLabelText('Títol original'), 'Pig 2');
     await user.type(screen.getByLabelText('Guió'), 'Sarnoski');
     expect(canvis.dades.titol).toBe('Pig 2');
     expect(canvis.form.guio).toBe('Sarnoski');

@@ -172,9 +172,12 @@ function FitxaSessio({ id }) {
     setErrorDesat(null);
     setErrorsBarra([]);
   };
+  // El títol original és un sol camp: si la sessió ja té fitxa pública, també n'escriu el títol (`publica.titol`) i
+  // `publica.titolOriginal`, perquè no se separin. Una sessió sense `publica` no la crea per un canvi de títol.
   const onCanviDades = (camp, valor) => {
     editat();
     setDades((d) => ({ ...d, [camp]: valor }));
+    if (camp === 'titol' && original.publica) setPublicaForm((f) => ({ ...f, titol: valor, titolOriginal: valor }));
   };
   // `valor` pot ser una funció del valor actual: una pujada que acaba tard (potser des d'una pestanya ja desmuntada)
   // s'aplica sobre l'estat d'ara, sense perdre el que s'hagi editat mentrestant.
