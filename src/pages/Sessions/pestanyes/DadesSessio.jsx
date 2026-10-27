@@ -122,6 +122,7 @@ export default function DadesSessio({
             <a className="enllac fitxa-sessio__url" href={urlPagina} target="_blank" rel="noopener noreferrer">{urlPagina}</a>
           )}
         </div>
+        {dades.publicada && <p className="form__ajuda">A la web, els canvis poden tardar uns 5 minuts a veure's.</p>}
         {dades.publicada && avisos.cartell && (
           <p className="pagina-publica__avis">
             La sessió no té cartell: es pot publicar, però la pàgina sortirà sense imatge.

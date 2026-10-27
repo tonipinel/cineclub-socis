@@ -3,16 +3,17 @@ import { cacheControlFor, CACHE_OK, CACHE_REDIRECT, CACHE_NOT_FOUND, CACHE_ERROR
 
 describe('cacheControlFor', () => {
   it('fixa els valors exactes de les capçaleres', () => {
-    expect(CACHE_OK).toBe('public, max-age=300, s-maxage=86400, stale-while-revalidate=86400');
-    expect(CACHE_REDIRECT).toBe('public, max-age=300, s-maxage=3600');
-    expect(CACHE_NOT_FOUND).toBe('public, max-age=60, s-maxage=300');
+    expect(CACHE_OK).toBe('public, max-age=60, s-maxage=300, stale-while-revalidate=60');
+    expect(CACHE_REDIRECT).toBe('public, max-age=60, s-maxage=300');
+    expect(CACHE_NOT_FOUND).toBe('public, max-age=60, s-maxage=60');
     expect(CACHE_ERROR).toBe('no-store');
-    expect(CACHE_AVUI).toBe('public, max-age=300, s-maxage=3600, stale-while-revalidate=3600');
+    expect(CACHE_AVUI).toBe(CACHE_OK);
   });
-  it('CACHE_AVUI és més curta que la general: les pàgines que depenen de la data d\'avui caduquen abans', () => {
+  it('les pàgines publicades caduquen en pocs minuts: cap s-maxage passa de 5 minuts', () => {
     const segons = (valor, clau) => Number(new RegExp(`${clau}=(\\d+)`).exec(valor)[1]);
-    expect(segons(CACHE_AVUI, 's-maxage')).toBeLessThan(segons(CACHE_OK, 's-maxage'));
-    expect(segons(CACHE_AVUI, 'stale-while-revalidate')).toBeLessThan(segons(CACHE_OK, 'stale-while-revalidate'));
+    for (const valor of [CACHE_OK, CACHE_AVUI, CACHE_REDIRECT, CACHE_NOT_FOUND]) {
+      expect(segons(valor, 's-maxage')).toBeLessThanOrEqual(300);
+    }
   });
   it('tria el valor segons l\'estat', () => {
     expect(cacheControlFor(200)).toBe(CACHE_OK);

@@ -1,9 +1,10 @@
-export const CACHE_OK = 'public, max-age=300, s-maxage=86400, stale-while-revalidate=86400';
-// Portada i /programacio/: el mosaic i els «Per determinar» del calendari es calculen amb la data de la
-// petició, així que han de caducar abans que la resta de pàgines.
-export const CACHE_AVUI = 'public, max-age=300, s-maxage=3600, stale-while-revalidate=3600';
-export const CACHE_REDIRECT = 'public, max-age=300, s-maxage=3600';
-export const CACHE_NOT_FOUND = 'public, max-age=60, s-maxage=300';
+// Curta a propòsit: no es pot purgar la CDN d'Hosting, i un canvi fet a l'admin ha de ser visible a la web en pocs minuts.
+export const CACHE_OK = 'public, max-age=60, s-maxage=300, stale-while-revalidate=60';
+// Portada i /programacio/: el mosaic i els «Per determinar» del calendari es calculen amb la data de la petició.
+export const CACHE_AVUI = CACHE_OK;
+export const CACHE_REDIRECT = 'public, max-age=60, s-maxage=300';
+// Perquè una sessió recent publicada no es quedi com a 404 a la CDN.
+export const CACHE_NOT_FOUND = 'public, max-age=60, s-maxage=60';
 // Errors del client (400, 403, 410...) que no són 404: una cache curta evita martellejar l'origen.
 export const CACHE_CLIENT = 'public, max-age=60, s-maxage=60';
 export const CACHE_ERROR = 'no-store';

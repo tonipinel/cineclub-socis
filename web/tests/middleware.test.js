@@ -73,7 +73,7 @@ describe('middleware', () => {
     const { onRequest } = await carrega(true);
     const ambCache = () => Promise.resolve(new Response('x', { status: 200, headers: { 'Cache-Control': 'public, max-age=1' } }));
     expect((await onRequest(context('/robots.txt'), ambCache)).headers.get('Cache-Control')).toBe('public, max-age=1');
-    expect((await onRequest(context('/x'), no404)).headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=300');
+    expect((await onRequest(context('/x'), no404)).headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=60');
   });
 
   it('serveix /programacio/<any>/<slug>/cartell.html (sense barra final) reescrivint a la ruta del cartell', async () => {
