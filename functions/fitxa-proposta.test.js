@@ -7,8 +7,8 @@ const ordenat = (conjunt) => [...conjunt].sort();
 
 describe('CAMPS_EDITABLES', () => {
   it('llista els camps de la pel·lícula que l\'admin pot editar', () => {
-    expect(CAMPS_EDITABLES).toEqual(['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia',
-      'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl']);
+    expect(CAMPS_EDITABLES).toEqual(['titol', 'titolLocal', 'any', 'durada', 'edatMinima', 'directors', 'guionistes',
+      'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl']);
   });
 });
 
@@ -92,7 +92,7 @@ describe('desarFitxaAmbDependencies', () => {
   const ESBORRAR = { esborrar: true };
   const pellicula = (extra = {}) => ({
     tmdbId: 10, titol: 'Film', titolLocal: 'Peli', any: 2020, sinopsi: 'Overview', sinopsiIdioma: 'en',
-    durada: 100, directors: ['Dir'], generes: ['Drama'], escenes: ['/e.jpg'], guionistes: ['Guio'],
+    durada: 100, edatMinima: 12, directors: ['Dir'], generes: ['Drama'], escenes: ['/e.jpg'], guionistes: ['Guio'],
     fotografia: ['Foto'], muntatge: ['Munt'], musica: ['Mus'], produccio: ['Prod A', 'Prod B'],
     repartiment: [{ nom: 'Actor', personatge: 'Paper' }], lema: 'Lema', paisos: ['França'], idiomes: ['Francès'],
     valoracio: 7.5, tmdbUrl: 'https://www.themoviedb.org/movie/10', trailerUrl: 'https://youtu.be/x',
@@ -100,7 +100,7 @@ describe('desarFitxaAmbDependencies', () => {
   });
   const CANVIS_TMDB = {
     tmdbId: 10, titol: 'Film', titolLocal: 'Peli', any: 2020, sinopsi: 'Overview', sinopsiIdioma: 'en',
-    durada: 100, directors: ['Dir'], generes: ['Drama'], imatges: ['/e.jpg'], guionistes: ['Guio'],
+    durada: 100, edatMinima: 12, directors: ['Dir'], generes: ['Drama'], imatges: ['/e.jpg'], guionistes: ['Guio'],
     fotografia: ['Foto'], muntatge: ['Munt'], musica: ['Mus'], produccio: ['Prod A', 'Prod B'],
     repartiment: [{ nom: 'Actor', personatge: 'Paper' }], lema: 'Lema', paisos: ['França'], idiomes: ['Francès'],
     valoracio: 7.5, tmdbUrl: 'https://www.themoviedb.org/movie/10', trailerUrl: 'https://youtu.be/x',
@@ -171,6 +171,16 @@ describe('desarFitxaAmbDependencies', () => {
     expect(escrit).toMatchObject({ fotografia: ['Foto'], muntatge: ['Munt'], produccio: ['Prod A', 'Prod B'] });
     expect(escrit).not.toHaveProperty('musica');
     expect(resultat.musica).toEqual(['Meva']);
+  });
+
+  it('desa l\'edat mínima de TMDB (0 inclòs), però no si l\'admin l\'ha editada', async () => {
+    const { deps, update } = dobles({ tmdbId: 10 }, pellicula({ posterPath: null, edatMinima: 0 }));
+    await desarFitxaAmbDependencies(deps, 'p1', 10);
+    expect(update.mock.calls[0][0]).toMatchObject({ edatMinima: 0 });
+    const editada = dobles({ tmdbId: 10, edatMinima: 16, campsEditats: ['edatMinima'] }, pellicula({ posterPath: null }));
+    const resultat = await desarFitxaAmbDependencies(editada.deps, 'p1', 10);
+    expect(editada.update.mock.calls[0][0]).not.toHaveProperty('edatMinima');
+    expect(resultat.edatMinima).toBe(16);
   });
 
   it('amb sobreescriure ho escriu tot i marca campsEditats per esborrar', async () => {

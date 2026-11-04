@@ -124,6 +124,7 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
     pais: unir(proposta.paisos),
     any: typeof proposta.any === 'string' ? proposta.any.trim() : proposta.any,
     durada: Number.isFinite(proposta.durada) && proposta.durada > 0 ? proposta.durada : undefined,
+    edatMinimaRecomanada: Number.isInteger(proposta.edatMinima) && proposta.edatMinima >= 0 ? proposta.edatMinima : undefined,
     idioma: unir(proposta.idiomes),
     generes: nomsDe(proposta.generes),
     interprets: nomsDe(proposta.repartiment).slice(0, MAX_INTERPRETS),

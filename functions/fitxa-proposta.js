@@ -1,7 +1,7 @@
 // Camps de la pel·lícula que l'admin pot editar a mà a la fitxa de la proposta.
 // Els que té a `campsEditats` no es tornen a agafar de TMDB.
-const CAMPS_EDITABLES = ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia', 'muntatge',
-  'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
+const CAMPS_EDITABLES = ['titol', 'titolLocal', 'any', 'durada', 'edatMinima', 'directors', 'guionistes', 'fotografia',
+  'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
 
 // Cal buidar `campsEditats` si l'admin demana sobreescriure-ho tot o tria una pel·lícula diferent.
 function buidarEditats(actual, tmdbIdNou, { sobreescriure = false } = {}) {
@@ -45,6 +45,7 @@ async function desarFitxaAmbDependencies(deps, propostaId, tmdbId, { sobreescriu
     sinopsi: pellicula.sinopsi,
     sinopsiIdioma: pellicula.sinopsiIdioma,
     durada: pellicula.durada,
+    edatMinima: pellicula.edatMinima,
     directors: pellicula.directors,
     generes: pellicula.generes,
     imatges: pellicula.escenes,

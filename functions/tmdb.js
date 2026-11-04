@@ -187,13 +187,29 @@ async function creditsPellicula(tmdbId, clau, fetchFn = fetch) {
   return creditsTecnics(await obtenirJson(clau, `/movie/${tmdbId}`, { append_to_response: 'credits' }, fetchFn));
 }
 
+const EDATS_ES = { TP: 0, 7: 7, 12: 12, 16: 16, 18: 18 };
+
+// Edat mínima recomanada a Espanya (0 = tots els públics) d'una resposta de TMDB amb `release_dates`;
+// `null` si no es coneix (mai 0).
+function edatMinimaEspanya(detall) {
+  const entrada = (detall.release_dates?.results ?? []).find((r) => r.iso_3166_1 === 'ES');
+  const certificacio = (entrada?.release_dates ?? []).map((d) => (d.certification ?? '').trim()).find(Boolean);
+  return Object.hasOwn(EDATS_ES, certificacio) ? EDATS_ES[certificacio] : null;
+}
+
+// Només l'edat mínima, amb una sola consulta (per a l'script que omple les propostes antigues).
+async function edatMinimaPellicula(tmdbId, clau, fetchFn = fetch) {
+  if (!esTmdbIdValid(tmdbId)) throw new Error('Identificador de TMDB no vàlid.');
+  return edatMinimaEspanya(await obtenirJson(clau, `/movie/${tmdbId}`, { append_to_response: 'release_dates' }, fetchFn));
+}
+
 async function detallPellicula(tmdbId, clau, fetchFn = fetch) {
   if (!esTmdbIdValid(tmdbId)) throw new Error('Identificador de TMDB no vàlid.');
   const [ca, es] = await Promise.all([
     obtenirJson(
       clau,
       `/movie/${tmdbId}`,
-      { language: 'ca-ES', append_to_response: 'credits,videos', include_video_language: 'es,ca,en,null' },
+      { language: 'ca-ES', append_to_response: 'credits,videos,release_dates', include_video_language: 'es,ca,en,null' },
       fetchFn
     ),
     obtenirJson(clau, `/movie/${tmdbId}`, { language: 'es-ES' }, fetchFn),
@@ -216,6 +232,7 @@ async function detallPellicula(tmdbId, clau, fetchFn = fetch) {
     posterPath,
     escenes,
     durada: ca.runtime || null,
+    edatMinima: edatMinimaEspanya(ca),
     generes: (ca.genres ?? []).map((g) => GENERES_CATALA[g.id] ?? g.name),
     directors: equip.filter((c) => c.job === 'Director').map((c) => c.name),
     guionistes: [...new Set(equip.filter((c) => ['Screenplay', 'Writer'].includes(c.job)).map((c) => c.name))],
@@ -239,4 +256,6 @@ async function descarregarCartell(posterPath, fetchFn = fetch) {
   };
 }
 
-module.exports = { cercarPellicules, detallPellicula, creditsPellicula, descarregarCartell, esTmdbIdValid };
+module.exports = {
+  cercarPellicules, detallPellicula, creditsPellicula, edatMinimaPellicula, edatMinimaEspanya, descarregarCartell, esTmdbIdValid,
+};

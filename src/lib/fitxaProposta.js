@@ -2,14 +2,15 @@
 // i càlcul dels camps que l'admin ha editat a mà (`campsEditats`, que TMDB ja no sobreescriu).
 
 // Mateixa llista i ordre que `CAMPS_EDITABLES` de functions/fitxa-proposta.js (una prova ho vigila).
-export const CAMPS_PELLICULA = ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia', 'muntatge',
-  'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
+export const CAMPS_PELLICULA = ['titol', 'titolLocal', 'any', 'durada', 'edatMinima', 'directors', 'guionistes', 'fotografia',
+  'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi', 'trailerUrl', 'imatgeUrl'];
 
 export const ETIQUETES_CAMPS = {
   titol: 'Títol',
   titolLocal: 'Títol a Espanya',
   any: 'Any',
   durada: 'Durada (minuts)',
+  edatMinima: 'Edat mínima recomanada',
   directors: 'Direcció',
   guionistes: 'Guió',
   fotografia: 'Fotografia',
@@ -90,6 +91,9 @@ export function formulariAFitxa(form) {
     } else if (camp === 'durada') {
       valors.durada = v ? Number(v) : null;
       if (v && !(/^\d+$/.test(v) && Number(v) > 0)) errors.durada = 'La durada ha de ser un nombre enter de minuts.';
+    } else if (camp === 'edatMinima') {
+      valors.edatMinima = v ? Number(v) : null;
+      if (v && !/^\d+$/.test(v)) errors.edatMinima = "L'edat mínima ha de ser un nombre enter (0 = tots els públics).";
     } else if (LLISTES.includes(camp)) {
       valors[camp] = llistaDeText(v);
     } else if (camp === 'repartiment') {

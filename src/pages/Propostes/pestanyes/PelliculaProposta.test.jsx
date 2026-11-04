@@ -12,6 +12,7 @@ const PROPOSTA = {
   titolLocal: 'El odio',
   any: 1995,
   durada: 98,
+  edatMinima: 16,
   directors: ['Mathieu Kassovitz'],
   guionistes: ['Mathieu Kassovitz'],
   fotografia: ['Pierre Aïm'],
@@ -64,6 +65,7 @@ describe('PelliculaProposta', () => {
     expect(screen.getByLabelText('Títol a Espanya')).toHaveValue('El odio');
     expect(screen.getByLabelText('Any')).toHaveValue('1995');
     expect(screen.getByLabelText('Durada (minuts)')).toHaveValue('98');
+    expect(screen.getByLabelText('Edat mínima recomanada')).toHaveValue('16');
     expect(screen.getByLabelText('Direcció')).toHaveValue('Mathieu Kassovitz');
     expect(screen.getByLabelText('Gèneres')).toHaveValue('Drama, Crim');
     expect(screen.getByLabelText('Fotografia')).toHaveValue('Pierre Aïm');
@@ -78,9 +80,14 @@ describe('PelliculaProposta', () => {
     expect(screen.queryByLabelText('URL del tràiler')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('URL del cartell')).not.toBeInTheDocument();
     // L'id de cada camp és el seu nom (el focus en un error de validació hi compta).
-    for (const camp of ['titol', 'titolLocal', 'any', 'durada', 'directors', 'guionistes', 'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi']) {
+    for (const camp of ['titol', 'titolLocal', 'any', 'durada', 'edatMinima', 'directors', 'guionistes', 'fotografia', 'muntatge', 'musica', 'produccio', 'paisos', 'idiomes', 'generes', 'repartiment', 'lema', 'sinopsi']) {
       expect(document.getElementById(camp)).not.toBeNull();
     }
+  });
+
+  it('l\'edat mínima té l\'ajuda de format, lligada al camp', () => {
+    pinta();
+    expect(descripcio(screen.getByLabelText('Edat mínima recomanada'))).toContain('0 = tots els públics; buit = desconeguda');
   });
 
   it('les llistes i el repartiment tenen l\'ajuda de format, lligada al camp', () => {

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import tmdb from './tmdb.js';
 
-const { cercarPellicules, detallPellicula, creditsPellicula, descarregarCartell } = tmdb;
+const {
+  cercarPellicules, detallPellicula, creditsPellicula, edatMinimaPellicula, edatMinimaEspanya, descarregarCartell,
+} = tmdb;
 
 const resposta = (dades, ok = true) => ({ ok, status: ok ? 200 : 401, json: async () => dades });
 
@@ -144,7 +146,7 @@ describe('detallPellicula', () => {
       trailerUrl: 'https://www.youtube.com/watch?v=oficial',
       tmdbUrl: 'https://www.themoviedb.org/movie/5',
     });
-    expect(fetchFn.mock.calls[0][0]).toContain('append_to_response=credits%2Cvideos');
+    expect(fetchFn.mock.calls[0][0]).toContain('append_to_response=credits%2Cvideos%2Crelease_dates');
   });
 
   it('tradueix al català els gèneres, els països i els idiomes que TMDB dona en anglès o en l\'idioma original', async () => {
@@ -319,6 +321,53 @@ describe('crèdits tècnics', () => {
     expect(fetchFn.mock.calls[0][0]).toContain('/movie/5?');
     expect(fetchFn.mock.calls[0][0]).toContain('append_to_response=credits');
     await expect(creditsPellicula('../x', 'clau', fetchFn)).rejects.toThrow('no vàlid');
+  });
+});
+
+describe('edat mínima', () => {
+  const ambCertificacions = (...certs) => ({
+    release_dates: { results: [{ iso_3166_1: 'ES', release_dates: certs.map((certification) => ({ certification, type: 3 })) }] },
+  });
+
+  it.each([['TP', 0], ['7', 7], ['12', 12], ['16', 16], ['18', 18]])('la certificació ES %s dona %s', (cert, edat) => {
+    expect(edatMinimaEspanya(ambCertificacions(cert))).toBe(edat);
+  });
+
+  it('una certificació no reconeguda o buida dona null (mai 0)', () => {
+    expect(edatMinimaEspanya(ambCertificacions('A'))).toBeNull();
+    expect(edatMinimaEspanya(ambCertificacions(''))).toBeNull();
+    expect(edatMinimaEspanya(ambCertificacions())).toBeNull();
+  });
+
+  it('sense entrada ES, o sense release_dates, dona null', () => {
+    expect(edatMinimaEspanya({ release_dates: { results: [{ iso_3166_1: 'US', release_dates: [{ certification: 'PG-13' }] }] } })).toBeNull();
+    expect(edatMinimaEspanya({ release_dates: { results: [] } })).toBeNull();
+    expect(edatMinimaEspanya({})).toBeNull();
+  });
+
+  it('agafa la primera certificació no buida de l\'entrada ES', () => {
+    const detall = { release_dates: { results: [
+      { iso_3166_1: 'US', release_dates: [{ certification: 'R' }] },
+      { iso_3166_1: 'ES', release_dates: [{ certification: '' }, { certification: '16' }, { certification: '7' }] },
+    ] } };
+    expect(edatMinimaEspanya(detall)).toBe(16);
+  });
+
+  it('detallPellicula inclou edatMinima, i null si no n\'hi ha', async () => {
+    const BASE = { id: 5, title: 'X', original_title: 'X', original_language: 'es', overview: 'x' };
+    const amb = servidor({ detall: { 'ca-ES': { ...BASE, ...ambCertificacions('12') }, 'es-ES': BASE } });
+    expect((await detallPellicula(5, 'clau', amb)).edatMinima).toBe(12);
+    const sense = servidor({ detall: { 'ca-ES': BASE, 'es-ES': BASE } });
+    expect((await detallPellicula(5, 'clau', sense)).edatMinima).toBeNull();
+  });
+
+  it('edatMinimaPellicula ho obté amb una sola consulta', async () => {
+    const fetchFn = vi.fn(async () => resposta({ id: 5, ...ambCertificacions('TP') }));
+    expect(await edatMinimaPellicula(5, 'clau', fetchFn)).toBe(0);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn.mock.calls[0][0]).toContain('/movie/5?');
+    expect(fetchFn.mock.calls[0][0]).toContain('append_to_response=release_dates');
+    await expect(edatMinimaPellicula('../x', 'clau', fetchFn)).rejects.toThrow('no vàlid');
   });
 });
 

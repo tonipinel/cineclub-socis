@@ -177,6 +177,13 @@ describe('construirSessioDesDeProposta', () => {
     for (const camp of ['fotografia', 'muntatge', 'musica', 'produccio']) expect(buida.sessio.publica).not.toHaveProperty(camp);
   });
 
+  it('copia l\'edat mínima si és un enter ≥ 0 (el zero també) i si no, no hi posa el camp', () => {
+    const edat = (edatMinima) => construirSessioDesDeProposta({ ...FLOATING_CLOUDS, edatMinima }, { propostaId: 'p' }).sessio.publica;
+    expect(edat(12).edatMinimaRecomanada).toBe(12);
+    expect(edat(0).edatMinimaRecomanada).toBe(0);
+    for (const invalid of [null, undefined, -1, 12.5, '12', NaN]) expect(edat(invalid)).not.toHaveProperty('edatMinimaRecomanada');
+  });
+
   it('limita els intèrprets a 8 i en treu el personatge', () => {
     expect(sessio.publica.interprets).toEqual(Array.from({ length: 8 }, (_, i) => `Actor ${i + 1}`));
   });
