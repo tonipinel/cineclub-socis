@@ -141,7 +141,7 @@ describe('detallPellicula', () => {
       repartiment: [{ nom: 'Patricia López Arnaiz', personatge: 'Maite' }],
       lema: 'Fins ara tot va bé',
       paisos: ['Espanya'],
-      idiomes: ['Espanyol', 'Anglès'],
+      idiomes: ['Castellà', 'Anglès'],
       valoracio: 8.1,
       trailerUrl: 'https://www.youtube.com/watch?v=oficial',
       tmdbUrl: 'https://www.themoviedb.org/movie/5',
@@ -165,6 +165,15 @@ describe('detallPellicula', () => {
       paisos: ['Estats Units', 'Regne Unit'],
       idiomes: ['Àrab', 'Francès'],
     });
+  });
+
+  it('el castellà es diu «Castellà» (no «Espanyol») i la resta d\'idiomes surten d\'Intl', async () => {
+    const fetchFn = servidor({
+      detall: detall({
+        ca: { overview: 'x', spoken_languages: [{ iso_639_1: 'es', name: 'Español' }, { iso_639_1: 'ca', name: 'Català' }] },
+      }),
+    });
+    expect(await detallPellicula(5, 'clau', fetchFn)).toMatchObject({ idiomes: ['Castellà', 'Català'] });
   });
 
   it('si un gènere, país o idioma no es reconeix, deixa el nom de TMDB', async () => {

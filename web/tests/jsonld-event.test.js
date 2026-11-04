@@ -199,5 +199,7 @@ describe('descripcioEvent i idiomesDe (helpers)', () => {
     expect(idiomesDe('basc i francès')).toEqual(['eu', 'fr']);
     expect(idiomesDe('')).toEqual([]);
     expect(idiomesDe('Xinès')).toEqual([]);
+    // «Espanyol» es manté com a àlies per a les dades antigues.
+    expect(idiomesDe('Castellà i Espanyol')).toEqual(['es']);
   });
 });

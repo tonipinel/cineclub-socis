@@ -118,6 +118,8 @@ function nomPais(pais) {
 }
 
 function nomIdioma(idioma) {
+  // Intl en diu «espanyol»; aquí sempre «Castellà».
+  if (idioma.iso_639_1 === 'es') return 'Castellà';
   try {
     const nom = NOMS_IDIOMES.of(idioma.iso_639_1);
     return nom && nom !== idioma.iso_639_1 ? iniciaAmbMajuscula(nom) : idioma.name || idioma.english_name;
