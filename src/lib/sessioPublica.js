@@ -142,7 +142,7 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
       urlProgramacio: '',
       imatgeUrl,
       publicada: false,
-      slug: '',
+      slug: slugSuggerit,
       propostaId,
       publica: avui instanceof Date && !Number.isNaN(avui.getTime()) ? marcarActualitzada(publica, avui) : publica,
     },

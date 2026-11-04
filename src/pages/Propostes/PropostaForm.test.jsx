@@ -1448,7 +1448,7 @@ describe('PropostaForm: Programar sessió', () => {
     const [ref, sessio] = tx.set.mock.calls[0];
     expect(ref.path).toBe('sessions/proposta-p1');
     expect(sessio).toMatchObject({
-      titol: 'Amélie', propostaId: 'p1', publicada: false, data: '', slug: '',
+      titol: 'Amélie', propostaId: 'p1', publicada: false, data: '', slug: 'amelie',
     });
     expect(sessio.publica).toMatchObject({ titol: 'Amélie', titolOriginal: 'Amélie', titolEspanya: 'Amèlie' });
     expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });

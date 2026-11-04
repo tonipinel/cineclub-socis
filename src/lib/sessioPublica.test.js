@@ -105,7 +105,7 @@ describe('construirSessioDesDeProposta', () => {
       urlProgramacio: '',
       imatgeUrl: FLOATING_CLOUDS.imatgeUrl,
       publicada: false,
-      slug: '',
+      slug: 'floating-clouds',
       propostaId: 'prop1',
     });
     expect(sessio).not.toHaveProperty('activa');
@@ -119,6 +119,7 @@ describe('construirSessioDesDeProposta', () => {
     const r = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titol: '浮雲' }, { propostaId: 'p', avui: AVUI });
     expect(r.slugSuggerit).toBe('nubes-flotantes');
     expect(r.sessio.titol).toBe('浮雲');
+    expect(r.sessio.slug).toBe('nubes-flotantes');
     const r2 = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titol: undefined }, { propostaId: 'p', avui: AVUI });
     expect(r2.sessio.titol).toBe('Nubes flotantes');
     expect(r2.sessio.publica.titol).toBe('Nubes flotantes');
@@ -126,6 +127,12 @@ describe('construirSessioDesDeProposta', () => {
     expect(r2.sessio.publica).not.toHaveProperty('titolEspanya');
     const r3 = construirSessioDesDeProposta({ ...FLOATING_CLOUDS, titolLocal: 'FLOATING CLOUDS' }, { propostaId: 'p', avui: AVUI });
     expect(r3.sessio.publica).not.toHaveProperty('titolEspanya');
+  });
+
+  it('deixa el slug buit si el títol no en dóna cap', () => {
+    const r = construirSessioDesDeProposta({ titol: '!!!', titolLocal: '???' }, { propostaId: 'p', avui: AVUI });
+    expect(r.sessio.slug).toBe('');
+    expect(r.slugSuggerit).toBe('');
   });
 
   it('mapeja la fitxa pública', () => {
