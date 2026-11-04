@@ -1,4 +1,4 @@
-/* Ruta d'impressió del flyer: cada .flyer-full és un full (A4, o A4 + 3 mm de sagnat a l'impremta). */
+/* Ruta d'impressió del flyer: cada .flyer-full és un full (A4, A4 + 3 mm de sagnat a l'impremta, o una tira al PDF simple). */
 @reference "./main.css";
 
 .flyer-imprimir {
@@ -41,6 +41,10 @@
   left: 2mm;
   width: 206mm;
   border-top-width: 0.2mm;
+}
+/* PDF simple: cada full és una sola ranura de 210 × 99 mm (la pàgina és la tira; sense guies de tall). */
+.flyer-full.flyer-full--una-tira {
+  height: 99mm;
 }
 .flyer-full--impremta {
   width: 216mm;

@@ -13,8 +13,9 @@ const camiPdf = (id, variant) => `flyers/${id}/flyer-${variant}.pdf`;
 // Versió del disseny imprès: puja-la quan canviï el layout d'impressió, el CSS o `web/src/data/flyer.json`, perquè els
 // PDF existents es regenerin en el proper disparador (la signatura no mira cap d'aquests fitxers).
 // La v2 afegeix el token de descàrrega (`pdfs.<variant>.url`). La v3 és el disseny nou (cares blanques, targetes, logo i
-// preus) i els PDF amb totes les sessions del flyer, publicades o no.
-const VERSIO_DISSENY = 3;
+// preus) i els PDF amb totes les sessions del flyer, publicades o no. La v4 fa el PDF `simple` de dues pàgines de 210 × 99 mm
+// (una tira de la cara A i una de la cara B).
+const VERSIO_DISSENY = 4;
 
 // URL de descàrrega amb token: secreta, només al document admin del flyer; no es registra ni es posa en errors.
 const urlDescarrega = (nomBucket, path, token) => `https://firebasestorage.googleapis.com/v0/b/${nomBucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;

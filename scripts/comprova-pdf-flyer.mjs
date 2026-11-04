@@ -1,6 +1,6 @@
 // Ús: node scripts/comprova-pdf-flyer.mjs <flyerId>
 // COMPROVACIÓ DE NOMÉS LECTURA (no té cap mode d'escriptura): llegeix `flyers/<id>` i, per a cada variant de `pdfs`
-// (`simple`: A4 210 × 297 mm; `impremta`: A4 + sagnat 216 × 303 mm), descarrega el PDF de Storage en memòria i informa de
+// (`simple`: una tira de 210 × 99 mm per pàgina; `impremta`: A4 + sagnat 216 × 303 mm), descarrega el PDF de Storage en memòria i informa de
 // si existeix, la mida en KB, el nombre de pàgines (han de ser 2) i la mida de cada pàgina en mm (tolerància ±1 mm), a
 // més de `generatEl` i de si hi ha `firma`. Surt «OK» o «REVISAR» per línia. No imprimeix mai `clauPrevia`.
 // Les pàgines es llegeixen amb una expressió regular (objectes `/Type /Page` i `/MediaBox [0 0 w h]` en punts, com
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const ARREL = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUCKET = 'cineclub-socis.firebasestorage.app';
-const MIDES_MM = { simple: [210, 297], impremta: [216, 303] };
+export const MIDES_MM = { simple: [210, 99], impremta: [216, 303] };
 const TOLERANCIA_MM = 1;
 const PUNT_MM = 25.4 / 72;
 

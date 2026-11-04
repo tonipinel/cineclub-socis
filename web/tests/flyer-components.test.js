@@ -114,6 +114,15 @@ describe('FlyerCaraA', () => {
     expect(css).toMatch(/\.flyer-columna__versio\s*{[^}]*margin-top:\s*auto/);
     expect(css).toMatch(/\.flyer-tira\s*{[^}]*width:\s*210mm[^}]*height:\s*99mm[^}]*overflow:\s*hidden/s);
   });
+
+  it('la pastilla de versió + idioma té el text blanc sobre fons negre (es llegeix bé imprès)', () => {
+    const css = readFileSync(new URL('../src/styles/flyer.css', import.meta.url), 'utf8');
+    const pastilla = css.match(/\.flyer-columna__versio\s*{([^}]*)}/)[1];
+    expect(pastilla).toMatch(/\btext-white\b/);
+    expect(pastilla).not.toMatch(/\btext-gold\b/);
+    expect(pastilla).toMatch(/background-color:\s*#000;/);
+    expect(css).toMatch(/\.flyer-columna__idioma\s*{[^}]*\btext-white\b/);
+  });
 });
 
 describe('FlyerCaraB', () => {

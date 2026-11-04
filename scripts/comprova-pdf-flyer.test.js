@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pagines } from './comprova-pdf-flyer.mjs';
+import { MIDES_MM, pagines } from './comprova-pdf-flyer.mjs';
 
 const pdf = (...mides) => `%PDF-1.4
 1 0 obj
@@ -12,6 +12,12 @@ ${mides.map((m, i) => `${i + 3} 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 ${m[0]} ${m[1]}] /Contents 9 0 R >>
 endobj`).join('\n')}
 %%EOF`;
+
+describe('MIDES_MM', () => {
+  it('simple és una tira de 210 × 99 mm per pàgina; impremta, 216 × 303 mm', () => {
+    expect(MIDES_MM).toEqual({ simple: [210, 99], impremta: [216, 303] });
+  });
+});
 
 describe('pagines', () => {
   it('llegeix el nombre de pàgines i la mida en mm (A4 i 216 × 303)', () => {

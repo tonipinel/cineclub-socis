@@ -105,13 +105,14 @@ La taquilla no llegeix `socis` (DNI, contacte, pagaments, token del carnet): nom
 - El motiu de desactivació (text lliure) es mostra a la porta: no hi escriguis motius sensibles (salut, conflictes personals…).
 - Si una actualització de `socisPorta` falla, la funció es reintenta sola (`retry: true`) i registra només l'id del soci i el codi d'error.
 - Per omplir `socisPorta` la primera vegada o reparar desajustos: `node scripts/omple-socis-porta.mjs` (informe; `--apply` amb la còpia d'avui, `--desfer <fitxer>`).
-- Per comprovar els PDF d'un flyer (2 pàgines, A4 a `simple` i 216 × 303 mm a `impremta`): `node scripts/comprova-pdf-flyer.mjs <flyerId>` (només lectura; no imprimeix `clauPrevia`).
+- Per comprovar els PDF d'un flyer (2 pàgines, 210 × 99 mm a `simple` i 216 × 303 mm a `impremta`): `node scripts/comprova-pdf-flyer.mjs <flyerId>` (només lectura; no imprimeix `clauPrevia`).
 
 ### Flyers: primer desplegament
 
 - Les funcions `default` (`regenerarPdfsFlyer`, `regenerarPdfsPerSessio`) necessiten el runtime Node ≥ 22.17 (`engines` de `@sparticuz/chromium`).
 - `npm --prefix web install` al checkout principal perquè hi hagi `qrcode` (el predeploy de la web ja fa `npm --prefix web ci`).
 - Variable d'entorn opcional `WEB_URL` (per defecte `https://cineclubrodadebera.cat`): la URL des d'on Chromium carrega la ruta d'impressió.
+- Variants del PDF (pàgina 1 = cara A, pàgina 2 = cara B): `simple` (el «Descarrega en PDF» de `/flyer/<id>/`) és una sola tira de 210 × 99 mm per pàgina; `impremta` és el full de 216 × 303 mm amb sagnat, 3 tires per cara i marques de tall. El botó «Imprimeix els flyers en A4» de la pàgina imprimeix en A4 les 3 tires per cara, amb guies de tall.
 - Els PDF es desen a Storage a `flyers/<id>/` (privat: cap regla de `storage.rules` el cobreix; només hi escriu la funció amb l'Admin SDK). La web (el seu compte de servei no té `storage.objects.get`) llegeix cada PDF per la URL amb token de descàrrega desada a `pdfs.<variant>.url` (document només d'admin) i el serveix des de `/flyer/<id>/flyer.pdf` sense redirigir: el token no surt mai.
 - Els PDF porten totes les sessions del flyer, publicades o no (la funció obre `/imprimir/` amb la `clau` i `totes=1`). Per això, sense `clau`, `/flyer/<id>/`, `/flyer/<id>/flyer.pdf` i `/flyer/<id>/imprimir/` només responen per a un flyer **actiu** (publicat i amb totes les sessions existents i publicades); si no, el mateix 404 que un esborrany. El bloc de `/programacio/` només promociona el flyer actiu i vigent més recent. Sense `clau`, el PDF només se serveix si les sessions amb què es va pintar (`pdfs.<variant>.sessionsIds`) són totes del flyer actual; si no, «El PDF encara s'està preparant» fins que es regeneri.
 - Despublicar una sessió d'un flyer actiu pot deixar la CDN servint la pàgina i el PDF públics fins a ~6 minuts.

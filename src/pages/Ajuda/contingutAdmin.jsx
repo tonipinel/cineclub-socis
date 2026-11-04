@@ -579,7 +579,7 @@ const FLYERS = {
       cos: (
         <>
           <ul>
-            <li><strong>PDF simple:</strong> per imprimir a casa o al Hotel d'Entitats.</li>
+            <li><strong>PDF simple:</strong> un flyer en dues pàgines (cara A i cara B), per enviar o descarregar. Per imprimir-ne a casa o al Hotel d'Entitats, «Imprimeix els flyers en A4» a la pàgina del flyer.</li>
             <li><strong>PDF per a impremta:</strong> amb sagnat i marques de tall.</li>
           </ul>
           <p>

@@ -72,6 +72,10 @@ describe('/flyer/<id>/', () => {
     for (const t of ['Peli a', 'Peli b', 'Peli c']) expect(html).toContain(t);
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
     expect(html).toContain('href="/flyer/pub/flyer.pdf"');
+    expect(html).toMatch(/<a class="flyer-pagina__boto" href="\/flyer\/pub\/flyer.pdf" download="flyer-cineclub.pdf">Descarrega en PDF<\/a>/);
+    expect(html).toContain('onclick="window.print()">Imprimeix els flyers en A4</button>');
+    expect(html).not.toContain('Imprimeix aquesta pàgina');
+    expect(html).not.toContain('>Imprimeix</a>');
     expect(html).toContain(`https://wa.me/?text=${encodeURIComponent('Flyer novembre https://cineclub-web.web.app/flyer/pub/')}`);
   });
 
@@ -161,7 +165,7 @@ describe('/flyer/<id>/ imprimible directament', () => {
     expect(html.match(/class="flyer-tira__logo"/g)).toHaveLength(8);
     expect(html.match(/class="flyer-marca__logo"/g)).toHaveLength(4);
     expect(html).not.toContain('flyer-marca__nom');
-    expect((await demana(PaginaImprimir, 'pub')).html.match(/<img class="flyer-(tira|marca)__logo"/g)).toHaveLength(9);
+    expect((await demana(PaginaImprimir, 'pub')).html.match(/<img class="flyer-(tira|marca)__logo"/g)).toHaveLength(3);
   });
 });
 
@@ -285,8 +289,8 @@ describe('geometria dels fulls', () => {
   });
 
   it('cada full porta 3 caixes de tira; impremta conserva les 24 marques i la mida de 216 × 303 mm', async () => {
-    for (const consulta of ['', '?variant=impremta&clau=secreta']) {
-      const { html } = await demana(PaginaImprimir, 'pub', consulta);
+    for (const [Pagina, consulta] of [[PaginaFlyer, ''], [PaginaImprimir, '?variant=impremta&clau=secreta']]) {
+      const { html } = await demana(Pagina, 'pub', consulta);
       const fulls = html.split('<section class="flyer-full').slice(1);
       for (const full of fulls) expect(full.match(/class="flyer-full__tira"/g)).toHaveLength(3);
     }
@@ -299,19 +303,29 @@ describe('geometria dels fulls', () => {
 });
 
 describe('/flyer/<id>/imprimir/', () => {
-  it('simple (per defecte): A4, 2 pàgines amb 3 tires cadascuna, no-store', async () => {
+  it('simple (per defecte): 2 pàgines de 210 × 99 mm, una tira de la cara A i una de la cara B, no-store', async () => {
     const { status, cache, html } = await demana(PaginaImprimir, 'pub');
     expect(status).toBe(200);
     expect(cache).toBe('no-store');
-    expect(html).toContain('size: 210mm 297mm');
+    expect(html).toContain('@page { size: 210mm 99mm; margin: 0; }');
+    expect(html).not.toContain('297mm');
     expect(html).toContain('noindex, nofollow');
     const fulls = html.split('<section class="flyer-full').slice(1);
     expect(fulls).toHaveLength(2);
-    for (const full of fulls) expect(full.match(/class="flyer-tira[ "]/g)).toHaveLength(3);
+    for (const full of fulls) {
+      expect(full).toMatch(/^ flyer-full--una-tira"/);
+      expect(full.match(/class="flyer-tira[ "]/g)).toHaveLength(1);
+      expect(full.match(/class="flyer-full__tira"/g)).toHaveLength(1);
+    }
     expect(fulls[0]).not.toContain('flyer-tira--corporativa');
-    expect(fulls[1].match(/flyer-tira--corporativa/g)).toHaveLength(3);
+    expect(fulls[1].match(/flyer-tira--corporativa/g)).toHaveLength(1);
     expect(html).not.toContain('flyer-marca-tall');
-    expect((await demana(PaginaImprimir, 'pub', '?variant=rara')).html).toContain('size: 210mm 297mm');
+    expect((await demana(PaginaImprimir, 'pub', '?variant=rara')).html).toContain('size: 210mm 99mm');
+  });
+
+  it('el full d\'una tira fa exactament 210 × 99 mm (sense guies de tall)', () => {
+    const css = readFileSync(new URL('../src/styles/flyer-imprimir.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/\.flyer-full\.flyer-full--una-tira\s*\{[^}]*height:\s*99mm;/);
   });
 
   it('el botó d\'imprimir no és dins cap full i el CSS d\'impressió l\'amaga (no surt al PDF)', async () => {

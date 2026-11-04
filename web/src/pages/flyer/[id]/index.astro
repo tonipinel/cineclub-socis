@@ -48,8 +48,8 @@ const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${ur
 <main class={`flyer-pagina__contingut${pelicules.length ? '' : ' flyer-pagina__contingut--buit'}`}>
   <h1 class="flyer-pagina__titol">{flyer.nom}</h1>
   <div class="flyer-pagina__accions">
-    {ambPdf && <a class="flyer-pagina__boto" href={urlPdf}>Imprimeix</a>}
-    <button type="button" class="flyer-pagina__boto flyer-pagina__boto--secundari" onclick="window.print()">Imprimeix aquesta pàgina</button>
+    {ambPdf && <a class="flyer-pagina__boto" href={urlPdf} download="flyer-cineclub.pdf">Descarrega en PDF</a>}
+    <button type="button" class="flyer-pagina__boto flyer-pagina__boto--secundari" onclick="window.print()">Imprimeix els flyers en A4</button>
     {actiu && <a class="flyer-pagina__boto flyer-pagina__boto--secundari" href={urlWhatsapp} rel="noopener">Comparteix per WhatsApp</a>}
   </div>
   {pelicules.length > 0

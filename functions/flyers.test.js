@@ -87,8 +87,8 @@ describe('firmaFlyer', () => {
     expect(firmaFlyer(flyer, [sessions[1], sessions[0]])).not.toBe(firmaFlyer(flyer, sessions));
   });
 
-  it('la versió del disseny és la 3', () => {
-    expect(VERSIO_DISSENY).toBe(3);
+  it('la versió del disseny és la 4', () => {
+    expect(VERSIO_DISSENY).toBe(4);
   });
 
   it('una sessió despublicada canvia la signatura', () => {

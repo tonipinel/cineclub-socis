@@ -6,12 +6,12 @@ import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { CACHE_ERROR } from '../../../lib/cache.js';
 import { flyerActiu, flyerPerId, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
 
-// /flyer/<id>/imprimir/?variant=simple|impremta&clau=. Dues pàgines: la 1 és la cara A ×3 i la 2 la cara B ×3
-// (les tres tires d'un full són iguals: es talla en 3).
-// Impressió a doble cara: les dues cares es pinten amb la MATEIXA orientació (tires dretes en un full vertical),
-// de manera que amb «gira pel costat llarg» (flip on long edge) la cara B queda alineada amb la A.
-// `simple`: A4 (210 × 297 mm). `impremta`: 216 × 303 mm (A4 + 3 mm de sagnat per costat) amb marques de tall;
-// només amb la `clau`. Un flyer no actiu (esborrany, o publicat amb alguna sessió sense publicar o esborrada) també la
+// /flyer/<id>/imprimir/?variant=simple|impremta&clau=. Dues pàgines: la 1 és la cara A i la 2 la cara B.
+// `simple` (el PDF descarregable): cada pàgina és UNA tira de 210 × 99 mm, sense full A4 ni guies de tall.
+// `impremta`: 216 × 303 mm (A4 + 3 mm de sagnat per costat) amb la cara ×3 per full (es talla en 3) i marques de tall;
+// les dues cares es pinten amb la MATEIXA orientació (tires dretes en un full vertical), de manera que amb «gira pel costat
+// llarg» (flip on long edge) la cara B queda alineada amb la A. La impremta
+// només es veu amb la `clau`. Un flyer no actiu (esborrany, o publicat amb alguna sessió sense publicar o esborrada) també la
 // requereix. Sense pel·lícules no hi ha res a imprimir: 404.
 const { id } = Astro.params;
 const clau = Astro.url.searchParams.get('clau') ?? '';
@@ -32,7 +32,7 @@ if (!pelicules.length) return Astro.rewrite('/404');
 Astro.response.headers.set('Cache-Control', CACHE_ERROR);
 
 const impremta = variant === 'impremta';
-const pagina = impremta ? '216mm 303mm' : '210mm 297mm';
+const pagina = impremta ? '216mm 303mm' : '210mm 99mm';
 ---
 <!DOCTYPE html>
 <html lang="ca">
@@ -45,6 +45,6 @@ const pagina = impremta ? '216mm 303mm' : '210mm 297mm';
 </head>
 <body class="flyer-imprimir">
 <button type="button" class="flyer-imprimir__boto" onclick="window.print()">Imprimeix / Desa PDF</button>
-<FlyerFulls pelicules={pelicules} preu={preu} impremta={impremta} />
+<FlyerFulls pelicules={pelicules} preu={preu} impremta={impremta} unaTira={!impremta} />
 </body>
 </html>
