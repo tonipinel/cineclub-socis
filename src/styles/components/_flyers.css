@@ -1,0 +1,48 @@
+/* Llista de flyers */
+.llista-cataleg__item.flyers-list__item {
+  @apply lg:grid-cols-[minmax(0,1fr)_14rem_16rem];
+}
+.flyers-list__nom {
+  @apply min-w-0 text-base font-semibold wrap-anywhere;
+}
+.flyers-list__dates {
+  @apply text-black/70;
+}
+.flyers-list__estat {
+  @apply flex flex-wrap gap-1;
+}
+
+/* Formulari de flyer */
+.flyer-form {
+  @apply flex flex-col gap-2;
+}
+.flyer-form__dates {
+  @apply grid gap-4 sm:grid-cols-2;
+}
+.flyer-form__seccio {
+  @apply mb-4 flex flex-col gap-2;
+}
+.flyer-form__titol-seccio {
+  @apply m-0 text-lg font-semibold;
+}
+.flyer-form__sessions {
+  @apply m-0 flex list-none flex-col gap-1 p-0;
+}
+.flyer-form__sessio-data {
+  @apply text-black/70;
+}
+.flyer-form__avis {
+  @apply font-body text-sm text-amber-800;
+}
+.flyer-form__avis-desactualitzat {
+  @apply mb-4 flex flex-col items-start gap-2 rounded border border-amber-400 bg-amber-50 p-4 text-sm;
+}
+.flyer-form__avis-titol {
+  @apply m-0 font-semibold;
+}
+.flyer-form__publicar {
+  @apply mb-4 flex flex-col items-start gap-1;
+}
+.flyer-form__enllacos {
+  @apply m-0 flex list-none flex-col gap-1 p-0;
+}

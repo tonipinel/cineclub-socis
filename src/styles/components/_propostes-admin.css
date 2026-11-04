@@ -379,19 +379,3 @@
 .badge--sense-comencar {
   @apply border-black/40 text-black/60;
 }
-
-
-
-/* Flyers */
-.llista-cataleg__item.flyers-list__item {
-  @apply lg:grid-cols-[minmax(0,1fr)_14rem_16rem];
-}
-.flyers-list__nom {
-  @apply min-w-0 text-base font-semibold wrap-anywhere;
-}
-.flyers-list__dates {
-  @apply text-black/70;
-}
-.flyers-list__estat {
-  @apply flex flex-wrap gap-1;
-}
