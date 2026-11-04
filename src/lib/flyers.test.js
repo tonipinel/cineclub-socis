@@ -35,13 +35,15 @@ describe('validarFlyer', () => {
   });
 
   it('és vàlid amb 3 sessions', () => {
-    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', '3'] }, sessions)).toEqual({ errors: {}, avisos: [] });
+    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', '3'] }, sessions)).toEqual({ errors: {} });
   });
 
-  it('avisa, sense error, amb més de 6 sessions', () => {
-    const r = validarFlyer({ ...base, sessionsIds: ['1', '2', '3', '4', '5', '6', '7'] }, sessions);
-    expect(r.errors).toEqual({});
-    expect(r.avisos).toHaveLength(1);
+  it('dona error amb més de 5 sessions (límit dur), i 5 és vàlid', () => {
+    const set = Array.from({ length: 7 }, (_, i) => String(i + 1));
+    expect(validarFlyer({ ...base, sessionsIds: set.slice(0, 5) }, sessions).errors).toEqual({});
+    const r = validarFlyer({ ...base, sessionsIds: set }, sessions);
+    expect(r.errors.sessionsIds).toContain("Un flyer té de 3 a 5 sessions. Desmarca'n alguna.");
+    expect(r.avisos).toBeUndefined();
   });
 
   it('dona error per una sessió sense versioTipus i n\'hi anomena el títol', () => {

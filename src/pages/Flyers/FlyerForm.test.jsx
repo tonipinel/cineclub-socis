@@ -84,7 +84,7 @@ describe('FlyerForm', () => {
     expect(screen.queryByRole('checkbox', { name: /Film draft/ })).toBeNull();
     await userEvent.click(casella('Film s2'));
     expect(casella('Film s2')).not.toBeChecked();
-    expect(screen.getByText('Sessions (3)')).toBeInTheDocument();
+    expect(screen.getByText('Sessions (3 de 5)')).toBeInTheDocument();
   });
 
   it('amb menys de 3 marcades Publicar és desactivat i surt l\'error', async () => {
@@ -105,12 +105,14 @@ describe('FlyerForm', () => {
     expect(screen.getByText('Falta la versió')).toBeInTheDocument();
   });
 
-  it('amb 7 sessions només avisa', async () => {
+  it('amb més de 5 sessions és un error que bloqueja Publicar (i s\'hi veu el recompte «7 de 5»)', async () => {
     sessions = Array.from({ length: 7 }, (_, i) => sessio(`m${i}`, `2026-11-0${i + 1}`));
     renderNou();
     await omple();
-    expect(screen.getByText(/Més de 6 sessions/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Publicar' })).toBeEnabled();
+    expect(screen.getByText("Un flyer té de 3 a 5 sessions. Desmarca'n alguna.")).toBeInTheDocument();
+    expect(screen.getByText('Sessions (7 de 5)')).toBeInTheDocument();
+    expect(screen.queryByText(/massa ple/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publicar' })).toBeDisabled();
   });
 
   it('en publicar escriu estat, publicatEl, base, sessionsIds i la clau prèvia', async () => {

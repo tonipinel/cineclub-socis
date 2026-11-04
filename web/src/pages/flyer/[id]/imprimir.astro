@@ -2,10 +2,9 @@
 import '../../../styles/main.css';
 import '../../../styles/flyer.css';
 import '../../../styles/flyer-imprimir.css';
-import FlyerCaraA from '../../../components/FlyerCaraA.astro';
-import FlyerCaraB from '../../../components/FlyerCaraB.astro';
+import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerPerId, peliculaFlyer, potVeure, sessionsDelFlyer } from '../../../lib/flyers.js';
+import { flyerPerId, peliculaFlyer, potVeure, preuFlyer, sessionsDelFlyer } from '../../../lib/flyers.js';
 
 // /flyer/<id>/imprimir/?variant=simple|impremta&clau=. Dues pàgines: la 1 és la cara A ×3 i la 2 la cara B ×3
 // (les tres tires d'un full són iguals: es talla en 3).
@@ -20,20 +19,19 @@ const flyer = await flyerPerId(id);
 if (!flyer || !potVeure(flyer, clau) || (variant === 'impremta' && !(clau && clau === flyer.clauPrevia))) {
   return Astro.rewrite('/404');
 }
-const pelicules = (await sessionsDelFlyer(flyer)).map(peliculaFlyer);
+// Amb la `clau` correcta es veuen també les sessions no publicades.
+// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin): la funció que genera
+// els PDF obre /imprimir/?clau=… sense `totes=1`, així que el PDF públic mai en porta.
+const totes = Boolean(clau) && clau === flyer.clauPrevia && Astro.url.searchParams.get('totes') === '1';
+// Un flyer té de 3 a 5 sessions; un document antic amb més en pinta les 5 primeres (per data).
+const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
+const pelicules = sessions.map(peliculaFlyer);
+const preu = preuFlyer(sessions);
 if (!pelicules.length) return Astro.rewrite('/404');
 Astro.response.headers.set('Cache-Control', CACHE_ERROR);
 
 const impremta = variant === 'impremta';
 const pagina = impremta ? '216mm 303mm' : '210mm 297mm';
-// Marques de tall (només `impremta`): línies de 2 mm dins el sagnat, amb 1 mm de separació de la línia de tall
-// (0-2 mm i 214-216 mm a banda i banda; 0-2 i 301-303 mm a dalt i a baix). Horitzontals a les tires (y = 3, 102, 201
-// i 300 mm) i verticals als extrems del tall vertical (x = 3 i 213 mm). `x`/`y` és la línia de tall; el CSS centra el
-// filet de 0,15 mm sobre ella.
-const MARQUES = [
-  ...[3, 102, 201, 300].flatMap((y) => [{ x: 0, y, h: true }, { x: 214, y, h: true }]),
-  ...[3, 213].flatMap((x) => [{ x, y: 0, h: false }, { x, y: 301, h: false }]),
-];
 ---
 <!DOCTYPE html>
 <html lang="ca">
@@ -46,13 +44,6 @@ const MARQUES = [
 </head>
 <body class="flyer-imprimir">
 <button type="button" class="flyer-imprimir__boto" onclick="window.print()">Imprimeix / Desa PDF</button>
-{[0, 1].map((cara) => (
-  <section class={`flyer-full${impremta ? ' flyer-full--impremta' : ''}`}>
-    {[0, 1, 2].map(() => (cara === 0 ? <FlyerCaraA pelicules={pelicules} /> : <FlyerCaraB />))}
-    {impremta && MARQUES.map((m) => (
-      <i class={`flyer-marca-tall flyer-marca-tall--${m.h ? 'h' : 'v'}`} style={`left:${m.h ? m.x : m.x - 0.075}mm;top:${m.h ? m.y - 0.075 : m.y}mm`}></i>
-    ))}
-  </section>
-))}
+<FlyerFulls pelicules={pelicules} preu={preu} impremta={impremta} />
 </body>
 </html>

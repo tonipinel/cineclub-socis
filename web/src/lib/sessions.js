@@ -10,7 +10,7 @@ const clau = (s) => `${s.data} ${horaNormal(s.hora) ?? '00:00'}`;
 export const ascendent = (a, b) => (clau(a) < clau(b) ? -1 : clau(a) > clau(b) ? 1 : 0);
 
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
-const dataValida = (data) => {
+export const dataValida = (data) => {
   if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(data)) return false;
   const [any, mes, dia] = data.slice(0, 10).split('-').map(Number);
   const d = new Date(Date.UTC(any, mes - 1, dia));

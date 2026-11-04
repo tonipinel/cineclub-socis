@@ -173,7 +173,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Flyers imprimibles (A4 amb 3-6 sessions). La web els llegeix des del servidor
+    // Flyers imprimibles (A4 amb 3-5 sessions). La web els llegeix des del servidor
     // amb l'Admin SDK, que no passa per aquestes regles: aquí només l'admin.
     match /flyers/{id} {
       allow read, write: if isAdmin();

@@ -12,7 +12,7 @@ import ErrorCarrega from '../../components/ErrorCarrega';
 import useErrorCarrega from '../../lib/useErrorCarrega';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
-  canvisDesdeBase, instantania, sessionsDelRang, validarFlyer,
+  MAX_SESSIONS, canvisDesdeBase, instantania, sessionsDelRang, validarFlyer,
 } from '../../lib/flyers';
 import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
@@ -238,7 +238,7 @@ function FitxaFlyer({ id, carregada }) {
     valors, canvia, estat, desa, descarta, errorDesat, errors, reinicia,
   } = useFitxaEditable({ inicial, onDesar });
 
-  const { errors: errorsValidacio, avisos } = validarFlyer(valors, sessions);
+  const { errors: errorsValidacio } = validarFlyer(valors, sessions);
   const hiHaErrors = Object.keys(errorsValidacio).length > 0;
 
   const canviaDates = (camp, valor) => {
@@ -375,11 +375,10 @@ function FitxaFlyer({ id, carregada }) {
       </div>
 
       <section className="flyer-form__seccio" aria-labelledby="flyer-sessions">
-        <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length})`}</h2>
+        <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length} de ${MAX_SESSIONS})`}</h2>
         <p className="form__ajuda">En triar les dates es marquen les sessions publicades del rang. Pots desmarcar-ne.</p>
         <LlistaSessions ids={candidates} sessionsPerId={sessionsPerId} triades={new Set(valors.sessionsIds)} onAlterna={alterna} />
         {errorsValidacio.sessionsIds?.map((m) => <p key={m} className="form__error">{m}</p>)}
-        {avisos.map((m) => <p key={m} className="flyer-form__avis">{m}</p>)}
       </section>
 
       {!publicat && (

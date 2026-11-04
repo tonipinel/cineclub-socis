@@ -2,37 +2,107 @@
 import '../styles/main.css';
 import '../styles/flyer.css';
 import { resizedUrl } from '../lib/images.js';
+import flyer from '../data/flyer.json';
+import seccions from '../data/seccions.json';
+import Icon from './Icon.astro';
 
 // Una tira de programació (210 × 99 mm). `pelicules`: resultat de `peliculaFlyer`, ORDENADES per data
-// (la capçalera pinta el rang de la primera a l'última).
-const { pelicules } = Astro.props;
+// (el lateral pinta el rang de la primera a l'última; amb exactament 3 pel·lícules, el lateral es repeteix a la dreta,
+// girat i amb el logo a baix; amb exactament 5 no hi ha lateral: les targetes ocupen tot l'ample). Cada pel·lícula és una targeta negra com la de la web
+// (`SessionCard`): barra de secció + data, cartell, títol en català i versió + idioma.
+// Un flyer té de 3 a 5 pel·lícules; amb dades fora de rang (un document antic) es pinten les 5 primeres, per ordre de data, sense petar.
+const pelicules = Astro.props.pelicules.slice(0, 5);
+// Rang curt sense el dia de la setmana («5 nov – 7 gen»; amb una sola data, «5 nov»): `dataText` és «Dj 5 nov».
+const senseDia = (text) => text.replace(/^\S+\s+/, '');
 const dates = pelicules.length > 1
-  ? `${pelicules[0].dataText} – ${pelicules[pelicules.length - 1].dataText}`
-  : (pelicules[0]?.dataText ?? '');
+  ? `${senseDia(pelicules[0].dataText)} – ${senseDia(pelicules[pelicules.length - 1].dataText)}`
+  : senseDia(pelicules[0]?.dataText ?? '');
+// Text negre sobre colors clars (el daurat) i blanc sobre els foscos: contrast llegible a 2,5 mm.
+const textSobre = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 140 ? '#000' : '#fff';
+};
+// Títol mostrat: el títol en català (`titolTraduit`); si no n'hi ha, l'original (mai buit). L'original ja surt al cartell.
+const titolMostrat = (p) => String(p.titolTraduit || p.titol || '');
+// Línies reservades per al títol de TOTA la tira (1 a 3), pel més llarg: recompte conservador de caràcters (Oswald majúscules
+// ~0,53 em per caràcter, ja amb el `letter-spacing`) per l'amplada real del text de la targeta (lateral(s) d'11 mm + 3 mm
+// d'espai; cap amb 5 pel·lícules; 3,6 mm de marges de la banda; farciment lateral del text: 2,4 mm en total a 5 pel·lícules
+// (contenidor <= 40 mm) i 4,8 mm a la resta).
+const ordre = pelicules.length;
+const laterals = ordre === 5 ? 0 : ordre === 3 ? 2 : 1;
+// A 3 pel·lícules les targetes són més estretes (45 mm, com les de 4) i el grup es centra entre els dos laterals.
+const ampladaTargeta = ordre === 3 ? 45 : (198 - laterals * 14 - 3.6) / ordre;
+const farciment = ampladaTargeta <= 40 ? 2.4 : 4.8; // com el CSS (`@container (max-width: 40mm)`)
+const ampladaText = ampladaTargeta - farciment;
+const MIDA_TITOL = { 3: 3.9, 4: 3.9, 5: 4.4 }; // mm
+const midaTitol = MIDA_TITOL[ordre] ?? 3.9;
+const MAX_LINIES = 3; // un títol mai es retalla: fins a 3 línies i, si encara no hi cap, una lletra més petita (mínim 2,4 mm)
+// Línies amb salt de paraula (cobdiciós) pel recompte estimat de caràcters per línia (Oswald majúscules ~0,5 em/caràcter).
+const linies = (text, mida) => {
+  const cpl = Math.max(1, Math.floor(ampladaText / (0.53 * mida)));
+  let n = 1;
+  let ample = 0;
+  for (const paraula of text.split(/\s+/).filter(Boolean)) {
+    // Una paraula més llarga que una línia es parteix (`overflow-wrap: anywhere` al CSS).
+    const trossos = Math.ceil(paraula.length / cpl);
+    if (ample && ample + 1 + paraula.length <= cpl) ample += 1 + paraula.length;
+    else { if (ample) n += 1; n += trossos - 1; ample = paraula.length - (trossos - 1) * cpl; }
+  }
+  return n;
+};
+// Excepció per als títols molt llargs: la mida normal, i només si en calen més de 3 línies es redueix la lletra d'aquesta targeta.
+const ajust = (text) => {
+  let mida = midaTitol;
+  while (linies(text, mida) > MAX_LINIES && mida * 0.92 >= 2.4) mida = Math.round(mida * 0.92 * 100) / 100;
+  return { mida, linies: Math.min(MAX_LINIES, linies(text, mida)) };
+};
+const ajustos = pelicules.map((p) => ajust(titolMostrat(p)));
+// Alçada reservada pel títol de TOTA la tira: la del títol que ocupa més (línies x mida x 1,1), perquè els cartells i les pastilles s'alineïn.
+const alcadaTitol = Math.max(0, ...ajustos.map((a) => a.linies * a.mida * 1.1));
+const seccio = (clau) => (Object.hasOwn(seccions, clau) ? seccions[clau] : null);
 ---
-<div class="flyer-tira">
-  <div class="flyer-tira__cap">
-    <span class="flyer-tira__marca">Cineclub Roda de Berà · Programació</span>
-    <span class="flyer-tira__dates">{dates}</span>
-  </div>
+<div class={`flyer-tira${pelicules.length === 5 ? ' flyer-tira--cinc' : ''}${pelicules.length === 3 ? ' flyer-tira--tres' : ''}`} style={`--titol-alcada: ${alcadaTitol.toFixed(2)}mm; --titol-mida: ${midaTitol}mm`}>
+  {pelicules.length !== 5 && (
+    <aside class="flyer-tira__lateral">
+      <img class="flyer-tira__logo" src={flyer.logo} width="1220" height="784" alt="Cineclub Roda de Berà" />
+      <div class="flyer-tira__vertical">
+        <span class="flyer-tira__marca">Programació</span>
+        <span class="flyer-tira__dates">{dates}</span>
+      </div>
+    </aside>
+  )}
   <div class="flyer-tira__columnes" style={`--columnes: ${pelicules.length}`}>
-    {pelicules.map((p) => (
+    {pelicules.map((p, i) => (
       <div class="flyer-columna">
-        <div class="flyer-columna__cartell">
-          {p.imatge
-            ? <img class="flyer-columna__imatge" src={resizedUrl(p.imatge, 400)} alt="" />
-            : <div class="flyer-columna__marcador">{p.titol}</div>}
+        <div class="flyer-columna__capcalera">
+          {seccio(p.seccio) && <span class="flyer-columna__seccio" style={`background-color: ${seccio(p.seccio).color}; color: ${textSobre(seccio(p.seccio).color)};`}>{seccio(p.seccio).nom}</span>}
+          <span class="flyer-columna__data"><b>{senseDia(p.dataText)}</b>{p.hora && <span class="flyer-columna__hora"> {p.hora}</span>}</span>
         </div>
-        <div class="flyer-columna__text">
-          <div class="flyer-columna__data">{p.dataText}</div>
-          <div class="flyer-columna__titol">{p.titol}</div>
-          {p.versio
-            ? <span class="flyer-columna__versio">{p.versio}</span>
-            : <span class="flyer-columna__versio flyer-columna__versio--incompleta">Versió per confirmar</span>}
-          {p.idioma && <div class="flyer-columna__idioma">{p.idioma}</div>}
-          {p.generes && <div class="flyer-columna__generes">{p.generes}</div>}
+        <div class="flyer-columna__marc">
+          <div class="flyer-columna__cartell">
+            {p.imatge
+              ? <img class="flyer-columna__imatge" src={resizedUrl(p.imatge, 400)} alt="" />
+              : <div class="flyer-columna__marcador">{p.titol}</div>}
+          </div>
+          <div class="flyer-columna__text">
+            <div class="flyer-columna__noms" style={ajustos[i].mida !== midaTitol ? `--titol: ${ajustos[i].mida}mm` : undefined}>
+              <div class="flyer-columna__titol">{titolMostrat(p)}</div>
+            </div>
+            {p.versio
+              ? <span class="flyer-columna__versio"><Icon name="film" />{p.versio}{p.idioma && <span class="flyer-columna__idioma"> · {p.idioma}</span>}</span>
+              : <span class="flyer-columna__versio flyer-columna__versio--incompleta"><Icon name="film" />Versió per confirmar</span>}
+          </div>
         </div>
       </div>
     ))}
   </div>
+  {pelicules.length === 3 && (
+    <aside class="flyer-tira__lateral flyer-tira__lateral--dreta" aria-hidden="true">
+      <img class="flyer-tira__logo" src={flyer.logo} width="1220" height="784" alt="" />
+      <div class="flyer-tira__vertical">
+        <span class="flyer-tira__marca">Programació</span>
+        <span class="flyer-tira__dates">{dates}</span>
+      </div>
+    </aside>
+  )}
 </div>
