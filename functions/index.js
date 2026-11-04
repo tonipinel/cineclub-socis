@@ -17,6 +17,7 @@ const { crearPropostaAmbDependencies } = require('./proposta');
 const { sincronitzarSociPorta } = require('./socis-porta');
 const { activarCarnet } = require('./activacio-carnet');
 const { importarGaleriaSessio } = require('./galeria-sessio');
+const flyers = require('./flyers');
 const usuaris = require('./usuaris');
 
 initializeApp();
@@ -196,6 +197,26 @@ exports.activarCarnetEnEscanejar = onDocumentCreated(
     logger,
   })
 );
+
+// PDF dels flyers (`flyers.js`): el flyer segueix els canvis de les seves sessions. Sense reintents: un render fallit
+// es registra i el proper canvi el torna a provar. Chromium necessita memòria; poques instàncies per limitar el cost.
+const OPCIONS_PDF = { memory: '2GiB', timeoutSeconds: 300, retry: false, maxInstances: 2 };
+const urlWeb = () => (process.env.WEB_URL || flyers.URL_BASE_PER_DEFECTE).replace(/\/+$/, '');
+const regenerarFlyer = (id) => flyers.regenerarFlyer({
+  id, db: getFirestore(), bucket: getStorage().bucket(), renderPdf: flyers.renderPdf, logger, urlBase: urlWeb(),
+});
+
+exports.regenerarPdfsFlyer = onDocumentWritten({ document: 'flyers/{id}', ...OPCIONS_PDF }, (event) => flyers.gestionarFlyerEscrit({
+  id: event.params.id,
+  abans: event.data?.before?.exists ? event.data.before.data() : null,
+  despres: event.data?.after?.exists ? event.data.after.data() : null,
+  regenerar: regenerarFlyer,
+  logger,
+}));
+
+exports.regenerarPdfsPerSessio = onDocumentWritten({ document: 'sessions/{id}', ...OPCIONS_PDF }, (event) => flyers.gestionarSessioEscrita({
+  id: event.params.id, db: getFirestore(), regenerar: regenerarFlyer, logger,
+}));
 
 // Sincronització completa (adoptar els de Hugo, reparar desajustos). Per defecte és un informe.
 exports.sincronitzarCalendariTot = onCall({ secrets: SECRETS_CALENDARI, timeoutSeconds: 300, maxInstances: MAX_CALLABLES }, async (request) => {
