@@ -12,44 +12,147 @@
   @apply flex flex-wrap gap-1;
 }
 
-/* Formulari de flyer */
+/* Formulari de flyer (pages/Flyers/FlyerForm.jsx): targetes com les de la fitxa de sessió, dins de .pagina-admin--formulari. */
 .flyer-form {
-  @apply flex flex-col gap-2;
+  @apply flex flex-col gap-6;
 }
-.flyer-form__dates {
-  @apply grid gap-4 sm:grid-cols-2;
-}
-.flyer-form__seccio {
-  @apply mb-4 flex flex-col gap-2;
-}
-.flyer-form__titol-seccio {
-  @apply m-0 text-lg font-semibold;
-}
-.flyer-form__sessions {
-  @apply m-0 flex list-none flex-col gap-1 p-0;
-}
-.flyer-form__sessio-data {
-  @apply text-black/70;
-}
-.flyer-form__avis-desactualitzat {
-  @apply mb-4 flex flex-col items-start gap-2 rounded border border-amber-400 bg-amber-50 p-4 text-sm;
-}
-.flyer-form__avis-titol {
-  @apply m-0 font-semibold;
+/* La capçalera de PaginaAdmin ja porta el seu marge: el `gap` de la columna el substitueix. */
+.flyer-form .pagina-admin__capcalera {
+  @apply mb-0;
 }
 .flyer-form__publicar {
-  @apply mb-4 flex flex-col items-start gap-1;
+  @apply px-5 py-2;
 }
+.flyer-form__targeta {
+  @apply flex min-w-0 flex-col gap-3 rounded border border-black/10 p-4;
+}
+.flyer-form__targeta-titol {
+  @apply m-0 font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.flyer-form__targeta-titol:focus-visible {
+  @apply rounded-sm outline-2 outline-offset-2 outline-gold;
+}
+.flyer-form__ajuda {
+  @apply m-0 font-body text-xs text-black/60;
+}
+.flyer-form__buit {
+  @apply m-0 rounded border border-dashed border-black/20 p-4 text-center font-body text-sm text-black/60;
+}
+.flyer-form__graella {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2;
+}
+.flyer-form__graella .form__field {
+  @apply mb-0;
+}
+.flyer-form__camp-ample {
+  @apply sm:col-span-2;
+}
+.flyer-form__boto-petit {
+  @apply self-start px-4 py-2 text-sm;
+}
+
+/* Avisos i errors: la mateixa caixa a tot el formulari, al costat del que afecten. */
+.flyer-form__alerta {
+  @apply m-0 flex flex-col items-start gap-2 rounded border border-dashed border-amber-600 bg-amber-50 p-3 font-body text-sm text-black;
+}
+.flyer-form__alerta--error {
+  @apply border-red-600 bg-red-50 text-red-700;
+}
+.flyer-form__alerta-titol {
+  @apply m-0 font-semibold;
+}
+.flyer-form__alerta-text {
+  @apply m-0;
+}
+.flyer-form__alerta ul {
+  @apply m-0 flex list-disc flex-col gap-1 pl-5;
+}
+
+/* Enllaços i PDF: una fila per enllaç, amb la data de generació al costat */
 .flyer-form__enllacos {
-  @apply m-0 flex list-none flex-col gap-1 p-0;
+  @apply m-0 flex list-none flex-col p-0;
 }
-/* Enquadrament del cartell d'una sessió marcada: tres opcions en una fila */
-.flyer-form__enquadrament {
-  @apply m-0 flex flex-wrap items-center gap-3 border-0 p-0 pl-6 font-body text-sm;
+.flyer-form__enllac {
+  @apply flex flex-wrap items-baseline gap-x-2 border-b border-black/10 py-2 font-body text-sm first:pt-0 last:border-b-0;
 }
-.flyer-form__enquadrament-titol {
-  @apply float-left p-0 font-semibold;
+.flyer-form__enllac .enllac {
+  @apply font-semibold;
 }
-.flyer-form__enquadrament-opcio {
-  @apply flex cursor-pointer items-center gap-1;
+.flyer-form__enllac-nota {
+  @apply text-xs text-black/60;
+}
+
+/* Sessions candidates: una targeta per sessió (casella, miniatura, data, títol, insígnies) i, si és marcada, el cartell. */
+.flyer-form__sessions {
+  @apply m-0 flex list-none flex-col gap-2 p-0;
+}
+.flyer-sessio {
+  @apply flex flex-col gap-2 rounded border border-black/10 p-2 transition sm:flex-row sm:items-center sm:gap-4;
+}
+.flyer-sessio--triada {
+  @apply border-gold-dark/40 bg-gold/5;
+}
+.flyer-sessio__casella {
+  @apply flex min-w-0 flex-1 cursor-pointer items-center gap-3;
+}
+.flyer-sessio__check {
+  @apply h-4 w-4 shrink-0 accent-black;
+}
+/* Proporció de la caixa del cartell al flyer (~4:5): l'ancoratge mostra el retall que hi tindrà. */
+.flyer-sessio__miniatura {
+  @apply block aspect-[4/5] w-12 shrink-0 rounded-sm bg-black/10 object-cover sm:w-14;
+  object-position: top center;
+}
+.flyer-sessio__miniatura--centre {
+  object-position: center center;
+}
+.flyer-sessio__miniatura--baix {
+  object-position: bottom center;
+}
+.flyer-sessio:not(.flyer-sessio--triada) .flyer-sessio__miniatura {
+  @apply opacity-50;
+}
+.flyer-sessio__text {
+  @apply flex min-w-0 flex-col gap-1;
+}
+.flyer-sessio__data {
+  @apply font-body text-xs font-semibold text-black/60;
+}
+.flyer-sessio__titol {
+  @apply font-display text-sm font-bold uppercase tracking-wide text-black wrap-anywhere;
+}
+.flyer-sessio__insignies {
+  @apply flex flex-wrap gap-1;
+}
+.flyer-sessio__accions {
+  @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-black/10 pt-2 pl-7 font-body text-sm sm:shrink-0 sm:justify-end sm:border-t-0 sm:pt-0 sm:pl-0;
+}
+
+/* Control segmentat «Cartell: Dalt / Centre / Baix». La llegenda flotant es comporta com un element més de la fila. */
+.flyer-enquadrament {
+  @apply m-0 flex min-w-0 items-center gap-2 border-0 p-0;
+}
+.flyer-enquadrament__titol {
+  @apply float-left p-0 font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.flyer-enquadrament__opcions {
+  @apply inline-flex overflow-hidden rounded-full border border-black/30 bg-white;
+}
+.flyer-enquadrament__opcio {
+  @apply relative cursor-pointer;
+}
+.flyer-enquadrament__opcio + .flyer-enquadrament__opcio {
+  @apply border-l border-black/30;
+}
+.flyer-enquadrament__input {
+  @apply absolute m-0 h-px w-px overflow-hidden opacity-0;
+}
+.flyer-enquadrament__etiqueta {
+  @apply block px-3 py-1 font-body text-xs font-semibold text-black transition hover:bg-black/5;
+}
+.flyer-enquadrament__input:checked + .flyer-enquadrament__etiqueta {
+  @apply bg-black text-white;
+}
+.flyer-enquadrament__input:focus-visible + .flyer-enquadrament__etiqueta {
+  @apply outline-2 -outline-offset-2 outline-gold;
 }

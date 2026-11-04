@@ -138,54 +138,81 @@ function Enquadrament({
   id, titol, valor, onCanvia,
 }) {
   return (
-    <fieldset className="flyer-form__enquadrament" aria-label={`Cartell de ${titol}`}>
-      <legend className="flyer-form__enquadrament-titol">Cartell</legend>
-      {OPCIONS_ENQUADRAMENT.map(([opcio, etiqueta]) => (
-        <label key={opcio} className="flyer-form__enquadrament-opcio">
-          <input type="radio" name={`enquadrament-${id}`} value={opcio} checked={valor === opcio} onChange={() => onCanvia(id, opcio)} />
-          <span>{etiqueta}</span>
-        </label>
-      ))}
+    <fieldset className="flyer-enquadrament" aria-label={`Cartell de ${titol}`}>
+      <legend className="flyer-enquadrament__titol">Cartell</legend>
+      <span className="flyer-enquadrament__opcions">
+        {OPCIONS_ENQUADRAMENT.map(([opcio, etiqueta]) => (
+          <label key={opcio} className="flyer-enquadrament__opcio">
+            <input
+              type="radio"
+              className="flyer-enquadrament__input"
+              name={`enquadrament-${id}`}
+              value={opcio}
+              checked={valor === opcio}
+              onChange={() => onCanvia(id, opcio)}
+            />
+            <span className="flyer-enquadrament__etiqueta">{etiqueta}</span>
+          </label>
+        ))}
+      </span>
     </fieldset>
   );
+}
+
+// Miniatura del cartell amb el mateix ancoratge que tindrà al flyer.
+function Miniatura({ cartell, enquadrament }) {
+  if (!cartell) return <span className="flyer-sessio__miniatura flyer-sessio__miniatura--buida" aria-hidden="true" />;
+  const modificador = enquadrament === 'dalt' ? '' : ` flyer-sessio__miniatura--${enquadrament}`;
+  return <img className={`flyer-sessio__miniatura${modificador}`} src={cartell} alt="" loading="lazy" />;
 }
 
 function LlistaSessions({
   ids, sessionsPerId, triades, onAlterna, enquadraments, onEnquadra,
 }) {
-  if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió en aquest rang.</p>;
+  if (ids.length === 0) return <p className="flyer-form__buit">No hi ha cap sessió en aquest rang.</p>;
   return (
     <ul className="flyer-form__sessions">
       {ids.map((id) => {
         const s = sessionsPerId[id];
+        const triada = triades.has(id);
+        const classe = `flyer-sessio${triada ? ' flyer-sessio--triada' : ''}`;
         if (!s) {
           return (
-            <li key={id} className="flyer-form__sessio">
-              <label className="form__casella">
-                <input type="checkbox" checked={triades.has(id)} onChange={() => onAlterna(id)} />
-                <span>{`Sessió esborrada (${id})`}</span>
+            <li key={id} className={classe}>
+              <label className="flyer-sessio__casella">
+                <input type="checkbox" className="flyer-sessio__check" checked={triada} onChange={() => onAlterna(id)} />
+                <Miniatura />
+                <span className="flyer-sessio__text">
+                  <span className="flyer-sessio__titol">{`Sessió esborrada (${id})`}</span>
+                </span>
               </label>
             </li>
           );
         }
         const versio = s.publica?.versioTipus;
+        const enquadrament = enquadramentDe(enquadraments, id);
         return (
-          <li key={id} className="flyer-form__sessio">
-            <label className="form__casella">
-              <input type="checkbox" checked={triades.has(id)} onChange={() => onAlterna(id)} />
-              <span className="flyer-form__sessio-data">{formatData(s.data)}</span>
-              <span>{s.titol}</span>
-              {versio
-                ? <span className="badge badge--al-dia">{ETIQUETA_VERSIO[versio] ?? versio}</span>
-                : <span className="badge badge--vencut">Falta la versió</span>}
-              {s.publicada === true
-                ? <span className="badge badge--al-dia">Publicada</span>
-                : <span className="badge badge--pendent">Sense publicar</span>}
+          <li key={id} className={classe}>
+            <label className="flyer-sessio__casella">
+              <input type="checkbox" className="flyer-sessio__check" checked={triada} onChange={() => onAlterna(id)} />
+              <Miniatura cartell={s.publica?.cartell} enquadrament={triada ? enquadrament : 'dalt'} />
+              <span className="flyer-sessio__text">
+                <span className="flyer-sessio__data">{formatData(s.data)}{s.hora && s.hora !== '00:00' ? ` · ${s.hora}` : ''}</span>
+                <span className="flyer-sessio__titol">{s.titol}</span>
+                <span className="flyer-sessio__insignies">
+                  {versio
+                    ? <span className="badge badge--al-dia">{ETIQUETA_VERSIO[versio] ?? versio}</span>
+                    : <span className="badge badge--vencut">Falta la versió</span>}
+                  {s.publicada === true
+                    ? <span className="badge badge--al-dia">Publicada</span>
+                    : <span className="badge badge--pendent">Sense publicar</span>}
+                </span>
+              </span>
             </label>
-            {triades.has(id) && (
-              <Enquadrament id={id} titol={s.titol} valor={enquadramentDe(enquadraments, id)} onCanvia={onEnquadra} />
-            )}
-            <EnllacSessio id={id} />
+            <div className="flyer-sessio__accions">
+              {triada && <Enquadrament id={id} titol={s.titol} valor={enquadrament} onCanvia={onEnquadra} />}
+              <EnllacSessio id={id} />
+            </div>
           </li>
         );
       })}
@@ -372,6 +399,10 @@ function FitxaFlyer({ id, carregada }) {
     missatge: [].concat(errors[camp]).join(' '),
   }));
 
+  const errorsCampsPublicar = !publicat ? CAMPS.filter((camp) => errorsValidacio[camp]) : [];
+  const hiHaAvisosPublicacio = pendentsDesat.length > 0 || canvis.length > 0
+    || (!publicat && (pendentsAlPublicar.length > 0 || hiHaErrors));
+
   return (
     <PaginaAdmin
       as="form"
@@ -380,75 +411,70 @@ function FitxaFlyer({ id, carregada }) {
       className="flyer-form"
       titol={editant ? 'Flyer' : 'Nou flyer'}
       tornar={{ to: ROUTES.FLYERS, etiqueta: 'Flyers' }}
+      accions={(editant || !publicat) && (
+        <>
+          {editant && (
+            <span className={`badge ${actiu ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
+          )}
+          {!publicat && (
+            <button type="button" className="btn btn--negre flyer-form__publicar" disabled={hiHaErrors || ocupat || estat === 'desant'} onClick={publica}>
+              Publicar
+            </button>
+          )}
+        </>
+      )}
       onSubmit={handleSubmit}
       noValidate
     >
-      {editant && (
-        <p className="flyer-form__estat">
-          <span className={`badge ${actiu ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
-        </p>
-      )}
-      {pendentsDesat.length > 0 && (
-        <div className="form__ajuda">
-          <p>Falta publicar aquestes sessions; fins llavors el flyer no és actiu:</p>
-          <PendentsDePublicar pendents={pendentsDesat} sessionsPerId={sessionsPerId} />
-        </div>
-      )}
+      {errorAccio && <p className="flyer-form__alerta flyer-form__alerta--error" role="alert">{errorAccio}</p>}
 
-      {canvis.length > 0 && (
-        <div className="flyer-form__avis-desactualitzat" role="alert">
-          <p className="flyer-form__avis-titol">Aquest flyer és desactualitzat</p>
-          <ul>
-            {canvis.map((c) => <li key={`${c.sessionId}-${c.tipus}`}>{`${c.titol}: ${CANVIS[c.tipus]}`}</li>)}
-          </ul>
-          <button type="button" className="btn btn--outline" disabled={ocupat} onClick={marcaRevisat}>Marcar com a revisat</button>
+      <section className="flyer-form__targeta" aria-labelledby="flyer-dades">
+        <h2 className="flyer-form__targeta-titol" id="flyer-dades">Dades</h2>
+        <div className="flyer-form__graella">
+          <div className="form__field flyer-form__camp-ample">
+            <label className="form__label" htmlFor="nom">Nom</label>
+            <input
+              id="nom"
+              className="form__input"
+              value={valors.nom}
+              onChange={(e) => canvia('nom', e.target.value)}
+              aria-required="true"
+              {...atributsError(errors, 'nom')}
+            />
+            <ErrorCamp errors={errors} camp="nom" />
+          </div>
+          <div className="form__field">
+            <label className="form__label" htmlFor="desde">Des de</label>
+            <input
+              id="desde"
+              type="date"
+              className="form__input"
+              value={valors.desde}
+              onChange={(e) => canviaDates('desde', e.target.value)}
+              aria-required="true"
+              {...atributsError(errors, 'desde')}
+            />
+            <ErrorCamp errors={errors} camp="desde" />
+          </div>
+          <div className="form__field">
+            <label className="form__label" htmlFor="fins">Fins a</label>
+            <input
+              id="fins"
+              type="date"
+              className="form__input"
+              value={valors.fins}
+              onChange={(e) => canviaDates('fins', e.target.value)}
+              aria-required="true"
+              {...atributsError(errors, 'fins')}
+            />
+            <ErrorCamp errors={errors} camp="fins" />
+          </div>
         </div>
-      )}
+      </section>
 
-      <div className="form__field">
-        <label className="form__label" htmlFor="nom">Nom</label>
-        <input
-          id="nom"
-          className="form__input"
-          value={valors.nom}
-          onChange={(e) => canvia('nom', e.target.value)}
-          aria-required="true"
-          {...atributsError(errors, 'nom')}
-        />
-        <ErrorCamp errors={errors} camp="nom" />
-      </div>
-      <div className="flyer-form__dates">
-        <div className="form__field">
-          <label className="form__label" htmlFor="desde">Des de</label>
-          <input
-            id="desde"
-            type="date"
-            className="form__input"
-            value={valors.desde}
-            onChange={(e) => canviaDates('desde', e.target.value)}
-            aria-required="true"
-            {...atributsError(errors, 'desde')}
-          />
-          <ErrorCamp errors={errors} camp="desde" />
-        </div>
-        <div className="form__field">
-          <label className="form__label" htmlFor="fins">Fins a</label>
-          <input
-            id="fins"
-            type="date"
-            className="form__input"
-            value={valors.fins}
-            onChange={(e) => canviaDates('fins', e.target.value)}
-            aria-required="true"
-            {...atributsError(errors, 'fins')}
-          />
-          <ErrorCamp errors={errors} camp="fins" />
-        </div>
-      </div>
-
-      <section className="flyer-form__seccio" aria-labelledby="flyer-sessions">
-        <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length} de ${MAX_SESSIONS})`}</h2>
-        <p className="form__ajuda">En triar les dates es marquen les sessions del rang, publicades o no. Pots desmarcar-ne.</p>
+      <section className="flyer-form__targeta" aria-labelledby="flyer-sessions">
+        <h2 className="flyer-form__targeta-titol" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length} de ${MAX_SESSIONS})`}</h2>
+        <p className="flyer-form__ajuda">En triar les dates es marquen les sessions del rang, publicades o no. Pots desmarcar-ne.</p>
         <LlistaSessions
           ids={candidates}
           sessionsPerId={sessionsPerId}
@@ -457,66 +483,86 @@ function FitxaFlyer({ id, carregada }) {
           enquadraments={valors.enquadraments}
           onEnquadra={enquadra}
         />
-        {errorsValidacio.sessionsIds?.map((m) => <p key={m} className="form__error">{m}</p>)}
+        {errorsValidacio.sessionsIds && (
+          <div className="flyer-form__alerta flyer-form__alerta--error">
+            {errorsValidacio.sessionsIds.map((m) => <p key={m} className="flyer-form__alerta-text">{m}</p>)}
+          </div>
+        )}
       </section>
 
-      {!publicat && (
-        <div className="flyer-form__publicar">
-          <button type="button" className="btn btn--negre" disabled={hiHaErrors || ocupat || estat === 'desant'} onClick={publica}>Publicar</button>
-          {pendentsAlPublicar.length > 0 && (
-            <div className="flyer-form__avis">
-              <p>El flyer no serà actiu fins que totes les sessions estiguin publicades. Falta publicar:</p>
+      {hiHaAvisosPublicacio && (
+        <section className="flyer-form__targeta" aria-labelledby="flyer-publicacio">
+          <h2 className="flyer-form__targeta-titol" id="flyer-publicacio">Publicació</h2>
+          {pendentsDesat.length > 0 && (
+            <div className="flyer-form__alerta">
+              <p className="flyer-form__alerta-text">Falta publicar aquestes sessions; fins llavors el flyer no és actiu:</p>
+              <PendentsDePublicar pendents={pendentsDesat} sessionsPerId={sessionsPerId} />
+            </div>
+          )}
+          {canvis.length > 0 && (
+            <div className="flyer-form__alerta" role="alert">
+              <p className="flyer-form__alerta-titol">Aquest flyer és desactualitzat</p>
+              <ul className="flyer-form__alerta-llista">
+                {canvis.map((c) => <li key={`${c.sessionId}-${c.tipus}`}>{`${c.titol}: ${CANVIS[c.tipus]}`}</li>)}
+              </ul>
+              <button type="button" className="btn btn--outline flyer-form__boto-petit" disabled={ocupat} onClick={marcaRevisat}>Marcar com a revisat</button>
+            </div>
+          )}
+          {!publicat && pendentsAlPublicar.length > 0 && (
+            <div className="flyer-form__alerta">
+              <p className="flyer-form__alerta-text">El flyer no serà actiu fins que totes les sessions estiguin publicades. Falta publicar:</p>
               <PendentsDePublicar pendents={pendentsAlPublicar} sessionsPerId={sessionsPerId} />
             </div>
           )}
-          {hiHaErrors && <p className="form__ajuda">Per publicar cal corregir els errors.</p>}
-          {CAMPS.filter((camp) => errorsValidacio[camp]).map((camp) => (
-            <p key={camp} className="form__error">{errorsValidacio[camp]}</p>
-          ))}
-        </div>
-      )}
-      {errorAccio && <p className="form__error" role="alert">{errorAccio}</p>}
-
-      {links && (
-        <section className="flyer-form__seccio" aria-labelledby="flyer-enllacos">
-          <h2 className="flyer-form__titol-seccio" id="flyer-enllacos">Enllaços</h2>
-          <ul className="flyer-form__enllacos">
-            <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{actiu ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
-            <li><a className="enllac" href={links.previsualitzacio} target="_blank" rel="noreferrer">Previsualització d&apos;impressió</a></li>
-          </ul>
-          {actiu && (
-            <button type="button" className="btn btn--outline" disabled={ocupat} onClick={copia}>
-              {copiat ? 'Enllaç copiat' : "Copiar l'enllaç"}
-            </button>
+          {!publicat && hiHaErrors && (
+            <div className="flyer-form__alerta flyer-form__alerta--error">
+              <p className="flyer-form__alerta-text">Per publicar cal corregir els errors.</p>
+              {errorsCampsPublicar.map((camp) => (
+                <p key={camp} className="form__error">{errorsValidacio[camp]}</p>
+              ))}
+            </div>
           )}
         </section>
       )}
 
       {links && (
-        <section className="flyer-form__seccio" aria-labelledby="flyer-pdfs">
-          <h2 className="flyer-form__titol-seccio" id="flyer-pdfs">PDF</h2>
-          {pdfsPreparats ? (
-            <>
-              <ul className="flyer-form__enllacos">
-                <li>
+        <section className="flyer-form__targeta" aria-labelledby="flyer-enllacos">
+          <h2 className="flyer-form__targeta-titol" id="flyer-enllacos">Enllaços i PDF</h2>
+          <ul className="flyer-form__enllacos">
+            <li className="flyer-form__enllac">
+              <a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{actiu ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a>
+            </li>
+            <li className="flyer-form__enllac">
+              <a className="enllac" href={links.previsualitzacio} target="_blank" rel="noreferrer">Previsualització d&apos;impressió</a>
+            </li>
+            {pdfsPreparats && (
+              <>
+                <li className="flyer-form__enllac">
                   <a className="enllac" href={links.pdfSimple} target="_blank" rel="noreferrer">PDF simple</a>
-                  {` generat el ${dataHoraSegura(vivaPdfs.pdfs.simple.generatEl)}`}
+                  <span className="flyer-form__enllac-nota">{` generat el ${dataHoraSegura(vivaPdfs.pdfs.simple.generatEl)}`}</span>
                 </li>
-                <li>
+                <li className="flyer-form__enllac">
                   <a className="enllac" href={links.pdfImpremta} target="_blank" rel="noreferrer">PDF per a impremta</a>
-                  {` generat el ${dataHoraSegura(vivaPdfs.pdfs.impremta.generatEl)}`}
+                  <span className="flyer-form__enllac-nota">{` generat el ${dataHoraSegura(vivaPdfs.pdfs.impremta.generatEl)}`}</span>
                 </li>
-              </ul>
-              {pdfsDesactualitzats && (errorGeneracio ? (
-                <p className="form__error" role="status">{MISSATGE_ERROR_PDF}</p>
-              ) : <p className="form__ajuda" role="status">S&apos;està actualitzant…</p>)}
-            </>
+              </>
+            )}
+          </ul>
+          {pdfsPreparats ? (
+            pdfsDesactualitzats && (errorGeneracio ? (
+              <p className="flyer-form__alerta flyer-form__alerta--error" role="status">{MISSATGE_ERROR_PDF}</p>
+            ) : <p className="flyer-form__ajuda" role="status">S&apos;està actualitzant…</p>)
           ) : errorGeneracio ? (
-            <p className="form__error" role="status">{MISSATGE_ERROR_PDF}</p>
+            <p className="flyer-form__alerta flyer-form__alerta--error" role="status">{MISSATGE_ERROR_PDF}</p>
           ) : (
-            <p className="form__ajuda" role="status">PDF en preparació…</p>
+            <p className="flyer-form__ajuda" role="status">PDF en preparació…</p>
           )}
-          {errorPdfs && <p className="form__error" role="status">No s&apos;ha pogut actualitzar l&apos;estat dels PDF.</p>}
+          {errorPdfs && <p className="flyer-form__alerta flyer-form__alerta--error" role="status">No s&apos;ha pogut actualitzar l&apos;estat dels PDF.</p>}
+          {actiu && (
+            <button type="button" className="btn btn--outline flyer-form__boto-petit" disabled={ocupat} onClick={copia}>
+              {copiat ? 'Enllaç copiat' : "Copiar l'enllaç"}
+            </button>
+          )}
         </section>
       )}
 
