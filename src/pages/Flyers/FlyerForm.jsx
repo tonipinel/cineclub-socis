@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  addDoc, collection, doc, getDoc, getDocs, serverTimestamp, updateDoc,
+  addDoc, collection, doc, getDoc, getDocs, onSnapshot, serverTimestamp, updateDoc,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
@@ -14,7 +14,7 @@ import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
   canvisDesdeBase, instantania, sessionsDelRang, validarFlyer,
 } from '../../lib/flyers';
-import { formatData } from '../../lib/data';
+import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
 import { VERSIONS } from '../Sessions/camps';
 
@@ -64,6 +64,17 @@ const enllacos = (id, clauPrevia, publicat) => {
     pdfImpremta: `${arrel}flyer.pdf${q('variant=impremta', clau)}`,
     previsualitzacio: `${arrel}imprimir/${q('variant=simple', !publicat && clau)}`,
   };
+};
+
+const enMillis = (valor) => (typeof valor?.toDate === 'function' ? valor.toDate() : valor)?.getTime?.();
+
+// Els dos PDF han d'existir per mostrar-los; si algun és anterior al darrer desat, la funció els està regenerant.
+const estatPdfs = ({ pdfs, actualitzatEl }) => {
+  if (!pdfs?.simple || !pdfs?.impremta) return { preparats: false, desactualitzat: false };
+  const desat = enMillis(actualitzatEl);
+  const desactualitzat = desat != null
+    && [pdfs.simple, pdfs.impremta].some((p) => enMillis(p.generatEl) < desat);
+  return { preparats: true, desactualitzat };
 };
 
 const idError = (camp) => `${camp}-error`;
@@ -132,9 +143,22 @@ function FitxaFlyer({ id, carregada }) {
   const ocupatRef = useRef(false);
   const [errorAccio, setErrorAccio] = useState(null);
   const [copiat, setCopiat] = useState(false);
+  // Només els PDF són en viu: la funció els escriu mentre l'admin espera; la resta del formulari no es toca.
+  const [vivaPdfs, setVivaPdfs] = useState(() => ({ pdfs: flyer?.pdfs, actualitzatEl: flyer?.actualitzatEl }));
+  const [errorPdfs, setErrorPdfs] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!id) return undefined;
+    return onSnapshot(doc(db, 'flyers', id), (snap) => {
+      const dades = snap.data();
+      setErrorPdfs(false);
+      if (dades) setVivaPdfs({ pdfs: dades.pdfs, actualitzatEl: dades.actualitzatEl });
+    }, () => setErrorPdfs(true));
+  }, [id]);
+
   const publicat = desat.estat === 'publicat';
+  const { preparats: pdfsPreparats, desactualitzat: pdfsDesactualitzats } = estatPdfs(vivaPdfs);
 
   const escriu = async (v, { publica }) => {
     const ids = ordenaIds(v.sessionsIds, sessionsPerId);
@@ -346,8 +370,6 @@ function FitxaFlyer({ id, carregada }) {
           <h2 className="flyer-form__titol-seccio" id="flyer-enllacos">Enllaços</h2>
           <ul className="flyer-form__enllacos">
             <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{publicat ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
-            <li><a className="enllac" href={links.pdfSimple} target="_blank" rel="noreferrer">PDF simple</a></li>
-            <li><a className="enllac" href={links.pdfImpremta} target="_blank" rel="noreferrer">PDF per a impremta</a></li>
             <li><a className="enllac" href={links.previsualitzacio} target="_blank" rel="noreferrer">Previsualització d&apos;impressió</a></li>
           </ul>
           {publicat && (
@@ -355,6 +377,30 @@ function FitxaFlyer({ id, carregada }) {
               {copiat ? 'Enllaç copiat' : "Copiar l'enllaç"}
             </button>
           )}
+        </section>
+      )}
+
+      {links && (
+        <section className="flyer-form__seccio" aria-labelledby="flyer-pdfs">
+          <h2 className="flyer-form__titol-seccio" id="flyer-pdfs">PDF</h2>
+          {pdfsPreparats ? (
+            <>
+              <ul className="flyer-form__enllacos">
+                <li>
+                  <a className="enllac" href={links.pdfSimple} target="_blank" rel="noreferrer">PDF simple</a>
+                  {` generat el ${formatDataHora(vivaPdfs.pdfs.simple.generatEl)}`}
+                </li>
+                <li>
+                  <a className="enllac" href={links.pdfImpremta} target="_blank" rel="noreferrer">PDF per a impremta</a>
+                  {` generat el ${formatDataHora(vivaPdfs.pdfs.impremta.generatEl)}`}
+                </li>
+              </ul>
+              {pdfsDesactualitzats && <p className="form__ajuda" role="status">S&apos;està actualitzant…</p>}
+            </>
+          ) : (
+            <p className="form__ajuda" role="status">PDF en preparació…</p>
+          )}
+          {errorPdfs && <p className="form__error" role="status">No s&apos;ha pogut actualitzar l&apos;estat dels PDF.</p>}
         </section>
       )}
 

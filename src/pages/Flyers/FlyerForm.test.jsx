@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -9,13 +9,14 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn().mockResolvedValue(undefined),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  onSnapshot: vi.fn(() => () => {}),
   doc: vi.fn((_db, col, id) => ({ col, id })),
   collection: vi.fn((_db, nom) => ({ nom })),
   serverTimestamp: vi.fn(() => 'ara'),
 }));
 
 import {
-  addDoc, getDoc, getDocs, updateDoc,
+  addDoc, getDoc, getDocs, onSnapshot, updateDoc,
 } from 'firebase/firestore';
 import FlyerForm from './FlyerForm';
 import { renderAmbConfirmacio } from '../../test/confirmacio';
@@ -188,14 +189,12 @@ describe('FlyerForm', () => {
     const { unmount } = renderExistent();
     const previ = await screen.findByRole('link', { name: 'Previsualització de la pàgina' });
     expect(previ).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123');
-    expect(screen.getByRole('link', { name: 'PDF per a impremta' })).toHaveAttribute('href', expect.stringContaining('variant=impremta&clau=abc123'));
     expect(screen.queryByRole('button', { name: "Copiar l'enllaç" })).toBeNull();
     unmount();
 
     flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {} });
     renderExistent();
     expect(await screen.findByRole('link', { name: 'Pàgina pública' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/');
-    expect(screen.getByRole('link', { name: 'PDF simple' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/flyer.pdf');
     expect(screen.getByRole('button', { name: "Copiar l'enllaç" })).toBeInTheDocument();
   });
 
@@ -235,5 +234,97 @@ describe('FlyerForm', () => {
     await screen.findByLabelText('Nom');
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeDisabled();
     expect(screen.getByText('Cal un nom.')).toBeInTheDocument();
+  });
+
+  describe('estat dels PDF', () => {
+    const ts = (data) => ({ toDate: () => data });
+    const generat = new Date(2026, 10, 5, 19, 30);
+    const pdfs = () => ({
+      simple: { path: 'a', firma: 'x', generatEl: ts(generat) },
+      impremta: { path: 'b', firma: 'y', generatEl: ts(generat) },
+    });
+
+    it('sense pdfs mostra «PDF en preparació…» i cap enllaç de PDF', async () => {
+      flyer = flyerExistent();
+      renderExistent();
+      expect(await screen.findByText('PDF en preparació…')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'PDF simple' })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'PDF per a impremta' })).toBeNull();
+    });
+
+    it('amb només una variant segueix en preparació', async () => {
+      flyer = flyerExistent({ pdfs: { simple: pdfs().simple } });
+      renderExistent();
+      expect(await screen.findByText('PDF en preparació…')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'PDF simple' })).toBeNull();
+    });
+
+    it('amb pdfs mostra els enllaços (amb la clau) i la data de generació', async () => {
+      flyer = flyerExistent({ pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 19, 0)) });
+      renderExistent();
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/flyer.pdf?clau=abc123');
+      expect(screen.getByRole('link', { name: 'PDF per a impremta' })).toHaveAttribute('href', expect.stringContaining('variant=impremta&clau=abc123'));
+      expect(screen.getAllByText(/generat el 05\/11\/2026 19:30/)).toHaveLength(2);
+      expect(screen.queryByText('PDF en preparació…')).toBeNull();
+      expect(screen.queryByText("S'està actualitzant…")).toBeNull();
+    });
+
+    it('si el PDF és anterior al darrer desat mostra «S\'està actualitzant…»', async () => {
+      flyer = flyerExistent({ pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)) });
+      renderExistent();
+      expect(await screen.findByText("S'està actualitzant…")).toBeInTheDocument();
+    });
+
+    it('l\'actualització en viu dels pdfs no trepitja les edicions sense desar', async () => {
+      flyer = flyerExistent();
+      let alSnapshot;
+      onSnapshot.mockImplementationOnce((_ref, cb) => { alSnapshot = cb; return () => {}; });
+      renderExistent();
+      await screen.findByLabelText('Nom');
+      fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Editat' } });
+      act(() => alSnapshot({ data: () => ({ ...flyerExistent({ nom: 'Del servidor' }), pdfs: pdfs() }) }));
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Nom')).toHaveValue('Editat');
+    });
+
+    it('amb actualitzatEl pendent (null) no mostra l\'avís ni falla', async () => {
+      flyer = flyerExistent({ pdfs: pdfs(), actualitzatEl: null });
+      renderExistent();
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      expect(screen.queryByText("S'està actualitzant…")).toBeNull();
+    });
+
+    it('desfà la subscripció en desmuntar', async () => {
+      flyer = flyerExistent();
+      const desfa = vi.fn();
+      onSnapshot.mockImplementationOnce(() => desfa);
+      const { unmount } = renderExistent();
+      await screen.findByLabelText('Nom');
+      unmount();
+      expect(desfa).toHaveBeenCalled();
+    });
+
+    it('un snapshot sense dades no falla i conserva l\'estat', async () => {
+      flyer = flyerExistent({ pdfs: pdfs() });
+      let alSnapshot;
+      onSnapshot.mockImplementationOnce((_ref, cb) => { alSnapshot = cb; return () => {}; });
+      renderExistent();
+      await screen.findByRole('link', { name: 'PDF simple' });
+      act(() => alSnapshot({ data: () => undefined }));
+      expect(screen.getByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+    });
+
+    it('si el snapshot falla mostra l\'avís, conserva els pdfs i el formulari segueix funcionant', async () => {
+      flyer = flyerExistent({ pdfs: pdfs() });
+      let alError;
+      onSnapshot.mockImplementationOnce((_ref, _cb, err) => { alError = err; return () => {}; });
+      renderExistent();
+      await screen.findByRole('link', { name: 'PDF simple' });
+      act(() => alError(new Error('permission-denied')));
+      expect(screen.getByText("No s'ha pogut actualitzar l'estat dels PDF.")).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Editat' } });
+      expect(screen.getByLabelText('Nom')).toHaveValue('Editat');
+    });
   });
 });

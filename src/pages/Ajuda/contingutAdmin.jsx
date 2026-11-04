@@ -510,4 +510,75 @@ const TASQUES = {
   ],
 };
 
-export const SECCIONS_ADMIN = [PAGINES, TASQUES];
+const FLYERS = {
+  id: 'flyers',
+  titol: 'Flyers',
+  intro: (
+    <p>
+      Un flyer és un full A4 imprès a doble cara que es retalla en 3 tires de 21 × 9,9 cm, amb les sessions d'un rang de
+      dates. Es gestiona a «Programació › Flyers».
+    </p>
+  ),
+  apartats: [
+    {
+      id: 'flyers-crear',
+      titol: 'Crear un flyer',
+      cos: (
+        <ol>
+          <li>Toca «Nou flyer» i escriu el nom.</li>
+          <li>Tria «Des de» i «Fins a»: es marquen les sessions publicades del rang.</li>
+          <li>
+            Desmarca els films que no hi han d'anar: n'hi ha d'haver entre 3 i 6. Amb menys de 3 films, o si algun no té
+            «versió» (VOSE, VO…), no es pot publicar; amb més de 6 només surt un avís.
+          </li>
+          <li>Desa (queda com a «Esborrany») i, quan estigui bé, toca «Publicar».</li>
+        </ol>
+      ),
+    },
+    {
+      id: 'flyers-publicar',
+      titol: 'Quan es publica i on es veu',
+      cos: (
+        <>
+          <p>
+            En publicar-lo, el flyer és públic: a /programacio/ apareix el botó «Ajuda'ns a fer difusió» i «Copiar
+            l'enllaç» dona l'enllaç públic per compartir.
+          </p>
+          <p>
+            <strong>Atenció:</strong> un esborrany només es veu amb l'enllaç de previsualització (porta una clau); no el
+            comparteixis com a públic.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: 'flyers-desactualitzat',
+      titol: 'Desactualitzat i «Marcar com a revisat»',
+      cos: (
+        <p>
+          Si després de publicar-lo s'esborra o despublica una sessió, o en canvia la data, l'hora, la versió o el títol,
+          el flyer surt com a «Desactualitzat» amb la llista de canvis. Revisa'l i toca «Marcar com a revisat» perquè
+          torni a estar al dia.
+        </p>
+      ),
+    },
+    {
+      id: 'flyers-pdf',
+      titol: 'Els dos PDF',
+      cos: (
+        <>
+          <ul>
+            <li><strong>PDF simple:</strong> per imprimir a casa o al Hotel d'Entitats.</li>
+            <li><strong>PDF per a impremta:</strong> amb sagnat i marques de tall.</li>
+          </ul>
+          <p>
+            Es generen sols en uns segons i es refan quan canvia el flyer o una sessió: fins que no són a punt es veu «PDF
+            en preparació…», i «S'està actualitzant…» mentre es refan.
+          </p>
+        </>
+      ),
+    },
+  ],
+};
+
+export const SECCIONS_ADMIN = [PAGINES, TASQUES, FLYERS];
