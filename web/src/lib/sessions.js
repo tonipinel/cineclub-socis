@@ -7,7 +7,7 @@ const memo = creaMemo();
 // Els documents de `sessions` porten els camps de gestió (titol, data, hora, activa, ...) i
 // `publica`, amb el front matter de Hugo en camelCase (el `description` de Hugo és `descripcio`).
 const clau = (s) => `${s.data} ${horaNormal(s.hora) ?? '00:00'}`;
-const ascendent = (a, b) => (clau(a) < clau(b) ? -1 : clau(a) > clau(b) ? 1 : 0);
+export const ascendent = (a, b) => (clau(a) < clau(b) ? -1 : clau(a) > clau(b) ? 1 : 0);
 
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
 const dataValida = (data) => {
@@ -92,14 +92,14 @@ function normalitzaPublica(brut) {
 
 // Sessió neta: `titol` de text (sense cap títol, el slug), `hora` HH:MM i `publica` normalitzada.
 // Es registra quins camps s'han ignorat (mai els valors) per poder-los corregir a l'admin.
-function normalitzaSessio(s) {
+export function normalitzaSessio(s) {
   const { publica, ignorats } = normalitzaPublica(s.publica);
   if (ignorats.length) console.warn(`sessió ${s.id}: camps de publica ignorats per tipus invàlid: ${ignorats.join(', ')}`);
   return { ...s, titol: textONombre(s.titol) ?? publica.titol ?? s.slug, hora: horaValida(s.hora), publica };
 }
 
 // Les no publicades no compten; una publicada que no es pot fer servir es registra (id i motiu, sense valors).
-function publicable(s) {
+export function publicable(s) {
   if (s.publicada !== true) return false;
   const motiu = !slugValid(s.slug) ? 'slug invàlid' : !dataValida(s.data) ? 'data invàlida' : null;
   if (motiu) console.warn(`sessió ${s.id} descartada: ${motiu}`);
