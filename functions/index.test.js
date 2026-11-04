@@ -3,7 +3,7 @@ import funcions from './index.js';
 
 // Sense límit, una funció v2 pot arribar a 100 instàncies: amb aquests, un abús costa poc.
 describe('maxInstances', () => {
-  it('les callables en tenen 10 com a màxim i els disparadors 5', () => {
+  it('les callables en tenen 10 com a màxim i els disparadors 5 (2 els de PDF, que fan servir Chromium)', () => {
     const limits = Object.fromEntries(Object.entries(funcions).map(([nom, f]) => [nom, f.__endpoint.maxInstances]));
     expect(limits).toEqual({
       notificarNovaSolicitud: 5,
@@ -19,6 +19,8 @@ describe('maxInstances', () => {
       sincronitzarCalendari: 5,
       sincronitzarSociPorta: 5,
       activarCarnetEnEscanejar: 5,
+      regenerarPdfsFlyer: 2,
+      regenerarPdfsPerSessio: 2,
       sincronitzarCalendariTot: 10,
       llistarUsuarisTaquilla: 10,
       crearUsuariTaquilla: 10,
@@ -27,6 +29,16 @@ describe('maxInstances', () => {
       restablirContrasenyaUsuariTaquilla: 10,
       eliminarUsuariTaquilla: 10,
     });
+  });
+});
+
+// Gen2 admet 80 peticions per instància per defecte: amb Chromium (2 GiB) n'hi ha d'haver una sola.
+describe('PDF dels flyers', () => {
+  it('una petició per instància i com a màxim dues instàncies', () => {
+    for (const nom of ['regenerarPdfsFlyer', 'regenerarPdfsPerSessio']) {
+      expect(funcions[nom].__endpoint.concurrency).toBe(1);
+      expect(funcions[nom].__endpoint.maxInstances).toBe(2);
+    }
   });
 });
 

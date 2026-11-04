@@ -1,0 +1,38 @@
+---
+import '../styles/main.css';
+import '../styles/flyer.css';
+import { resizedUrl } from '../lib/images.js';
+
+// Una tira de programació (210 × 99 mm). `pelicules`: resultat de `peliculaFlyer`, ORDENADES per data
+// (la capçalera pinta el rang de la primera a l'última).
+const { pelicules } = Astro.props;
+const dates = pelicules.length > 1
+  ? `${pelicules[0].dataText} – ${pelicules[pelicules.length - 1].dataText}`
+  : (pelicules[0]?.dataText ?? '');
+---
+<div class="flyer-tira">
+  <div class="flyer-tira__cap">
+    <span class="flyer-tira__marca">Cineclub Roda de Berà · Programació</span>
+    <span class="flyer-tira__dates">{dates}</span>
+  </div>
+  <div class="flyer-tira__columnes" style={`--columnes: ${pelicules.length}`}>
+    {pelicules.map((p) => (
+      <div class="flyer-columna">
+        <div class="flyer-columna__cartell">
+          {p.imatge
+            ? <img class="flyer-columna__imatge" src={resizedUrl(p.imatge, 400)} alt="" />
+            : <div class="flyer-columna__marcador">{p.titol}</div>}
+        </div>
+        <div class="flyer-columna__text">
+          <div class="flyer-columna__data">{p.dataText}</div>
+          <div class="flyer-columna__titol">{p.titol}</div>
+          {p.versio
+            ? <span class="flyer-columna__versio">{p.versio}</span>
+            : <span class="flyer-columna__versio flyer-columna__versio--incompleta">Versió per confirmar</span>}
+          {p.idioma && <div class="flyer-columna__idioma">{p.idioma}</div>}
+          {p.generes && <div class="flyer-columna__generes">{p.generes}</div>}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>

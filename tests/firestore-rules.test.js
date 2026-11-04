@@ -806,3 +806,25 @@ describe('firestore.rules — entitats', () => {
     await assertFails(setDoc(doc(taquillaDb, 'entitats/y'), { nom: 'Bar' }));
   });
 });
+
+describe('firestore.rules — flyers', () => {
+  const adminDb = () => testEnv.authenticatedContext('admin-uid', { role: 'admin' }).firestore();
+
+  it('només l\'admin hi pot llegir i escriure', async () => {
+    await assertSucceeds(setDoc(doc(adminDb(), 'flyers/x'), { nom: 'Novembre', estat: 'esborrany' }));
+    await assertSucceeds(getDoc(doc(adminDb(), 'flyers/x')));
+    await assertSucceeds(updateDoc(doc(adminDb(), 'flyers/x'), { estat: 'publicat' }));
+    await assertSucceeds(deleteDoc(doc(adminDb(), 'flyers/x')));
+  });
+
+  it('ni un visitant ni un soci autenticat hi tenen accés', async () => {
+    await setDoc(doc(adminDb(), 'flyers/x'), { nom: 'Novembre', estat: 'publicat' });
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+    const sociDb = testEnv.authenticatedContext('soci-uid').firestore();
+    await assertFails(getDoc(doc(anonDb, 'flyers/x')));
+    await assertFails(setDoc(doc(anonDb, 'flyers/y'), { nom: 'Bar' }));
+    await assertFails(getDoc(doc(sociDb, 'flyers/x')));
+    await assertFails(setDoc(doc(sociDb, 'flyers/y'), { nom: 'Bar' }));
+    await assertFails(deleteDoc(doc(sociDb, 'flyers/x')));
+  });
+});

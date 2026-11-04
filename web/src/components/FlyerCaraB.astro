@@ -1,0 +1,25 @@
+---
+import '../styles/main.css';
+import '../styles/flyer.css';
+import QRCode from 'qrcode';
+import flyer from '../data/flyer.json';
+
+// Una tira corporativa (210 × 99 mm). El QR porta a la web, o a `url` si se'n passa una.
+const { url = `https://${flyer.web}` } = Astro.props;
+const qr = await QRCode.toString(url, { type: 'svg', margin: 0 });
+---
+<div class="flyer-tira flyer-tira--corporativa">
+  <div class="flyer-marca">
+    <div class="flyer-marca__nom">Cineclub<br />Roda de Berà</div>
+    <p class="flyer-marca__text">{flyer.quiSom}</p>
+  </div>
+  <div class="flyer-info">
+    <ul class="flyer-info__llista">
+      <li><b>On:</b> {flyer.adreca}</li>
+      <li><b>Quan:</b> {flyer.quan}</li>
+      <li><b>Preu:</b> {flyer.preu}</li>
+      <li><b>Més info:</b> {flyer.web}</li>
+    </ul>
+    <div class="flyer-qr" set:html={qr} />
+  </div>
+</div>

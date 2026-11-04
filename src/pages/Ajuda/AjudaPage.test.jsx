@@ -18,7 +18,7 @@ describe('AjudaPage', () => {
   it('admin: mostra les pantalles, les tasques i la guia d\'escaneig', () => {
     renderAmbRol('admin');
     expect(screen.getByRole('heading', { level: 1, name: 'Ajuda' })).toBeInTheDocument();
-    expect(titolsSeccions()).toEqual(['Índex', 'Què fa cada pantalla', 'Tasques habituals pas a pas', "Guia d'escaneig a la porta"]);
+    expect(titolsSeccions()).toEqual(['Índex', 'Què fa cada pantalla', 'Tasques habituals pas a pas', 'Flyers', "Guia d'escaneig a la porta"]);
     expect(screen.getByRole('heading', { level: 3, name: 'Marcar la sessió activa' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Mode prova' })).toBeInTheDocument();
   });

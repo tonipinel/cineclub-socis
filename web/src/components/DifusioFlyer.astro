@@ -1,0 +1,23 @@
+---
+import Icon from './Icon.astro';
+import { SITE_URL } from '../lib/env.js';
+
+const { flyer } = Astro.props;
+const id = encodeURIComponent(flyer.id);
+const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${SITE_URL}/flyer/${id}/`)}`;
+---
+<div class="difusio-wrapper">
+  <div class="difusio">
+    <div class="difusio__message">
+      <Icon name="megaphone" />
+      <div class="difusio__text">
+        <h2 class="difusio__title">Ajuda'ns a fer difusió</h2>
+        <p class="difusio__body">Imprimeix el flyer i deixa'l en algun lloc, o comparteix la programació del Cineclub per WhatsApp.</p>
+      </div>
+    </div>
+    <div class="difusio__actions">
+      <a class="difusio__button" href={`/flyer/${id}/flyer.pdf`} target="_blank" rel="noopener"><Icon name="printer" />Imprimeix</a>
+      <a class="difusio__button" href={urlWhatsapp} target="_blank" rel="noopener">Comparteix per WhatsApp</a>
+    </div>
+  </div>
+</div>

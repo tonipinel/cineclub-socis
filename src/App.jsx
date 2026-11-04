@@ -40,6 +40,8 @@ const DistribuidoresList = lazy(() => import('./pages/Distribuidores/Distribuido
 const DistribuidoraForm = lazy(() => import('./pages/Distribuidores/DistribuidoraForm'));
 const EntitatsList = lazy(() => import('./pages/Entitats/EntitatsList'));
 const EntitatForm = lazy(() => import('./pages/Entitats/EntitatForm'));
+const FlyersList = lazy(() => import('./pages/Flyers/FlyersList'));
+const FlyerForm = lazy(() => import('./pages/Flyers/FlyerForm'));
 const TandesList = lazy(() => import('./pages/Tandes/TandesList'));
 const TandaForm = lazy(() => import('./pages/Tandes/TandaForm'));
 const TandaResultats = lazy(() => import('./pages/Tandes/TandaResultats'));
@@ -346,6 +348,36 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={[ROLE_ADMIN]}>
                       <EntitatForm />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path={ROUTES.FLYERS}
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={[ROLE_ADMIN]}>
+                      <FlyersList />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path={ROUTES.FLYERS_NOU}
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={[ROLE_ADMIN]}>
+                      <FlyerForm />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path={ROUTES.FLYERS_EDITAR}
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={[ROLE_ADMIN]}>
+                      <FlyerForm />
                     </RequireRole>
                   </RequireAuth>
                 }

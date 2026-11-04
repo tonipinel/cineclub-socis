@@ -21,6 +21,7 @@ export const GRUPS_ADMIN = [
       { to: ROUTES.SESSIONS, etiqueta: 'Sessions' },
       { to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' },
       { to: ROUTES.ENTITATS, etiqueta: 'Entitats' },
+      { to: ROUTES.FLYERS, etiqueta: 'Flyers' },
     ],
   },
   {

@@ -1,0 +1,183 @@
+/* Estils del flyer imprimible: cada tira fa 210 × 99 mm (3 per full A4). */
+@reference "./main.css";
+
+.flyer-tira {
+  @apply font-display box-border flex flex-col bg-neutral-900 text-white;
+  width: 210mm;
+  height: 99mm;
+  overflow: hidden;
+  padding: 4mm 5mm;
+  gap: 2mm;
+}
+.flyer-tira__cap {
+  @apply flex items-baseline justify-between border-b border-gold;
+  padding-bottom: 1.2mm;
+}
+.flyer-tira__marca {
+  @apply font-semibold uppercase text-gold;
+  font-size: 4.6mm;
+  letter-spacing: 0.3mm;
+}
+.flyer-tira__dates {
+  @apply font-sans;
+  font-size: 3.2mm;
+  opacity: 0.8;
+}
+.flyer-tira__columnes {
+  @apply grid min-h-0 flex-1;
+  grid-template-columns: repeat(var(--columnes), minmax(0, 1fr));
+  gap: 2.5mm;
+}
+
+.flyer-columna {
+  @apply flex min-h-0 min-w-0 flex-col overflow-hidden;
+  gap: 0.8mm;
+}
+/* El cartell ocupa l'alçada que queda sota el text (mai més) i va centrat a la columna. */
+.flyer-columna__cartell {
+  @apply flex min-h-0 justify-center;
+  flex: 1 1 0;
+  container-type: size;
+}
+.flyer-columna__imatge,
+.flyer-columna__marcador {
+  @apply block self-start rounded-sm object-cover;
+  /* 2:3 dins la caixa: el que limiti primer, l'amplada de la columna o l'alçada que queda. */
+  width: min(100cqw, calc(100cqh * 2 / 3));
+  aspect-ratio: 2 / 3;
+}
+.flyer-columna__marcador {
+  @apply flex items-end overflow-hidden bg-neutral-700 font-bold uppercase text-white;
+  box-sizing: border-box;
+  
+  padding: 1.2mm;
+  font-size: 3mm;
+  line-height: 1;
+}
+.flyer-columna__text {
+  @apply flex min-w-0 flex-none flex-col items-center text-center;
+  gap: 0.6mm;
+}
+.flyer-columna__data {
+  @apply uppercase text-gold;
+  font-size: 3.4mm;
+  line-height: 1.1;
+}
+.flyer-columna__titol {
+  @apply uppercase;
+  font-size: 3.4mm;
+  line-height: 1.05;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.flyer-columna__versio {
+  @apply rounded-sm bg-gold font-bold text-black;
+  max-width: 100%;
+  padding: 0 1.2mm;
+  font-size: 3mm;
+  line-height: 1.35;
+}
+.flyer-columna__versio--incompleta {
+  @apply bg-transparent text-gold;
+  outline: 0.2mm dashed var(--color-gold);
+}
+.flyer-columna__idioma,
+.flyer-columna__generes {
+  @apply w-full overflow-hidden text-ellipsis whitespace-nowrap font-sans;
+  line-height: 1.25;
+}
+.flyer-columna__idioma {
+  font-size: 3mm;
+}
+.flyer-columna__generes {
+  font-size: 2.6mm;
+  opacity: 0.85;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+/* Cara B */
+.flyer-tira--corporativa {
+  @apply grid items-center;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 8mm;
+  padding: 8mm 10mm;
+}
+.flyer-marca__nom {
+  @apply font-semibold uppercase text-gold;
+  font-size: 11mm;
+  line-height: 1;
+}
+.flyer-marca__text {
+  @apply font-sans;
+  margin-top: 3mm;
+  font-size: 3.6mm;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+.flyer-info {
+  @apply flex items-center;
+  gap: 5mm;
+}
+.flyer-info__llista {
+  @apply m-0 min-w-0 flex-1 list-none p-0 font-sans;
+  font-size: 3.2mm;
+  line-height: 1.4;
+}
+.flyer-info__llista b {
+  @apply text-gold;
+}
+.flyer-qr {
+  @apply flex-none bg-white;
+  width: 28mm;
+  height: 28mm;
+  padding: 2mm;
+}
+.flyer-qr svg {
+  @apply block h-full w-full;
+}
+
+/* Pàgina pública /flyer/<id>/: les cares (210 mm d'ample) s'escalen a l'ample de la pantalla. */
+.flyer-pagina {
+  @apply bg-neutral-900 font-sans text-white;
+  margin: 0;
+}
+.flyer-pagina__contingut {
+  @apply mx-auto flex flex-col;
+  max-width: 210mm;
+  padding: 16px;
+  gap: 16px;
+}
+.flyer-pagina__titol {
+  @apply font-display text-2xl font-semibold text-gold;
+  margin: 0;
+}
+.flyer-pagina__accions {
+  @apply flex flex-wrap;
+  gap: 8px;
+}
+.flyer-pagina__boto {
+  @apply rounded bg-gold font-bold text-black no-underline;
+  padding: 10px 16px;
+}
+.flyer-pagina__boto--secundari {
+  @apply bg-transparent text-white;
+  outline: 1px solid currentColor;
+}
+.flyer-pagina__buit {
+  @apply m-0 opacity-80;
+}
+.flyer-pagina__cara {
+  @apply relative w-full overflow-hidden;
+  container-type: inline-size;
+  aspect-ratio: 210 / 99;
+}
+.flyer-pagina__escala {
+  @apply absolute left-0 top-0;
+  width: 210mm;
+  transform-origin: top left;
+  scale: tan(atan2(100cqw, 210mm));
+}
