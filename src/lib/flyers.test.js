@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canvisDesdeBase, instantania, sessionsDelRang, validarFlyer } from './flyers.js';
+import {
+  canvisDesdeBase, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
+} from './flyers.js';
 
 const sessio = (id, data, hora, extra = {}) => ({
   id, data, hora, titol: `Peli ${id}`, publicada: true, publica: { versioTipus: 'vose' }, ...extra,
@@ -17,11 +19,37 @@ describe('sessionsDelRang', () => {
   ];
 
   it('inclou els dos extrems i ordena per data i hora', () => {
-    expect(sessionsDelRang(sessions, '2026-12-01', '2026-12-31')).toEqual(['b', 'a', 'c', 'd']);
+    expect(sessionsDelRang(sessions, '2026-12-01', '2026-12-31')).toEqual(['b', 'a', 'esborrany', 'c', 'd']);
   });
 
-  it('només té en compte les sessions publicades', () => {
-    expect(sessionsDelRang(sessions, '2026-12-05', '2026-12-05')).toEqual([]);
+  it('inclou les sessions no publicades', () => {
+    expect(sessionsDelRang(sessions, '2026-12-05', '2026-12-05')).toEqual(['esborrany']);
+  });
+});
+
+describe('sessionsNoPublicades i flyerActiu', () => {
+  const sessionsPerId = {
+    a: sessio('a', '2026-12-01', '20:00'),
+    b: sessio('b', '2026-12-02', '20:00'),
+    p: sessio('p', '2026-12-03', '20:00', { publicada: false }),
+  };
+  const flyer = (estat, sessionsIds) => ({ estat, sessionsIds });
+
+  it('llista les sessions sense publicar i les ids que ja no existeixen', () => {
+    expect(sessionsNoPublicades(flyer('publicat', ['a', 'p', 'x']), sessionsPerId)).toEqual([
+      { sessionId: 'p', titol: 'Peli p' },
+      { sessionId: 'x', titol: 'Sessió esborrada (x)' },
+    ]);
+    expect(sessionsNoPublicades(flyer('publicat', ['a', 'b']), sessionsPerId)).toEqual([]);
+  });
+
+  it.each([
+    ['un esborrany', flyer('esborrany', ['a', 'b']), false],
+    ['un publicat complet', flyer('publicat', ['a', 'b']), true],
+    ['un publicat amb una sessió sense publicar', flyer('publicat', ['a', 'p']), false],
+    ['un publicat amb una sessió esborrada', flyer('publicat', ['a', 'x']), false],
+  ])('%s: actiu = %s', (_, f, esperat) => {
+    expect(flyerActiu(f, sessionsPerId)).toBe(esperat);
   });
 });
 
@@ -49,6 +77,11 @@ describe('validarFlyer', () => {
     const { errors } = validarFlyer({ ...base, sessionsIds: ['1', '2', '8'] }, llista);
     expect(errors.sessionsIds).toHaveLength(1);
     expect(errors.sessionsIds[0]).toContain('Sense versió');
+  });
+
+  it('no dona error per una sessió no publicada', () => {
+    const amb = [...sessions, sessio('np', '2026-12-02', '20:00', { publicada: false })];
+    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', 'np'] }, amb).errors).toEqual({});
   });
 
   it('dona error sense nom', () => {
@@ -94,6 +127,13 @@ describe('canvisDesdeBase', () => {
     expect(canvis({ ...original, ...canvi })).toEqual([
       { sessionId: 'a', titol: canvi.titol ?? 'Peli a', tipus },
     ]);
+  });
+
+  it('no dona «despublicada» si la sessió ja no era publicada a la base', () => {
+    const noPublicada = sessio('a', '2026-12-01', '20:00', { publicada: false });
+    const f = { base: { a: instantania(noPublicada) } };
+    expect(canvisDesdeBase(f, { a: noPublicada })).toEqual([]);
+    expect(canvisDesdeBase(f, { a: { ...noPublicada, publicada: undefined } })).toEqual([]);
   });
 
   it('detecta una sessió esborrada amb el títol de la base', () => {

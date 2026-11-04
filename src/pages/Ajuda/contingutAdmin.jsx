@@ -526,7 +526,7 @@ const FLYERS = {
       cos: (
         <ol>
           <li>Toca «Nou flyer» i escriu el nom.</li>
-          <li>Tria «Des de» i «Fins a»: es marquen les sessions publicades del rang.</li>
+          <li>Tria «Des de» i «Fins a»: es marquen les sessions del rang, publicades o no (així pots preparar el flyer abans que es publiquin).</li>
           <li>
             Desmarca els films que no hi han d'anar: n'hi ha d'haver entre 3 i 6. Amb menys de 3 films, o si algun no té
             «versió» (VOSE, VO…), no es pot publicar; amb més de 6 només surt un avís.
@@ -541,8 +541,14 @@ const FLYERS = {
       cos: (
         <>
           <p>
-            En publicar-lo, el flyer és públic: a /programacio/ apareix el botó «Ajuda'ns a fer difusió» i «Copiar
-            l'enllaç» dona l'enllaç públic per compartir.
+            Un flyer és <strong>actiu</strong> quan està publicat i totes les seves sessions també ho estan. Un flyer
+            actiu és públic: a /programacio/ apareix el botó «Ajuda'ns a fer difusió» i «Copiar l'enllaç» dona l'enllaç
+            públic per compartir.
+          </p>
+          <p>
+            Pots publicar un flyer amb sessions encara sense publicar (surten com a «Sense publicar»): queda com a
+            «Publicat, pendent de publicar N sessions» i no és actiu ni públic fins que es publiquin totes. Quan ho
+            estan, passa a «Actiu» sol, sense tocar el flyer.
           </p>
           <p>
             <strong>Atenció:</strong> un esborrany només es veu amb l'enllaç de previsualització (porta una clau); no el

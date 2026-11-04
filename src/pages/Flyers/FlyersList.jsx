@@ -3,15 +3,13 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
-import { canvisDesdeBase } from '../../lib/flyers';
+import { canvisDesdeBase, etiquetaEstat, flyerActiu } from '../../lib/flyers';
 import { formatData } from '../../lib/data';
 import Carregant from '../../components/Carregant';
 import BotoAfegir from '../../components/BotoAfegir';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import ErrorCarrega from '../../components/ErrorCarrega';
 import useErrorCarrega from '../../lib/useErrorCarrega';
-
-const ESTATS = { esborrany: 'Esborrany', publicat: 'Publicat' };
 
 export default function FlyersList() {
   const [dades, setDades] = useState(null);
@@ -50,7 +48,7 @@ export default function FlyersList() {
             <Link className="enllac flyers-list__nom" to={ROUTES.FLYERS_EDITAR.replace(':id', f.id)}>{f.nom}</Link>
             <span className="flyers-list__dates">{`${formatData(f.desde)} – ${formatData(f.fins)}`}</span>
             <span className="flyers-list__estat">
-              <span className={`badge ${f.estat === 'publicat' ? 'badge--al-dia' : 'badge--pendent'}`}>{ESTATS[f.estat] ?? f.estat}</span>
+              <span className={`badge ${flyerActiu(f, sessionsPerId) ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(f, sessionsPerId)}</span>
               {canvisDesdeBase(f, sessionsPerId).length > 0 && <span className="badge badge--vencut">Desactualitzat</span>}
             </span>
           </li>

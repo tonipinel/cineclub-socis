@@ -16,7 +16,7 @@ const versioDe = (sessio) => sessio.publica?.versioTipus ?? '';
 
 export function sessionsDelRang(sessions, desde, fins) {
   return sessions
-    .filter((s) => s.publicada === true && s.data >= desde && s.data <= fins)
+    .filter((s) => s.data >= desde && s.data <= fins)
     .sort((a, b) => `${a.data} ${a.hora ?? ''}`.localeCompare(`${b.data} ${b.hora ?? ''}`))
     .map((s) => s.id);
 }
@@ -49,7 +49,7 @@ export function instantania(sessio) {
     hora: sessio.hora,
     titol: sessio.titol,
     versioTipus: versioDe(sessio),
-    publicada: sessio.publicada,
+    publicada: sessio.publicada === true,
   };
 }
 
@@ -63,11 +63,34 @@ export function canvisDesdeBase(flyer, sessionsPerId) {
     }
     const ara = instantania(actual);
     const push = (tipus) => canvis.push({ sessionId, titol: ara.titol, tipus });
-    if (ara.publicada !== true) push('despublicada');
+    // Una base anterior a aquest camp només podia tenir sessions publicades.
+    if (base.publicada !== false && ara.publicada !== true) push('despublicada');
     if (ara.data !== base.data) push('data');
     if (ara.hora !== base.hora) push('hora');
     if (ara.versioTipus !== base.versioTipus) push('versio');
     if (ara.titol !== base.titol) push('titol');
   }
   return canvis;
+}
+
+// Sessions del flyer que no existeixen o encara no són publicades.
+export function sessionsNoPublicades(flyer, sessionsPerId) {
+  return (flyer.sessionsIds ?? []).flatMap((sessionId) => {
+    const sessio = sessionsPerId[sessionId];
+    if (sessio?.publicada === true) return [];
+    return [{ sessionId, titol: sessio?.titol ?? `Sessió esborrada (${sessionId})` }];
+  });
+}
+
+// Actiu = publicat i amb totes les sessions publicades. Es calcula, no es desa.
+export function flyerActiu(flyer, sessionsPerId) {
+  return flyer.estat === 'publicat' && sessionsNoPublicades(flyer, sessionsPerId).length === 0;
+}
+
+// «Esborrany», «Actiu» o «Publicat, pendent de publicar N sessions».
+export function etiquetaEstat(flyer, sessionsPerId) {
+  if (flyer.estat !== 'publicat') return 'Esborrany';
+  const n = sessionsNoPublicades(flyer, sessionsPerId).length;
+  if (n === 0) return 'Actiu';
+  return `Publicat, pendent de publicar ${n} ${n === 1 ? 'sessió' : 'sessions'}`;
 }

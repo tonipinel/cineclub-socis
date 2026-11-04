@@ -12,7 +12,7 @@ import ErrorCarrega from '../../components/ErrorCarrega';
 import useErrorCarrega from '../../lib/useErrorCarrega';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
-  canvisDesdeBase, instantania, sessionsDelRang, validarFlyer,
+  canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
 } from '../../lib/flyers';
 import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
@@ -108,8 +108,29 @@ function ErrorCamp({ errors, camp }) {
   return <p id={idError(camp)} className="form__error">{errors[camp]}</p>;
 }
 
+// S'obre en una pestanya nova perquè el formulari pot tenir canvis sense desar.
+function EnllacSessio({ id }) {
+  return (
+    <a className="enllac" href={ROUTES.SESSIONS_EDITAR.replace(':id', id)} target="_blank" rel="noreferrer">Editar sessió</a>
+  );
+}
+
+// Títols de les sessions pendents de publicar; les esborrades no tenen fitxa on enllaçar.
+function PendentsDePublicar({ pendents, sessionsPerId }) {
+  return (
+    <ul>
+      {pendents.map((p) => (
+        <li key={p.sessionId}>
+          {p.titol}
+          {sessionsPerId[p.sessionId] && <>{' '}<EnllacSessio id={p.sessionId} /></>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
-  if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió publicada en aquest rang.</p>;
+  if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió en aquest rang.</p>;
   return (
     <ul className="flyer-form__sessions">
       {ids.map((id) => {
@@ -134,8 +155,11 @@ function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
               {versio
                 ? <span className="badge badge--al-dia">{ETIQUETA_VERSIO[versio] ?? versio}</span>
                 : <span className="badge badge--vencut">Falta la versió</span>}
-              {s.publicada !== true && <span className="badge badge--pendent">No publicada</span>}
+              {s.publicada === true
+                ? <span className="badge badge--al-dia">Publicada</span>
+                : <span className="badge badge--pendent">Sense publicar</span>}
             </label>
+            <EnllacSessio id={id} />
           </li>
         );
       })}
@@ -296,6 +320,9 @@ function FitxaFlyer({ id, carregada }) {
     setTimeout(() => setCopiat(false), 2500);
   });
 
+  const estatFlyer = { estat: desat.estat, sessionsIds: desat.sessionsIds };
+  const pendentsDesat = publicat ? sessionsNoPublicades(estatFlyer, sessionsPerId) : [];
+  const pendentsAlPublicar = sessionsNoPublicades(valors, sessionsPerId);
   const canvis = publicat ? canvisDesdeBase({ base: desat.base }, sessionsPerId) : [];
   const links = editant ? enllacos(id, flyer.clauPrevia, publicat) : null;
 
@@ -319,8 +346,14 @@ function FitxaFlyer({ id, carregada }) {
     >
       {editant && (
         <p className="flyer-form__estat">
-          <span className={`badge ${publicat ? 'badge--al-dia' : 'badge--pendent'}`}>{publicat ? 'Publicat' : 'Esborrany'}</span>
+          <span className={`badge ${flyerActiu(estatFlyer, sessionsPerId) ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
         </p>
+      )}
+      {pendentsDesat.length > 0 && (
+        <div className="form__ajuda">
+          <p>Falta publicar aquestes sessions; fins llavors el flyer no és actiu:</p>
+          <PendentsDePublicar pendents={pendentsDesat} sessionsPerId={sessionsPerId} />
+        </div>
       )}
 
       {canvis.length > 0 && (
@@ -376,7 +409,7 @@ function FitxaFlyer({ id, carregada }) {
 
       <section className="flyer-form__seccio" aria-labelledby="flyer-sessions">
         <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length})`}</h2>
-        <p className="form__ajuda">En triar les dates es marquen les sessions publicades del rang. Pots desmarcar-ne.</p>
+        <p className="form__ajuda">En triar les dates es marquen les sessions del rang, publicades o no. Pots desmarcar-ne.</p>
         <LlistaSessions ids={candidates} sessionsPerId={sessionsPerId} triades={new Set(valors.sessionsIds)} onAlterna={alterna} />
         {errorsValidacio.sessionsIds?.map((m) => <p key={m} className="form__error">{m}</p>)}
         {avisos.map((m) => <p key={m} className="flyer-form__avis">{m}</p>)}
@@ -385,6 +418,12 @@ function FitxaFlyer({ id, carregada }) {
       {!publicat && (
         <div className="flyer-form__publicar">
           <button type="button" className="btn btn--negre" disabled={hiHaErrors || ocupat || estat === 'desant'} onClick={publica}>Publicar</button>
+          {pendentsAlPublicar.length > 0 && (
+            <div className="flyer-form__avis">
+              <p>El flyer no serà actiu fins que totes les sessions estiguin publicades. Falta publicar:</p>
+              <PendentsDePublicar pendents={pendentsAlPublicar} sessionsPerId={sessionsPerId} />
+            </div>
+          )}
           {hiHaErrors && <p className="form__ajuda">Per publicar cal corregir els errors.</p>}
           {CAMPS.filter((camp) => errorsValidacio[camp]).map((camp) => (
             <p key={camp} className="form__error">{errorsValidacio[camp]}</p>
