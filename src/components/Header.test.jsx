@@ -132,7 +132,7 @@ describe('Header', () => {
 
     it('a /tandes mostra el submenú de Programació amb Tandes marcat', () => {
       const { container } = renderAdmin('/tandes');
-      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats']);
+      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats', 'Flyers']);
       expect(within(submenu()).getByRole('link', { name: 'Tandes' })).toHaveClass('site-header__sublink--actiu');
       expect(within(submenu()).getByRole('link', { name: 'Propostes' })).not.toHaveClass('site-header__sublink--actiu');
       expect(entrada(container, 'Programació')).toHaveClass('site-header__link--actiu');
@@ -168,7 +168,7 @@ describe('Header', () => {
 
     it('a /sessions mostra el submenú de Programació amb Sessions marcat', () => {
       const { container } = renderAdmin('/sessions');
-      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats']);
+      expect(etiquetes()).toEqual(['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats', 'Flyers']);
       expect(within(submenu()).getByRole('link', { name: 'Sessions' })).toHaveClass('site-header__sublink--actiu');
       expect(entrada(container, 'Programació')).toHaveClass('site-header__link--actiu');
       expect(entrada(container, 'Socis')).not.toHaveClass('site-header__link--actiu');
@@ -205,7 +205,7 @@ describe('Header', () => {
       const grups = container.querySelectorAll('.site-header__nav .site-header__subgrup');
       expect([...grups].map((g) => [...g.querySelectorAll('a')].map((a) => a.textContent))).toEqual([
         ['Socis', 'Sol·licituds'],
-        ['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats'],
+        ['Propostes', 'Tandes', 'Sessions', 'Distribuïdores', 'Entitats', 'Flyers'],
         ['Escaneig', 'Tiquets'],
         ['Associació', 'Usuaris de taquilla'],
       ]);
