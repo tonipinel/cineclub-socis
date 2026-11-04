@@ -1,8 +1,9 @@
 // Lògica pura dels flyers (`flyers/{id}`): triar sessions i detectar canvis respecte a la base.
 // `versioTipus` viu a `sessio.publica.versioTipus`.
 
-const MIN_SESSIONS = 3;
-const MAX_SESSIONS = 6;
+// Un flyer té de 3 a 5 sessions (límit dur: més de 5 no es pot desar com a publicat ni publicar).
+export const MIN_SESSIONS = 3;
+export const MAX_SESSIONS = 5;
 
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
 const dataValida = (data) => {
@@ -23,7 +24,6 @@ export function sessionsDelRang(sessions, desde, fins) {
 
 export function validarFlyer({ nom, desde, fins, sessionsIds }, sessions) {
   const errors = {};
-  const avisos = [];
   if (!nom?.trim()) errors.nom = 'Cal un nom.';
   if (!dataValida(desde)) errors.desde = 'Cal una data d\'inici vàlida.';
   if (!dataValida(fins)) errors.fins = 'Cal una data de fi vàlida.';
@@ -32,15 +32,15 @@ export function validarFlyer({ nom, desde, fins, sessionsIds }, sessions) {
   const ids = sessionsIds ?? [];
   const missatges = [];
   if (ids.length < MIN_SESSIONS) missatges.push(`Calen almenys ${MIN_SESSIONS} sessions.`);
+  if (ids.length > MAX_SESSIONS) missatges.push(`Un flyer té de ${MIN_SESSIONS} a ${MAX_SESSIONS} sessions. Desmarca'n alguna.`);
   for (const id of ids) {
     const sessio = sessions.find((s) => s.id === id);
     if (!sessio) missatges.push(`La sessió ${id} ja no existeix.`);
     else if (!versioDe(sessio)) missatges.push(`«${sessio.titol}» no té versió.`);
   }
   if (missatges.length) errors.sessionsIds = missatges;
-  if (ids.length > MAX_SESSIONS) avisos.push(`Més de ${MAX_SESSIONS} sessions: el flyer pot quedar massa ple.`);
 
-  return { errors, avisos };
+  return { errors };
 }
 
 export function instantania(sessio) {

@@ -1,6 +1,6 @@
 import { getDb, llegir } from './db.js';
-import { ascendent, normalitzaSessio, publicable } from './sessions.js';
-import { subtitolSessio, titolSessio, urlSessio } from './sessio-camps.js';
+import { ascendent, dataValida, normalitzaSessio, publicable } from './sessions.js';
+import { subtitolSessio, titolSessio } from './sessio-camps.js';
 
 const VERSIONS = {
   vose: 'VOSE',
@@ -30,12 +30,28 @@ export const peliculaFlyer = (sessio) => ({
   titol: titolSessio(sessio),
   titolTraduit: subtitolSessio(sessio),
   dataText: dataCurtaFlyer(sessio.data),
+  hora: sessio.hora && sessio.hora !== '00:00' ? sessio.hora : '',
+  seccio: sessio.publica?.seccio || 'cartellera',
   imatge: sessio.publica?.cartell ?? '',
-  generes: (sessio.publica?.generes ?? []).join(' · '),
   versio: etiquetaVersio(sessio).text,
   idioma: etiquetaVersio(sessio).idioma,
-  url: urlSessio(sessio),
 });
+
+// Preu per sessió per als NO socis (els socis entren sempre gratis) a partir de `publica.preu` de les sessions del flyer.
+// Cada sessió ha de dur un preu numèric (0 = gratuïta); si QUALSEVOL en falta o no és vàlid, el preu es desconeix i es retorna
+// `null` (el flyer cau al text provisional de `flyer.json`): mai no s'afirma «gratis» o un import que no és de totes.
+const euros = (n) => `${String(n).replace('.', ',')} €`;
+export const preuFlyer = (sessions) => {
+  const preus = sessions.map((s) => s.publica?.preu);
+  if (!preus.length || preus.some((p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0)) return null;
+  const pagats = preus.filter((p) => p > 0);
+  const gratis = pagats.length < preus.length;
+  if (!pagats.length) return { text: 'gratis' };
+  const min = Math.min(...pagats);
+  const max = Math.max(...pagats);
+  const quantitat = min === max ? euros(min) : `de ${String(min).replace('.', ',')} a ${euros(max)}`;
+  return { text: gratis ? `gratis o ${quantitat} segons la sessió` : `${quantitat} per sessió` };
+};
 
 export async function flyerPerId(id, db = getDb()) {
   const doc = await llegir(db.collection('flyers').doc(id).get());
@@ -43,14 +59,15 @@ export async function flyerPerId(id, db = getDb()) {
 }
 
 // Mateix filtre i normalització que `sessionsPubliques`, perquè una sessió trencada no tombi la pàgina.
-export async function sessionsDelFlyer(flyer, db = getDb()) {
+// `totes` (previsualització amb la `clau`): també les NO publicades, mentre el document existeixi i tingui una `data` vàlida.
+export async function sessionsDelFlyer(flyer, db = getDb(), { totes = false } = {}) {
   const ids = flyer.sessionsIds ?? [];
   if (!ids.length) return [];
   const docs = await llegir(db.getAll(...ids.map((id) => db.collection('sessions').doc(id))));
   return docs
     .filter((doc) => doc.exists)
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter(publicable)
+    .filter((s) => (totes ? dataValida(s.data) : publicable(s)))
     .map(normalitzaSessio)
     .sort(ascendent);
 }

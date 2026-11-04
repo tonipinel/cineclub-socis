@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  etiquetaVersio, peliculaFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, potVeure,
+  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, potVeure,
 } from '../src/lib/flyers.js';
 import { conWhere } from './helpers/firestore.js';
 
@@ -38,18 +38,42 @@ describe('etiquetaVersio', () => {
 });
 
 describe('peliculaFlyer', () => {
-  it('amb traducció, gèneres i cartell', () => {
+  it('amb traducció i cartell', () => {
     const s = sessio('anatomie', '2026-11-05', '19:00', {
-      titol: 'Anatomie', titolTraduit: 'Anatomia', cartell: '/c.jpg', generes: ['Drama', 'Thriller'], versioTipus: 'vose', idioma: 'Alemany',
+      titol: 'Anatomie', titolTraduit: 'Anatomia', cartell: '/c.jpg', versioTipus: 'vose', idioma: 'Alemany',
     });
     expect(peliculaFlyer(s)).toEqual({
-      id: 'anatomie', titol: 'Anatomie', titolTraduit: 'Anatomia', dataText: 'Dj 5 nov', imatge: '/c.jpg',
-      generes: 'Drama · Thriller', versio: 'VOSE', idioma: 'Alemany', url: '/programacio/2026/anatomie/',
+      id: 'anatomie', titol: 'Anatomie', titolTraduit: 'Anatomia', dataText: 'Dj 5 nov', hora: '19:00', seccio: 'cartellera', imatge: '/c.jpg',
+      versio: 'VOSE', idioma: 'Alemany',
     });
   });
-  it('sense traducció ni cartell ni gèneres', () => {
+  it('sense traducció ni cartell', () => {
     const p = peliculaFlyer(sessio('x', '2026-12-03', '19:00', { titol: 'X', titolTraduit: 'x' }));
-    expect(p).toMatchObject({ titolTraduit: '', imatge: '', generes: '', versio: '', dataText: 'Dj 3 des' });
+    expect(p).toMatchObject({ titolTraduit: '', imatge: '', versio: '', dataText: 'Dj 3 des' });
+  });
+});
+
+describe('preuFlyer', () => {
+  const p = (...preus) => preus.map((preu) => ({ publica: { preu } }));
+  it('mateix preu a totes: «X € per sessió»', () => {
+    expect(preuFlyer(p(5, 5, 5))).toEqual({ text: '5 € per sessió' });
+    expect(preuFlyer(p(3.5))).toEqual({ text: '3,5 € per sessió' });
+  });
+  it('preus diferents: rang', () => {
+    expect(preuFlyer(p(5, 3, 4))).toEqual({ text: 'de 3 a 5 € per sessió' });
+  });
+  it('una sessió gratuïta barrejada: «gratis o ...»; totes gratuïtes: gratis', () => {
+    expect(preuFlyer(p(0, 5, 5))).toEqual({ text: 'gratis o 5 € segons la sessió' });
+    expect(preuFlyer(p(0, 3, 5))).toEqual({ text: 'gratis o de 3 a 5 € segons la sessió' });
+    expect(preuFlyer(p(0, 0))).toEqual({ text: 'gratis' });
+  });
+  it('si el preu d\'alguna sessió es desconeix (falta o no és un nombre vàlid), null: mai no s\'afirma «gratis» ni un import', () => {
+    expect(preuFlyer([])).toBeNull();
+    expect(preuFlyer(p(undefined, null, '5', NaN, -1))).toBeNull();
+    expect(preuFlyer([{}, { publica: null }])).toBeNull();
+    expect(preuFlyer(p(0, 0, undefined))).toBeNull();
+    expect(preuFlyer(p(5, 5, null))).toBeNull();
+    expect(preuFlyer(p('3', 4, 5))).toBeNull();
   });
 });
 
@@ -63,6 +87,21 @@ describe('sessionsDelFlyer', () => {
     ] });
     const r = await sessionsDelFlyer({ sessionsIds: ['b', 'a', 'd', 'no-existeix', 'c'] }, db);
     expect(r.map((s) => s.id)).toEqual(['c', 'a', 'b']);
+  });
+  it('amb `totes` també hi surten les no publicades (i una sense slug), ordenades; amb data invàlida, no', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = dbFals({ sessions: [
+      sessio('b', '2026-12-03', '19:00'),
+      sessio('np', '2026-11-05', '21:00', {}, { publicada: false }),
+      sessio('sense-slug', '2026-11-05', '19:00', {}, { publicada: false, slug: undefined }),
+      sessio('mala', '2026-02-31', '19:00', {}, { publicada: false }),
+    ] });
+    const flyer = { sessionsIds: ['b', 'np', 'sense-slug', 'mala', 'no-existeix'] };
+    expect((await sessionsDelFlyer(flyer, db, { totes: true })).map((s) => s.id)).toEqual(['sense-slug', 'np', 'b']);
+    expect((await sessionsDelFlyer(flyer, db)).map((s) => s.id)).toEqual(['b']);
+    expect((await sessionsDelFlyer(flyer, db, { totes: false })).map((s) => s.id)).toEqual(['b']);
+    const [senseSlug] = await sessionsDelFlyer(flyer, db, { totes: true });
+    expect(peliculaFlyer(senseSlug)).toMatchObject({ id: 'sense-slug' });
   });
   it('sense sessions no llegeix res', async () => {
     expect(await sessionsDelFlyer({ sessionsIds: [] }, {})).toEqual([]);

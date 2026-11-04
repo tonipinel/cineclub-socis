@@ -1,143 +1,348 @@
-/* Estils del flyer imprimible: cada tira fa 210 × 99 mm (3 per full A4). */
+/* Estils del flyer imprimible: cada tira fa 210 × 99 mm (3 per full A4). Totes dues cares són blanques (la impressora d'oficina
+   no arriba a la vora: res fosc ha de tocar el marge); els elements foscos queden DINS de la tira. */
 @reference "./main.css";
 
 .flyer-tira {
-  @apply font-display box-border flex flex-col bg-neutral-900 text-white;
+  @apply font-display box-border flex bg-white text-neutral-900;
   width: 210mm;
   height: 99mm;
   overflow: hidden;
-  padding: 4mm 5mm;
-  gap: 2mm;
-}
-.flyer-tira__cap {
-  @apply flex items-baseline justify-between border-b border-gold;
-  padding-bottom: 1.2mm;
-}
-.flyer-tira__marca {
-  @apply font-semibold uppercase text-gold;
-  font-size: 4.6mm;
-  letter-spacing: 0.3mm;
-}
-.flyer-tira__dates {
-  @apply font-sans;
-  font-size: 3.2mm;
-  opacity: 0.8;
-}
-.flyer-tira__columnes {
-  @apply grid min-h-0 flex-1;
-  grid-template-columns: repeat(var(--columnes), minmax(0, 1fr));
-  gap: 2.5mm;
+  /* La tira és una ranura de 210 × 99 mm; el disseny visible (198 × 87 mm) hi queda centrat, a 6 mm de les quatre vores. */
+  --marge: 6mm;
+  padding: var(--marge);
+  gap: 3mm;
 }
 
-.flyer-columna {
-  @apply flex min-h-0 min-w-0 flex-col overflow-hidden;
-  gap: 0.8mm;
+/* Cara A: lateral estret a l'esquerra (logo, «Programació» i les dates en vertical, llegides de baix a dalt). */
+.flyer-tira__lateral {
+  @apply flex flex-none flex-col items-center;
+  width: 11mm;
+  gap: 3.5mm;
 }
-/* El cartell ocupa l'alçada que queda sota el text (mai més) i va centrat a la columna. */
+.flyer-tira__lateral--dreta {
+  @apply flex-col-reverse;
+}
+/* El lateral dret es llegeix de dalt a baix (sense el gir de 180° de l'esquerre). */
+.flyer-tira__lateral--dreta .flyer-tira__vertical {
+  transform: none;
+}
+.flyer-tira__logo {
+  @apply block h-auto w-full;
+}
+.flyer-tira__vertical {
+  @apply flex min-h-0 flex-1 justify-start text-center;
+  gap: 2mm;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.flyer-tira__marca,
+.flyer-tira__dates {
+  @apply whitespace-nowrap font-bold uppercase;
+  font-size: 5mm;
+  line-height: 1;
+  letter-spacing: 0.3mm;
+}
+.flyer-tira__marca {
+  @apply text-neutral-900;
+}
+/* El rang de dates, amb la mateixa tipografia que el títol però en daurat. */
+.flyer-tira__dates {
+  @apply text-gold;
+}
+.flyer-tira__columnes {
+  @apply relative box-border flex min-w-0 flex-1 items-stretch bg-black;
+  /* Les targetes (barra, cartell, textos, pastilla) queden DINS de la vora de ratlles, que és a 1,5 mm de la vora negra. */
+  padding: 1.8mm;
+}
+
+/* Les targetes de pel·lícula (com la `session-card` de la web, compacta) formen UNA banda negra contínua: sense espai entre
+   elles, amb la vora de ratlles blanca del conjunt a 1,5 mm de la vora i una divisòria de ratlles més gruixuda a cada
+   vora compartida. Són columnes iguals que reparteixen tot l'ample; el cartell omple la seva caixa (cover, ancorat a dalt). */
+.flyer-tira__columnes::after {
+  @apply pointer-events-none absolute border-dashed border-white;
+  content: '';
+  inset: 1.5mm;
+  border-width: 0.25mm;
+}
+.flyer-columna {
+  @apply relative box-border flex min-h-0 min-w-0 flex-1 flex-col text-white;
+  flex-basis: 0;
+  container-type: inline-size;
+}
+.flyer-columna + .flyer-columna::before {
+  @apply pointer-events-none absolute border-dashed border-white;
+  content: '';
+  /* De la vora de ratlles de dalt a la de baix: unions en T netes. */
+  top: -0.3mm;
+  bottom: -0.3mm;
+  left: -0.3mm;
+  border-left-width: 0.6mm;
+}
+.flyer-columna__marc {
+  @apply box-border flex min-h-0 flex-1 flex-col overflow-hidden;
+}
+/* La caixa del cartell: tot l'ample de la targeta i l'alçada que queda sota la barra i sobre el text. */
 .flyer-columna__cartell {
   @apply flex min-h-0 justify-center;
   flex: 1 1 0;
   container-type: size;
+  /* Enganxat a la barra (sense espai) i a la seva amplada: la barra té 0,3 mm de marge + 0,4 mm de contorn. */
+  margin-inline: 0.7mm;
 }
+/* El cartell OMPLE la caixa reservada (ample de la targeta x alçada que queda entre la barra i els textos), sense bandes buides.
+   Si la forma no és 2:3 es retalla; com que l'ancoratge és a dalt, el que es perd és la part de baix (o, si la caixa és més
+   estreta, una mica dels costats), i el títol imprès al cartell es conserva. */
 .flyer-columna__imatge,
 .flyer-columna__marcador {
-  @apply block self-start rounded-sm object-cover;
-  /* 2:3 dins la caixa: el que limiti primer, l'amplada de la columna o l'alçada que queda. */
-  width: min(100cqw, calc(100cqh * 2 / 3));
-  aspect-ratio: 2 / 3;
+  @apply block object-cover;
+  width: 100cqw;
+  height: 100cqh;
+  object-position: top center;
 }
 .flyer-columna__marcador {
-  @apply flex items-end overflow-hidden bg-neutral-700 font-bold uppercase text-white;
-  box-sizing: border-box;
-  
+  @apply box-border flex items-end overflow-hidden bg-neutral-700 font-bold uppercase text-white;
   padding: 1.2mm;
   font-size: 3mm;
   line-height: 1;
 }
+.flyer-tira--tres .flyer-tira__columnes {
+  /* 3 pel·lícules: targetes de 45 mm (3 x 45 + 3,6 mm de marge de la banda), centrades entre els dos laterals; el blanc que
+     sobra es reparteix a banda i banda. */
+  flex: 0 0 auto;
+  width: 138.6mm;
+  margin-inline: auto;
+}
+.flyer-tira--cinc .flyer-columna__cartell {
+  /* 5 pel·lícules: caixa del cartell de 52 mm d'alçada (una mica menys que els 56,2 mm del 2:3): es perd ~7,5 % de la part de
+     baix del cartell (cover ancorat a dalt) i l'alçada que sobra passa al bloc de text. */
+  flex: 0 0 auto;
+  height: 52mm;
+}
+.flyer-tira--cinc .flyer-columna__noms {
+  /* 5 pel·lícules: l'alçada que sobra es reparteix per igual sobre i sota el títol (centrat). */
+  flex: 1 1 auto;
+}
+.flyer-tira--cinc .flyer-columna__text {
+  flex: 1 1 auto;
+  /* Només el farciment vertical: l'horitzontal és el del contenidor estret (1,2 mm), el que suposa l'estimació de línies. */
+  padding-block: 1.2mm 2.2mm;
+}
 .flyer-columna__text {
   @apply flex min-w-0 flex-none flex-col items-center text-center;
-  gap: 0.6mm;
+  gap: 1.2mm;
+  padding: 1.2mm 2.4mm 1.5mm;
+}
+/* Barra de capçalera de la targeta: enganxada a la vora superior i a tot l'ample de la columna (per sobre de la vora de ratlles).
+   Secció (daurada, a la mida del text) + data i hora (blanca, ocupa la resta), una sola línia i cantonades quadrades. 0,3 mm de
+   marge a cada costat: les barres de targetes veïnes no es fonen i la divisòria de ratlles es veu a través. */
+.flyer-columna__capcalera {
+  @apply relative z-10 flex flex-none whitespace-nowrap border-solid border-black;
+  margin-inline: 0.3mm;
+  /* Contorn negre: la part blanca no es perd amb el full blanc de fora. */
+  border-width: 0.4mm 0.4mm 0;
+  /* Línia fina negra que separa la barra del cartell (ombra: no fa créixer la barra). */
+  box-shadow: 0 0.3mm 0 0 #000;
+}
+.flyer-columna__seccio {
+  @apply flex-none font-bold uppercase;
+  padding: 0.7mm 2mm;
+  font-size: 2.6mm;
+  line-height: 1.3;
+  letter-spacing: 0.15mm;
 }
 .flyer-columna__data {
-  @apply uppercase text-gold;
-  font-size: 3.4mm;
-  line-height: 1.1;
+  @apply min-w-0 flex-1 bg-white text-center font-sans uppercase text-black;
+  padding: 0.7mm 1.5mm;
+  font-size: 2.7mm;
+  line-height: 1.3;
+}
+.flyer-columna__hora {
+  @apply text-neutral-600;
+}
+.flyer-columna__noms {
+  @apply flex w-full flex-col items-center;
+  --titol: var(--titol-mida, 3.6mm);
+  /* Alçada reservada: el títol que més ocupa de la tira (`--titol-alcada`, fins a 3 línies), perquè les pastilles de baix s'alineïn i
+     els cartells tinguin la mateixa mida a totes les targetes. */
+  min-height: var(--titol-alcada, 8mm);
+  /* El títol va centrat verticalment dins el bloc reservat (entre el cartell i la pastilla): un títol d'una línia queda al mig de
+     l'espai d'un veí de 2-3 línies, amb el buit de dalt i de baix igual. La pastilla va fixada a baix (alineada a tota la tira). */
+  justify-content: center;
 }
 .flyer-columna__titol {
-  @apply uppercase;
-  font-size: 3.4mm;
-  line-height: 1.05;
+  @apply font-bold uppercase text-white;
+  font-size: var(--titol);
+  line-height: 1.1;
+  letter-spacing: 0.1mm;
+  overflow-wrap: anywhere;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
+/* Versió + idioma en UNA pastilla quadrada amb vora gold (com `session-card__badge`), sempre a baix de la targeta. */
 .flyer-columna__versio {
-  @apply rounded-sm bg-gold font-bold text-black;
-  max-width: 100%;
-  padding: 0 1.2mm;
-  font-size: 3mm;
-  line-height: 1.35;
+  @apply inline-block max-w-full self-center border border-gold font-sans font-bold uppercase text-gold;
+  /* Una sola línia amb el text complet («VOSE · Àrab, Hebreu»); només a les targetes estretes passa a dues si de debò no hi cap. */
+  @apply overflow-hidden whitespace-nowrap;
+  margin-top: auto;
+  text-align: center;
+  padding: 0.4mm 2.2mm;
+  border-width: 0.25mm;
+  font-size: clamp(2.4mm, 5cqw, 2.8mm);
+  line-height: 1.3;
+  background-color: rgb(191 144 0 / 0.15);
+}
+.flyer-columna__versio .icon {
+  @apply inline-block align-text-bottom;
+  width: 2.8mm;
+  height: 2.8mm;
+  margin-right: 0.8mm;
+}
+/* Targetes estretes (5 pel·lícules): sense icona i amb menys farciment perquè «VOSE · Idioma» càpiga en una línia. */
+@container (max-width: 40mm) {
+  .flyer-columna__versio .icon {
+    @apply hidden;
+  }
+  .flyer-columna__text {
+    padding-inline: 1.2mm;
+  }
+  /* Barra de capçalera: lletra i farciment un punt més petits perquè càpiga en una línia. */
+  .flyer-columna__seccio,
+  .flyer-columna__data {
+    padding-inline: 1.2mm;
+    font-size: 2.4mm;
+  }
+  .flyer-columna__versio {
+    padding-inline: 1mm;
+    letter-spacing: -0.01em;
+    /* Només si el text complet no hi cap en una línia. */
+    white-space: normal;
+  }
 }
 .flyer-columna__versio--incompleta {
-  @apply bg-transparent text-gold;
-  outline: 0.2mm dashed var(--color-gold);
-}
-.flyer-columna__idioma,
-.flyer-columna__generes {
-  @apply w-full overflow-hidden text-ellipsis whitespace-nowrap font-sans;
-  line-height: 1.25;
+  @apply border-dashed border-white text-white;
+  background: transparent;
 }
 .flyer-columna__idioma {
-  font-size: 3mm;
-}
-.flyer-columna__generes {
-  font-size: 2.6mm;
-  opacity: 0.85;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
+  @apply font-semibold normal-case text-white;
 }
 
-/* Cara B */
-.flyer-tira--corporativa {
-  @apply grid items-center;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 8mm;
-  padding: 8mm 10mm;
+/* Cara B: una sola banda negra contínua (logo + dades + QR) a M de les quatre vores, amb la vora de ratlles blanca
+   dins, com la targeta de la web. */
+.flyer-banda {
+  @apply relative box-border flex min-w-0 flex-1 items-center bg-black text-white;
+  gap: 9mm;
+  padding: 4mm 7mm;
+  /* Fons de cinema de la web (`cinema-pattern`, línies blanques sobre gris fosc) amb un degradat horitzontal per sobre: transparent
+     a l'esquerra (logo i QR, on el patró es veu bé) fins a negre sòlid a la dreta, amb moltes parades perquè el canvi sigui molt gradual. Mosaic de 50 mm;
+     s'imprimeix tal qual. */
+  background-color: #000;
+  background-image: linear-gradient(to right, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / 0.14) 12%, rgb(0 0 0 / 0.34) 26%, rgb(0 0 0 / 0.58) 40%, rgb(0 0 0 / 0.78) 54%, rgb(0 0 0 / 0.92) 68%, rgb(0 0 0 / 0.98) 82%, #000 100%), url('/images/cinema-pattern.webp');
+  background-size: auto, 50mm 50mm;
+  background-repeat: no-repeat, repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-.flyer-marca__nom {
-  @apply font-semibold uppercase text-gold;
-  font-size: 11mm;
-  line-height: 1;
+.flyer-banda::before {
+  @apply pointer-events-none absolute border-dashed border-white;
+  content: '';
+  inset: 1.2mm;
+  border-width: 0.25mm;
+}
+.flyer-marca {
+  @apply flex flex-none flex-col items-center;
+  width: 58mm;
+  gap: 3mm;
+}
+.flyer-marca__logo {
+  @apply block h-auto w-full;
+}
+/* Sota el logo: el QR (a l'esquerra) i la frase «qui som» (a la dreta, centrada verticalment amb el QR). */
+.flyer-marca__fila {
+  @apply box-border flex w-full items-center;
+  gap: 3mm;
+  /* Una sola pastilla negra (com les altres, quadrades) que engloba el QR i el text: es llegeix bé sobre el patró. */
+  padding: 2.4mm;
+  background-color: #000;
 }
 .flyer-marca__text {
-  @apply font-sans;
-  margin-top: 3mm;
-  font-size: 3.6mm;
+  @apply m-0 min-w-0 flex-1 text-left font-sans text-white;
+  font-size: 3mm;
   line-height: 1.3;
-  opacity: 0.85;
 }
-.flyer-info {
-  @apply flex items-center;
-  gap: 5mm;
-}
-.flyer-info__llista {
-  @apply m-0 min-w-0 flex-1 list-none p-0 font-sans;
-  font-size: 3.2mm;
-  line-height: 1.4;
-}
-.flyer-info__llista b {
-  @apply text-gold;
-}
+/* QR petit sota el logo: tile de 15 mm amb 1,1 mm de zona blanca. Nivell de correcció L: la URL (30 bytes) cap a la versió 2
+   (25 mòduls): (15 - 2,2) / 25 = 0,51 mm per mòdul i zona de silenci de 1,1 mm ≈ 2,1 mòduls. */
 .flyer-qr {
   @apply flex-none bg-white;
-  width: 28mm;
-  height: 28mm;
-  padding: 2mm;
+  width: 15mm;
+  height: 15mm;
+  padding: 1.1mm;
 }
 .flyer-qr svg {
   @apply block h-full w-full;
+}
+.flyer-marca__textos {
+  @apply flex min-w-0 flex-1 flex-col;
+  gap: 1.2mm;
+}
+.flyer-qr-text {
+  @apply m-0 font-display font-bold uppercase text-gold;
+  font-size: 2.6mm;
+  line-height: 1.2;
+  letter-spacing: 0.1mm;
+}
+.flyer-info {
+  @apply flex min-w-0 flex-1 items-center;
+}
+.flyer-info__cos {
+  @apply flex min-w-0 flex-1 flex-col;
+  gap: 4mm;
+}
+/* Titular en l'estil de la web: Oswald, majúscules, negreta, blanc amb una part daurada. */
+.flyer-info__titular {
+  @apply m-0 font-display font-bold uppercase text-white;
+  text-shadow: 0 0 1.4mm #000, 0 0 0.6mm #000;
+  font-size: 8.5mm;
+  line-height: 1.05;
+  letter-spacing: 0.2mm;
+}
+.flyer-info__titular-or {
+  @apply text-gold;
+}
+.flyer-info__llista {
+  @apply m-0 flex list-none flex-col p-0 font-sans;
+  gap: 2.4mm;
+}
+.flyer-info__item {
+  @apply flex items-center;
+  gap: 3mm;
+}
+/* Pastilla daurada amb l'etiqueta en majúscules fosques (com la «CARTELLERA» de les targetes); amplada fixa per alinear els valors. */
+.flyer-info__etiqueta {
+  @apply flex-none bg-gold text-center font-display font-bold uppercase text-black;
+  width: 19mm;
+  padding: 0.5mm 1mm;
+  font-size: 3mm;
+  line-height: 1.3;
+  letter-spacing: 0.15mm;
+}
+.flyer-info__valor {
+  @apply min-w-0 font-bold text-white;
+  /* Halo negre: contrast alt encara que el patró es vegi a sota (el degradat és molt gradual). */
+  text-shadow: 0 0 1.4mm #000, 0 0 0.6mm #000;
+  font-size: 3.5mm;
+  line-height: 1.25;
+}
+/* Jerarquia: titular > preu i quan > on > web. */
+.flyer-info__item--destacat .flyer-info__valor {
+  font-size: 4.2mm;
+}
+.flyer-info__import {
+  @apply font-display text-gold;
+  font-size: 5mm;
+  letter-spacing: 0.1mm;
 }
 
 /* Pàgina pública /flyer/<id>/: les cares (210 mm d'ample) s'escalen a l'ample de la pantalla. */
@@ -160,7 +365,7 @@
   gap: 8px;
 }
 .flyer-pagina__boto {
-  @apply rounded bg-gold font-bold text-black no-underline;
+  @apply cursor-pointer rounded border-0 bg-gold font-sans text-base font-bold text-black no-underline;
   padding: 10px 16px;
 }
 .flyer-pagina__boto--secundari {
@@ -180,4 +385,24 @@
   width: 210mm;
   transform-origin: top left;
   scale: tan(atan2(100cqw, 210mm));
+}
+
+/* Impressió directa de la pàgina: els fulls A4 (FlyerFulls) només es veuen en imprimir i la vista de pantalla s'amaga. */
+.flyer-pagina__fulls {
+  @apply hidden;
+}
+@media print {
+  .flyer-pagina {
+    @apply bg-transparent;
+  }
+  .flyer-pagina__contingut {
+    @apply hidden;
+  }
+  .flyer-pagina__fulls {
+    @apply block;
+  }
+  /* Sense pel·lícules no hi ha fulls: s'imprimeix el contingut normal (no un full en blanc). */
+  .flyer-pagina__contingut--buit {
+    @apply flex;
+  }
 }

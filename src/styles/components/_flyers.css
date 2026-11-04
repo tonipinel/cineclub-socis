@@ -31,9 +31,6 @@
 .flyer-form__sessio-data {
   @apply text-black/70;
 }
-.flyer-form__avis {
-  @apply font-body text-sm text-amber-800;
-}
 .flyer-form__avis-desactualitzat {
   @apply mb-4 flex flex-col items-start gap-2 rounded border border-amber-400 bg-amber-50 p-4 text-sm;
 }

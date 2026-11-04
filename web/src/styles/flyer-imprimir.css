@@ -14,18 +14,41 @@
   padding: 2mm 4mm;
 }
 .flyer-full {
-  @apply relative box-border bg-neutral-900;
+  @apply relative box-border bg-white;
   width: 210mm;
   margin: 6mm auto;
   break-after: page;
+}
+/* Variant simple (impressora d'oficina, que no arriba a la vora): full A4 blanc de 210 × 297 mm dividit en TRES ranures
+   exactes de 210 × 99 mm (línies de tall a y = 99 i 198 mm). Cada tira (`.flyer-tira`) és una ranura: dins, el disseny
+   visible fa 198 × 87 mm, centrat, amb 6 mm de blanc als quatre costats (≥ 5 mm: la vora no imprimible mai el toca). Les
+   tres ranures, un cop tallades, són idèntiques. */
+.flyer-full:not(.flyer-full--impremta) {
+  @apply overflow-hidden;
+  height: 297mm;
+}
+.flyer-full__tira {
+  @apply relative;
+  width: 210mm;
+  height: 99mm;
+}
+/* Guia de tall: línia de punts gris de 0,2 mm entre ranures (a dalt de la 2a i la 3a), quasi a tot l'ample del full (a 2 mm
+   de la vora, dins la zona imprimible). Només a `simple`; superposició: no mou res. */
+.flyer-full:not(.flyer-full--impremta) .flyer-full__tira + .flyer-full__tira::after {
+  @apply pointer-events-none absolute border-t border-dotted border-neutral-500;
+  content: '';
+  top: -0.1mm;
+  left: 2mm;
+  width: 206mm;
+  border-top-width: 0.2mm;
 }
 .flyer-full--impremta {
   width: 216mm;
   padding: 3mm;
 }
-/* Marca de tall: filet de 0,15 mm i 2 mm de llarg (al sagnat, a 1 mm de la línia de tall). Blanca, perquè el sagnat és fosc. */
+/* Marca de tall: filet de 0,15 mm i 2 mm de llarg (al sagnat, a 1 mm de la línia de tall). Negres: el sagnat és blanc a les dues cares. */
 .flyer-marca-tall {
-  @apply absolute bg-white;
+  @apply absolute bg-black;
 }
 .flyer-marca-tall--h {
   width: 2mm;

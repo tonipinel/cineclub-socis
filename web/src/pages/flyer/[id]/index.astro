@@ -1,11 +1,13 @@
 ---
 import '../../../styles/main.css';
 import '../../../styles/flyer.css';
+import '../../../styles/flyer-imprimir.css';
 import FlyerCaraA from '../../../components/FlyerCaraA.astro';
 import FlyerCaraB from '../../../components/FlyerCaraB.astro';
+import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { SITE_URL } from '../../../lib/env.js';
 import { CACHE_OK, CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerPerId, peliculaFlyer, potVeure, sessionsDelFlyer } from '../../../lib/flyers.js';
+import { flyerPerId, peliculaFlyer, potVeure, preuFlyer, sessionsDelFlyer } from '../../../lib/flyers.js';
 
 // /flyer/<id>/: el flyer per mirar al mòbil i compartir. Un flyer inexistent, o un esborrany sense la
 // `clau` de previsualització, dóna el 404 de la web. No és al sitemap i és noindex.
@@ -14,9 +16,16 @@ const clau = Astro.url.searchParams.get('clau') ?? '';
 const flyer = await flyerPerId(id);
 if (!flyer || !potVeure(flyer, clau)) return Astro.rewrite('/404');
 const esborrany = flyer.estat !== 'publicat';
-Astro.response.headers.set('Cache-Control', esborrany ? CACHE_ERROR : CACHE_OK);
+// Amb la `clau` correcta es veuen també les sessions no publicades: aquesta resposta no es pot cachejar.
+// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin): la funció que genera
+// els PDF obre /imprimir/?clau=… sense `totes=1`, així que el PDF públic mai en porta.
+const totes = Boolean(clau) && clau === flyer.clauPrevia && Astro.url.searchParams.get('totes') === '1';
+Astro.response.headers.set('Cache-Control', esborrany || totes ? CACHE_ERROR : CACHE_OK);
 
-const pelicules = (await sessionsDelFlyer(flyer)).map(peliculaFlyer);
+// Un flyer té de 3 a 5 sessions; un document antic amb més en pinta les 5 primeres (per data).
+const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
+const pelicules = sessions.map(peliculaFlyer);
+const preu = preuFlyer(sessions);
 // Només l'esborrany porta la clau als enllaços: una pàgina publicada (cacheable) no repeteix res de la petició.
 const consulta = esborrany ? `?clau=${encodeURIComponent(clau)}` : '';
 const urlPagina = `${SITE_URL}/flyer/${encodeURIComponent(id)}/${consulta}`;
@@ -31,18 +40,22 @@ const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${ur
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{flyer.nom} · Cineclub Roda de Berà</title>
 <meta name="robots" content="noindex, nofollow">
+<style set:html={`@media print { @page { size: 210mm 297mm; margin: 0; } }`}></style>
 </head>
 <body class="flyer-pagina">
-<main class="flyer-pagina__contingut">
+<main class={`flyer-pagina__contingut${pelicules.length ? '' : ' flyer-pagina__contingut--buit'}`}>
   <h1 class="flyer-pagina__titol">{flyer.nom}</h1>
   <div class="flyer-pagina__accions">
     <a class="flyer-pagina__boto" href={urlPdf}>Imprimeix</a>
+    <button type="button" class="flyer-pagina__boto flyer-pagina__boto--secundari" onclick="window.print()">Imprimeix aquesta pàgina</button>
     {!esborrany && <a class="flyer-pagina__boto flyer-pagina__boto--secundari" href={urlWhatsapp} rel="noopener">Comparteix per WhatsApp</a>}
   </div>
   {pelicules.length > 0
     ? <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraA pelicules={pelicules} /></div></div>
     : <p class="flyer-pagina__buit">Aquest flyer encara no té cap pel·lícula programada.</p>}
-  <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraB /></div></div>
+  <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraB preu={preu} /></div></div>
 </main>
+{/* Els fulls A4 de la variant `simple`: amagats a la pantalla i els únics que es veuen en imprimir. */}
+{pelicules.length > 0 && <div class="flyer-pagina__fulls"><FlyerFulls pelicules={pelicules} preu={preu} /></div>}
 </body>
 </html>

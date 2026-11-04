@@ -5,21 +5,60 @@ import QRCode from 'qrcode';
 import flyer from '../data/flyer.json';
 
 // Una tira corporativa (210 × 99 mm). El QR porta a la web, o a `url` si se'n passa una.
-const { url = `https://${flyer.web}` } = Astro.props;
-const qr = await QRCode.toString(url, { type: 'svg', margin: 0 });
+// El logo és en color (el `hero-logo.png` de la portada és blanc, per a fons fosc: no es veuria sobre el full blanc).
+// `preu`: `{ text }` del preu per sessió dels no socis (`preuFlyer`); sense ell, el text provisional de `flyer.json`.
+const { url = `https://${flyer.web}`, preu } = Astro.props;
+// El titular porta entre {claus} la part en daurat.
+const titular = flyer.titular.split(/\{(.*?)\}/);
+// Parells pastilla daurada (etiqueta) + valor, com la pastilla «CARTELLERA» i la de data de les targetes de la web.
+// `importe`: la part del valor que es ressalta (la quantitat d'euros, o tot el text si no n'hi ha).
+const separaImport = (text) => {
+  const m = text.match(/^(.*?€)(.*)$/);
+  return m ? { importe: m[1], resta: m[2] } : { importe: text, resta: '' };
+};
+const majuscula = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+// NO SOCIS: «Aportació de 3 a 5 € per sessió» (la quantitat ve de `preuFlyer`; sense preu calculat, el text provisional de flyer.json).
+const textNoSocis = () => {
+  if (!preu) return separaImport(majuscula(flyer.preu));
+  const t = preu.text;
+  if (t === 'gratis') return { importe: 'Gratis', resta: '' };
+  const abans = /^gratis o /.test(t) ? 'Aportació: ' : /^de /.test(t) ? 'Aportació ' : 'Aportació de ';
+  return { abans, ...separaImport(t) };
+};
+const noSocis = textNoSocis();
+const dades = [
+  { etiqueta: 'Quan', destacat: true, text: flyer.quan },
+  { etiqueta: 'Socis', destacat: true, importe: flyer.socisImport, resta: flyer.socisResta.replace('{quota}', flyer.quota) },
+  { etiqueta: 'No socis', destacat: true, ...noSocis },
+  { etiqueta: 'On', text: flyer.adreca },
+  { etiqueta: 'Més info', text: flyer.web },
+];
+const qr = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'L' });
 ---
 <div class="flyer-tira flyer-tira--corporativa">
-  <div class="flyer-marca">
-    <div class="flyer-marca__nom">Cineclub<br />Roda de Berà</div>
-    <p class="flyer-marca__text">{flyer.quiSom}</p>
-  </div>
-  <div class="flyer-info">
-    <ul class="flyer-info__llista">
-      <li><b>On:</b> {flyer.adreca}</li>
-      <li><b>Quan:</b> {flyer.quan}</li>
-      <li><b>Preu:</b> {flyer.preu}</li>
-      <li><b>Més info:</b> {flyer.web}</li>
-    </ul>
-    <div class="flyer-qr" set:html={qr} />
+  <div class="flyer-banda">
+    <div class="flyer-marca">
+      <img class="flyer-marca__logo" src={flyer.logo} width="1220" height="784" alt="Cineclub Roda de Berà" />
+      <div class="flyer-marca__fila">
+        <div class="flyer-qr" set:html={qr} />
+        <div class="flyer-marca__textos">
+          <p class="flyer-marca__text">{flyer.quiSom}</p>
+          <p class="flyer-qr-text">{flyer.qrText}</p>
+        </div>
+      </div>
+    </div>
+    <div class="flyer-info">
+      <div class="flyer-info__cos">
+        <h2 class="flyer-info__titular">{titular.map((part, i) => (i % 2 ? <span class="flyer-info__titular-or">{part}</span> : part))}</h2>
+        <ul class="flyer-info__llista">
+          {dades.map((d) => (
+            <li class={`flyer-info__item${d.destacat ? ' flyer-info__item--destacat' : ''}`}>
+              <span class="flyer-info__etiqueta">{d.etiqueta}</span>
+              <span class="flyer-info__valor">{d.importe ? <>{d.abans}<strong class="flyer-info__import">{d.importe}</strong>{d.resta}</> : d.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
