@@ -14,8 +14,8 @@ const camiPdf = (id, variant) => `flyers/${id}/flyer-${variant}.pdf`;
 // PDF existents es regenerin en el proper disparador (la signatura no mira cap d'aquests fitxers).
 // La v2 afegeix el token de descàrrega (`pdfs.<variant>.url`). La v3 és el disseny nou (cares blanques, targetes, logo i
 // preus) i els PDF amb totes les sessions del flyer, publicades o no. La v4 fa el PDF `simple` de dues pàgines de 210 × 99 mm
-// (una tira de la cara A i una de la cara B).
-const VERSIO_DISSENY = 5;
+// (una tira de la cara A i una de la cara B). La v6 afegeix a la cara B la franja amb els logos de l'Ajuntament i les distribuïdores.
+const VERSIO_DISSENY = 6;
 
 // URL de descàrrega amb token: secreta, només al document admin del flyer; no es registra ni es posa en errors.
 const urlDescarrega = (nomBucket, path, token) => `https://firebasestorage.googleapis.com/v0/b/${nomBucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
@@ -32,7 +32,8 @@ function estable(valor) {
 const ENQUADRAMENTS = ['dalt', 'centre', 'baix'];
 
 // Hash del que surt imprès: el nom i, per cada sessió (en l'ordre rebut, publicada o no), els seus camps visibles, si és
-// publicada (així la signatura canvia, i els PDF es regeneren, quan es publica una sessió) i l'enquadrament del cartell
+// publicada (així la signatura canvia, i els PDF es regeneren, quan es publica una sessió), la distribuïdora (el seu logo
+// surt a la franja de la cara B) i l'enquadrament del cartell
 // (`flyer.enquadraments`). «dalt» (el per defecte) no hi entra: la signatura dels PDF ja generats no canvia.
 // `sessions` són `{ id, ...dades }` en l'ordre del flyer.
 function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
@@ -51,6 +52,8 @@ function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
       cartell: s.publica?.cartell ?? null,
       preu: s.publica?.preu ?? null,
       seccio: s.publica?.seccio ?? null,
+      suportDistribucioId: s.publica?.suportDistribucioId ?? null,
+      suportDistribucio: s.publica?.suportDistribucio ?? null,
       publicada: s.publicada === true,
       ...(ENQUADRAMENTS.includes(flyer?.enquadraments?.[s.id]) && flyer.enquadraments[s.id] !== 'dalt' && { enquadrament: flyer.enquadraments[s.id] }),
     }));

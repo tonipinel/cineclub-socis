@@ -10,5 +10,6 @@
   "qrText": "Escaneja per saber-ne més!",
   "quiSom": "Cineclub Roda de Berà: un espai per viure i compartir cinema durant tot l'any.",
   "web": "cineclubrodadebera.cat",
-  "adreca": "Teatre del Casino Municipal de Roda de Berà"
+  "adreca": "Teatre del Casino Municipal de Roda de Berà",
+  "suport": { "nom": "Ajuntament de Roda de Berà", "logo": "/images/entitats/ajuntament-roda-de-bera-horitzontal.png" }
 }

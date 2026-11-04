@@ -7,7 +7,7 @@ import FlyerCaraB from '../../../components/FlyerCaraB.astro';
 import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { SITE_URL } from '../../../lib/env.js';
 import { CACHE_OK, CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerActiu, flyerPerId, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
+import { flyerActiu, flyerPerId, logosFlyer, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
 
 // /flyer/<id>/: el flyer per mirar al mòbil i compartir. Sense la `clau` de previsualització només es veu un flyer actiu
 // (publicat i amb totes les sessions publicades); si no, o si no existeix, el 404 de la web. No és al sitemap i és noindex.
@@ -26,6 +26,7 @@ Astro.response.headers.set('Cache-Control', actiu && !ambClau ? CACHE_OK : CACHE
 const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
 const pelicules = sessions.map((s) => peliculaFlyer(s, flyer.enquadraments));
 const preu = preuFlyer(sessions);
+const distribuidores = logosFlyer(sessions);
 // Només un flyer no actiu (que només s'obre amb la clau) la porta als enllaços: la pàgina pública (cacheable) no repeteix res de la petició.
 const consulta = actiu ? '' : `?clau=${encodeURIComponent(clau)}`;
 const urlPagina = `${SITE_URL}/flyer/${encodeURIComponent(id)}/${consulta}`;
@@ -55,9 +56,9 @@ const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${ur
   {pelicules.length > 0
     ? <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraA pelicules={pelicules} /></div></div>
     : <p class="flyer-pagina__buit">Aquest flyer encara no té cap pel·lícula programada.</p>}
-  <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraB preu={preu} /></div></div>
+  <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraB preu={preu} distribuidores={distribuidores} /></div></div>
 </main>
 {/* Els fulls A4 de la variant `simple`: amagats a la pantalla i els únics que es veuen en imprimir. */}
-{pelicules.length > 0 && <div class="flyer-pagina__fulls"><FlyerFulls pelicules={pelicules} preu={preu} /></div>}
+{pelicules.length > 0 && <div class="flyer-pagina__fulls"><FlyerFulls pelicules={pelicules} preu={preu} distribuidores={distribuidores} /></div>}
 </body>
 </html>

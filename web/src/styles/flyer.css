@@ -353,6 +353,24 @@
   letter-spacing: 0.1mm;
 }
 
+/* Franja de logos sota les files d'informació (dins el bloc dret, que es centra sencer respecte del logo i el QR): una sola
+   banda blanca (logos en color, llegibles en paper) amb el logo de l'Ajuntament i els de les distribuïdores, a la mateixa
+   distància i sense divisòries. Els logos tenen la mateixa alçada; si n'hi ha molts, s'encongeixen d'ample (es contenen, mai es retallen). */
+.flyer-franja {
+  @apply box-border flex min-w-0 items-center self-start bg-white;
+  max-width: 100%;
+  height: 14mm;
+  padding: 1.75mm 4mm;
+  gap: 5mm;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.flyer-franja__logo {
+  @apply block h-full w-auto min-w-0 object-contain;
+  flex: 0 1 auto;
+  max-width: 32mm;
+}
+
 /* Pàgina pública /flyer/<id>/: les cares (210 mm d'ample) s'escalen a l'ample de la pantalla. */
 .flyer-pagina {
   @apply bg-neutral-900 font-sans text-white;

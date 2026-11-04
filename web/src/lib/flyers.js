@@ -1,4 +1,5 @@
 import { getDb, llegir } from './db.js';
+import { distribuidoraPerId, distribuidoraPerNom } from './distribuidores.js';
 import { ascendent, dataValida, normalitzaSessio, publicable } from './sessions.js';
 import { subtitolSessio, titolSessio } from './sessio-camps.js';
 
@@ -55,6 +56,22 @@ export const preuFlyer = (sessions) => {
   const max = Math.max(...pagats);
   const quantitat = min === max ? euros(min) : `de ${String(min).replace('.', ',')} a ${euros(max)}`;
   return { text: gratis ? `gratis o ${quantitat} segons la sessió` : `${quantitat} ${min === max ? 'per sessió' : 'segons sessió'}` };
+};
+
+// Logos de les distribuïdores de les sessions del flyer per a la franja de la cara B: `[{ nom, logo, url? }]`, només les que
+// tenen logo, sense repetir i en l'ordre de les sessions, però FilmoXarxa sempre la primera (just després de l'Ajuntament). Es resolen com a la fitxa de la sessió: per id i, si no, pel nom antic.
+export const logosFlyer = (sessions) => {
+  const vistes = new Map();
+  for (const s of sessions) {
+    const p = s.publica ?? {};
+    const perId = p.suportDistribucioId ? distribuidoraPerId(p.suportDistribucioId) : null;
+    const nom = perId?.nom ?? p.suportDistribucio;
+    const { logo, url } = perId ?? (nom ? distribuidoraPerNom(nom) : null) ?? {};
+    if (logo && !vistes.has(nom)) vistes.set(nom, { nom, logo, ...(url ? { url } : {}) });
+  }
+  const logos = [...vistes.values()];
+  const esFilmoXarxa = (l) => l.nom.trim().toLowerCase() === 'filmoxarxa';
+  return [...logos.filter(esFilmoXarxa), ...logos.filter((l) => !esFilmoXarxa(l))];
 };
 
 export async function flyerPerId(id, db = getDb()) {

@@ -7,7 +7,9 @@ import flyer from '../data/flyer.json';
 // Una tira corporativa (210 × 99 mm). El QR porta a la web, o a `url` si se'n passa una.
 // El logo és en color (el `hero-logo.png` de la portada és blanc, per a fons fosc: no es veuria sobre el full blanc).
 // `preu`: `{ text }` del preu per sessió dels no socis (`preuFlyer`); sense ell, el text provisional de `flyer.json`.
-const { url = `https://${flyer.web}`, preu } = Astro.props;
+// `distribuidores`: `[{ nom, logo }]` de les pel·lícules de la cara A (`logosFlyer`), a la franja (sense etiquetes, una sola banda
+// blanca) darrere del logo de l'Ajuntament.
+const { url = `https://${flyer.web}`, preu, distribuidores = [] } = Astro.props;
 // El titular porta entre {claus} la part en daurat.
 const titular = flyer.titular.split(/\{(.*?)\}/);
 // Parells pastilla daurada (etiqueta) + valor, com la pastilla «CARTELLERA» i la de data de les targetes de la web.
@@ -58,6 +60,10 @@ const qr = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionL
             </li>
           ))}
         </ul>
+        <div class="flyer-franja">
+          <img class="flyer-franja__logo" src={flyer.suport.logo} alt={flyer.suport.nom} />
+          {distribuidores.map((d) => <img class="flyer-franja__logo" src={d.logo} alt={d.nom} />)}
+        </div>
       </div>
     </div>
   </div>

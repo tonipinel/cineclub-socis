@@ -87,8 +87,14 @@ describe('firmaFlyer', () => {
     expect(firmaFlyer(flyer, [sessions[1], sessions[0]])).not.toBe(firmaFlyer(flyer, sessions));
   });
 
-  it('la versió del disseny és la 4', () => {
-    expect(VERSIO_DISSENY).toBe(5);
+  it('canvia amb la distribuïdora de la sessió (id o nom): el seu logo surt a la franja de la cara B', () => {
+    const base = firmaFlyer(flyer, sessions);
+    expect(firmaFlyer(flyer, [{ ...sessions[0], publica: { ...sessions[0].publica, suportDistribucioId: 'd1' } }, sessions[1]])).not.toBe(base);
+    expect(firmaFlyer(flyer, [{ ...sessions[0], publica: { ...sessions[0].publica, suportDistribucio: 'Avalon' } }, sessions[1]])).not.toBe(base);
+  });
+
+  it('la versió del disseny és la 6', () => {
+    expect(VERSIO_DISSENY).toBe(6);
   });
 
   it('una sessió despublicada canvia la signatura', () => {

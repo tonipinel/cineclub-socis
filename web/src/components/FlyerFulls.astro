@@ -5,7 +5,7 @@ import FlyerCaraB from './FlyerCaraB.astro';
 // Els dos fulls imprimibles del flyer: el 1 és la cara A ×3 i el 2 la cara B ×3 (les tres tires d'un full són
 // iguals: es talla en 3). Els fulls són blancs a les dues cares. Amb `impremta` (216 × 303 mm) hi afegeix les marques de tall.
 // Amb `unaTira` (el PDF `simple`) cada full és una sola tira de 210 × 99 mm.
-const { pelicules, preu, impremta = false, unaTira = false } = Astro.props;
+const { pelicules, preu, distribuidores, impremta = false, unaTira = false } = Astro.props;
 const tires = unaTira ? [0] : [0, 1, 2];
 // Marques de tall (només `impremta`): línies de 2 mm dins el sagnat, amb 1 mm de separació de la línia de tall
 // (0-2 mm i 214-216 mm a banda i banda; 0-2 i 301-303 mm a dalt i a baix). Horitzontals a les tires (y = 3, 102, 201
@@ -18,7 +18,7 @@ const MARQUES = [
 ---
 {[0, 1].map((cara) => (
   <section class={`flyer-full${impremta ? ' flyer-full--impremta' : ''}${unaTira ? ' flyer-full--una-tira' : ''}`}>
-    {tires.map(() => <div class="flyer-full__tira">{cara === 0 ? <FlyerCaraA pelicules={pelicules} /> : <FlyerCaraB preu={preu} />}</div>)}
+    {tires.map(() => <div class="flyer-full__tira">{cara === 0 ? <FlyerCaraA pelicules={pelicules} /> : <FlyerCaraB preu={preu} distribuidores={distribuidores} />}</div>)}
     {impremta && MARQUES.map((m) => (
       <i class={`flyer-marca-tall flyer-marca-tall--${m.h ? 'h' : 'v'}`} style={`left:${m.h ? m.x : m.x - 0.075}mm;top:${m.h ? m.y - 0.075 : m.y}mm`}></i>
     ))}

@@ -195,7 +195,8 @@ describe('cartell de la targeta', () => {
     expect(bloc).toMatch(/object-position:\s*top center/);
     expect(bloc).toMatch(/width:\s*100cqw/);
     expect(bloc).toMatch(/height:\s*100cqh/);
-    expect(css).not.toMatch(/object-contain|object-fit:\s*contain|min-aspect-ratio/);
+    // Els logos de la franja de la cara B sí que es contenen (mai es retallen); els cartells no.
+    expect(css.replace(/\.flyer-franja__logo\s*\{[^}]*\}/, '')).not.toMatch(/object-contain|object-fit:\s*contain|min-aspect-ratio/);
   });
 });
 
@@ -347,5 +348,30 @@ describe('FlyerCaraA estimació de línies del títol (5 pel·lícules)', () => 
   it('un títol buit o sense dades (esborrany sense títol ni slug) no trenca el render', async () => {
     const html = await renderitza(FlyerCaraA, { pelicules: [peli(1, { titol: undefined, titolTraduit: '' }), peli(2), peli(3)] });
     expect(html).toContain('flyer-columna__titol');
+  });
+});
+
+describe('FlyerCaraB franja de logos', () => {
+  const AJUNTAMENT = /<img class="flyer-franja__logo" src="\/images\/entitats\/ajuntament-roda-de-bera-horitzontal\.png" alt="Ajuntament de Roda de Berà"/;
+  it('sense distribuïdores: només el logo de l\'Ajuntament, sense etiquetes', async () => {
+    const html = await renderitza(FlyerCaraB, {});
+    expect(html).toMatch(AJUNTAMENT);
+    expect(html).not.toMatch(/Amb el suport de|Distribuïdor/);
+    expect(compta(html, /class="flyer-franja__logo"/g)).toBe(1);
+  });
+  it('una distribuïdora: l\'Ajuntament i el seu logo, en una sola banda i sense divisòria', async () => {
+    const html = await renderitza(FlyerCaraB, { distribuidores: [{ nom: 'Avalon', logo: 'https://x/avalon.png' }] });
+    expect(html).toMatch(/class="flyer-franja"[^>]*>\s*<img class="flyer-franja__logo"[^>]*alt="Ajuntament de Roda de Berà"[^>]*>\s*<img class="flyer-franja__logo" src="https:\/\/x\/avalon\.png" alt="Avalon"/);
+    expect(html).not.toMatch(/Amb el suport de|Distribuïdor/);
+  });
+  it('diverses distribuïdores, en l\'ordre rebut; la franja va després de les files d\'informació', async () => {
+    const distribuidores = [{ nom: 'Avalon', logo: 'https://x/avalon.png' }, { nom: 'Atalante', logo: 'https://x/atalante.png', url: 'https://atalante.es' }];
+    const html = await renderitza(FlyerCaraB, { distribuidores });
+    expect(html).toMatch(/alt="Ajuntament de Roda de Berà".*alt="Avalon".*alt="Atalante"/s);
+    expect(compta(html, /class="flyer-franja__logo"/g)).toBe(3);
+    expect(html).not.toContain('divisoria');
+    expect(html.indexOf('flyer-info__llista')).toBeLessThan(html.indexOf('flyer-franja'));
+    // Dins el bloc dret (titular + files + franja), que es centra com a unitat respecte del logo i el QR.
+    expect(html).toMatch(/class="flyer-info__cos".*class="flyer-franja"/s);
   });
 });

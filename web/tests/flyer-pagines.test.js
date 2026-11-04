@@ -393,3 +393,22 @@ describe('enquadrament del cartell', () => {
     }
   });
 });
+
+describe('franja de logos a la cara B', () => {
+  it('pàgina i imprimir: logos de les distribuïdores de les sessions mostrades, sense les de fora del flyer', async () => {
+    const { fixaDistribuidoresDeProva } = await import('../src/lib/distribuidores.js');
+    fixaDistribuidoresDeProva({ Avalon: { id: 'd1', logo: 'https://x/avalon.png' }, Fora: { id: 'd2', logo: 'https://x/fora.png' } });
+    sessions.push(
+      { ...sessio('dl1', '2027-02-01'), publica: { ...sessio('dl1', '').publica, suportDistribucioId: 'd1' } },
+      { ...sessio('dl2', '2027-02-02', false), publica: { ...sessio('dl2', '').publica, suportDistribucioId: 'd2' } },
+    );
+    flyers.push({ id: 'amb-dist', nom: 'Amb distribuïdores', estat: 'publicat', sessionsIds: ['dl1', 'dl2'], clauPrevia: 'secreta' });
+    for (const Pagina of [PaginaFlyer, PaginaImprimir]) {
+      const { html } = await demana(Pagina, 'amb-dist', '?clau=secreta');
+      expect(html).toContain('src="https://x/avalon.png" alt="Avalon"');
+      expect(html).not.toContain('fora.png');
+      const totes = (await demana(Pagina, 'amb-dist', '?clau=secreta&totes=1')).html;
+      expect(totes).toContain('fora.png');
+    }
+  });
+});

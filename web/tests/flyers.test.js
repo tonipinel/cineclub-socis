@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, flyerActiu, teClau,
+  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, flyerActiu, teClau, logosFlyer,
 } from '../src/lib/flyers.js';
+import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
 import { conWhere } from './helpers/firestore.js';
 
 const sessio = (id, data, hora, publica = {}, extra = {}) => ({
@@ -181,5 +182,46 @@ describe('teClau', () => {
     expect(teClau({ clauPrevia: 'k' }, undefined)).toBe(false);
     expect(teClau({ clauPrevia: '' }, '')).toBe(false);
     expect(teClau({}, '')).toBe(false);
+  });
+});
+
+describe('logosFlyer', () => {
+  const ambDist = (id, publica) => sessio(id, '2026-11-05', '19:00', publica);
+  it('distribuïdores amb logo, sense repetir, en l\'ordre de les sessions; per id o pel nom antic', () => {
+    fixaDistribuidoresDeProva({
+      'Atalante Films': { id: 'd1', logo: 'https://x/atalante.png', url: 'https://atalante.es' },
+      'Avalon': { id: 'd2', logo: 'https://x/avalon.png' },
+      'Sense Logo': { id: 'd3' },
+    });
+    const sessions = [
+      ambDist('a', { suportDistribucioId: 'd2', suportDistribucio: 'Avalon' }),
+      ambDist('b', { suportDistribucioId: 'd3', suportDistribucio: 'Sense Logo' }),
+      ambDist('c', { suportDistribucio: 'Atalante Films' }),
+      ambDist('d', { suportDistribucioId: 'd1', suportDistribucio: 'Nom antic' }),
+      ambDist('e', {}),
+      ambDist('f', { suportDistribucio: 'Desconeguda' }),
+    ];
+    expect(logosFlyer(sessions)).toEqual([
+      { nom: 'Avalon', logo: 'https://x/avalon.png' },
+      { nom: 'Atalante Films', logo: 'https://x/atalante.png', url: 'https://atalante.es' },
+    ]);
+  });
+  it('FilmoXarxa va sempre la primera, encara que la seva sessió sigui posterior', () => {
+    fixaDistribuidoresDeProva({
+      Avalon: { id: 'd2', logo: 'https://x/avalon.png' },
+      FilmoXarxa: { id: 'd4', logo: 'https://x/filmoxarxa.png' },
+      'Vertigo Films': { id: 'd5', logo: 'https://x/vertigo.png' },
+    });
+    const sessions = [
+      ambDist('a', { suportDistribucioId: 'd2', suportDistribucio: 'Avalon' }),
+      ambDist('b', { suportDistribucioId: 'd5', suportDistribucio: 'Vertigo Films' }),
+      ambDist('c', { suportDistribucioId: 'd4', suportDistribucio: 'FilmoXarxa' }),
+    ];
+    expect(logosFlyer(sessions).map((l) => l.nom)).toEqual(['FilmoXarxa', 'Avalon', 'Vertigo Films']);
+  });
+  it('sense sessions o sense cap distribuïdora amb logo, llista buida', () => {
+    fixaDistribuidoresDeProva({ Avalon: { id: 'd2' } });
+    expect(logosFlyer([])).toEqual([]);
+    expect(logosFlyer([ambDist('a', { suportDistribucioId: 'd2' })])).toEqual([]);
   });
 });
