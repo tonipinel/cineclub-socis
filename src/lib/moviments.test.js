@@ -12,6 +12,8 @@ import {
   resumComptable,
   resumReal,
   resumPrevisio,
+  costRealSessio,
+  costMitjaPellicula,
   LLINDAR_COST_SESSIO_RENOVACIO,
   TIPUS_MOVIMENT,
   CATEGORIES,
@@ -584,15 +586,15 @@ describe('resumPrevisio', () => {
     expect(resultat.ingressosAportacionsPerMes).toBe(30);
   });
 
-  it('agafa el cost de pel·lícula més car (no la mitjana) dels últims 3 mesos, i el manté fix cada mes', () => {
+  it('sense sessions programades, aplica cada mes el cost mitjà de les pel·lícules (ja no el màxim)', () => {
     const moviments = [
       { data: '2026-06-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 80 },
       { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 150 },
       { data: '2026-08-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
     ];
     const resultat = previsio(moviments, avui);
-    expect(resultat.costPellicula).toBe(150);
-    expect(resultat.mesos.every((m) => m.costPellicula === 150)).toBe(true);
+    expect(resultat.costPellicula).toBe(110);
+    expect(resultat.mesos.every((m) => m.costPellicula === 110 && !m.precis && !m.parcial)).toBe(true);
   });
 
   it('sense cap soci amb venciment conegut, les renovacions esperades són 0 cada mes', () => {
@@ -828,5 +830,193 @@ describe('aportacionsPerRegistrar', () => {
 
   it('avisa quan els moviments superen el que s\'ha escanejat', () => {
     expect(aportacionsPerRegistrar(entrades, [aportacio(4, 'efectiu')])).toEqual({ estat: 'sobra', import: 5 });
+  });
+});
+
+describe('costRealSessio', () => {
+  const distribuidores = { d1: { preu: 90 }, d2: {} };
+  const sessio = { id: 's1', propostaId: 'p1' };
+
+  it('el preu propi mana sobre el de la distribuïdora, també si és 0', () => {
+    expect(costRealSessio(sessio, { p1: { preu: 120, distribuidoraId: 'd1' } }, distribuidores)).toBe(120);
+    expect(costRealSessio(sessio, { p1: { preu: 0, distribuidoraId: 'd1' } }, distribuidores)).toBe(0);
+  });
+
+  it('sense preu propi usa el de la distribuïdora', () => {
+    expect(costRealSessio(sessio, { p1: { preu: null, distribuidoraId: 'd1' } }, distribuidores)).toBe(90);
+    expect(costRealSessio(sessio, { p1: { distribuidoraId: 'd1' } }, distribuidores)).toBe(90);
+  });
+
+  it('és null sense proposta, sense intern o sense cap preu', () => {
+    expect(costRealSessio({ id: 's1' }, { p1: { preu: 10 } }, distribuidores)).toBeNull();
+    expect(costRealSessio(sessio, {}, distribuidores)).toBeNull();
+    expect(costRealSessio(sessio, { p1: { distribuidoraId: 'd2' } }, distribuidores)).toBeNull();
+    expect(costRealSessio(sessio, { p1: { distribuidoraId: 'x' } }, distribuidores)).toBeNull();
+  });
+});
+
+describe('costMitjaPellicula', () => {
+  const peli = (data, total, extra = {}) => ({
+    data, total, tipus: 'despesa', categoria: 'Gestió pel·lícules', ...extra,
+  });
+
+  it('fa la mitjana dels 6 últims amb total > 0', () => {
+    const moviments = [
+      peli('2026-01-01', 1000),
+      peli('2026-02-01', 10), peli('2026-03-01', 20), peli('2026-04-01', 30),
+      peli('2026-05-01', 40), peli('2026-06-01', 50), peli('2026-07-01', 60),
+    ];
+    expect(costMitjaPellicula(moviments)).toBe(35);
+  });
+
+  it('omet les de cost 0 i les d\'altres categories o tipus', () => {
+    const moviments = [
+      peli('2026-03-01', 0),
+      peli('2026-04-01', 100),
+      peli('2026-05-01', 50, { categoria: 'Altres' }),
+      peli('2026-06-01', 50, { tipus: 'ingres' }),
+    ];
+    expect(costMitjaPellicula(moviments)).toBe(100);
+  });
+
+  it('sense cap despesa de pel·lícula amb cost és 0', () => {
+    expect(costMitjaPellicula([])).toBe(0);
+    expect(costMitjaPellicula([peli('2026-03-01', 0)])).toBe(0);
+  });
+});
+
+describe('resumPrevisio — programació coneguda', () => {
+  const avui = new Date(2026, 7, 31);
+  const moviments = [
+    { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
+    { data: '2026-08-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 0 },
+    { data: '2026-06-10', tipus: 'ingres', categoria: 'Aportacions', total: 60 },
+    { data: '2026-07-10', tipus: 'ingres', categoria: 'Aportacions', total: 60 },
+  ];
+  const passades = [{ id: 'p1', data: '2026-06-12' }, { id: 'p2', data: '2026-07-12' }, { id: 'p3', data: '2026-08-12' }];
+  const futures = [
+    { id: 'o1', data: '2026-10-05' },
+    { id: 'n1', data: '2026-11-05' }, { id: 'n2', data: '2026-11-20' },
+    { id: 'z1', data: '2026-12-05' },
+    { id: 'u1', data: '2027-01-05' },
+    { id: 'e1', data: '2027-02-05', senseControl: true },
+  ];
+  const costsReals = { o1: 80, n1: 70, n2: 50, z1: 0, u1: null, e1: 999 };
+  const resultat = resumPrevisio(moviments, [], [...passades, ...futures], [], avui, { costsReals });
+  const mes = (etiqueta) => resultat.mesos.find((m) => m.etiqueta === etiqueta);
+
+  it('el cost mitjà i l\'aportació per sessió surten de les dades passades', () => {
+    expect(resultat.costPellicula).toBe(100);
+    // 120 € d'aportacions ÷ 3 sessions passades amb control en els últims 3 mesos
+    expect(resultat.aportacionsPerSessio).toBe(40);
+  });
+
+  it('mes amb una sessió de cost conegut: precis i amb aquest cost', () => {
+    const octubre = mes('Octubre 2026');
+    expect(octubre).toMatchObject({ precis: true, parcial: false, sessionsProgramades: 1, costReal: 80, costPellicula: 80 });
+  });
+
+  it('mes amb dues sessions: suma els costs i les aportacions de les dues', () => {
+    const novembre = mes('Novembre 2026');
+    expect(novembre).toMatchObject({ precis: true, sessionsProgramades: 2, costReal: 120, costPellicula: 120 });
+    expect(novembre.ingressosAportacions).toBe(80);
+  });
+
+  it('una sessió de cost 0 és un cost conegut', () => {
+    expect(mes('Desembre 2026')).toMatchObject({ precis: true, parcial: false, costReal: 0, costPellicula: 0 });
+  });
+
+  it('una sessió de cost desconegut: parcial, amb el cost mitjà i sense costReal', () => {
+    expect(mes('Gener 2027')).toMatchObject({
+      precis: false, parcial: true, sessionsProgramades: 1, costReal: null, costPellicula: 100,
+    });
+  });
+
+  it('mes amb una sessió coneguda i una desconeguda suma la coneguda i la mitjana', () => {
+    const r = resumPrevisio(moviments, [], [...passades, { id: 'a', data: '2026-10-01' }, { id: 'b', data: '2026-10-02' }], [], avui, {
+      costsReals: { a: 30 },
+    });
+    expect(r.mesos[1]).toMatchObject({ parcial: true, precis: false, costPellicula: 130 });
+  });
+
+  it('mes sense sessions: cost mitjà, una aportació per sessió i ni precis ni parcial', () => {
+    const setembre = mes('Setembre 2026');
+    expect(setembre).toMatchObject({
+      sessionsProgramades: 0, precis: false, parcial: false, costReal: null, costPellicula: 100, ingressosAportacions: 40,
+    });
+  });
+
+  it('les sessions especials sense control no compten com a programades', () => {
+    expect(mes('Febrer 2027').sessionsProgramades).toBe(0);
+    expect(mes('Febrer 2027').costPellicula).toBe(100); // no el 999 de la sessió ignorada
+  });
+
+  it('sense costsReals, les sessions futures compten com a cost desconegut', () => {
+    const r = resumPrevisio(moviments, [], [...passades, ...futures], [], avui);
+    expect(r.mesos.every((m) => !m.precis)).toBe(true);
+    const octubre = r.mesos.find((m) => m.etiqueta === 'Octubre 2026');
+    expect(octubre).toMatchObject({ parcial: true, costPellicula: 100 });
+  });
+
+  it('sense sessions passades usa la mitjana mensual d\'aportacions i sense pel·lícules no hi ha NaN', () => {
+    const r = resumPrevisio([{ data: '2026-07-10', tipus: 'ingres', categoria: 'Aportacions', total: 30 }], [], [], [], avui);
+    expect(r.aportacionsPerSessio).toBe(10);
+    expect(r.costPellicula).toBe(0);
+    expect(r.mesos.every((m) => Number.isFinite(m.impacteNet))).toBe(true);
+  });
+
+  it('tolera costsReals null', () => {
+    const r = resumPrevisio(moviments, [], futures, [], avui, { costsReals: null });
+    expect(r.mesos.every((m) => !m.precis)).toBe(true);
+    expect(resumPrevisio(moviments, [], futures, [], avui, null).mesos).toHaveLength(12);
+  });
+});
+
+describe('resumPrevisio — resta del mes actual', () => {
+  const avui = new Date(2026, 10, 4); // 4 novembre 2026
+  const moviments = [
+    { data: '2026-10-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
+    { data: '2026-10-10', tipus: 'ingres', categoria: 'Aportacions', total: 60 },
+  ];
+  const passades = [{ id: 'p1', data: '2026-10-01' }, { id: 'p2', data: '2026-10-20' }];
+  const resta = (futures, costsReals) => resumPrevisio(moviments, [], [...passades, ...futures], [], avui, { costsReals }).restaMesActual;
+
+  it('una sessió restant amb cost conegut', () => {
+    expect(resta([{ id: 'a', data: '2026-11-10' }], { a: 70 })).toMatchObject({
+      etiqueta: 'Novembre 2026', sessionsProgramades: 1, precis: true, parcial: false,
+      costReal: 70, costPellicula: 70, ingressosAportacions: 30, ingressosQuotes: 0, impacteNet: -40,
+    });
+  });
+
+  it('dues sessions restants sumen costs i aportacions', () => {
+    expect(resta([{ id: 'a', data: '2026-11-10' }, { id: 'b', data: '2026-11-30' }], { a: 70, b: 50 })).toMatchObject({
+      sessionsProgramades: 2, precis: true, costReal: 120, costPellicula: 120, ingressosAportacions: 60, impacteNet: -60,
+    });
+  });
+
+  it('sense sessions restants tot és 0 i ni precis ni parcial', () => {
+    expect(resta([], {})).toMatchObject({
+      sessionsProgramades: 0, precis: false, parcial: false, costReal: null,
+      costPellicula: 0, ingressosAportacions: 0, ingressosQuotes: 0, impacteNet: 0,
+    });
+  });
+
+  it('una sessió de cost desconegut és parcial i usa el cost mitjà', () => {
+    expect(resta([{ id: 'a', data: '2026-11-10' }], {})).toMatchObject({
+      parcial: true, precis: false, costReal: null, costPellicula: 100, ingressosAportacions: 30, impacteNet: -70,
+    });
+  });
+
+  it('la sessió d\'avui no queda i l\'1 del mes vinent és del mes vinent; senseControl s\'ignora', () => {
+    const futures = [
+      { id: 'avui', data: '2026-11-04' },
+      { id: 'seg', data: '2026-12-01' },
+      { id: 'esp', data: '2026-11-20', senseControl: true },
+    ];
+    const costsReals = { avui: 11, seg: 22, esp: 999 };
+    const r = resumPrevisio(moviments, [], [...passades, ...futures], [], avui, { costsReals });
+    expect(r.restaMesActual.sessionsProgramades).toBe(0);
+    expect(r.restaMesActual.costPellicula).toBe(0);
+    expect(r.mesos[0]).toMatchObject({ etiqueta: 'Desembre 2026', sessionsProgramades: 1, costPellicula: 22 });
   });
 });

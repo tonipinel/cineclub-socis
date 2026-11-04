@@ -349,6 +349,32 @@ export function resumReal(moviments, avui = new Date()) {
   return { mesos };
 }
 
+const MESOS_MITJANA_PELLICULA = 6;
+const CATEGORIA_PELLICULES = 'Gestió pel·lícules';
+
+const esNombre = (valor) => typeof valor === 'number' && Number.isFinite(valor);
+
+// Cost real d'una sessió: el preu propi de la proposta interna (0 inclòs) i,
+// si no en té, el preu per defecte de la distribuïdora. Si no es pot saber → null.
+export function costRealSessio(sessio, interns, distribuidores) {
+  const intern = sessio?.propostaId ? interns?.[sessio.propostaId] : null;
+  if (!intern) return null;
+  if (esNombre(intern.preu)) return intern.preu;
+  const preuDistribuidora = distribuidores?.[intern.distribuidoraId]?.preu;
+  return esNombre(preuDistribuidora) ? preuDistribuidora : null;
+}
+
+// Mitjana de les últimes 6 despeses de pel·lícula que han costat diners
+// (omet les de cost 0). Sense cap → 0.
+export function costMitjaPellicula(moviments) {
+  const ultimes = moviments
+    .filter((m) => m.categoria === CATEGORIA_PELLICULES && m.tipus === TIPUS_MOVIMENT.DESPESA && Number(m.total) > 0)
+    .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
+    .slice(0, MESOS_MITJANA_PELLICULA);
+  if (ultimes.length === 0) return 0;
+  return ultimes.reduce((acc, m) => acc + Number(m.total), 0) / ultimes.length;
+}
+
 // Previsió mes a mes per als propers 6 mesos, assumint 1 sessió/mes.
 // Distingim dues fonts d'ingressos de quotes:
 // - Nous socis: no tenen una data de venciment coneguda, així que els
@@ -356,9 +382,13 @@ export function resumReal(moviments, avui = new Date()) {
 // - Renovacions: NO s'estimen per mitjana, sinó soci a soci, mirant a quins
 //   els venç realment la quota (calcularVenciment) dins de cada mes
 //   concret, i aplicant-hi el filtre de probabilitat de renovar.
-// El cost de pel·lícula més car dels últims 3 mesos (no la mitjana) queda
-// fix cada mes com a estimació conservadora.
-export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new Date()) {
+// Pel·lícules: els mesos amb sessions programades (data futura) usen el cost
+// real de `costsReals` ({ [sessioId]: number | null }, null = desconegut);
+// els mesos sense sessions, i les sessions de cost desconegut, usen la mitjana
+// de les últimes pel·lícules que han costat diners.
+// Aportacions: import per sessió dels últims 3 mesos × sessions del mes (o 1).
+export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new Date(), opcions = {}) {
+  const costsReals = opcions?.costsReals ?? {};
   const dataAvui = avui.toLocaleDateString('sv-SE');
   const faReferencia = new Date(avui.getFullYear(), avui.getMonth() - MESOS_REFERENCIA, avui.getDate());
   const dataLimit = faReferencia.toLocaleDateString('sv-SE');
@@ -371,16 +401,37 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
     m.categoria === CATEGORIA_QUOTA_SOCI && m.tipus === TIPUS_MOVIMENT.INGRES && m.tipusQuota !== TIPUS_QUOTA.RENOVACIO
   ));
   const aportacions = recents.filter((m) => m.categoria === 'Aportacions' && m.tipus === TIPUS_MOVIMENT.INGRES);
-  const pellicules = recents.filter((m) => m.categoria === 'Gestió pel·lícules' && m.tipus === TIPUS_MOVIMENT.DESPESA);
-
   const novesAltesPerMes = quotesRecents.length / MESOS_REFERENCIA;
   const importMitjaQuota = quotesRecents.length > 0
     ? quotesRecents.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / quotesRecents.length
     : 30;
   const ingressosAportacionsPerMes = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0) / MESOS_REFERENCIA;
-  const costPellicula = pellicules.reduce((max, m) => Math.max(max, Number(m.total) || 0), 0);
+  const costPellicula = costMitjaPellicula(moviments.filter((m) => (m.data ?? '') <= dataAvui));
 
-  const sessionsPassades = sessionsAmbControl(sessions).filter((s) => s.data && s.data <= dataAvui);
+  const sessionsAmbControlTotes = sessionsAmbControl(sessions);
+  const sessionsPassades = sessionsAmbControlTotes.filter((s) => s.data && s.data <= dataAvui);
+  const sessionsRecents = sessionsPassades.filter((s) => s.data > dataLimit);
+  const totalAportacions = aportacions.reduce((acc, m) => acc + (Number(m.total) || 0), 0);
+  const aportacionsPerSessio = sessionsRecents.length > 0
+    ? totalAportacions / sessionsRecents.length
+    : ingressosAportacionsPerMes;
+  const sessionsFutures = sessionsAmbControlTotes.filter((s) => s.data && s.data > dataAvui);
+
+  // Cost aplicat a un conjunt de sessions programades: el real de cada una i,
+  // si és desconegut, el cost mitjà de pel·lícula.
+  const costDeSessions = (sessionsMes) => {
+    const costs = sessionsMes.map((s) => costsReals[s.id] ?? null);
+    const coneguts = costs.filter((c) => c !== null);
+    const desconegudes = costs.length - coneguts.length;
+    const sumaConeguts = coneguts.reduce((acc, c) => acc + c, 0);
+    const precis = sessionsMes.length > 0 && desconegudes === 0;
+    return {
+      precis,
+      parcial: sessionsMes.length > 0 && desconegudes > 0,
+      costReal: precis ? sumaConeguts : null,
+      cost: sumaConeguts + desconegudes * costPellicula,
+    };
+  };
   const entradesPerNumero = agruparEntradesPerNumero(accessLog);
   const sociesActius = socis.filter((s) => estaActiu(s) && s.numeroSoci && s.ultimPagament);
 
@@ -397,8 +448,15 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
       (soci) => probablementRenovara(soci, moviments, sessionsPassades, entradesPerNumero)
     ).length;
 
+    const iniciStr = inici.toLocaleDateString('sv-SE');
+    const fiStr = fi.toLocaleDateString('sv-SE');
+    const sessionsDelMes = sessionsFutures.filter((s) => s.data >= iniciStr && s.data < fiStr);
+    const { precis, parcial, costReal, cost } = costDeSessions(sessionsDelMes);
+    const costMes = sessionsDelMes.length === 0 ? costPellicula : cost;
+    const ingressosAportacions = aportacionsPerSessio * Math.max(sessionsDelMes.length, 1);
+
     const ingressosQuotes = (novesAltesPerMes + renovacionsEsperades) * importMitjaQuota;
-    const impacteNet = ingressosQuotes + ingressosAportacionsPerMes - costPellicula;
+    const impacteNet = ingressosQuotes + ingressosAportacions - costMes;
 
     mesos.push({
       etiqueta: `${NOMS_MES[inici.getMonth()]} ${inici.getFullYear()}`,
@@ -406,19 +464,44 @@ export function resumPrevisio(moviments, socis, sessions, accessLog, avui = new 
       sociesDeguts: sociesDeguts.length,
       renovacionsEsperades,
       ingressosQuotes,
-      ingressosAportacions: ingressosAportacionsPerMes,
-      costPellicula,
+      ingressosAportacions,
+      sessionsProgramades: sessionsDelMes.length,
+      costReal,
+      precis,
+      parcial,
+      costPellicula: costMes,
       impacteNet,
     });
   }
+
+  // Resta del mes actual: només les sessions programades que queden (data
+  // estrictament futura). Sense cap, 0: la pel·lícula del mes ja és a les dades
+  // reals, i no es preveuen quotes per al que queda de mes.
+  const iniciMesSeguent = new Date(avui.getFullYear(), avui.getMonth() + 1, 1).toLocaleDateString('sv-SE');
+  const sessionsResta = sessionsFutures.filter((s) => s.data < iniciMesSeguent);
+  const resta = costDeSessions(sessionsResta);
+  const ingressosAportacionsResta = aportacionsPerSessio * sessionsResta.length;
+  const restaMesActual = {
+    etiqueta: `${NOMS_MES[avui.getMonth()]} ${avui.getFullYear()}`,
+    sessionsProgramades: sessionsResta.length,
+    costReal: resta.costReal,
+    precis: resta.precis,
+    parcial: resta.parcial,
+    ingressosQuotes: 0,
+    ingressosAportacions: ingressosAportacionsResta,
+    costPellicula: resta.cost,
+    impacteNet: ingressosAportacionsResta - resta.cost,
+  };
 
   const impacteNetAcumulat = mesos.reduce((acc, m) => acc + m.impacteNet, 0);
 
   return {
     mesos,
+    restaMesActual,
     novesAltesPerMes,
     importMitjaQuota,
     ingressosAportacionsPerMes,
+    aportacionsPerSessio,
     costPellicula,
     impacteNetAcumulat,
   };
