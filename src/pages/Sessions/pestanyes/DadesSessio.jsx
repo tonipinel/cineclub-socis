@@ -73,7 +73,7 @@ export default function DadesSessio({
   const alies = Object.fromEntries(valorsOrganitza
     .filter((v) => !nomsCataleg.includes(v) && nomAlCataleg(v, nomsCataleg))
     .map((v) => [nomAlCataleg(v, nomsCataleg), v]));
-  // «Suport de distribució»: el valor és l'id; triar-ne una escriu el nom i l'id i res més (sense àlies).
+  // «Distribuïdora»: el valor és l'id; triar-ne una escriu el nom i l'id i res més (sense àlies).
   const distribucio = opcionsDistribucio(
     distribuidores,
     { nom: form.suportDistribucio, id: form.suportDistribucioId },
@@ -84,6 +84,7 @@ export default function DadesSessio({
     onCanviForm('suportDistribucio', nom);
     onCanviForm('suportDistribucioId', id);
   };
+  const distribuidoraTriada = distribuidores.find((d) => d.id === form.suportDistribucioId);
   const selector = (camp, etiqueta) => (
     <SelectorEntitats
       id={`publica-${camp}`}
@@ -181,7 +182,7 @@ export default function DadesSessio({
             </select>
           </Camp>
           {GESTIO.map(([camp, etiqueta, ajuda]) => <Camp key={camp} camp={camp} etiqueta={etiqueta} ajuda={ajuda} {...props} />)}
-          <Camp camp="suportDistribucio" etiqueta="Suport de distribució" {...props}>
+          <Camp camp="suportDistribucio" etiqueta="Distribuïdora" {...props}>
             <select
               id="publica-suportDistribucio"
               className="form__input"
@@ -207,7 +208,7 @@ export default function DadesSessio({
         </div>
       </section>
 
-      {interna && <GestioInternaSessio interna={interna} onCanviInterna={onCanviInterna} distribuidores={distribuidores} />}
+      {interna && <GestioInternaSessio interna={interna} onCanviInterna={onCanviInterna} distribuidora={distribuidoraTriada} />}
 
       <section className="fitxa-sessio__targeta" aria-labelledby="targeta-avancat">
         <h2 className="fitxa-sessio__targeta-titol" id="targeta-avancat">Avançat</h2>

@@ -298,7 +298,9 @@ function FitxaProposta({
       const sessioId = trobades.docs[0]?.id ?? `proposta-${id}`;
       const propostaRef = doc(db, 'propostes', id);
       const sessioRef = doc(db, 'sessions', sessioId);
-      const { sessio: novaSessio } = construirSessioDesDeProposta(proposta, { propostaId: id, avui: new Date() });
+      const triada = distribuidores.find((d) => d.id === interna?.distribuidoraId);
+      const distribuidora = triada ? { id: triada.id, nom: triada.nom } : null;
+      const { sessio: novaSessio } = construirSessioDesDeProposta(proposta, { propostaId: id, avui: new Date(), distribuidora });
       const { existia, senseGaleria } = await runTransaction(db, async (tx) => {
         const estatTx = (await tx.get(propostaRef)).data()?.estat;
         const snapSessio = await tx.get(sessioRef);
@@ -464,7 +466,7 @@ function FitxaProposta({
               distribuidores={distribuidores}
               internaDisponible={internaDisponible}
               estatDesat={proposta.estat}
-              teSessio={Boolean(sessio)}
+              sessio={sessio}
               onEliminar={handleEliminar}
               eliminacioDesactivada={eliminant || estat === 'desant' || pujant}
               errorEliminar={errorEliminar}

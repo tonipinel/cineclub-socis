@@ -67,6 +67,8 @@ Cada sessió té tres títols: el **títol original** (un sol camp, «Títol ori
 
 En programar una sessió des d'una proposta, la fitxa pública es pre-omple amb les dades de TMDB de la proposta, incloses la fotografia, el muntatge, la música i la producció (`publica.fotografia/muntatge/musica/produccio`, editables a la sessió i, a la proposta, com a llistes a la pestanya «Pel·lícula»). Per a les propostes i sessions creades abans: `TMDB_API_KEY="$(firebase functions:secrets:access TMDB_API_KEY)" node scripts/importa-credits-tmdb.mjs` (informe; `--apply` amb la còpia d'avui, `--desfer <fitxer>`, `--sessio <id>`). Només omple camps buits i no imprimeix mai la clau. Executa'l des de l'arrel del repositori principal, on hi ha `backups/` i la clau d'admin.
 
+L'edat mínima (qualificació d'Espanya de TMDB) de les propostes i sessions creades abans s'omple amb `TMDB_API_KEY="$(firebase functions:secrets:access TMDB_API_KEY)" node scripts/importa-edat-tmdb.mjs` (informe; `--apply` amb la còpia d'avui, `--desfer <fitxer>`). Només toca `edatMinima` buida (mai un valor, 0 inclòs, ni un camp editat a mà) i `publica.edatMinimaRecomanada` buida; les pel·lícules sense edat a TMDB se salten. Mateixes condicions d'execució que l'script de crèdits.
+
 La descripció (SEO) d'una sessió és `publica.descripcio` o, si és buida, un text automàtic amb el títol, l'any, la direcció i quan es projecta. Els camps antics `publica.versioIdiomatica` i `publica.hook` (ganxo) ja no s'editen ni es mostren, però es conserven en desar.
 
 ## Desplegament

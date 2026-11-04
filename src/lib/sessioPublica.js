@@ -101,7 +101,7 @@ export function idYoutube(brut) {
 const unir = (llista) => llistaDe(llista).map(text).filter(Boolean).join(', ');
 const nomsDe = (llista) => llistaDe(llista).map((r) => text(typeof r === 'string' ? r : r?.nom)).filter(Boolean);
 
-export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}) {
+export function construirSessioDesDeProposta(proposta, { propostaId, avui, distribuidora } = {}) {
   proposta ??= {};
   // El títol principal és l'original; el de la proposta a Espanya (`titolLocal`) només va a la fitxa. El títol en
   // català (`titolTraduit`) no es dedueix: l'escriu qui programa, si n'hi ha.
@@ -124,6 +124,7 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
     pais: unir(proposta.paisos),
     any: typeof proposta.any === 'string' ? proposta.any.trim() : proposta.any,
     durada: Number.isFinite(proposta.durada) && proposta.durada > 0 ? proposta.durada : undefined,
+    edatMinimaRecomanada: Number.isInteger(proposta.edatMinima) && proposta.edatMinima >= 0 ? proposta.edatMinima : undefined,
     idioma: unir(proposta.idiomes),
     generes: nomsDe(proposta.generes),
     interprets: nomsDe(proposta.repartiment).slice(0, MAX_INTERPRETS),
@@ -132,6 +133,8 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
     trailerYoutubeId: idYoutube(proposta.trailerUrl),
     cartell: imatgeUrl,
     seccio: 'cartellera',
+    suportDistribucio: distribuidora?.nom,
+    suportDistribucioId: distribuidora?.id,
   });
 
   return {
@@ -142,7 +145,7 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
       urlProgramacio: '',
       imatgeUrl,
       publicada: false,
-      slug: '',
+      slug: slugSuggerit,
       propostaId,
       publica: avui instanceof Date && !Number.isNaN(avui.getTime()) ? marcarActualitzada(publica, avui) : publica,
     },

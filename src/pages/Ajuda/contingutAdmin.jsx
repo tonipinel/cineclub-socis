@@ -462,7 +462,7 @@ const TASQUES = {
           <ul>
             <li>A la pestanya «Gestió» d'una proposta, tria-la a «Distribuïdora»: si la proposta no té preu ni condicions propis, s'hi apliquen els de la distribuïdora.</li>
             <li>
-              A la pestanya «Dades» d'una sessió, tria-la a «Suport de distribució». La pàgina pública, si la sessió té
+              A la pestanya «Dades» d'una sessió, tria-la a «Distribuïdora»: és l'única, també la de la gestió interna de la proposta. La pàgina pública, si la sessió té
               cartell, hi mostra a sota el logo (enllaçat a la pàgina web pública) o, si la distribuïdora no té logo, el
               text «Distribució i cessió de drets: …».
             </li>

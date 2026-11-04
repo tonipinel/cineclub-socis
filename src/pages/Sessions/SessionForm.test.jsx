@@ -728,22 +728,103 @@ describe('SessionForm — pàgina pública', () => {
     expect(screen.queryByRole('alert', { name: 'No es pot publicar' })).not.toBeInTheDocument();
   });
 
-  it('desa la gestió interna de la proposta amb el «Desar» de la sessió', async () => {
-    getDoc.mockResolvedValueOnce({ data: () => structuredClone(GESTIO) });
-    getDoc.mockResolvedValueOnce({ data: () => ({ preu: 10, condicions: '', distribuidoraId: 'd1' }) });
-    const user = userEvent.setup();
+  // Obre la sessió amb proposta (`publica`) i la gestió interna donades, amb el batch de desat preparat.
+  function obrirAmbInterna(publica, interna = { preu: 10, condicions: '', distribuidoraId: 'd1' }) {
+    const lot = { update: vi.fn(), set: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+    writeBatch.mockClear();
+    writeBatch.mockReturnValue(lot);
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...structuredClone(GESTIO), ...(publica && { publica }) }) });
+    getDoc.mockResolvedValueOnce({ data: () => interna });
     renderEnEdicio('/sessions/1?pestanya=dades');
+    return { lot, user: userEvent.setup() };
+  }
+  const DIST_D1 = { suportDistribucio: 'Atalante', suportDistribucioId: 'd1' };
+  const desaGuio = async (user) => {
+    await user.type(await screen.findByLabelText('Guió'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+  };
+
+  it('desa preu i condicions de la gestió interna en el mateix batch que la sessió, sense tocar la distribuïdora', async () => {
+    const { lot, user } = obrirAmbInterna(DIST_D1);
     const preu = await screen.findByLabelText('Preu (€)', { selector: '#interna-preu' });
     expect(preu).toHaveValue(10);
-    expect(screen.queryByRole('button', { name: 'Desar la gestió interna' })).not.toBeInTheDocument();
     await user.clear(preu);
     await user.type(preu, '25');
     await user.type(screen.getByLabelText('Condicions especials'), ' 50% taquilla ');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
-    await vi.waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(lot.commit).toHaveBeenCalledTimes(1));
     expect(doc).toHaveBeenCalledWith(expect.anything(), 'propostesInternes', 'p1');
-    expect(setDoc.mock.calls[0][1]).toEqual({ preu: 25, condicions: '50% taquilla', distribuidoraId: 'd1' });
+    expect(lot.set.mock.calls[0][1]).toEqual({ preu: 25, condicions: '50% taquilla' });
+    expect(lot.set.mock.calls[0][2]).toEqual({ merge: true });
     expect(updateDoc).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+  });
+
+  it('canviar la distribuïdora a la sessió l\'escriu a la gestió interna (només ella) i després no queden canvis pendents', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'distribuidores'
+      ? { docs: [{ id: 'd1', data: () => ({ nom: 'Atalante' }) }, { id: 'd2', data: () => ({ nom: 'B-team' }) }] }
+      : { docs: [] }));
+    const { lot, user } = obrirAmbInterna(DIST_D1);
+    const select = await screen.findByLabelText('Distribuïdora');
+    await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
+    await user.selectOptions(select, 'B-team');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(lot.commit).toHaveBeenCalledTimes(1));
+    expect(lot.update.mock.calls[0][1].publica).toMatchObject({ suportDistribucio: 'B-team', suportDistribucioId: 'd2' });
+    expect(lot.set.mock.calls[0][1]).toEqual({ distribuidoraId: 'd2' });
+    expect(lot.set.mock.calls[0][2]).toEqual({ merge: true });
+    await vi.waitFor(() => expect(textBarra()).toBe('Desat ✓'));
+    await vi.waitFor(() => expect(textBarra()).toBe('Sense canvis'), { timeout: 4000 });
+    const evt = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(evt);
+    expect(evt.defaultPrevented).toBe(false);
+  });
+
+  it('quan l\'usuari buida la distribuïdora a la sessió, s\'escriu \'\' a la gestió interna', async () => {
+    const { lot, user } = obrirAmbInterna(DIST_D1);
+    const select = await screen.findByLabelText('Distribuïdora');
+    await user.selectOptions(select, '—');
+    await user.click(screen.getByRole('button', { name: 'Desar' }));
+    await vi.waitFor(() => expect(lot.commit).toHaveBeenCalledTimes(1));
+    expect(lot.set.mock.calls[0][1]).toEqual({ distribuidoraId: '' });
+  });
+
+  it('una sessió amb només el nom antic i sense canvis de distribuïdora no toca la distribuïdora interna', async () => {
+    const { lot, user } = obrirAmbInterna({ suportDistribucio: 'Atalante Films' });
+    await desaGuio(user);
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(lot.set).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it('una sessió sense distribuïdora i sense canvis no esborra la distribuïdora interna', async () => {
+    const { lot, user } = obrirAmbInterna(undefined);
+    await desaGuio(user);
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(lot.set).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it('sense cap canvi de distribuïdora ni de preu/condicions no s\'escriu res a propostesInternes', async () => {
+    const { lot, user } = obrirAmbInterna(DIST_D1);
+    await desaGuio(user);
+    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(lot.set).not.toHaveBeenCalled();
+  });
+
+  it('la gestió interna no té selector de distribuïdora i mostra els valors per defecte de la triada a la sessió', async () => {
+    getDocs.mockImplementation((q) => Promise.resolve(q === 'distribuidores'
+      ? { docs: [{ id: 'd1', data: () => ({ nom: 'Atalante', preu: 150, condicions: 'Només en dimecres' }) }] }
+      : { docs: [] }));
+    getDoc.mockResolvedValueOnce({ data: () => ({ ...structuredClone(GESTIO), publica: { suportDistribucio: 'Atalante', suportDistribucioId: 'd1' } }) });
+    getDoc.mockResolvedValueOnce({ data: () => ({ preu: null, condicions: '', distribuidoraId: 'd1' }) });
+    renderEnEdicio('/sessions/1?pestanya=dades');
+    expect(await screen.findByLabelText('Preu (€)', { selector: '#interna-preu' })).toHaveAttribute('placeholder', '150 (per defecte)');
+    expect(screen.getAllByLabelText('Distribuïdora')).toHaveLength(1);
+    expect(screen.getByText(/aplica el preu per defecte de Atalante/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Condicions especials')).toHaveAttribute('placeholder', 'Per defecte: Només en dimecres');
   });
 
   it('el slug repetit el mateix any no deixa publicar', async () => {
@@ -1417,7 +1498,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('carrega el catàleg ordenat per nom i mostra el nom antic com a «no és al catàleg»', async () => {
     carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(opcions(select))
       .toEqual(['—', 'A Contracorriente Films (no és al catàleg)', 'A Contracorriente', 'B-team']));
     expect(screen.getByRole('option', { name: 'A Contracorriente Films (no és al catàleg)' }).selected).toBe(true);
@@ -1426,7 +1507,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('canviar el títol original només canvia el títol i el títol públic i original de la fitxa', async () => {
     const user = carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
     await user.clear(screen.getByLabelText('Títol original'));
     await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
@@ -1438,7 +1519,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
   it('una sessió sense publica no la crea si només es canvia el títol', async () => {
     const { publica: _publica, ...senseP } = SESSIO;
     const user = carregar(senseP);
-    await screen.findByLabelText('Suport de distribució');
+    await screen.findByLabelText('Distribuïdora');
     await user.clear(screen.getByLabelText('Títol original'));
     await user.type(screen.getByLabelText('Títol original'), 'Pig (2021)');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -1454,7 +1535,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('triar una distribuïdora del catàleg desa només el seu nom i el seu id a publica', async () => {
     const user = carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'A Contracorriente' })).toBeInTheDocument());
     await user.selectOptions(select, 'A Contracorriente');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -1469,7 +1550,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
   it('una sessió sense publica la crea només amb el nom i l\'id de la distribuïdora triada', async () => {
     const { publica: _publica, ...senseP } = SESSIO;
     const user = carregar(senseP);
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
     await user.selectOptions(select, 'B-team');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -1481,7 +1562,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('triar «—» buida el nom i l\'id', async () => {
     const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'B-team', suportDistribucioId: 'd2' } });
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(select).toHaveValue('d2'));
     await user.selectOptions(select, '—');
     await user.click(screen.getByRole('button', { name: 'Desar' }));
@@ -1494,7 +1575,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('tornar a triar el nom antic després de canviar-lo deixa la fitxa sense canvis', async () => {
     const user = carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
     await user.selectOptions(select, 'B-team');
     expect(textBarra()).toBe('Hi ha canvis sense desar · Dades');
@@ -1506,7 +1587,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('amb el nom al catàleg (sense id) el mostra triat, sense avís i sense marcar la fitxa com a modificada', async () => {
     const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'B-team' } });
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(screen.getByRole('option', { name: 'B-team', selected: true })).toBeInTheDocument());
     expect(select).toHaveValue('d2');
     expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
@@ -1521,7 +1602,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('amb l\'id al catàleg mostra el nom actual, no marca canvis i desar el títol conserva la distribuïdora', async () => {
     const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'Nom vell', suportDistribucioId: 'd1' } });
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(select).toHaveValue('d1'));
     expect(triada(select)).toBe('A Contracorriente');
     expect(screen.queryByText(/no és al catàleg/)).not.toBeInTheDocument();
@@ -1535,7 +1616,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
 
   it('un id que ja no és al catàleg es conserva en desar un altre camp de publica', async () => {
     const user = carregar({ ...SESSIO, publica: { ...SESSIO.publica, suportDistribucio: 'Esborrada', suportDistribucioId: 'dX' } });
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(within(select).getByRole('option', { name: 'B-team' })).toBeInTheDocument());
     expect(triada(select)).toBe('Esborrada (no és al catàleg)');
     await user.type(screen.getByLabelText('Títol en català'), 'Porc');
@@ -1548,7 +1629,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
   it('si el catàleg no es pot llegir, la fitxa es mostra igualment amb el nom antic', async () => {
     getDocs.mockImplementation((q) => (q === 'distribuidores' ? Promise.reject(new Error('xarxa')) : Promise.resolve({ docs: [] })));
     const user = carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     expect(opcions(select)).toEqual(['—', 'A Contracorriente Films (no és al catàleg)']);
     expect(triada(select)).toBe('A Contracorriente Films (no és al catàleg)');
     await user.clear(screen.getByLabelText('Títol original'));
@@ -1563,7 +1644,7 @@ describe('SessionForm — distribuïdores del catàleg', () => {
       ? docsDe([{ id: 'x', web: 'x.example' }, { id: 'y', nom: '  ' }, ...DISTRIBUIDORES])
       : { docs: [] }));
     carregar();
-    const select = await screen.findByLabelText('Suport de distribució');
+    const select = await screen.findByLabelText('Distribuïdora');
     await vi.waitFor(() => expect(opcions(select))
       .toEqual(['—', 'A Contracorriente Films (no és al catàleg)', 'A Contracorriente', 'B-team']));
   });

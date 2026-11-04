@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  addDoc, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch,
+  addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { publicaAFormulari, urlPublica } from '../../lib/sessioPublica';
@@ -253,15 +253,39 @@ function FitxaSessio({ id }) {
       navigate(`${ROUTES.SESSIONS_EDITAR.replace(':id', nova.id)}?pestanya=dades`);
       return;
     }
-    if (Object.keys(canvisADesar).length > 0) await updateDoc(doc(db, 'sessions', id), canvisADesar);
-    if (internaCanviada) await setDoc(doc(db, 'propostesInternes', propostaId), internaADesar(interna));
+    // Gestió interna: només s'escriu el que ha canviat. La distribuïdora és la de la sessió, però només la
+    // segueix si en aquest desat s'ha canviat (inclòs buidar-la): una sessió amb només el nom antic no esborra res.
+    const distribuidoraCanviada = Boolean(interna) && (publicaForm.suportDistribucioId !== publicaInicial.suportDistribucioId
+      || publicaForm.suportDistribucio !== publicaInicial.suportDistribucio);
+    const distribuidoraId = publicaForm.suportDistribucioId
+      || distribuidores.find((d) => d.nom === publicaForm.suportDistribucio)?.id || '';
+    const aInterna = {};
+    if (interna && internaInicial) {
+      const desada = internaADesar(interna);
+      if (interna.preu !== internaInicial.preu) aInterna.preu = desada.preu;
+      if (interna.condicions !== internaInicial.condicions) aInterna.condicions = desada.condicions;
+    }
+    if (distribuidoraCanviada) aInterna.distribuidoraId = distribuidoraId;
+    const hiHaInterna = Object.keys(aInterna).length > 0;
+    if (hiHaInterna) {
+      const lot = writeBatch(db);
+      if (Object.keys(canvisADesar).length > 0) lot.update(doc(db, 'sessions', id), canvisADesar);
+      lot.set(doc(db, 'propostesInternes', propostaId), aInterna, { merge: true });
+      await lot.commit();
+    } else if (Object.keys(canvisADesar).length > 0) {
+      await updateDoc(doc(db, 'sessions', id), canvisADesar);
+    }
     // El que s'ha desat passa a ser la nova línia base. L'estat viu conserva el que s'hagi escrit mentre es desava
     // i només rep els valors calculats en desar (URL, imatge de reserva i aliases).
     const aliases = publicaFinal?.aliases ?? publicaForm.aliases;
     const calculats = Object.fromEntries(CAMPS_CALCULATS
       .filter((camp) => dadesADesar[camp] !== dades[camp])
       .map((camp) => [camp, dadesADesar[camp]]));
-    if (internaCanviada) setInternaInicial(interna);
+    if (hiHaInterna) {
+      const nou = (i) => i && { ...i, ...(distribuidoraCanviada && { distribuidoraId }) };
+      setInternaInicial((i) => i && { ...i, ...interna, ...(distribuidoraCanviada && { distribuidoraId }) });
+      setInterna(nou);
+    }
     setOriginal((o) => ({ ...o, ...dadesADesar }));
     setPublicaInicial({ ...publicaForm, aliases });
     setDades((d) => ({ ...d, ...calculats }));

@@ -12,6 +12,7 @@ const proposta = {
   titolLocal: 'Delicatessen (Esp)',
   any: 1991,
   durada: 99,
+  edatMinima: 12,
   directors: ['Jean-Pierre Jeunet', 'Marc Caro'],
   guionistes: ['Gilles Adrien'],
   fotografia: ['Darius Khondji'],
@@ -33,11 +34,12 @@ const formBuit = fitxaAFormulari({});
 describe('constants', () => {
   it('CAMPS_PELLICULA coincideix amb CAMPS_EDITABLES del servidor', () => {
     expect(CAMPS_PELLICULA).toEqual(CAMPS_EDITABLES);
-    expect(CAMPS_PELLICULA).toHaveLength(18);
+    expect(CAMPS_PELLICULA).toHaveLength(19);
   });
   it('totes les etiquetes existeixen', () => {
     expect(Object.keys(ETIQUETES_CAMPS)).toEqual(CAMPS_PELLICULA);
     expect(ETIQUETES_CAMPS.durada).toBe('Durada (minuts)');
+    expect(ETIQUETES_CAMPS.edatMinima).toBe('Edat mínima recomanada');
     expect(ETIQUETES_CAMPS.titolLocal).toBe('Títol a Espanya');
     expect([ETIQUETES_CAMPS.fotografia, ETIQUETES_CAMPS.muntatge, ETIQUETES_CAMPS.musica, ETIQUETES_CAMPS.produccio])
       .toEqual(['Fotografia', 'Muntatge', 'Música', 'Producció']);
@@ -51,6 +53,7 @@ describe('fitxaAFormulari', () => {
       titolLocal: 'Delicatessen (Esp)',
       any: '1991',
       durada: '99',
+      edatMinima: '12',
       directors: 'Jean-Pierre Jeunet, Marc Caro',
       guionistes: 'Gilles Adrien',
       fotografia: 'Darius Khondji',
@@ -76,23 +79,33 @@ describe('formulariAFitxa', () => {
   const ok = { ...formBuit, titol: 'Títol' };
   it('converteix tots els camps', () => {
     const { valors, errors } = formulariAFitxa({
-      ...ok, titolLocal: ' Local ', any: '1991', durada: '99', directors: 'A, B,, ,B, C',
+      ...ok, titolLocal: ' Local ', any: '1991', durada: '99', edatMinima: '16', directors: 'A, B,, ,B, C',
       guionistes: 'G', fotografia: 'F1, F2', muntatge: 'M', musica: '', produccio: 'P1, P1, P2', paisos: 'França, França', idiomes: '', generes: 'Drama',
       repartiment: 'X (Y)\n\nZ', lema: 'Lema', sinopsi: 'Sin', trailerUrl: 'http://t', imatgeUrl: 'https://i',
     });
     expect(errors).toEqual({});
     expect(valors).toEqual({
-      titol: 'Títol', titolLocal: 'Local', any: 1991, durada: 99, directors: ['A', 'B', 'C'],
+      titol: 'Títol', titolLocal: 'Local', any: 1991, durada: 99, edatMinima: 16, directors: ['A', 'B', 'C'],
       guionistes: ['G'], fotografia: ['F1', 'F2'], muntatge: ['M'], musica: [], produccio: ['P1', 'P2'], paisos: ['França'], idiomes: [], generes: ['Drama'],
       repartiment: [{ nom: 'X', personatge: 'Y' }, { nom: 'Z', personatge: '' }],
       lema: 'Lema', sinopsi: 'Sin', trailerUrl: 'http://t', imatgeUrl: 'https://i',
     });
+  });
+  it('edatMinima: zero és vàlid, buit és null i el que no és enter ≥ 0 és un error', () => {
+    expect(formulariAFitxa({ ...ok, edatMinima: '0' })).toMatchObject({ valors: { edatMinima: 0 }, errors: {} });
+    const buida = formulariAFitxa({ ...ok, edatMinima: '  ' });
+    expect(buida.valors.edatMinima).toBeNull();
+    expect(buida.errors).toEqual({});
+    for (const v of ['-1', '12,5', 'doce', '1e1']) {
+      expect(formulariAFitxa({ ...ok, edatMinima: v }).errors.edatMinima).toBe("L'edat mínima ha de ser un nombre enter (0 = tots els públics).");
+    }
   });
   it('any i durada buits són null', () => {
     const { valors, errors } = formulariAFitxa(ok);
     expect(errors).toEqual({});
     expect(valors.any).toBeNull();
     expect(valors.durada).toBeNull();
+    expect(valors.edatMinima).toBeNull();
     expect(valors.trailerUrl).toBe('');
   });
   it('errors', () => {
