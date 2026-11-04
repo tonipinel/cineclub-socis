@@ -112,9 +112,9 @@ La taquilla no llegeix `socis` (DNI, contacte, pagaments, token del carnet): nom
 - Les funcions `default` (`regenerarPdfsFlyer`, `regenerarPdfsPerSessio`) necessiten el runtime Node ≥ 22.17 (`engines` de `@sparticuz/chromium`).
 - `npm --prefix web install` al checkout principal perquè hi hagi `qrcode` (el predeploy de la web ja fa `npm --prefix web ci`).
 - Variable d'entorn opcional `WEB_URL` (per defecte `https://cineclubrodadebera.cat`): la URL des d'on Chromium carrega la ruta d'impressió.
-- Els PDF es desen a Storage a `flyers/<id>/` (privat: cap regla de `storage.rules` el cobreix; només hi arriben la funció i `/flyer/<id>/flyer.pdf` amb l'Admin SDK).
+- Els PDF es desen a Storage a `flyers/<id>/` (privat: cap regla de `storage.rules` el cobreix; només hi escriu la funció amb l'Admin SDK). La web (el seu compte de servei no té `storage.objects.get`) llegeix cada PDF per la URL amb token de descàrrega desada a `pdfs.<variant>.url` (document només d'admin) i el serveix des de `/flyer/<id>/flyer.pdf` sense redirigir: el token no surt mai.
 - La URL d'impressió porta la `clauPrevia`, així que els registres de peticions de la web la contenen (només registres interns del projecte).
-- Puja `VERSIO_DISSENY` (`functions/flyers.js`) quan canviï el layout d'impressió, el CSS o `web/src/data/flyer.json`, perquè els PDF existents es regenerin en el proper canvi.
+- Puja `VERSIO_DISSENY` (`functions/flyers.js`) quan canviï el layout d'impressió, el CSS o `web/src/data/flyer.json`, perquè els PDF existents es regenerin en el proper canvi (la v2 afegeix el token: els PDF existents es regeneren en desar el flyer o una de les seves sessions).
 
 ### Tiquets genèrics i alternança de lots
 
