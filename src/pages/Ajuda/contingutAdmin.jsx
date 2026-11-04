@@ -198,8 +198,9 @@ const TASQUES = {
           <p>L'administració, en nom d'un soci:</p>
           <ol>
             <li>Ves a «Programació › Propostes» i toca «Nova proposta».</li>
-            <li>Tria el soci, escriu el títol i, si cal, un enllaç i un comentari, i toca «Crear proposta».</li>
-            <li>S'obre la fitxa de la proposta, en estat «Pendent».</li>
+            <li>Tria el soci, cerca la pel·lícula a TMDB, afegeix-hi un comentari si cal i toca «Crear proposta».</li>
+            <li>Si ja hi ha una proposta pendent o aprovada de la mateixa pel·lícula, no es crea.</li>
+            <li>S'obre la fitxa de la proposta, en estat «Pendent»; les dades de TMDB s'hi desen en uns segons (si encara no hi són, recarrega la pàgina).</li>
           </ol>
           <p>Per revisar-la:</p>
           <ol>

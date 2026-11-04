@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc, collection, getDocs, query, serverTimestamp, where,
+} from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import * as ROUTES from '../../constants/routes';
 import { etiquetaSoci } from '../../lib/socis';
-import { calcularNomPublic } from '../../lib/propostes';
+import { calcularNomPublic, esPropostaDuplicada, ESTATS_DUPLICAT } from '../../lib/propostes';
+import CercadorPellicula from '../../components/CercadorPellicula';
 import Carregant from '../../components/Carregant';
 import PaginaAdmin from '../../components/PaginaAdmin';
 import ErrorCarrega from '../../components/ErrorCarrega';
@@ -13,8 +16,7 @@ import useErrorCarrega from '../../lib/useErrorCarrega';
 export default function PropostesNova() {
   const [socis, setSocis] = useState(null);
   const [etiquetaTriada, setEtiquetaTriada] = useState('');
-  const [titol, setTitol] = useState('');
-  const [enllac, setEnllac] = useState('');
+  const [pellicula, setPellicula] = useState(null);
   const [comentari, setComentari] = useState('');
   const [error, setError] = useState(null);
   const [desant, setDesant] = useState(false);
@@ -49,13 +51,21 @@ export default function PropostesNova() {
       setError('Selecciona un soci vàlid de la llista.');
       return;
     }
-    if (!titol.trim()) return;
+    if (!pellicula) return;
     setError(null);
     setDesant(true);
+    // Mateixa forma que les propostes de la web pública: amb el tmdbId, el trigger `desarFitxaNovaProposta` omple
+    // la fitxa. L'admin no té els límits diaris dels socis, però tampoc pot duplicar una proposta oberta.
+    const proposta = { titol: pellicula.titol, any: pellicula.any, tmdbId: pellicula.tmdbId };
     try {
+      const obertes = await getDocs(query(collection(db, 'propostes'), where('estat', 'in', ESTATS_DUPLICAT)));
+      if (obertes.docs.some((d) => esPropostaDuplicada(d.data(), proposta))) {
+        setDesant(false);
+        setError('Aquesta pel·lícula ja està proposada.');
+        return;
+      }
       const creada = await addDoc(collection(db, 'propostes'), {
-        titol: titol.trim(),
-        enllac: enllac.trim(),
+        ...proposta,
         comentari: comentari.trim(),
         numeroSoci: sociTriat.numeroSoci,
         nomProposant: calcularNomPublic(sociTriat),
@@ -93,22 +103,22 @@ export default function PropostesNova() {
       </div>
 
       <div className="form__field">
-        <label className="form__label" htmlFor="titol">Títol</label>
-        <input id="titol" className="form__input" value={titol} onChange={(e) => setTitol(e.target.value)} required />
-      </div>
-
-      <div className="form__field">
-        <label className="form__label" htmlFor="enllac">Enllaç (opcional)</label>
-        <input id="enllac" className="form__input" value={enllac} onChange={(e) => setEnllac(e.target.value)} />
+        <CercadorPellicula onTriar={(triada) => { setError(null); setPellicula(triada); }} />
       </div>
 
       <div className="form__field">
         <label className="form__label" htmlFor="comentari">Comentari (opcional)</label>
-        <input id="comentari" className="form__input" value={comentari} onChange={(e) => setComentari(e.target.value)} />
+        <textarea
+          id="comentari" className="form__input" rows={3} maxLength={1000} aria-describedby="comentari-ajuda"
+          value={comentari} onChange={(e) => setComentari(e.target.value)}
+        />
+        <p id="comentari-ajuda" className="form__ajuda">Màxim 1000 caràcters.</p>
       </div>
 
-      {error && <p className="form__error">{error}</p>}
-      <button className="btn" type="submit" disabled={desant}>Crear proposta</button>
+      {error && <p className="form__error" role="alert">{error}</p>}
+      <button className="btn" type="submit" disabled={desant || !etiquetaTriada.trim() || !pellicula}>
+        {desant ? 'Creant…' : 'Crear proposta'}
+      </button>
     </PaginaAdmin>
   );
 }

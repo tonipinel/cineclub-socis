@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic,
+  calcularNomPublic, NOM_ORGANITZACIO, sincronitzarSociPublic, esborrarSociPublic, esPropostaDuplicada,
 } from './propostes';
 
 vi.mock('firebase/firestore', () => ({
@@ -77,5 +77,18 @@ describe('esborrarSociPublic', () => {
     const batch = { set: vi.fn(), delete: vi.fn() };
     esborrarSociPublic(batch, db, undefined);
     expect(batch.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('esPropostaDuplicada', () => {
+  it('si totes dues tenen tmdbId, només compta el tmdbId', () => {
+    expect(esPropostaDuplicada({ titol: 'Dune', tmdbId: 438631 }, { titol: 'Dune', tmdbId: 438631 })).toBe(true);
+    expect(esPropostaDuplicada({ titol: 'Dune', tmdbId: 841 }, { titol: 'Dune', tmdbId: 438631 })).toBe(false);
+  });
+
+  it('si l\'existent no té tmdbId, compara el títol (o el títol local) normalitzat', () => {
+    expect(esPropostaDuplicada({ titol: 'AMÉLIE!' }, { titol: 'Amelie', tmdbId: 194 })).toBe(true);
+    expect(esPropostaDuplicada({ titol: 'Le fabuleux destin', titolLocal: 'Amélie' }, { titol: 'amelie', tmdbId: 194 })).toBe(true);
+    expect(esPropostaDuplicada({ titol: 'Delicatessen' }, { titol: 'Amélie', tmdbId: 194 })).toBe(false);
   });
 });

@@ -26,3 +26,17 @@ export function esborrarSociPublic(batch, db, tokenCarnet) {
   if (!tokenCarnet) return;
   batch.delete(doc(db, 'socisPublic', String(tokenCarnet)));
 }
+
+// Una proposta oberta amb aquests estats bloqueja una altra de la mateixa pel·lícula (com `crearProposta`).
+export const ESTATS_DUPLICAT = ['pendent', 'aprovada'];
+
+const normalitzarTitol = (titol) => String(titol ?? '')
+  .normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+// Mateix criteri que `esDuplicada` de functions/proposta.js: si totes dues tenen tmdbId només compta aquest; si no,
+// es compara el títol normalitzat amb el títol i el títol local de l'existent.
+export function esPropostaDuplicada(existent, proposta) {
+  if (proposta.tmdbId != null && existent.tmdbId != null) return existent.tmdbId === proposta.tmdbId;
+  const titol = normalitzarTitol(proposta.titol);
+  return [existent.titol, existent.titolLocal].some((t) => t && normalitzarTitol(t) === titol);
+}
