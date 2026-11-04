@@ -528,7 +528,7 @@ const FLYERS = {
           <li>Toca «Nou flyer» i escriu el nom.</li>
           <li>Tria «Des de» i «Fins a»: es marquen les sessions del rang, publicades o no (així pots preparar el flyer abans que es publiquin).</li>
           <li>
-            Desmarca els films que no hi han d'anar: n'hi ha d'haver entre 3 i 6. Amb menys de 3 films, o si algun no té
+            Desmarca els films que no hi han d'anar: n'hi ha d'haver entre 3 i 5. Amb menys de 3 films, o si algun no té
             «versió» (VOSE, VO…), no es pot publicar; amb més de 6 només surt un avís.
           </li>
           <li>
