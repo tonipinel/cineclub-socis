@@ -56,7 +56,10 @@ body.propostes-immersiu-body .propostes-intro {
   overflow-wrap: anywhere;
 }
 .tanda-publica__text {
-  @apply m-0 max-w-xl px-4 text-center font-body text-base text-black/70;
+  @apply m-0 max-w-xl px-4 md:max-w-3xl text-center font-body text-base text-black/70;
+}
+.tanda-publica__socia {
+  @apply uppercase tracking-wide;
 }
 .tanda-publica__votar {
   @apply mt-2 min-h-12 px-8 text-lg uppercase tracking-wide shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold-dark;
@@ -87,6 +90,34 @@ body.propostes-immersiu-body .propostes-intro {
 }
 .cartell-tanda__titol {
   @apply line-clamp-2 font-body text-sm text-black/70;
+}
+/* Última tanda tancada: graella de pel·lícules amb el seu nivell d'acceptació, sense ordre de classificació. */
+.acceptacio-tanda {
+  @apply m-0 mt-4 grid w-full max-w-5xl list-none grid-cols-2 gap-x-4 gap-y-6 p-0 px-4 sm:grid-cols-4;
+}
+.acceptacio-tanda__pelicula {
+  @apply flex min-w-0 flex-col gap-2 text-center;
+}
+.acceptacio-tanda__cartell {
+  @apply aspect-[2/3] w-full rounded-lg bg-black/5 object-cover shadow-md;
+}
+.acceptacio-tanda__titol {
+  @apply line-clamp-2 font-body text-sm text-black/70;
+}
+.acceptacio-tanda__consens {
+  @apply flex items-center gap-2;
+}
+.acceptacio-tanda__percentatge {
+  @apply shrink-0 font-display text-lg font-bold text-gold-dark;
+}
+.acceptacio-tanda__barra {
+  @apply h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/10;
+}
+.acceptacio-tanda__barra-ple {
+  @apply h-full rounded-full bg-green-600;
+}
+.acceptacio-tanda__poc {
+  @apply font-body text-sm italic text-black/50;
 }
 /* Marcador del cartell quan la proposta no té imatge (graella, fitxa pública i resum del vot). */
 .proposta-carta__cartell-placeholder {

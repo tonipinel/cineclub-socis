@@ -97,7 +97,7 @@ function LectorModal({ text, onCancel, onIdentificat }) {
   );
 }
 
-export default function PropostesPublic() {
+export default function PropostesPublic({ beneficis = [], iconaSocia = '' }) {
   const { identitat, setIdentitat } = useIdentitatPublica();
   const token = identitat?.token;
   const {
@@ -174,8 +174,6 @@ export default function PropostesPublic() {
     : [];
   // El visitant pot votar la tanda (botó del bloc i peu del detall) si té propostes per votar.
   const potVotarTanda = !identitat && propostesTanda.length > 0;
-  // Els vots del soci només es passen al rànquing si són d'aquesta mateixa tanda.
-  const valorsUltimaTanda = ultimaTanda && estat?.dades?.tanda?.id === ultimaTanda.id ? estat.dades.valors : undefined;
 
   // Obrir des de la llista afegeix una entrada a l'historial (URL compartible; Enrere tanca el detall),
   // marcada a `history.state` perquè en tancar se'n pugui tornar enrere en lloc d'afegir-ne una altra.
@@ -274,7 +272,7 @@ export default function PropostesPublic() {
               )}
             </section>
           ) : ultimaTanda ? (
-            <UltimaTanda tanda={ultimaTanda} propostesPerId={propostesPerId} valors={valorsUltimaTanda} />
+            <UltimaTanda tanda={ultimaTanda} propostesPerId={propostesPerId} beneficis={beneficis} iconaSocia={iconaSocia} />
           ) : (
             <p className="propostes-public__buit">Encara no hi ha cap tanda de pel·lícules.</p>
           )

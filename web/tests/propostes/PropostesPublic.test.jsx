@@ -233,12 +233,15 @@ describe('PropostesPublic', () => {
       expect(votar).not.toHaveBeenCalled();
     });
 
-    it('sense tanda activa, mostra l\'última tancada amb l\'aclariment i el rànquing públic carregat sol, sense vot', async () => {
+    it('sense tanda activa, mostra l\'última tancada amb l\'aclariment i l\'acceptació de cada pel·lícula, sense vot', async () => {
       mockFirestore({ tanda: { id: 't1', nom: 'Tanda d\'estiu', tanca: new Date(2020, 2, 10, 21, 0), propostes: ['p1', 'p3'] } });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda de pel·lícules: Tanda d\'estiu' })).toBeInTheDocument();
-      expect(screen.getByText('Aquesta va ser l\'última tanda de pel·lícules; va tancar el 10/03/2020.')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' })).toBeInTheDocument();
+      expect(screen.getByText(/va tancar el 10\/03\/2020\./)).toBeInTheDocument();
       expect(await screen.findByText('90 %')).toBeInTheDocument();
+      expect(screen.getByText(/Vols participar en la programació del Cineclub\?$/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'Fes-te sòcia/soci!' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Fes-te sòcia/soci' })).toHaveAttribute('href', '/fes-te-socia/');
       expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
       expect(carregarRanking).not.toHaveBeenCalled();
       expect(carregarEstat).not.toHaveBeenCalled();
@@ -249,41 +252,61 @@ describe('PropostesPublic', () => {
       expect(screen.queryByText(/Els teus vots només els veu la junta/)).not.toBeInTheDocument();
     });
 
-    it('el rànquing públic només mostra posició, títol i percentatge (ni qui va votar, ni recomptes, ni qui l\'ha proposada)', async () => {
+    it('l\'acceptació va en graella i per ordre alfabètic, sense posicions, ni recomptes, ni qui va votar o proposar', async () => {
       mockFirestore({ tanda: { id: 't1', tanca: PASSAT, propostes: ['p1', 'p3'] } });
       renderPagina();
       await screen.findByText('90 %');
       const files = screen.getAllByRole('listitem');
-      // Sense cartell, la fila porta el marcador 🎬 (aria-hidden); la resta és posició, títol i percentatge.
-      expect(files.map((f) => f.textContent)).toEqual(['🎬1Stalker90 %', '🎬2Amélie10 %']);
+      // Amélie (10 %) abans que Stalker (90 %): l'ordre és alfabètic, no de classificació. Sense cartell, el marcador
+      // repeteix el títol.
+      expect(files.map((f) => f.textContent)).toEqual(['AmélieAmélie10 %', 'StalkerStalker90 %']);
       expect(screen.queryByText(/Anna M\./)).not.toBeInTheDocument();
       expect(screen.queryByText(/Proposada per/)).not.toBeInTheDocument();
       expect(screen.queryByText(/El teu vot/)).not.toBeInTheDocument();
       expect(screen.queryByText(/Gràcies per participar/)).not.toBeInTheDocument();
     });
 
-    it('mentre es carrega el rànquing mostra «Carregant…» dins una regió role="status"', async () => {
+    it('el bloc «Fes-te sòcia/soci» porta els beneficis i la icona de la portada', async () => {
+      mockFirestore({ tanda: tandaFirestore(PASSAT) });
+      const { container } = render(
+        <IdentitatPublicaProvider>
+          <PropostesPublic beneficis={['Un mínim de 12 projeccions anuals', 'Participació en votacions']} iconaSocia="/icona.png" />
+        </IdentitatPublicaProvider>
+      );
+      const bloc = (await screen.findByRole('heading', { level: 2, name: 'Fes-te sòcia/soci!' })).closest('section');
+      expect(within(bloc).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Un mínim de 12 projeccions anuals', 'Participació en votacions']);
+      expect(container.querySelector('.membership-teaser__icon')).toHaveAttribute('src', '/icona.png');
+    });
+
+    it('mentre es carrega l\'acceptació mostra «Carregant…» dins una regió role="status"', async () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       let resol;
       carregarRankingPublic.mockReturnValue(new Promise((r) => { resol = r; }));
       renderPagina();
-      await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / });
+      await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' });
       expect(within(screen.getByRole('status')).getByRole('img', { name: 'Carregant…' })).toBeInTheDocument();
       await act(async () => { resol({ files: [{ propostaId: 'p1', percentatge: 50 }] }); });
       expect(await screen.findByText('50 %')).toBeInTheDocument();
       expect(screen.queryByRole('img', { name: 'Carregant…' })).not.toBeInTheDocument();
     });
 
-    it('si el rànquing públic falla, ho diu i «Tornar-ho a provar» el torna a demanar', async () => {
+    it('amb pocs vots ho diu en lloc del percentatge', async () => {
+      mockFirestore({ tanda: tandaFirestore(PASSAT) });
+      carregarRankingPublic.mockResolvedValue({ files: [{ propostaId: 'p1', percentatge: null }, { propostaId: 'p3', percentatge: 90 }] });
+      renderPagina();
+      expect(await screen.findByText('Pocs vots')).toBeInTheDocument();
+      expect(screen.getByText('90 %')).toBeInTheDocument();
+    });
+
+    it('si l\'acceptació falla, ho diu i «Tornar-ho a provar» ho torna a demanar', async () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       carregarRankingPublic.mockRejectedValueOnce(errorCallable('internal'));
       const user = userEvent.setup();
       renderPagina();
-      expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el rànquing.");
+      expect(await screen.findByRole('alert')).toHaveTextContent("No s'ha pogut carregar el nivell d'acceptació.");
       await user.click(screen.getByRole('button', { name: 'Tornar-ho a provar' }));
       expect(await screen.findByText('90 %')).toBeInTheDocument();
       expect(carregarRankingPublic).toHaveBeenCalledTimes(2);
-      expect(screen.queryByText("No s'ha pogut carregar el rànquing.")).not.toBeInTheDocument();
     });
 
     it('amb dues tandes tancades tria la de tancament més recent', async () => {
@@ -294,7 +317,7 @@ describe('PropostesPublic', () => {
         ],
       });
       renderPagina();
-      expect(await screen.findByRole('heading', { level: 2, name: 'Última tanda de pel·lícules: Recent' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' })).toBeInTheDocument();
       await waitFor(() => expect(carregarRankingPublic).toHaveBeenCalledWith('recent'));
       expect(carregarRankingPublic).toHaveBeenCalledTimes(1);
     });
@@ -360,39 +383,17 @@ describe('PropostesPublic', () => {
       expect(await screen.findByText(SENSE_TANDA)).toBeInTheDocument();
     });
 
-    it('identificat amb una tanda tancada: el rànquing públic es mostra sol, sense haver votat tot', async () => {
-      mockFirestore({ tanda: tandaFirestore(PASSAT) });
-      carregarEstat.mockResolvedValue(estatTancat());
-      renderPaginaPreIdentificat();
-      expect(await screen.findByText('90 %')).toBeInTheDocument();
-      expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
-      expect(carregarRanking).not.toHaveBeenCalled();
-      expect(within(screen.getAllByRole('listitem')[0]).getByText('Stalker')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
-      expect(screen.queryByText(/Ja no pots canviar/)).not.toBeInTheDocument();
-      // Sense vots del soci en aquella tanda: ni polzes ni agraïment.
-      expect(screen.queryByText(/El teu vot: /)).not.toBeInTheDocument();
-      expect(screen.queryByText(/Gràcies per participar/)).not.toBeInTheDocument();
-    });
-
-    it('el rànquing d\'una tanda tancada mostra el vot del soci identificat a cada fila (només els seus) i un agraïment final', async () => {
+    it('identificat amb una tanda tancada: mostra l\'acceptació però no els seus vots', async () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       carregarEstat.mockResolvedValue({ ...estatTancat(), valors: { p3: 'dislike', p1: 'like' } });
       renderPaginaPreIdentificat();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' })).toBeInTheDocument();
       expect(await screen.findByText('90 %')).toBeInTheDocument();
-      const files = screen.getAllByRole('listitem');
-      expect(within(files[0]).getByText("El teu vot: no m'agrada")).toBeInTheDocument();
-      expect(within(files[1]).getByText("El teu vot: m'agrada")).toBeInTheDocument();
-      expect(screen.getAllByText(/El teu vot: /)).toHaveLength(2);
-      expect(screen.getByText('Gràcies per participar! Aquest és el resultat final de la tanda de pel·lícules.')).toBeInTheDocument();
-    });
-
-    it('els vots del soci d\'una altra tanda no es mostren al rànquing de l\'última', async () => {
-      mockFirestore({ tanda: tandaFirestore(PASSAT) });
-      carregarEstat.mockResolvedValue({ ...estatTancat(), tanda: { ...estatTancat().tanda, id: 'una-altra' }, valors: { p3: 'like' } });
-      renderPaginaPreIdentificat();
-      expect(await screen.findByText('90 %')).toBeInTheDocument();
+      expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
+      expect(carregarRanking).not.toHaveBeenCalled();
       expect(screen.queryByText(/El teu vot: /)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /m'agrada/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Gràcies per participar/)).not.toBeInTheDocument();
     });
 
     it('carrega les propostes aprovades i programades, però només mostra les de la tanda', async () => {
@@ -405,18 +406,6 @@ describe('PropostesPublic', () => {
       expect(where).toHaveBeenCalledWith('estat', 'in', ['aprovada', 'programada']);
       expect(screen.queryByText('Ja programada')).not.toBeInTheDocument();
       expect(screen.queryByText('Fora de tanda')).not.toBeInTheDocument();
-    });
-
-    it('el rànquing d\'una tanda tancada resol el títol d\'una proposta que la junta ha programat després', async () => {
-      mockFirestore({
-        propostes: [...APROVADES, { id: 'p5', dades: { titol: 'Ja programada', estat: 'programada', numeroSoci: 5 } }],
-        tanda: { id: 't1', tanca: PASSAT, propostes: ['p1', 'p5'] },
-      });
-      carregarRankingPublic.mockResolvedValue({ files: [{ propostaId: 'p5', percentatge: 90 }, { propostaId: 'p1', percentatge: 10 }] });
-      renderPagina();
-      expect(await screen.findByText('90 %')).toBeInTheDocument();
-      expect(within(screen.getAllByRole('listitem')[0]).getByText('Ja programada')).toBeInTheDocument();
-      expect(screen.queryByText('Proposta retirada')).not.toBeInTheDocument();
     });
 
     it('identificat sense cap tanda: ni rànquing ni vot, només el missatge', async () => {
@@ -1085,7 +1074,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       carregarEstat.mockResolvedValue(estatTancat());
       renderPaginaPreIdentificat();
-      await screen.findByText('90 %');
+      await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' });
       const c = hiHaCapcalera();
       expect(c.introAmagada).toBe(false);
       expect(c.proposar).toBeInTheDocument();
@@ -1201,7 +1190,7 @@ describe('PropostesPublic', () => {
       expect(screen.queryByText('Aquest carnet no és vàlid. Torna a escanejar-lo.')).not.toBeInTheDocument();
     });
 
-    it('si la tanda s\'ha tancat mentre es votava, mostra el missatge, torna a carregar l\'estat i la tanda i en mostra el rànquing', async () => {
+    it('si la tanda s\'ha tancat mentre es votava, mostra el missatge, torna a carregar l\'estat i la tanda i mostra l\'acceptació de l\'última tanda', async () => {
       carregarEstat.mockResolvedValueOnce(estatObert()).mockResolvedValue(estatTancat());
       votar.mockRejectedValueOnce(errorCallable('failed-precondition'));
       const user = userEvent.setup();
@@ -1210,7 +1199,7 @@ describe('PropostesPublic', () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       await user.click(screen.getByRole('button', { name: "M'agrada" }));
       expect(await screen.findByText(/tancada o els teus vots ja estan bloquejats/)).toBeInTheDocument();
-      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' })).toBeInTheDocument();
       expect(await screen.findByText('90 %')).toBeInTheDocument();
       expect(carregarRankingPublic).toHaveBeenCalledWith('t1');
       expect(carregarEstat).toHaveBeenCalledTimes(2);
@@ -1251,19 +1240,9 @@ describe('PropostesPublic', () => {
       const confirmar = await screen.findByRole('button', { name: 'Confirmar i veure el rànquing' });
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       await user.click(confirmar);
-      expect(await screen.findByRole('heading', { level: 2, name: /^Última tanda de pel·lícules: / })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' })).toBeInTheDocument();
       expect(carregarEstat).toHaveBeenCalledTimes(2);
       expect(screen.getByText(/tancada o els teus vots ja estan bloquejats/)).toBeInTheDocument();
-    });
-
-    it('un error en el rànquing d\'una tanda tancada (soci identificat) mostra el missatge amb el reintent', async () => {
-      mockFirestore({ tanda: tandaFirestore(PASSAT) });
-      carregarEstat.mockResolvedValue(estatTancat());
-      carregarRankingPublic.mockRejectedValueOnce(errorCallable('not-found'));
-      renderPaginaPreIdentificat();
-      expect(await screen.findByText("No s'ha pogut carregar el rànquing.")).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Tornar-ho a provar' })).toBeInTheDocument();
-      expect(carregarRanking).not.toHaveBeenCalled();
     });
   });
 
@@ -1281,11 +1260,11 @@ describe('PropostesPublic', () => {
       expect(document.querySelector('.votacio__identitat')).toBeNull();
     });
 
-    it('amb el rànquing d\'una tanda tancada també hi és, i només una via de sortida', async () => {
+    it('amb una tanda tancada també hi és, i només una via de sortida', async () => {
       mockFirestore({ tanda: tandaFirestore(PASSAT) });
       carregarEstat.mockResolvedValue(estatTancat());
       renderPaginaPreIdentificat();
-      await screen.findByText('90 %');
+      await screen.findByRole('heading', { level: 2, name: 'Últimes pel·lícules valorades per les persones sòcies' });
       expect(document.querySelector('.votacio__identitat')).toHaveTextContent('Identificat com: Isabel M.');
       expect(screen.getAllByRole('button', { name: /^Sortir/ })).toHaveLength(1);
     });

@@ -51,7 +51,7 @@ describe('/propostes/', () => {
 
   it('munta l\'illa de React només al client, dins <div class="propostes-app"> (els estils de .btn en depenen)', async () => {
     const { html } = await renderitza('/propostes/');
-    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaPropostes[^"]*"[^>]*client="only"[^>]*>[\s\S]*?<\/astro-island><\/div><\/main>/);
+    expect(html).toMatch(/<div class="propostes-app">[\s\S]*<astro-island [^>]*component-url="[^"]*IllaPropostes[^"]*"[^>]*client="only"[^>]*>[\s\S]*?<\/astro-island><\/div><div id="propostes-participa"><\/div><\/main>/);
     expect(html).toMatch(/renderer-url="[^"]+"/);
   });
 
