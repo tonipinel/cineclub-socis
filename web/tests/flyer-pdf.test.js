@@ -9,7 +9,7 @@ const { GET } = await import('../src/pages/flyer/[id]/flyer.pdf.js');
 
 const PDF = Buffer.from('%PDF-1.4 simple');
 const PDF_IMPREMTA = Buffer.from('%PDF-1.4 impremta');
-const PDFS = { simple: { path: 'web/flyers/f1/flyer-simple.pdf' }, impremta: { path: 'web/flyers/f1/flyer-impremta.pdf' } };
+const PDFS = { simple: { path: 'flyers/f1/flyer-simple.pdf' }, impremta: { path: 'flyers/f1/flyer-impremta.pdf' } };
 
 let file;
 const ambFlyer = (dades) => getDbMock.mockReturnValue({

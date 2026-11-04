@@ -275,6 +275,118 @@ describe('FlyerForm', () => {
       expect(await screen.findByText("S'està actualitzant…")).toBeInTheDocument();
     });
 
+    it('amb generatEl i actualitzatEl com a Date (no Timestamp) mostra la data i compara bé', async () => {
+      const dates = (generatEl) => ({
+        simple: { path: 'a', firma: 'x', generatEl },
+        impremta: { path: 'b', firma: 'y', generatEl },
+      });
+      flyer = flyerExistent({ pdfs: dates(generat), actualitzatEl: new Date(2026, 10, 5, 19, 0) });
+      const { unmount } = renderExistent();
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      expect(screen.getAllByText(/generat el 05\/11\/2026 19:30/)).toHaveLength(2);
+      expect(screen.queryByText("S'està actualitzant…")).toBeNull();
+      unmount();
+      flyer = flyerExistent({ pdfs: dates(generat), actualitzatEl: new Date(2026, 10, 5, 20, 0) });
+      renderExistent();
+      expect(await screen.findByText("S'està actualitzant…")).toBeInTheDocument();
+    });
+
+    it('amb un generatEl que no és data (text invàlid, número) mostra «—» i no es trenca', async () => {
+      flyer = flyerExistent({
+        pdfs: { simple: { path: 'a', firma: 'x', generatEl: 'no és una data' }, impremta: { path: 'b', firma: 'y', generatEl: 42 } },
+        actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)),
+      });
+      renderExistent();
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      expect(screen.getAllByText(/generat el —/)).toHaveLength(2);
+    });
+
+    it('un generatEl en text ISO es llegeix com a data', async () => {
+      flyer = flyerExistent({
+        pdfs: { simple: { path: 'a', firma: 'x', generatEl: generat.toISOString() }, impremta: { path: 'b', firma: 'y', generatEl: generat.toISOString() } },
+      });
+      renderExistent();
+      expect(await screen.findAllByText(/generat el 05\/11\/2026 19:30/)).toHaveLength(2);
+    });
+
+    it('amb pdfsComprovatEl posterior al desat ja no mostra «S\'està actualitzant…»', async () => {
+      flyer = flyerExistent({
+        pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)), pdfsComprovatEl: ts(new Date(2026, 10, 5, 20, 1)),
+      });
+      renderExistent();
+      expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      expect(screen.queryByText("S'està actualitzant…")).toBeNull();
+    });
+
+    it('amb pdfsComprovatEl anterior al desat segueix mostrant «S\'està actualitzant…»', async () => {
+      flyer = flyerExistent({
+        pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)), pdfsComprovatEl: ts(new Date(2026, 10, 5, 19, 45)),
+      });
+      renderExistent();
+      expect(await screen.findByText("S'està actualitzant…")).toBeInTheDocument();
+    });
+
+    describe('error de generació', () => {
+      const MISSATGE = "No s'han pogut generar els PDF. Desa el flyer una altra vegada o avisa l'administració del web.";
+      const error = (data) => ({ data, missatge: 'No s\'han pogut generar els PDF' });
+
+      it('sense PDF i amb pdfsError mostra l\'error en lloc de «PDF en preparació…»', async () => {
+        flyer = flyerExistent({ actualitzatEl: ts(new Date(2026, 10, 5, 19, 0)), pdfsError: error(ts(new Date(2026, 10, 5, 19, 1))) });
+        renderExistent();
+        expect(await screen.findByText(MISSATGE)).toBeInTheDocument();
+        expect(screen.queryByText('PDF en preparació…')).toBeNull();
+      });
+
+      it('amb pdfsError com a Date també', async () => {
+        flyer = flyerExistent({ pdfsError: error(new Date(2026, 10, 5, 19, 1)) });
+        renderExistent();
+        expect(await screen.findByText(MISSATGE)).toBeInTheDocument();
+      });
+
+      it('un error anterior al darrer desat s\'ignora: s\'està tornant a provar', async () => {
+        flyer = flyerExistent({ actualitzatEl: ts(new Date(2026, 10, 5, 19, 5)), pdfsError: error(ts(new Date(2026, 10, 5, 19, 1))) });
+        renderExistent();
+        expect(await screen.findByText('PDF en preparació…')).toBeInTheDocument();
+        expect(screen.queryByText(MISSATGE)).toBeNull();
+      });
+
+      it('amb PDF vells i un error del darrer desat mostra l\'error en lloc de «S\'està actualitzant…»', async () => {
+        flyer = flyerExistent({
+          pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)), pdfsError: error(ts(new Date(2026, 10, 5, 20, 1))),
+        });
+        renderExistent();
+        expect(await screen.findByText(MISSATGE)).toBeInTheDocument();
+        expect(screen.queryByText("S'està actualitzant…")).toBeNull();
+        expect(screen.getByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+      });
+
+      it('amb PDF vells i un error anterior al darrer desat (reintent) mostra «S\'està actualitzant…»', async () => {
+        flyer = flyerExistent({
+          pdfs: pdfs(), actualitzatEl: ts(new Date(2026, 10, 5, 20, 0)), pdfsError: error(ts(new Date(2026, 10, 5, 19, 45))),
+        });
+        renderExistent();
+        expect(await screen.findByText("S'està actualitzant…")).toBeInTheDocument();
+        expect(screen.queryByText(MISSATGE)).toBeNull();
+      });
+
+      it('si els PDF ja són preparats no mostra l\'error', async () => {
+        flyer = flyerExistent({ pdfs: pdfs(), pdfsError: error(ts(new Date(2026, 10, 5, 20, 0))) });
+        renderExistent();
+        expect(await screen.findByRole('link', { name: 'PDF simple' })).toBeInTheDocument();
+        expect(screen.queryByText(MISSATGE)).toBeNull();
+      });
+
+      it('l\'error arriba en viu pel snapshot', async () => {
+        flyer = flyerExistent();
+        let alSnapshot;
+        onSnapshot.mockImplementationOnce((_ref, cb) => { alSnapshot = cb; return () => {}; });
+        renderExistent();
+        expect(await screen.findByText('PDF en preparació…')).toBeInTheDocument();
+        act(() => alSnapshot({ data: () => ({ ...flyerExistent(), pdfsError: error(new Date()) }) }));
+        expect(await screen.findByText(MISSATGE)).toBeInTheDocument();
+      });
+    });
+
     it('l\'actualització en viu dels pdfs no trepitja les edicions sense desar', async () => {
       flyer = flyerExistent();
       let alSnapshot;

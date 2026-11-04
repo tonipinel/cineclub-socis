@@ -61,6 +61,29 @@ describe('/programacio/: bloc de difusió', () => {
     expect(bloc).toBeLessThan(html.indexOf('calendar-wrapper'));
   });
 
+  it('un flyer amb fins en el passat no es promociona', async () => {
+    flyers = [{ id: 'vell', nom: 'Flyer vell', estat: 'publicat', publicatEl: ts(1000), fins: '2020-01-31' }];
+    const html = await demana();
+    expect(html).not.toContain('difusio');
+    expect(html).not.toContain('/flyer/vell/');
+    expect(html).toContain('calendar-wrapper');
+  });
+
+  it('un flyer que acaba avui (Madrid) encara es promociona; ahir ja no', async () => {
+    const avui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    const ahir = new Date(Date.parse(`${avui}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+    flyers = [{ id: 'avui', nom: 'Flyer avui', estat: 'publicat', publicatEl: ts(1000), fins: avui }];
+    expect(await demana()).toContain('href="/flyer/avui/flyer.pdf"');
+    flyers = [{ id: 'ahir', nom: 'Flyer ahir', estat: 'publicat', publicatEl: ts(1000), fins: ahir }];
+    expect(await demana()).not.toContain('difusio');
+  });
+
+  it('l\'id del flyer es codifica als enllaços', async () => {
+    flyers = [{ id: 'a b/c', nom: 'X', estat: 'publicat', publicatEl: ts(1000), fins: '2099-01-01' }];
+    const html = await demana();
+    expect(html).toContain('href="/flyer/a%20b%2Fc/flyer.pdf"');
+  });
+
   it('sense cap flyer publicat no es pinta res', async () => {
     flyers = [{ id: 'esb', nom: 'Esborrany', estat: 'esborrany' }];
     const html = await demana();

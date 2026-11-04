@@ -18,6 +18,7 @@ import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
 import { VERSIONS } from '../Sessions/camps';
 
+const MISSATGE_ERROR_PDF = "No s'han pogut generar els PDF. Desa el flyer una altra vegada o avisa l'administració del web.";
 const ERROR_CARREGA = "No s'ha pogut carregar el flyer.";
 const ETIQUETES = { nom: 'Nom', desde: 'Des de', fins: 'Fins a' };
 const CAMPS = Object.keys(ETIQUETES);
@@ -66,15 +67,35 @@ const enllacos = (id, clauPrevia, publicat) => {
   };
 };
 
-const enMillis = (valor) => (typeof valor?.toDate === 'function' ? valor.toDate() : valor)?.getTime?.();
+// Timestamp de Firestore, Date o text de data; qualsevol altra cosa (o una data invàlida) és `undefined`.
+const aDate = (valor) => {
+  const data = typeof valor?.toDate === 'function' ? valor.toDate() : valor;
+  const d = typeof data === 'string' ? new Date(data) : data;
+  return d instanceof Date && !Number.isNaN(d.getTime()) ? d : undefined;
+};
+const enMillis = (valor) => aDate(valor)?.getTime();
+const dataHoraSegura = (valor) => {
+  const d = aDate(valor);
+  return d ? formatDataHora(d) : '—';
+};
 
-// Els dos PDF han d'existir per mostrar-los; si algun és anterior al darrer desat, la funció els està regenerant.
-const estatPdfs = ({ pdfs, actualitzatEl }) => {
+// Els dos PDF han d'existir per mostrar-los. La funció els està regenerant si el darrer desat és posterior a l'última
+// generació o comprovació (`pdfsComprovatEl`: la funció la escriu quan un desat no canvia res del que s'imprimeix).
+const estatPdfs = ({ pdfs, actualitzatEl, pdfsComprovatEl }) => {
   if (!pdfs?.simple || !pdfs?.impremta) return { preparats: false, desactualitzat: false };
   const desat = enMillis(actualitzatEl);
+  const comprovat = enMillis(pdfsComprovatEl) ?? -Infinity;
   const desactualitzat = desat != null
-    && [pdfs.simple, pdfs.impremta].some((p) => enMillis(p.generatEl) < desat);
+    && [pdfs.simple, pdfs.impremta].some((p) => Math.max(enMillis(p.generatEl) ?? -Infinity, comprovat) < desat);
   return { preparats: true, desactualitzat };
+};
+
+// L'error només val si és del darrer desat: un desat posterior ja ho està tornant a provar.
+const hiHaErrorPdfs = ({ pdfsError, actualitzatEl }) => {
+  if (!pdfsError) return false;
+  const desat = enMillis(actualitzatEl);
+  const error = enMillis(pdfsError.data);
+  return desat == null || error == null || error >= desat;
 };
 
 const idError = (camp) => `${camp}-error`;
@@ -144,7 +165,9 @@ function FitxaFlyer({ id, carregada }) {
   const [errorAccio, setErrorAccio] = useState(null);
   const [copiat, setCopiat] = useState(false);
   // Només els PDF són en viu: la funció els escriu mentre l'admin espera; la resta del formulari no es toca.
-  const [vivaPdfs, setVivaPdfs] = useState(() => ({ pdfs: flyer?.pdfs, actualitzatEl: flyer?.actualitzatEl }));
+  const [vivaPdfs, setVivaPdfs] = useState(() => ({
+    pdfs: flyer?.pdfs, actualitzatEl: flyer?.actualitzatEl, pdfsComprovatEl: flyer?.pdfsComprovatEl, pdfsError: flyer?.pdfsError,
+  }));
   const [errorPdfs, setErrorPdfs] = useState(false);
   const navigate = useNavigate();
 
@@ -153,12 +176,17 @@ function FitxaFlyer({ id, carregada }) {
     return onSnapshot(doc(db, 'flyers', id), (snap) => {
       const dades = snap.data();
       setErrorPdfs(false);
-      if (dades) setVivaPdfs({ pdfs: dades.pdfs, actualitzatEl: dades.actualitzatEl });
+      if (dades) {
+        setVivaPdfs({
+          pdfs: dades.pdfs, actualitzatEl: dades.actualitzatEl, pdfsComprovatEl: dades.pdfsComprovatEl, pdfsError: dades.pdfsError,
+        });
+      }
     }, () => setErrorPdfs(true));
   }, [id]);
 
   const publicat = desat.estat === 'publicat';
   const { preparats: pdfsPreparats, desactualitzat: pdfsDesactualitzats } = estatPdfs(vivaPdfs);
+  const errorGeneracio = hiHaErrorPdfs(vivaPdfs);
 
   const escriu = async (v, { publica }) => {
     const ids = ordenaIds(v.sessionsIds, sessionsPerId);
@@ -388,15 +416,19 @@ function FitxaFlyer({ id, carregada }) {
               <ul className="flyer-form__enllacos">
                 <li>
                   <a className="enllac" href={links.pdfSimple} target="_blank" rel="noreferrer">PDF simple</a>
-                  {` generat el ${formatDataHora(vivaPdfs.pdfs.simple.generatEl)}`}
+                  {` generat el ${dataHoraSegura(vivaPdfs.pdfs.simple.generatEl)}`}
                 </li>
                 <li>
                   <a className="enllac" href={links.pdfImpremta} target="_blank" rel="noreferrer">PDF per a impremta</a>
-                  {` generat el ${formatDataHora(vivaPdfs.pdfs.impremta.generatEl)}`}
+                  {` generat el ${dataHoraSegura(vivaPdfs.pdfs.impremta.generatEl)}`}
                 </li>
               </ul>
-              {pdfsDesactualitzats && <p className="form__ajuda" role="status">S&apos;està actualitzant…</p>}
+              {pdfsDesactualitzats && (errorGeneracio ? (
+                <p className="form__error" role="status">{MISSATGE_ERROR_PDF}</p>
+              ) : <p className="form__ajuda" role="status">S&apos;està actualitzant…</p>)}
             </>
+          ) : errorGeneracio ? (
+            <p className="form__error" role="status">{MISSATGE_ERROR_PDF}</p>
           ) : (
             <p className="form__ajuda" role="status">PDF en preparació…</p>
           )}

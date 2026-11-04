@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import flyers from './flyers.js';
 
-const { firmaFlyer, calGenerar, regenerarFlyer, urlImpressio, gestionarFlyerEscrit, gestionarSessioEscrita } = flyers;
+const {
+  firmaFlyer, calGenerar, regenerarFlyer, urlImpressio, gestionarFlyerEscrit, gestionarSessioEscrita, VERSIO_DISSENY, camiPdf,
+} = flyers;
 
 const sessio = (id, extra = {}) => ({
   id, publicada: true, data: '2026-12-01', hora: '20:00',
@@ -41,16 +43,42 @@ describe('firmaFlyer', () => {
     expect(firmaFlyer(flyer, [{ ...sessions[0], slug: 'nou' }, sessions[1]])).not.toBe(base);
   });
 
+  it('canvia amb la versió del disseny', () => {
+    expect(firmaFlyer(flyer, sessions, VERSIO_DISSENY + 1)).not.toBe(firmaFlyer(flyer, sessions));
+    expect(firmaFlyer(flyer, sessions, VERSIO_DISSENY)).toBe(firmaFlyer(flyer, sessions));
+  });
+
   it('una sessió despublicada canvia la signatura', () => {
     const despublicades = [sessions[0], { ...sessions[1], publicada: false }];
     expect(firmaFlyer(flyer, despublicades)).not.toBe(firmaFlyer(flyer, sessions));
   });
 });
 
+describe('camiPdf', () => {
+  it('és fora de web/ (privat)', () => {
+    expect(camiPdf('f1', 'simple')).toBe('flyers/f1/flyer-simple.pdf');
+    expect(camiPdf('f1', 'impremta').startsWith('web/')).toBe(false);
+  });
+});
+
 describe('calGenerar', () => {
-  it('és false si només canvia pdfs o actualitzatEl', () => {
+  it('és false si només canvia pdfsComprovatEl o pdfsError', () => {
+    expect(calGenerar(flyer, { ...flyer, pdfsComprovatEl: new Date() })).toBe(false);
+    expect(calGenerar(flyer, { ...flyer, pdfsError: { data: new Date(), missatge: 'x' } })).toBe(false);
+    expect(calGenerar({ ...flyer, pdfsError: { missatge: 'x' } }, { ...flyer, pdfsError: null })).toBe(false);
+  });
+
+  it('és false si només canvia pdfs', () => {
     expect(calGenerar(flyer, { ...flyer, pdfs: { simple: { firma: 'x' } } })).toBe(false);
-    expect(calGenerar({ ...flyer, pdfs: { simple: { firma: 'x' } } }, { ...flyer, pdfs: { simple: { firma: 'y' } }, actualitzatEl: 1 })).toBe(false);
+    expect(calGenerar({ ...flyer, pdfs: { simple: { firma: 'x' } } }, { ...flyer, pdfs: { simple: { firma: 'y' } } })).toBe(false);
+  });
+
+  it('és true si només canvia actualitzatEl (Timestamp o Date), false si no canvia', () => {
+    const ts = (ms) => ({ toMillis: () => ms });
+    expect(calGenerar({ ...flyer, actualitzatEl: ts(1) }, { ...flyer, actualitzatEl: ts(2) })).toBe(true);
+    expect(calGenerar({ ...flyer, actualitzatEl: new Date(1) }, { ...flyer, actualitzatEl: new Date(2) })).toBe(true);
+    expect(calGenerar(flyer, { ...flyer, actualitzatEl: ts(2) })).toBe(true);
+    expect(calGenerar({ ...flyer, actualitzatEl: ts(2) }, { ...flyer, actualitzatEl: ts(2) })).toBe(false);
   });
 
   it('és true en crear-se o canviar qualsevol altre camp', () => {
@@ -78,6 +106,7 @@ function entorn({ flyerDades = flyer, sessionsDades = sessions } = {}) {
         update,
       }),
     }),
+    getAll: (...refs) => Promise.all(refs.map((r) => r.get())),
   };
   const bucket = { file: vi.fn(() => ({ save })) };
   const renderPdf = vi.fn().mockResolvedValue(Buffer.from('pdf'));
@@ -103,14 +132,96 @@ describe('regenerarFlyer', () => {
     expect(urls[0].origin + urls[0].pathname).toBe('https://web.test/flyer/f1/imprimir/');
     expect(urls[0].searchParams.get('clau')).toBe('secret');
     expect(urls[0].searchParams.get('t')).toBe('1000');
-    expect(e.bucket.file.mock.calls.map(([p]) => p)).toEqual(['web/flyers/f1/flyer-simple.pdf', 'web/flyers/f1/flyer-impremta.pdf']);
+    expect(e.bucket.file.mock.calls.map(([p]) => p)).toEqual(['flyers/f1/flyer-simple.pdf', 'flyers/f1/flyer-impremta.pdf']);
     expect(e.save).toHaveBeenCalledWith(Buffer.from('pdf'), expect.objectContaining({ contentType: 'application/pdf' }));
     const firma = firmaFlyer(flyer, sessions);
     expect(e.update).toHaveBeenCalledWith({
       pdfs: {
-        simple: expect.objectContaining({ path: 'web/flyers/f1/flyer-simple.pdf', firma }),
-        impremta: expect.objectContaining({ path: 'web/flyers/f1/flyer-impremta.pdf', firma }),
+        simple: expect.objectContaining({ path: 'flyers/f1/flyer-simple.pdf', firma }),
+        impremta: expect.objectContaining({ path: 'flyers/f1/flyer-impremta.pdf', firma }),
       },
+      pdfsError: null,
+    });
+  });
+
+  it('generatEl és un Date (la Admin SDK el desa com a Timestamp), no un text', async () => {
+    const e = entorn();
+    await regenerarFlyer({ id: 'f1', ...e, ara: () => 1000 });
+    const { pdfs } = e.update.mock.calls[0][0];
+    expect(pdfs.simple.generatEl).toBeInstanceOf(Date);
+    expect(pdfs.impremta.generatEl).toEqual(new Date(1000));
+  });
+
+  it('llegeix les sessions amb una sola getAll, en l\'ordre del flyer i saltant les inexistents', async () => {
+    const e = entorn({ flyerDades: { ...flyer, sessionsIds: ['b', 'zz', 'a'] } });
+    const getAll = vi.spyOn(e.db, 'getAll');
+    await regenerarFlyer({ id: 'f1', ...e });
+    expect(getAll).toHaveBeenCalledTimes(2); // una lectura abans de renderitzar i una després
+    expect(getAll.mock.calls[0]).toHaveLength(3);
+    expect(e.update.mock.calls[0][0].pdfs.simple.firma).toBe(firmaFlyer({ ...flyer, sessionsIds: ['b', 'zz', 'a'] }, [sessions[1], sessions[0]]));
+  });
+
+  it('un flyer sense sessions no crida getAll', async () => {
+    const e = entorn({ flyerDades: { ...flyer, sessionsIds: [] }, sessionsDades: [] });
+    const getAll = vi.spyOn(e.db, 'getAll');
+    await regenerarFlyer({ id: 'f1', ...e });
+    expect(getAll).not.toHaveBeenCalled();
+  });
+
+  describe('PDF vigents (mateixa signatura)', () => {
+    const ts = (ms) => ({ toMillis: () => ms });
+    const vigents = (extra) => {
+      const firma = firmaFlyer(flyer, sessions);
+      return entorn({
+        flyerDades: { ...flyer, pdfs: { simple: { firma, generatEl: ts(1000) }, impremta: { firma, generatEl: ts(1000) } }, ...extra },
+      });
+    };
+
+    it('si actualitzatEl és posterior a l\'última generació, escriu només pdfsComprovatEl', async () => {
+      const e = vigents({ actualitzatEl: ts(2000) });
+      await regenerarFlyer({ id: 'f1', ...e, ara: () => 3000 });
+      expect(e.renderPdf).not.toHaveBeenCalled();
+      expect(e.update).toHaveBeenCalledTimes(1);
+      expect(e.update).toHaveBeenCalledWith({ pdfsComprovatEl: new Date(3000) });
+    });
+
+    it('amb Date en lloc de Timestamp també funciona', async () => {
+      const e = vigents({ actualitzatEl: new Date(2000) });
+      await regenerarFlyer({ id: 'f1', ...e, ara: () => 3000 });
+      expect(e.update).toHaveBeenCalledWith({ pdfsComprovatEl: new Date(3000) });
+    });
+
+    it('no escriu res si el desat és anterior a la generació o a la darrera comprovació (no fa bucle)', async () => {
+      const e1 = vigents({ actualitzatEl: ts(900) });
+      await regenerarFlyer({ id: 'f1', ...e1 });
+      expect(e1.update).not.toHaveBeenCalled();
+      const e2 = vigents({ actualitzatEl: ts(2000), pdfsComprovatEl: ts(2500) });
+      await regenerarFlyer({ id: 'f1', ...e2 });
+      expect(e2.update).not.toHaveBeenCalled();
+    });
+
+    it('sense actualitzatEl no escriu res', async () => {
+      const e = vigents({});
+      await regenerarFlyer({ id: 'f1', ...e });
+      expect(e.update).not.toHaveBeenCalled();
+    });
+
+    it('l\'escriptura de pdfsComprovatEl no torna a disparar la regeneració', () => {
+      const abans = { ...flyer, actualitzatEl: ts(2000) };
+      expect(calGenerar(abans, { ...abans, pdfsComprovatEl: new Date(3000) })).toBe(false);
+    });
+
+    it('un desat que només canvia actualitzatEl dispara una vegada i l\'escriptura de pdfsComprovatEl no en dispara una altra', async () => {
+      const e = vigents({ actualitzatEl: ts(2000) });
+      const regenerar = vi.fn((id) => regenerarFlyer({ id, ...e, ara: () => 3000 }));
+      const l = { error: vi.fn() };
+      const abans = { ...flyer, actualitzatEl: ts(1500) };
+      const despres = { ...flyer, actualitzatEl: ts(2000) };
+      await gestionarFlyerEscrit({ id: 'f1', abans, despres, regenerar, logger: l });
+      expect(regenerar).toHaveBeenCalledTimes(1);
+      expect(e.update).toHaveBeenCalledWith({ pdfsComprovatEl: new Date(3000) });
+      await gestionarFlyerEscrit({ id: 'f1', abans: despres, despres: { ...despres, pdfsComprovatEl: new Date(3000) }, regenerar, logger: l });
+      expect(regenerar).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -135,8 +246,27 @@ describe('regenerarFlyer', () => {
     const e = entorn();
     e.renderPdf.mockRejectedValueOnce(new Error('boom'));
     await expect(regenerarFlyer({ id: 'f1', ...e })).rejects.toThrow('render simple fallit');
-    expect(e.update).not.toHaveBeenCalled();
+    expect(e.update).not.toHaveBeenCalledWith(expect.objectContaining({ pdfs: expect.anything() }));
     expect(JSON.stringify([e.logger.info.mock.calls, e.logger.error.mock.calls])).not.toContain('secret');
+  });
+
+  it('un render fallit escriu pdfsError (sense l\'error original) i un èxit posterior l\'esborra', async () => {
+    const e = entorn();
+    e.renderPdf.mockRejectedValueOnce(new Error('net::ERR_FAILED at https://x/?clau=secret'));
+    await expect(regenerarFlyer({ id: 'f1', ...e, ara: () => 5000 })).rejects.toThrow('render simple fallit');
+    expect(e.update).toHaveBeenCalledTimes(1);
+    expect(e.update).toHaveBeenCalledWith({ pdfsError: { data: new Date(5000), missatge: 'No s\'han pogut generar els PDF' } });
+    expect(JSON.stringify(e.update.mock.calls)).not.toMatch(/secret|ERR_FAILED/);
+    await regenerarFlyer({ id: 'f1', ...e });
+    expect(e.update).toHaveBeenLastCalledWith(expect.objectContaining({ pdfsError: null }));
+  });
+
+  it('si en fallar el render el flyer ja s\'ha esborrat, no llança cap error no controlat a part del de render', async () => {
+    const e = entorn();
+    e.update.mockRejectedValue(new Error('NOT_FOUND secret'));
+    e.renderPdf.mockRejectedValueOnce(new Error('boom'));
+    const error = await regenerarFlyer({ id: 'f1', ...e }).catch((x) => x);
+    expect(error.message).toBe('render simple fallit');
   });
 
   it('l\'error que surt de regenerarFlyer i el logger no porten la clau ni la URL', async () => {
@@ -167,6 +297,7 @@ describe('regenerarFlyer', () => {
           update,
         }),
       }),
+      getAll: (...refs) => Promise.all(refs.map((r) => r.get())),
     };
     const e = entorn();
     await regenerarFlyer({ id: 'f1', db, bucket: e.bucket, renderPdf: e.renderPdf, logger: e.logger });
@@ -190,6 +321,7 @@ describe('regenerarFlyer', () => {
           update,
         }),
       }),
+      getAll: (...refs) => Promise.all(refs.map((r) => r.get())),
     };
     const e = entorn();
     await regenerarFlyer({ id: 'f1', db, bucket: e.bucket, renderPdf: e.renderPdf, logger: e.logger });

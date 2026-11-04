@@ -5,7 +5,13 @@ const crypto = require('node:crypto');
 
 const VARIANTS = ['simple', 'impremta'];
 const URL_BASE_PER_DEFECTE = 'https://cineclubrodadebera.cat';
-const camiPdf = (id, variant) => `web/flyers/${id}/flyer-${variant}.pdf`;
+// Fora de `web/`: les regles de Storage no tenen cap regla per a `flyers/**` (denegat per defecte) i només hi accedeixen
+// la funció i l'endpoint de la web amb l'Admin SDK. Sota `web/` serien de lectura pública (l'id del flyer és públic).
+const camiPdf = (id, variant) => `flyers/${id}/flyer-${variant}.pdf`;
+
+// Versió del disseny imprès: puja-la quan canviï el layout d'impressió, el CSS o `web/src/data/flyer.json`, perquè els
+// PDF existents es regenerin en el proper disparador (la signatura no mira cap d'aquests fitxers).
+const VERSIO_DISSENY = 1;
 
 // JSON amb les claus ordenades: el mateix valor dona sempre el mateix text.
 function estable(valor) {
@@ -18,7 +24,7 @@ function estable(valor) {
 
 // Hash del que surt imprès: el nom i, per cada sessió publicada (en l'ordre rebut), els seus camps visibles.
 // `sessions` són `{ id, ...dades }` en l'ordre del flyer.
-function firmaFlyer(flyer, sessions) {
+function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
   const imprimibles = (sessions ?? [])
     .filter((s) => s?.publicada === true)
     .map((s) => ({
@@ -34,14 +40,16 @@ function firmaFlyer(flyer, sessions) {
       generes: s.publica?.generes ?? null,
       cartell: s.publica?.cartell ?? null,
     }));
-  return crypto.createHash('sha256').update(estable({ nom: flyer?.nom ?? null, sessions: imprimibles })).digest('hex');
+  return crypto.createHash('sha256').update(estable({ versio, nom: flyer?.nom ?? null, sessions: imprimibles })).digest('hex');
 }
 
-// `false` si el flyer s'esborra o si només han canviat `pdfs` / `actualitzatEl` (el que escrivim nosaltres: evita el bucle).
+// `false` si el flyer s'esborra o si només han canviat `pdfs` / `pdfsComprovatEl` / `pdfsError` (el que escrivim nosaltres:
+// evita el bucle). Un canvi d'`actualitzatEl` (l'admin l'escriu a cada desat) SÍ dispara: així un desat sense canvis
+// imprimibles arriba a escriure `pdfsComprovatEl`. No fa bucle: la funció no toca mai `actualitzatEl`.
 function calGenerar(abans, despres) {
   if (!despres) return false;
-  const sensePdfs = ({ pdfs, actualitzatEl, ...resta }) => estable(resta); // eslint-disable-line no-unused-vars
-  return !abans || sensePdfs(abans) !== sensePdfs(despres);
+  const sensePdfs = ({ pdfs, pdfsComprovatEl, pdfsError, actualitzatEl, ...resta }) => estable(resta); // eslint-disable-line no-unused-vars
+  return !abans || sensePdfs(abans) !== sensePdfs(despres) || enMillis(abans.actualitzatEl) !== enMillis(despres.actualitzatEl);
 }
 
 function urlImpressio({ urlBase, id, variant, clau, ara }) {
@@ -51,14 +59,28 @@ function urlImpressio({ urlBase, id, variant, clau, ara }) {
 
 const MAX_INTENTS = 3;
 
+const enMillis = (valor) => (typeof valor?.toMillis === 'function' ? valor.toMillis() : valor?.getTime?.());
+
+// Un render fallit es veu a l'admin (`pdfsError`, sense el missatge original: porta la URL i la clau). Si el flyer
+// s'ha esborrat mentrestant l'escriptura falla i s'ignora.
+async function marcarError({ db, id, ara }) {
+  try {
+    await db.collection('flyers').doc(id).update({ pdfsError: { data: new Date(ara()), missatge: 'No s\'han pogut generar els PDF' } });
+  } catch {
+    // flyer esborrat o escriptura fallida: no hi ha res més a fer
+  }
+}
+
 async function llegir(db, id) {
   const snap = await db.collection('flyers').doc(id).get();
   if (!snap.exists) return null;
   const flyer = snap.data();
+  const ids = flyer.sessionsIds ?? [];
   const sessions = [];
-  for (const sessionId of flyer.sessionsIds ?? []) {
-    const s = await db.collection('sessions').doc(sessionId).get();
-    if (s.exists) sessions.push({ id: sessionId, ...s.data() });
+  if (ids.length) {
+    // `getAll` torna els documents en l'ordre dels refs.
+    const docs = await db.getAll(...ids.map((sessionId) => db.collection('sessions').doc(sessionId)));
+    docs.forEach((s, i) => { if (s.exists) sessions.push({ id: ids[i], ...s.data() }); });
   }
   return { flyer, firma: firmaFlyer(flyer, sessions) };
 }
@@ -74,7 +96,15 @@ async function regenerarFlyer({
     const lectura = await llegir(db, id);
     if (!lectura) return null;
     const { flyer, firma } = lectura;
-    if (VARIANTS.every((v) => flyer.pdfs?.[v]?.firma === firma)) return null;
+    if (VARIANTS.every((v) => flyer.pdfs?.[v]?.firma === firma)) {
+      // Cap canvi imprès (p. ex. Publicar o canviar només les dates): els PDF ja són vigents. L'admin compara
+      // `actualitzatEl` amb l'última generació o comprovació; sense això «S'està actualitzant…» no s'acabaria mai.
+      const desat = enMillis(flyer.actualitzatEl);
+      const instants = [...VARIANTS.map((v) => enMillis(flyer.pdfs[v].generatEl)), enMillis(flyer.pdfsComprovatEl)];
+      const comprovat = Math.max(0, ...instants.filter(Number.isFinite));
+      if (desat != null && desat > comprovat) await db.collection('flyers').doc(id).update({ pdfsComprovatEl: new Date(ara()) });
+      return null;
+    }
 
     const rendits = {};
     for (const variant of VARIANTS) {
@@ -82,6 +112,7 @@ async function regenerarFlyer({
       try {
         rendits[variant] = await renderPdf(url);
       } catch {
+        await marcarError({ db, id, ara });
         throw new Error(`render ${variant} fallit`);
       }
     }
@@ -94,9 +125,9 @@ async function regenerarFlyer({
     for (const variant of VARIANTS) {
       const path = camiPdf(id, variant);
       await bucket.file(path).save(rendits[variant], { contentType: 'application/pdf', resumable: false });
-      pdfs[variant] = { path, firma, generatEl: new Date(ara()).toISOString() };
+      pdfs[variant] = { path, firma, generatEl: new Date(ara()) };
     }
-    await db.collection('flyers').doc(id).update({ pdfs });
+    await db.collection('flyers').doc(id).update({ pdfs, pdfsError: null });
     logger.info('flyer: PDF generats', { id });
     return pdfs;
   }
@@ -144,4 +175,4 @@ async function renderPdf(url) {
   }
 }
 
-module.exports = { firmaFlyer, calGenerar, regenerarFlyer, gestionarFlyerEscrit, gestionarSessioEscrita, renderPdf, urlImpressio, camiPdf, URL_BASE_PER_DEFECTE };
+module.exports = { firmaFlyer, calGenerar, regenerarFlyer, gestionarFlyerEscrit, gestionarSessioEscrita, renderPdf, urlImpressio, camiPdf, VERSIO_DISSENY, URL_BASE_PER_DEFECTE };

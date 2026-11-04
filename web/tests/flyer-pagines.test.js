@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import PaginaFlyer from '../src/pages/flyer/[id]/index.astro';
 import PaginaImprimir from '../src/pages/flyer/[id]/imprimir.astro';
@@ -122,6 +123,18 @@ describe('/flyer/<id>/imprimir/', () => {
     expect(fulls[1].match(/flyer-tira--corporativa/g)).toHaveLength(3);
     expect(html).not.toContain('flyer-marca-tall');
     expect((await demana(PaginaImprimir, 'pub', '?variant=rara')).html).toContain('size: 210mm 297mm');
+  });
+
+  it('el botó d\'imprimir no és dins cap full i el CSS d\'impressió l\'amaga (no surt al PDF)', async () => {
+    for (const consulta of ['', '?variant=impremta&clau=secreta']) {
+      const { html } = await demana(PaginaImprimir, 'pub', consulta);
+      const fulls = html.split('<section class="flyer-full').slice(1);
+      expect(fulls).toHaveLength(2);
+      expect(html).toContain('flyer-imprimir__boto');
+      for (const full of fulls) expect(full).not.toContain('flyer-imprimir__boto');
+    }
+    const css = readFileSync(new URL('../src/styles/flyer-imprimir.css', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+    expect(css).toMatch(/@media print \{.*\.flyer-imprimir__boto \{ display: none;? \}/);
   });
 
   it('impremta: 404 sense clau (també amb clau errònia); amb clau, 216 × 303 mm i marques de tall', async () => {

@@ -32,6 +32,16 @@ describe('maxInstances', () => {
   });
 });
 
+// Gen2 admet 80 peticions per instància per defecte: amb Chromium (2 GiB) n'hi ha d'haver una sola.
+describe('PDF dels flyers', () => {
+  it('una petició per instància i com a màxim dues instàncies', () => {
+    for (const nom of ['regenerarPdfsFlyer', 'regenerarPdfsPerSessio']) {
+      expect(funcions[nom].__endpoint.concurrency).toBe(1);
+      expect(funcions[nom].__endpoint.maxInstances).toBe(2);
+    }
+  });
+});
+
 // La porta depèn de socisPorta: si una execució falla, Eventarc la reintenta (el gestor és idempotent).
 describe('sincronitzarSociPorta', () => {
   it('es reintenta si falla', () => {

@@ -3,7 +3,8 @@ import Icon from './Icon.astro';
 import { SITE_URL } from '../lib/env.js';
 
 const { flyer } = Astro.props;
-const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${SITE_URL}/flyer/${flyer.id}/`)}`;
+const id = encodeURIComponent(flyer.id);
+const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${SITE_URL}/flyer/${id}/`)}`;
 ---
 <div class="difusio-wrapper">
   <div class="difusio">
@@ -15,7 +16,7 @@ const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${SI
       </div>
     </div>
     <div class="difusio__actions">
-      <a class="difusio__button" href={`/flyer/${flyer.id}/flyer.pdf`} target="_blank" rel="noopener"><Icon name="printer" />Imprimeix</a>
+      <a class="difusio__button" href={`/flyer/${id}/flyer.pdf`} target="_blank" rel="noopener"><Icon name="printer" />Imprimeix</a>
       <a class="difusio__button" href={urlWhatsapp} target="_blank" rel="noopener">Comparteix per WhatsApp</a>
     </div>
   </div>

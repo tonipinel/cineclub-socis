@@ -12,7 +12,7 @@ import { paginaPerSlug } from '../../lib/pagines.js';
 import { sessionsLlistables } from '../../lib/sessio-camps.js';
 import { anysAmbSessions, sessionsPubliques } from '../../lib/sessions.js';
 import { elementsCalendari } from '../../lib/calendari.js';
-import { darrerFlyerPublicat } from '../../lib/flyers.js';
+import { darrerFlyerPublicat, flyerVigent } from '../../lib/flyers.js';
 
 // Traducció de layouts/programacio/list.html. Títol, descripció i introducció: `pagines/programacio`.
 // El flyer és accessori: si la lectura falla, la pàgina es pinta sense el bloc de difusió.
@@ -38,7 +38,7 @@ const botonsSeccio = Object.entries(seccions).sort(([a], [b]) => (a < b ? -1 : 1
 
   <NextSessions sessions={sessions} />
 
-  {flyer && <DifusioFlyer flyer={flyer} />}
+  {flyer && flyerVigent(flyer) && <DifusioFlyer flyer={flyer} />}
 
   <div class="calendar-wrapper">
     <div class="calendar">

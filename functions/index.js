@@ -200,7 +200,8 @@ exports.activarCarnetEnEscanejar = onDocumentCreated(
 
 // PDF dels flyers (`flyers.js`): el flyer segueix els canvis de les seves sessions. Sense reintents: un render fallit
 // es registra i el proper canvi el torna a provar. Chromium necessita memòria; poques instàncies per limitar el cost.
-const OPCIONS_PDF = { memory: '2GiB', timeoutSeconds: 300, retry: false, maxInstances: 2 };
+// `concurrency: 1`: Gen2 admet 80 peticions per instància per defecte i diversos Chromium compartirien els 2 GiB.
+const OPCIONS_PDF = { memory: '2GiB', timeoutSeconds: 300, retry: false, maxInstances: 2, concurrency: 1 };
 const urlWeb = () => (process.env.WEB_URL || flyers.URL_BASE_PER_DEFECTE).replace(/\/+$/, '');
 const regenerarFlyer = (id) => flyers.regenerarFlyer({
   id, db: getFirestore(), bucket: getStorage().bucket(), renderPdf: flyers.renderPdf, logger, urlBase: urlWeb(),

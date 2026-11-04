@@ -63,5 +63,12 @@ export async function darrerFlyerPublicat(db = getDb()) {
   return flyers.sort((a, b) => ms(b) - ms(a))[0] ?? null;
 }
 
+// Un programa que ja ha acabat (`fins` anterior a avui, a Europe/Madrid) no es promociona. `fins` és YYYY-MM-DD.
+export const flyerVigent = (flyer, ara = new Date()) => {
+  if (!flyer?.fins) return true;
+  const avui = ara.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  return flyer.fins >= avui;
+};
+
 export const potVeure = (flyer, clau) =>
   flyer.estat === 'publicat' || (Boolean(clau) && clau === flyer.clauPrevia);
