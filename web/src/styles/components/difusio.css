@@ -1,0 +1,31 @@
+.difusio-wrapper {
+  @apply w-full border-y-[6px] border-dashed border-black bg-gold;
+}
+.difusio {
+  @apply mx-auto flex max-w-[1000px] flex-col items-center gap-4 px-6 py-6 text-center md:flex-row md:justify-between md:text-left;
+}
+.difusio__message {
+  @apply flex items-center gap-4;
+}
+.difusio__message .icon {
+  @apply w-auto shrink-0 text-black;
+  height: 5rem;
+}
+.difusio__text {
+  @apply flex flex-col justify-center gap-1 md:max-w-md;
+}
+.difusio__title {
+  @apply font-display text-2xl font-bold text-black;
+}
+.difusio__body {
+  @apply font-body text-sm font-semibold text-black;
+}
+.difusio__actions {
+  @apply flex shrink-0 flex-col gap-3 sm:flex-row;
+}
+.difusio__button {
+  @apply inline-flex items-center justify-center gap-2 rounded-full-v3 bg-black px-6 py-3 font-display font-bold uppercase text-white no-underline transition-v3 hover:bg-neutral-800;
+}
+.difusio__button .icon {
+  @apply h-6 w-6 shrink-0 text-white;
+}

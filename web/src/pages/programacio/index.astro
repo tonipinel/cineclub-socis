@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Icon from '../../components/Icon.astro';
 import NextSessions from '../../components/NextSessions.astro';
+import DifusioFlyer from '../../components/DifusioFlyer.astro';
 import SessionCard from '../../components/SessionCard.astro';
 import seccions from '../../data/seccions.json';
 import { dataCaCurtaHtml, dataIso } from '../../lib/format.js';
@@ -11,9 +12,15 @@ import { paginaPerSlug } from '../../lib/pagines.js';
 import { sessionsLlistables } from '../../lib/sessio-camps.js';
 import { anysAmbSessions, sessionsPubliques } from '../../lib/sessions.js';
 import { elementsCalendari } from '../../lib/calendari.js';
+import { darrerFlyerPublicat } from '../../lib/flyers.js';
 
 // Traducció de layouts/programacio/list.html. Títol, descripció i introducció: `pagines/programacio`.
-const [pagina, publiques] = await Promise.all([paginaPerSlug('programacio'), sessionsPubliques()]);
+// El flyer és accessori: si la lectura falla, la pàgina es pinta sense el bloc de difusió.
+const flyerPerDifondre = darrerFlyerPublicat().catch((err) => {
+  console.error('No s\'ha pogut llegir el darrer flyer publicat:', err);
+  return null;
+});
+const [pagina, publiques, flyer] = await Promise.all([paginaPerSlug('programacio'), sessionsPubliques(), flyerPerDifondre]);
 const sessions = sessionsLlistables(publiques);
 const calendari = elementsCalendari(sessions, new Date());
 const titol = pagina?.titol || 'Programació';
@@ -30,6 +37,8 @@ const botonsSeccio = Object.entries(seccions).sort(([a], [b]) => (a < b ? -1 : 1
   </section>
 
   <NextSessions sessions={sessions} />
+
+  {flyer && <DifusioFlyer flyer={flyer} />}
 
   <div class="calendar-wrapper">
     <div class="calendar">
