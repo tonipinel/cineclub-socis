@@ -88,7 +88,7 @@ describe('firmaFlyer', () => {
   });
 
   it('la versió del disseny és la 4', () => {
-    expect(VERSIO_DISSENY).toBe(4);
+    expect(VERSIO_DISSENY).toBe(5);
   });
 
   it('una sessió despublicada canvia la signatura', () => {

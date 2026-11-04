@@ -264,7 +264,7 @@ describe('preu a la cara B', () => {
   it('es calcula de les sessions del flyer (les mostrades) i surt a la pàgina i a la ruta d\'imprimir', async () => {
     for (const Pagina of [PaginaFlyer, PaginaImprimir]) {
       const { html } = await demana(Pagina, 'amb-preus');
-      expect(html).toContain('Aportació <strong class="flyer-info__import">de 3 a 5 €</strong> per sessió');
+      expect(html).toContain('Aportació <strong class="flyer-info__import">de 3 a 5 €</strong> segons sessió');
       expect(html).toContain('>Entrada gratuïta.</strong> Fes-te soci/a per 30 €/any!');
     }
   });

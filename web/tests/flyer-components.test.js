@@ -26,9 +26,9 @@ const compta = (html, re) => (html.match(re) ?? []).length;
 
 describe('FlyerCaraB preu', () => {
   it('dues pastilles: socis «Entrada gratuïta. Fes-te soci/a per 30 €/any!» i no socis amb el preu calculat', async () => {
-    const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € per sessió' } });
+    const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € segons sessió' } });
     expect(html).toMatch(/flyer-info__etiqueta">Socis<\/span>.*<strong class="flyer-info__import">Entrada gratuïta\.<\/strong> Fes-te soci\/a per 30 €\/any!/s);
-    expect(html).toMatch(/flyer-info__etiqueta">No socis<\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> per sessió/s);
+    expect(html).toMatch(/flyer-info__etiqueta">No socis<\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> segons sessió/s);
     expect(html).not.toContain('>Preu<');
   });
   it('sense preu calculat, el text provisional de flyer.json', async () => {
@@ -319,8 +319,8 @@ describe('FlyerCaraA fora de rang (3-5)', () => {
 
 describe('FlyerCaraB: redacció del preu dels no socis', () => {
   const noSocis = async (text) => (await renderitza(FlyerCaraB, { preu: { text } })).match(/No socis<\/span>.*?<span class="flyer-info__valor">(.*?)<\/span>/s)?.[1].replace(/<[^>]+>/g, '');
-  it('«Aportació de 3 a 5 € per sessió»; un sol preu: «Aportació de 5 € per sessió»; amb gratuïtes barrejades, «Aportació: gratis o …»; tot gratis: «Gratis»', async () => {
-    expect(await noSocis('de 3 a 5 € per sessió')).toBe('Aportació de 3 a 5 € per sessió');
+  it('«Aportació de 3 a 5 € segons sessió»; un sol preu: «Aportació de 5 € per sessió»; amb gratuïtes barrejades, «Aportació: gratis o …»; tot gratis: «Gratis»', async () => {
+    expect(await noSocis('de 3 a 5 € segons sessió')).toBe('Aportació de 3 a 5 € segons sessió');
     expect(await noSocis('5 € per sessió')).toBe('Aportació de 5 € per sessió');
     expect(await noSocis('gratis o 5 € segons la sessió')).toBe('Aportació: gratis o 5 € segons la sessió');
     expect(await noSocis('gratis')).toBe('Gratis');

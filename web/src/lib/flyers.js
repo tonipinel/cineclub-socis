@@ -54,7 +54,7 @@ export const preuFlyer = (sessions) => {
   const min = Math.min(...pagats);
   const max = Math.max(...pagats);
   const quantitat = min === max ? euros(min) : `de ${String(min).replace('.', ',')} a ${euros(max)}`;
-  return { text: gratis ? `gratis o ${quantitat} segons la sessió` : `${quantitat} per sessió` };
+  return { text: gratis ? `gratis o ${quantitat} segons la sessió` : `${quantitat} ${min === max ? 'per sessió' : 'segons sessió'}` };
 };
 
 export async function flyerPerId(id, db = getDb()) {

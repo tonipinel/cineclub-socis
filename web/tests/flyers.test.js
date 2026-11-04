@@ -69,7 +69,7 @@ describe('preuFlyer', () => {
     expect(preuFlyer(p(3.5))).toEqual({ text: '3,5 € per sessió' });
   });
   it('preus diferents: rang', () => {
-    expect(preuFlyer(p(5, 3, 4))).toEqual({ text: 'de 3 a 5 € per sessió' });
+    expect(preuFlyer(p(5, 3, 4))).toEqual({ text: 'de 3 a 5 € segons sessió' });
   });
   it('una sessió gratuïta barrejada: «gratis o ...»; totes gratuïtes: gratis', () => {
     expect(preuFlyer(p(0, 5, 5))).toEqual({ text: 'gratis o 5 € segons la sessió' });
