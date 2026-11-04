@@ -147,6 +147,37 @@ describe('pàgina de sessió', () => {
     expect(html.match(/class="info-item__logo"/g)).toHaveLength(1); // només la icona d'edat
   });
 
+  describe('text fix de FilmoXarxa', () => {
+    const amb = (publica) => ({ ...completa, publica: { ...completa.publica, ...publica } });
+    const TEXT = "Aquesta projecció forma part de <strong>FilmoXarxa</strong>";
+
+    beforeEach(() => fixaDistribuidoresDeProva({
+      FilmoXarxa: { id: 'dfx', url: 'https://filmoxarxa.example/' },
+      'A Contracorriente Films': { id: 'dacf', url: 'https://acontracorrientefilms.com/' },
+    }));
+
+    it('hi surt sota els textos editorials si la distribuïdora és FilmoXarxa (per id)', async () => {
+      const html = await render(amb({ suportDistribucio: 'Nom antic', suportDistribucioId: 'dfx' }));
+      expect(html).toContain('<h2 id="filmoxarxa">FilmoXarxa</h2>');
+      expect(html).toContain(TEXT);
+      expect(html.indexOf('Sinopsi')).toBeLessThan(html.indexOf(TEXT));
+    });
+
+    it('també amb el nom en text (sessions antigues)', async () => {
+      expect(await render(amb({ suportDistribucio: 'FilmoXarxa' }))).toContain(TEXT);
+    });
+
+    it('no hi surt per ser de la secció «Xarxa» si la distribuïdora és una altra o no n\'hi ha', async () => {
+      expect(await render(amb({ suportDistribucio: '', seccio: 'xarxa' }))).not.toContain(TEXT);
+      expect(await render(amb({ suportDistribucioId: 'dacf', suportDistribucio: 'A Contracorriente Films', seccio: 'xarxa' }))).not.toContain(TEXT);
+    });
+
+    it('no hi surt en una altra distribuïdora ni sense distribuïdora', async () => {
+      expect(await render(amb({ suportDistribucioId: 'dacf', suportDistribucio: 'A Contracorriente Films' }))).not.toContain(TEXT);
+      expect(await render(amb({ suportDistribucio: '', suportDistribucioId: undefined }))).not.toContain(TEXT);
+    });
+  });
+
   describe('distribuïdora per id', () => {
     const LOGO_BT = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/distribuidores%2Fbt.png?alt=media';
     beforeEach(() => fixaDistribuidoresDeProva({

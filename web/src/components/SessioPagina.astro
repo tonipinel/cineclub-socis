@@ -12,6 +12,7 @@ import JsonLdBreadcrumb from './JsonLdBreadcrumb.astro';
 import { CARTELL_ACTIU, SITE_URL } from '../lib/env.js';
 import { camiOgSessio } from '../lib/og-sessio.js';
 import { renderMarkdown } from '../lib/markdown.js';
+import { TEXT_FILMOXARXA, esFilmoXarxa } from '../lib/filmoxarxa.js';
 import { descripcioSessio, titolPaginaSessio, titolSessio, urlSessio } from '../lib/sessio-camps.js';
 
 // Traducció de layouts/programacio/single.html. `sessions`: totes les sessions publicades
@@ -69,6 +70,7 @@ const { trailerYoutubeId, cartell, cos } = sessio.publica ?? {};
   )}
 
   <div class="session-body prose-ca" set:html={renderMarkdown(cos)}></div>
+  {esFilmoXarxa(sessio) && <div class="session-body prose-ca session-body--filmoxarxa" set:html={renderMarkdown(TEXT_FILMOXARXA)}></div>}
 
   <RelatedSessions sessio={sessio} sessions={sessions} />
 </BaseLayout>
