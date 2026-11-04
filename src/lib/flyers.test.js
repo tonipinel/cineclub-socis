@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
+  canvisDesdeBase, enquadramentDe, enquadramentsDesats, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades,
+  validarFlyer,
 } from './flyers.js';
 
 const sessio = (id, data, hora, extra = {}) => ({
@@ -151,5 +152,21 @@ describe('canvisDesdeBase', () => {
   it('retorna un canvi per cada diferència', () => {
     const r = canvis({ ...original, data: '2026-12-02', hora: '21:00' });
     expect(r.map((c) => c.tipus)).toEqual(['data', 'hora']);
+  });
+});
+
+describe('enquadrament del cartell', () => {
+  it('per defecte (o amb un valor invàlid) és «dalt»', () => {
+    expect(enquadramentDe(undefined, 'a')).toBe('dalt');
+    expect(enquadramentDe({}, 'a')).toBe('dalt');
+    expect(enquadramentDe({ a: 'esquerra' }, 'a')).toBe('dalt');
+    expect(enquadramentDe({ a: 'centre', b: 'baix' }, 'b')).toBe('baix');
+  });
+
+  it('en desar només queden les sessions del flyer amb un valor vàlid diferent de «dalt» (el per defecte)', () => {
+    expect(enquadramentsDesats({
+      a: 'centre', b: 'baix', d: 'dalt', fora: 'baix', c: 'xx',
+    }, ['a', 'b', 'c', 'd'])).toEqual({ a: 'centre', b: 'baix' });
+    expect(enquadramentsDesats(undefined, ['a'])).toEqual({});
   });
 });

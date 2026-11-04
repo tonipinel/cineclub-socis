@@ -25,7 +25,10 @@ const dataCurtaFlyer = (data) => {
   return `${DIES[new Date(Date.UTC(any, mes - 1, dia)).getUTCDay()]} ${dia} ${MESOS[mes - 1]}`;
 };
 
-export const peliculaFlyer = (sessio) => ({
+const ENQUADRAMENTS = ['dalt', 'centre', 'baix'];
+
+// `enquadraments`: el camp del flyer (`{ [sessionId]: 'dalt' | 'centre' | 'baix' }`); per defecte, «dalt».
+export const peliculaFlyer = (sessio, enquadraments) => ({
   id: sessio.id,
   titol: titolSessio(sessio),
   titolTraduit: subtitolSessio(sessio),
@@ -35,6 +38,7 @@ export const peliculaFlyer = (sessio) => ({
   imatge: sessio.publica?.cartell ?? '',
   versio: etiquetaVersio(sessio).text,
   idioma: etiquetaVersio(sessio).idioma,
+  enquadrament: ENQUADRAMENTS.includes(enquadraments?.[sessio.id]) ? enquadraments[sessio.id] : 'dalt',
 });
 
 // Preu per sessió per als NO socis (els socis entren sempre gratis) a partir de `publica.preu` de les sessions del flyer.

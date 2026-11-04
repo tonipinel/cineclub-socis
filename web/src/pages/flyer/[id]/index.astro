@@ -24,7 +24,7 @@ Astro.response.headers.set('Cache-Control', actiu && !ambClau ? CACHE_OK : CACHE
 
 // Un flyer té de 3 a 5 sessions; un document antic amb més en pinta les 5 primeres (per data).
 const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
-const pelicules = sessions.map(peliculaFlyer);
+const pelicules = sessions.map((s) => peliculaFlyer(s, flyer.enquadraments));
 const preu = preuFlyer(sessions);
 // Només un flyer no actiu (que només s'obre amb la clau) la porta als enllaços: la pàgina pública (cacheable) no repeteix res de la petició.
 const consulta = actiu ? '' : `?clau=${encodeURIComponent(clau)}`;

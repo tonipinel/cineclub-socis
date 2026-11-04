@@ -5,6 +5,20 @@
 export const MIN_SESSIONS = 3;
 export const MAX_SESSIONS = 5;
 
+// Com es retalla el cartell de cada pel·lícula a la cara A (`flyers/{id}.enquadraments`: `{ [sessionId]: valor }`).
+// «dalt» és el per defecte: no es desa.
+export const ENQUADRAMENTS = ['dalt', 'centre', 'baix'];
+
+export const enquadramentDe = (enquadraments, sessionId) => (
+  ENQUADRAMENTS.includes(enquadraments?.[sessionId]) ? enquadraments[sessionId] : 'dalt'
+);
+
+// El que es desa: només les sessions del flyer amb un enquadrament que no és el per defecte.
+export const enquadramentsDesats = (enquadraments, sessionsIds) => Object.fromEntries((sessionsIds ?? []).flatMap((id) => {
+  const valor = enquadramentDe(enquadraments, id);
+  return valor === 'dalt' ? [] : [[id, valor]];
+}));
+
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
 const dataValida = (data) => {
   if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;

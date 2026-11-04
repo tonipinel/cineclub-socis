@@ -43,3 +43,13 @@
 .flyer-form__enllacos {
   @apply m-0 flex list-none flex-col gap-1 p-0;
 }
+/* Enquadrament del cartell d'una sessió marcada: tres opcions en una fila */
+.flyer-form__enquadrament {
+  @apply m-0 flex flex-wrap items-center gap-3 border-0 p-0 pl-6 font-body text-sm;
+}
+.flyer-form__enquadrament-titol {
+  @apply float-left p-0 font-semibold;
+}
+.flyer-form__enquadrament-opcio {
+  @apply flex cursor-pointer items-center gap-1;
+}

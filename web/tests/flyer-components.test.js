@@ -190,6 +190,22 @@ describe('cartell de la targeta', () => {
   });
 });
 
+describe('enquadrament del cartell', () => {
+  it('cada cartell porta el modificador del seu enquadrament («dalt» no en porta)', async () => {
+    const html = await renderitza(FlyerCaraA, {
+      pelicules: [peli(1), peli(2, { enquadrament: 'centre' }), peli(3, { enquadrament: 'baix' }), peli(4, { enquadrament: 'dalt' })],
+    });
+    expect(compta(html, /class="flyer-columna__imatge"/g)).toBe(2);
+    expect(compta(html, /class="flyer-columna__imatge flyer-columna__imatge--centre"/g)).toBe(1);
+    expect(compta(html, /class="flyer-columna__imatge flyer-columna__imatge--baix"/g)).toBe(1);
+  });
+  it('el CSS ancora el cartell al centre o a baix amb els modificadors', () => {
+    const css = readFileSync(new URL('../src/styles/flyer.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/\.flyer-columna__imatge--centre\s*\{\s*object-position:\s*center center;\s*\}/);
+    expect(css).toMatch(/\.flyer-columna__imatge--baix\s*\{\s*object-position:\s*bottom center;\s*\}/);
+  });
+});
+
 describe('FlyerCaraA laterals', () => {
   const n = (html, re) => (html.match(re) ?? []).length;
   it('3 pel·lícules: lateral esquerre i lateral dret (mirall) amb els mateixos textos; 4-6: només l\'esquerre', async () => {

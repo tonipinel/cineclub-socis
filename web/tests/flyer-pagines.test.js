@@ -22,6 +22,7 @@ const sessions = [
   { ...sessio('f', '2026-11-05', false), slug: undefined, hora: '17:00' },
   { ...sessio('p1', '2026-12-03'), publica: { ...sessio('p1', '2026-12-03').publica, preu: 5 } },
   { ...sessio('p2', '2026-12-10'), publica: { ...sessio('p2', '2026-12-10').publica, preu: 3 } },
+  ...['k1', 'k2', 'k3'].map((id, i) => ({ ...sessio(id, `2027-01-0${i + 1}`), publica: { ...sessio(id, '').publica, cartell: `https://exemple.cat/${id}.jpg` } })),
 ];
 const flyers = [
   { id: 'pub', nom: 'Flyer novembre', estat: 'publicat', sessionsIds: ['a', 'b', 'c'], clauPrevia: 'secreta' },
@@ -33,6 +34,10 @@ const flyers = [
   { id: 'amb-preus', nom: 'Amb preus', estat: 'publicat', sessionsIds: ['p1', 'p2'], clauPrevia: 'secreta' },
   { id: 'sis', nom: 'Sis sessions', estat: 'publicat', sessionsIds: ['a', 'b', 'c', 'd', 'p1', 'p2'], clauPrevia: 'secreta' },
   { id: 'buit', nom: 'Sense pelis', estat: 'publicat', sessionsIds: ['d'], clauPrevia: 'secreta' },
+  {
+    id: 'enquadrat', nom: 'Amb enquadraments', estat: 'publicat', sessionsIds: ['k1', 'k2', 'k3'], clauPrevia: 'secreta',
+    enquadraments: { k2: 'centre', k3: 'baix' },
+  },
   { id: 'amb-esborrada', nom: 'Amb una esborrada', estat: 'publicat', sessionsIds: ['a', 'b', 'zz'], clauPrevia: 'secreta' },
 ];
 
@@ -362,5 +367,15 @@ describe('sitemap', () => {
     const urls = (await entradesSitemap(db)).map((e) => e.cami);
     expect(urls.some((u) => u.includes('/programacio/'))).toBe(true);
     expect(urls.some((u) => u.includes('flyer'))).toBe(false);
+  });
+});
+
+describe('enquadrament del cartell', () => {
+  it('la pàgina i la ruta d\'imprimir pinten cada cartell amb l\'enquadrament del flyer', async () => {
+    for (const html of [(await demana(PaginaFlyer, 'enquadrat')).html, (await demana(PaginaImprimir, 'enquadrat')).html]) {
+      expect(html).toMatch(/class="flyer-columna__imatge" src="[^"]*k1/);
+      expect(html).toMatch(/class="flyer-columna__imatge flyer-columna__imatge--centre" src="[^"]*k2/);
+      expect(html).toMatch(/class="flyer-columna__imatge flyer-columna__imatge--baix" src="[^"]*k3/);
+    }
   });
 });

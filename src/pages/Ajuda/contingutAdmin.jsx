@@ -531,6 +531,10 @@ const FLYERS = {
             Desmarca els films que no hi han d'anar: n'hi ha d'haver entre 3 i 6. Amb menys de 3 films, o si algun no té
             «versió» (VOSE, VO…), no es pot publicar; amb més de 6 només surt un avís.
           </li>
+          <li>
+            A cada film marcat, «Cartell» tria quina part del cartell es conserva en retallar-lo: «Dalt» (per defecte),
+            «Centre» o «Baix». Canvia-ho si el títol del cartell queda tallat.
+          </li>
           <li>Desa (queda com a «Esborrany») i, quan estigui bé, toca «Publicar».</li>
         </ol>
       ),

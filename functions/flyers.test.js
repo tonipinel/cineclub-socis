@@ -30,6 +30,17 @@ describe('firmaFlyer', () => {
     expect(firmaFlyer(flyer, cartell)).not.toBe(base);
   });
 
+  it('canvia en canviar l\'enquadrament del cartell d\'una sessió; sense enquadrament és com «dalt»', () => {
+    const base = firmaFlyer(flyer, sessions);
+    expect(firmaFlyer({ ...flyer, enquadraments: { a: 'dalt' } }, sessions)).toBe(base);
+    expect(firmaFlyer({ ...flyer, enquadraments: { a: 'xx' } }, sessions)).toBe(base);
+    expect(firmaFlyer({ ...flyer, enquadraments: { fora: 'baix' } }, sessions)).toBe(base);
+    const centre = firmaFlyer({ ...flyer, enquadraments: { a: 'centre' } }, sessions);
+    expect(centre).not.toBe(base);
+    expect(firmaFlyer({ ...flyer, enquadraments: { a: 'baix' } }, sessions)).not.toBe(centre);
+    expect(firmaFlyer({ ...flyer, enquadraments: { b: 'centre' } }, sessions)).not.toBe(centre);
+  });
+
   it('no canvia amb un camp que no hi surt', () => {
     const base = firmaFlyer(flyer, sessions);
     expect(firmaFlyer({ ...flyer, desde: 'x', clauPrevia: 'altra', estat: 'publicat' }, sessions)).toBe(base);

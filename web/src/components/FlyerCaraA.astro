@@ -9,7 +9,8 @@ import Icon from './Icon.astro';
 // Una tira de programació (210 × 99 mm). `pelicules`: resultat de `peliculaFlyer`, ORDENADES per data
 // (el lateral pinta el rang de la primera a l'última; amb exactament 3 pel·lícules, el lateral es repeteix a la dreta,
 // girat i amb el logo a baix; amb exactament 5 no hi ha lateral: les targetes ocupen tot l'ample). Cada pel·lícula és una targeta negra com la de la web
-// (`SessionCard`): barra de secció + data, cartell, títol en català i versió + idioma.
+// (`SessionCard`): barra de secció + data, cartell (retallat segons `enquadrament`: dalt, centre o baix), títol en català i
+// versió + idioma.
 // Un flyer té de 3 a 5 pel·lícules; amb dades fora de rang (un document antic) es pinten les 5 primeres, per ordre de data, sense petar.
 const pelicules = Astro.props.pelicules.slice(0, 5);
 // Rang curt sense el dia de la setmana («5 nov – 7 gen»; amb una sola data, «5 nov»): `dataText` és «Dj 5 nov».
@@ -81,7 +82,7 @@ const seccio = (clau) => (Object.hasOwn(seccions, clau) ? seccions[clau] : null)
         <div class="flyer-columna__marc">
           <div class="flyer-columna__cartell">
             {p.imatge
-              ? <img class="flyer-columna__imatge" src={resizedUrl(p.imatge, 400)} alt="" />
+              ? <img class={`flyer-columna__imatge${p.enquadrament && p.enquadrament !== 'dalt' ? ` flyer-columna__imatge--${p.enquadrament}` : ''}`} src={resizedUrl(p.imatge, 400)} alt="" />
               : <div class="flyer-columna__marcador">{p.titol}</div>}
           </div>
           <div class="flyer-columna__text">

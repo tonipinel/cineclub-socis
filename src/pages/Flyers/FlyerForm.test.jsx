@@ -196,6 +196,54 @@ describe('FlyerForm', () => {
     expect(await screen.findByText('Fitxa creada')).toBeInTheDocument();
   });
 
+  describe('enquadrament del cartell', () => {
+    const grup = (titol) => screen.queryByRole('group', { name: `Cartell de ${titol}` });
+    const opcio = (titol, nom) => within(grup(titol)).getByRole('radio', { name: nom });
+
+    it('només les sessions marcades tenen el control «Cartell», amb «Dalt» per defecte', async () => {
+      renderNou();
+      await omple();
+      expect(opcio('Film s1', 'Dalt')).toBeChecked();
+      expect(opcio('Film s1', 'Centre')).not.toBeChecked();
+      expect(opcio('Film s1', 'Baix')).not.toBeChecked();
+      await userEvent.click(casella('Film s2'));
+      expect(grup('Film s2')).toBeNull();
+    });
+
+    it('desa l\'enquadrament triat de cada sessió (sense els «Dalt»)', async () => {
+      renderNou();
+      await omple();
+      await userEvent.click(opcio('Film s2', 'Centre'));
+      await userEvent.click(opcio('Film s3', 'Baix'));
+      expect(opcio('Film s2', 'Centre')).toBeChecked();
+      await userEvent.click(screen.getByRole('button', { name: 'Desar' }));
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
+      expect(addDoc.mock.calls[0][1].enquadraments).toEqual({ s2: 'centre', s3: 'baix' });
+    });
+
+    it('carrega els desats i en desar descarta els de sessions desmarcades', async () => {
+      flyer = flyerExistent({ sessionsIds: ['s1', 's2', 's3', 's4'], enquadraments: { s1: 'baix', s4: 'centre' } });
+      renderExistent();
+      await screen.findByLabelText('Nom');
+      expect(opcio('Film s1', 'Baix')).toBeChecked();
+      expect(opcio('Film s4', 'Centre')).toBeChecked();
+      await userEvent.click(casella('Film s4'));
+      await userEvent.click(screen.getByRole('button', { name: 'Desar' }));
+      await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+      expect(updateDoc.mock.calls[0][1].enquadraments).toEqual({ s1: 'baix' });
+    });
+
+    it('tornar a «Dalt» deixa el formulari sense canvis', async () => {
+      flyer = flyerExistent();
+      renderExistent();
+      await screen.findByLabelText('Nom');
+      await userEvent.click(opcio('Film s1', 'Centre'));
+      expect(screen.getByRole('button', { name: 'Desar' })).toBeEnabled();
+      await userEvent.click(opcio('Film s1', 'Dalt'));
+      expect(screen.getByRole('button', { name: 'Desar' })).toBeDisabled();
+    });
+  });
+
   it('desar un alta crea un esborrany sense base ni publicatEl', async () => {
     renderNou();
     await omple();

@@ -91,13 +91,20 @@
 }
 /* El cartell OMPLE la caixa reservada (ample de la targeta x alçada que queda entre la barra i els textos), sense bandes buides.
    Si la forma no és 2:3 es retalla; com que l'ancoratge és a dalt, el que es perd és la part de baix (o, si la caixa és més
-   estreta, una mica dels costats), i el títol imprès al cartell es conserva. */
+   estreta, una mica dels costats), i el títol imprès al cartell es conserva. L'admin el pot ancorar al centre o a baix per
+   pel·lícula (un cartell amb el títol a baix). */
 .flyer-columna__imatge,
 .flyer-columna__marcador {
   @apply block object-cover;
   width: 100cqw;
   height: 100cqh;
   object-position: top center;
+}
+.flyer-columna__imatge--centre {
+  object-position: center center;
+}
+.flyer-columna__imatge--baix {
+  object-position: bottom center;
 }
 .flyer-columna__marcador {
   @apply box-border flex items-end overflow-hidden bg-neutral-700 font-bold uppercase text-white;

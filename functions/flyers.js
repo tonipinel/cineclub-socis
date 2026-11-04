@@ -28,8 +28,11 @@ function estable(valor) {
   return JSON.stringify(valor) ?? 'null';
 }
 
-// Hash del que surt imprès: el nom i, per cada sessió (en l'ordre rebut, publicada o no), els seus camps visibles i si és
-// publicada (així la signatura canvia, i els PDF es regeneren, quan es publica una sessió).
+const ENQUADRAMENTS = ['dalt', 'centre', 'baix'];
+
+// Hash del que surt imprès: el nom i, per cada sessió (en l'ordre rebut, publicada o no), els seus camps visibles, si és
+// publicada (així la signatura canvia, i els PDF es regeneren, quan es publica una sessió) i l'enquadrament del cartell
+// (`flyer.enquadraments`). «dalt» (el per defecte) no hi entra: la signatura dels PDF ja generats no canvia.
 // `sessions` són `{ id, ...dades }` en l'ordre del flyer.
 function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
   const imprimibles = (sessions ?? [])
@@ -48,6 +51,7 @@ function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
       preu: s.publica?.preu ?? null,
       seccio: s.publica?.seccio ?? null,
       publicada: s.publicada === true,
+      ...(ENQUADRAMENTS.includes(flyer?.enquadraments?.[s.id]) && flyer.enquadraments[s.id] !== 'dalt' && { enquadrament: flyer.enquadraments[s.id] }),
     }));
   return crypto.createHash('sha256').update(estable({ versio, nom: flyer?.nom ?? null, sessions: imprimibles })).digest('hex');
 }

@@ -12,7 +12,8 @@ import ErrorCarrega from '../../components/ErrorCarrega';
 import useErrorCarrega from '../../lib/useErrorCarrega';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
-  MAX_SESSIONS, canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
+  MAX_SESSIONS, canvisDesdeBase, enquadramentDe, enquadramentsDesats, etiquetaEstat, flyerActiu, instantania, sessionsDelRang,
+  sessionsNoPublicades, validarFlyer,
 } from '../../lib/flyers';
 import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
@@ -23,6 +24,7 @@ const ERROR_CARREGA = "No s'ha pogut carregar el flyer.";
 const ETIQUETES = { nom: 'Nom', desde: 'Des de', fins: 'Fins a' };
 const CAMPS = Object.keys(ETIQUETES);
 const ETIQUETA_VERSIO = Object.fromEntries(VERSIONS);
+const OPCIONS_ENQUADRAMENT = [['dalt', 'Dalt'], ['centre', 'Centre'], ['baix', 'Baix']];
 const CANVIS = {
   esborrada: 'la sessió s\'ha esborrat',
   despublicada: 'la sessió s\'ha despublicat',
@@ -131,7 +133,26 @@ function PendentsDePublicar({ pendents, sessionsPerId }) {
   );
 }
 
-function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
+// Quina part del cartell es conserva en retallar-lo a la cara A del flyer.
+function Enquadrament({
+  id, titol, valor, onCanvia,
+}) {
+  return (
+    <fieldset className="flyer-form__enquadrament" aria-label={`Cartell de ${titol}`}>
+      <legend className="flyer-form__enquadrament-titol">Cartell</legend>
+      {OPCIONS_ENQUADRAMENT.map(([opcio, etiqueta]) => (
+        <label key={opcio} className="flyer-form__enquadrament-opcio">
+          <input type="radio" name={`enquadrament-${id}`} value={opcio} checked={valor === opcio} onChange={() => onCanvia(id, opcio)} />
+          <span>{etiqueta}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+function LlistaSessions({
+  ids, sessionsPerId, triades, onAlterna, enquadraments, onEnquadra,
+}) {
   if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió en aquest rang.</p>;
   return (
     <ul className="flyer-form__sessions">
@@ -161,6 +182,9 @@ function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
                 ? <span className="badge badge--al-dia">Publicada</span>
                 : <span className="badge badge--pendent">Sense publicar</span>}
             </label>
+            {triades.has(id) && (
+              <Enquadrament id={id} titol={s.titol} valor={enquadramentDe(enquadraments, id)} onCanvia={onEnquadra} />
+            )}
             <EnllacSessio id={id} />
           </li>
         );
@@ -178,6 +202,7 @@ function FitxaFlyer({ id, carregada }) {
     desde: flyer?.desde ?? '',
     fins: flyer?.fins ?? '',
     sessionsIds: flyer?.sessionsIds ?? [],
+    enquadraments: enquadramentsDesats(flyer?.enquadraments, flyer?.sessionsIds),
   }));
   // El que hi ha desat a Firestore i no depèn del formulari.
   const [desat, setDesat] = useState(() => ({
@@ -217,7 +242,12 @@ function FitxaFlyer({ id, carregada }) {
   const escriu = async (v, { publica }) => {
     const ids = ordenaIds(v.sessionsIds, sessionsPerId);
     const dades = {
-      nom: v.nom.trim(), desde: v.desde, fins: v.fins, sessionsIds: ids, actualitzatEl: serverTimestamp(),
+      nom: v.nom.trim(),
+      desde: v.desde,
+      fins: v.fins,
+      sessionsIds: ids,
+      enquadraments: enquadramentsDesats(v.enquadraments, ids),
+      actualitzatEl: serverTimestamp(),
     };
     let base = desat.base;
     if (publica) {
@@ -277,6 +307,12 @@ function FitxaFlyer({ id, carregada }) {
     const triades = new Set(valors.sessionsIds);
     if (!triades.delete(sid)) triades.add(sid);
     canvia('sessionsIds', ordenaIds([...triades], sessionsPerId));
+  };
+
+  // «Dalt» és el per defecte: no es guarda, així tornar-hi deixa el formulari sense canvis.
+  const enquadra = (sid, valor) => {
+    const { [sid]: _previ, ...resta } = valors.enquadraments;
+    canvia('enquadraments', valor === 'dalt' ? resta : { ...resta, [sid]: valor });
   };
 
   const candidates = ordenaIds([...new Set([
@@ -413,7 +449,14 @@ function FitxaFlyer({ id, carregada }) {
       <section className="flyer-form__seccio" aria-labelledby="flyer-sessions">
         <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length} de ${MAX_SESSIONS})`}</h2>
         <p className="form__ajuda">En triar les dates es marquen les sessions del rang, publicades o no. Pots desmarcar-ne.</p>
-        <LlistaSessions ids={candidates} sessionsPerId={sessionsPerId} triades={new Set(valors.sessionsIds)} onAlterna={alterna} />
+        <LlistaSessions
+          ids={candidates}
+          sessionsPerId={sessionsPerId}
+          triades={new Set(valors.sessionsIds)}
+          onAlterna={alterna}
+          enquadraments={valors.enquadraments}
+          onEnquadra={enquadra}
+        />
         {errorsValidacio.sessionsIds?.map((m) => <p key={m} className="form__error">{m}</p>)}
       </section>
 

@@ -44,8 +44,17 @@ describe('peliculaFlyer', () => {
     });
     expect(peliculaFlyer(s)).toEqual({
       id: 'anatomie', titol: 'Anatomie', titolTraduit: 'Anatomia', dataText: 'Dj 5 nov', hora: '19:00', seccio: 'cartellera', imatge: '/c.jpg',
-      versio: 'VOSE', idioma: 'Alemany',
+      versio: 'VOSE', idioma: 'Alemany', enquadrament: 'dalt',
     });
+  });
+  it('l\'enquadrament del cartell surt dels `enquadraments` del flyer; per defecte (o invàlid) «dalt»', () => {
+    const s = sessio('a', '2026-11-05', '19:00', { titol: 'A' });
+    expect(peliculaFlyer(s, { a: 'centre' }).enquadrament).toBe('centre');
+    expect(peliculaFlyer(s, { a: 'baix' }).enquadrament).toBe('baix');
+    expect(peliculaFlyer(s, { a: 'xx' }).enquadrament).toBe('dalt');
+    expect(peliculaFlyer(s, { b: 'baix' }).enquadrament).toBe('dalt');
+    expect(peliculaFlyer(s).enquadrament).toBe('dalt');
+    expect(peliculaFlyer(s, 0).enquadrament).toBe('dalt'); // `sessions.map(peliculaFlyer)` passa l'índex
   });
   it('sense traducció ni cartell', () => {
     const p = peliculaFlyer(sessio('x', '2026-12-03', '19:00', { titol: 'X', titolTraduit: 'x' }));
