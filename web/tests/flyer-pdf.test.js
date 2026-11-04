@@ -10,11 +10,24 @@ const PDF = Buffer.from('%PDF-1.4 simple');
 const PDF_IMPREMTA = Buffer.from('%PDF-1.4 impremta');
 const URL_SIMPLE = 'https://firebasestorage.googleapis.com/v0/b/b/o/flyers%2Ff1%2Fflyer-simple.pdf?alt=media&token=TOKEN-SIMPLE';
 const URL_IMPREMTA = 'https://firebasestorage.googleapis.com/v0/b/b/o/flyers%2Ff1%2Fflyer-impremta.pdf?alt=media&token=TOKEN-IMPREMTA';
-const PDFS = { simple: { path: 'flyers/f1/flyer-simple.pdf', url: URL_SIMPLE }, impremta: { path: 'flyers/f1/flyer-impremta.pdf', url: URL_IMPREMTA } };
+// `sessionsIds`: les sessions pintades al PDF (les desa la funció).
+const PDFS = { simple: { path: 'flyers/f1/flyer-simple.pdf', url: URL_SIMPLE, sessionsIds: ['s1'] }, impremta: { path: 'flyers/f1/flyer-impremta.pdf', url: URL_IMPREMTA, sessionsIds: ['s1'] } };
+// Flyer actiu: publicat i amb la sessió `s1` publicada.
+const ACTIU = { estat: 'publicat', clauPrevia: 'k', sessionsIds: ['s1'] };
+const S1 = { id: 's1', publicada: true };
 
 let fetchMock;
-const ambFlyer = (dades) => getDbMock.mockReturnValue({
-  collection: () => ({ doc: (id) => ({ get: async () => ({ exists: Boolean(dades), id, data: () => dades }) }) }),
+// `sessions`: els documents de `sessions` que existeixen ({ id, publicada }).
+const ambFlyer = (dades, sessions = [S1]) => getDbMock.mockReturnValue({
+  collection: (nom) => ({
+    doc: (id) => ({
+      get: async () => {
+        const d = nom === 'flyers' ? dades : sessions.find((s) => s.id === id);
+        return { exists: Boolean(d), id, data: () => d };
+      },
+    }),
+  }),
+  getAll: async (...refs) => Promise.all(refs.map((r) => r.get())),
 });
 const demana = (consulta = '') => GET({ params: { id: 'f1' }, url: new URL(`http://localhost/flyer/f1/flyer.pdf${consulta}`) });
 
@@ -35,7 +48,7 @@ const senseToken = async (res) => {
 
 describe('GET /flyer/<id>/flyer.pdf', () => {
   it('publicat: serveix el PDF simple amb les capçaleres i caché pública', async () => {
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: PDFS });
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
     const res = await demana();
     expect(res.status).toBe(200);
     await senseToken(res);
@@ -47,7 +60,7 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
   });
 
   it('impremta: sense clau 404 (ni descarrega res); amb la clau 200 i no-store', async () => {
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: PDFS });
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
     expect((await demana('?variant=impremta')).status).toBe(404);
     expect((await demana('?variant=impremta&clau=x')).status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -74,22 +87,22 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
       ambFlyer({ estat: 'esborrany', clauPrevia, pdfs: PDFS });
       expect((await demana('?clau=')).status).toBe(404);
       expect((await demana()).status).toBe(404);
-      ambFlyer({ estat: 'publicat', clauPrevia, pdfs: PDFS });
+      ambFlyer({ ...ACTIU, clauPrevia, pdfs: PDFS });
       expect((await demana('?variant=impremta&clau=')).status).toBe(404);
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sense PDF generat: 404 amb missatge i no-store (però un esborrany sense clau no ho revela)', async () => {
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k' });
+    ambFlyer({ ...ACTIU });
     const res = await demana();
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('El PDF encara s\'està preparant');
     expect(res.headers.get('Cache-Control')).toBe('no-store');
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: { simple: { path: PDFS.simple.path } } });
+    ambFlyer({ ...ACTIU, pdfs: { simple: { path: PDFS.simple.path } } });
     expect((await demana()).status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: { simple: PDFS.simple } });
+    ambFlyer({ ...ACTIU, pdfs: { simple: PDFS.simple } });
     expect((await demana('?variant=impremta&clau=k')).status).toBe(404);
     ambFlyer({ estat: 'esborrany', clauPrevia: 'k' });
     expect(await (await demana()).text()).toBe('Not found');
@@ -100,7 +113,7 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
     const resposta = new Response('denied', { status: 403 });
     const cancel = vi.spyOn(resposta.body, 'cancel');
     fetchMock.mockResolvedValue(resposta);
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: PDFS });
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
     const res = await demana();
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('El PDF encara s\'està preparant');
@@ -115,7 +128,7 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
   it('el fetch llança: 404 amb el missatge, sense registrar l\'error (porta la URL)', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockRejectedValue(new Error(`fallit ${URL_SIMPLE}`));
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: PDFS });
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
     const res = await demana();
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('El PDF encara s\'està preparant');
@@ -126,7 +139,7 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
   it('timeout/abort del fetch: 404 amable i només es registra l\'id', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockRejectedValue(new DOMException('The operation was aborted', 'TimeoutError'));
-    ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: PDFS });
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
     const res = await demana();
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('El PDF encara s\'està preparant');
@@ -136,12 +149,73 @@ describe('GET /flyer/<id>/flyer.pdf', () => {
 
   it('una URL d\'un altre origen o prefix no es descarrega', async () => {
     for (const url of ['https://evil.test/v0/b/b/o/x?token=TOKEN-X', 'http://firebasestorage.googleapis.com/v0/b/b/o/x', 'https://firebasestorage.googleapis.com.evil.test/v0/b/b/o/x', 'https://firebasestorage.googleapis.com/other', 42]) {
-      ambFlyer({ estat: 'publicat', clauPrevia: 'k', pdfs: { simple: { path: 'p', url } } });
+      ambFlyer({ ...ACTIU, pdfs: { simple: { path: 'p', url } } });
       const res = await demana();
       expect(res.status).toBe(404);
       expect(await res.text()).toBe('El PDF encara s\'està preparant');
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('publicat amb una sessió sense publicar o esborrada (no actiu): el 404 d\'un esborrany sense clau; amb la clau 200 i no-store', async () => {
+    const sessions = [{ id: 's1', publicada: true }, { id: 's2', publicada: false }];
+    for (const sessionsIds of [['s1', 's2'], ['s1', 'esborrada']]) {
+      ambFlyer({ ...ACTIU, sessionsIds, pdfs: PDFS }, sessions);
+      for (const consulta of ['', '?clau=', '?clau=x', '?variant=simple']) {
+        const res = await demana(consulta);
+        expect(res.status).toBe(404);
+        expect(await res.text()).toBe('Not found');
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+      const res = await demana('?clau=k');
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+      fetchMock.mockClear();
+    }
+  });
+
+  it('publicat amb totes les sessions publicades (actiu): 200 sense clau i caché pública', async () => {
+    ambFlyer({ ...ACTIU, sessionsIds: ['s1', 's2'], pdfs: PDFS }, [{ id: 's1', publicada: true }, { id: 's2', publicada: true }]);
+    const res = await demana();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe(CACHE_OK);
+  });
+
+  it('amb una clau vàlida la resposta és no-store encara que el flyer sigui actiu', async () => {
+    ambFlyer({ ...ACTIU, pdfs: PDFS });
+    const res = await demana('?clau=k');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('un PDF pintat amb una sessió que ja no és del flyer no se serveix sense clau fins que es regeneri', async () => {
+    const pintat = (sessionsIds) => ({ simple: { ...PDFS.simple, sessionsIds } });
+    const sessions = [S1, { id: 's2', publicada: true }, { id: 's3', publicada: true }];
+    // Esborrany [s1, s2, d] amb d sense publicar; l'admin treu d (o la canvia per s3) i publica: el PDF desat encara porta d.
+    for (const sessionsIds of [['s1', 's2'], ['s1', 's2', 's3']]) {
+      ambFlyer({ ...ACTIU, sessionsIds, pdfs: pintat(['s1', 's2', 'd']) }, sessions);
+      const res = await demana();
+      expect(res.status).toBe(404);
+      expect(await res.text()).toBe('El PDF encara s\'està preparant');
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+      expect(fetchMock).not.toHaveBeenCalled();
+      // amb la clau es continua servint
+      expect((await demana('?clau=k')).status).toBe(200);
+      fetchMock.mockClear();
+      // regenerat amb les sessions actuals: se serveix
+      ambFlyer({ ...ACTIU, sessionsIds, pdfs: pintat(sessionsIds) }, sessions);
+      expect((await demana()).status).toBe(200);
+      fetchMock.mockClear();
+    }
+  });
+
+  it('un PDF antic sense sessionsIds no se serveix sense clau (sí amb la clau)', async () => {
+    ambFlyer({ ...ACTIU, pdfs: { simple: { path: PDFS.simple.path, url: URL_SIMPLE } } });
+    const res = await demana();
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('El PDF encara s\'està preparant');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await demana('?clau=k')).status).toBe(200);
   });
 
   it('flyer inexistent: 404', async () => {

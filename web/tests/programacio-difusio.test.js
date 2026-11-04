@@ -12,7 +12,7 @@ const sessio = (id, data) => ({
   id, titol: id, slug: id, publicada: true, data, hora: '19:00',
   publica: { titol: `Peli ${id}`, versioTipus: 'vose', generes: ['Drama'], seccio: 'cartellera' },
 });
-const sessions = [sessio('futura', '2099-11-05')];
+const sessions = [sessio('futura', '2099-11-05'), { ...sessio('np', '2099-11-12'), publicada: false }];
 const ts = (ms) => ({ toMillis: () => ms });
 
 let flyers;
@@ -45,8 +45,8 @@ afterEach(() => vi.restoreAllMocks());
 describe('/programacio/: bloc de difusió', () => {
   it('amb un flyer publicat: bloc entre les properes sessions i el calendari, amb PDF i WhatsApp', async () => {
     flyers = [
-      { id: 'vell', nom: 'Flyer vell', estat: 'publicat', publicatEl: ts(1000) },
-      { id: 'nou', nom: 'Flyer novembre', estat: 'publicat', publicatEl: ts(2000) },
+      { id: 'vell', nom: 'Flyer vell', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'] },
+      { id: 'nou', nom: 'Flyer novembre', estat: 'publicat', publicatEl: ts(2000), sessionsIds: ['futura'] },
       { id: 'esb', nom: 'Esborrany', estat: 'esborrany', publicatEl: ts(3000) },
     ];
     const html = await demana();
@@ -62,7 +62,7 @@ describe('/programacio/: bloc de difusió', () => {
   });
 
   it('un flyer amb fins en el passat no es promociona', async () => {
-    flyers = [{ id: 'vell', nom: 'Flyer vell', estat: 'publicat', publicatEl: ts(1000), fins: '2020-01-31' }];
+    flyers = [{ id: 'vell', nom: 'Flyer vell', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'], fins: '2020-01-31' }];
     const html = await demana();
     expect(html).not.toContain('difusio');
     expect(html).not.toContain('/flyer/vell/');
@@ -72,14 +72,33 @@ describe('/programacio/: bloc de difusió', () => {
   it('un flyer que acaba avui (Madrid) encara es promociona; ahir ja no', async () => {
     const avui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const ahir = new Date(Date.parse(`${avui}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
-    flyers = [{ id: 'avui', nom: 'Flyer avui', estat: 'publicat', publicatEl: ts(1000), fins: avui }];
+    flyers = [{ id: 'avui', nom: 'Flyer avui', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'], fins: avui }];
     expect(await demana()).toContain('href="/flyer/avui/flyer.pdf"');
-    flyers = [{ id: 'ahir', nom: 'Flyer ahir', estat: 'publicat', publicatEl: ts(1000), fins: ahir }];
+    flyers = [{ id: 'ahir', nom: 'Flyer ahir', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'], fins: ahir }];
     expect(await demana()).not.toContain('difusio');
   });
 
+  it('un flyer no actiu (sessió sense publicar o esborrada) no es promociona: es tria el següent actiu i vigent', async () => {
+    flyers = [
+      { id: 'actiu', nom: 'Actiu', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'], fins: '2099-12-31' },
+      { id: 'caducat', nom: 'Caducat', estat: 'publicat', publicatEl: ts(1500), sessionsIds: ['futura'], fins: '2020-01-31' },
+      { id: 'esborrada', nom: 'Esborrada', estat: 'publicat', publicatEl: ts(2000), sessionsIds: ['futura', 'zz'], fins: '2099-12-31' },
+      { id: 'pendent', nom: 'Pendent', estat: 'publicat', publicatEl: ts(3000), sessionsIds: ['futura', 'np'], fins: '2099-12-31' },
+    ];
+    const html = await demana();
+    expect(html).toContain('href="/flyer/actiu/flyer.pdf"');
+    for (const id of ['caducat', 'esborrada', 'pendent']) expect(html).not.toContain(`/flyer/${id}/`);
+  });
+
+  it('si cap flyer és actiu no es pinta res', async () => {
+    flyers = [{ id: 'pendent', nom: 'Pendent', estat: 'publicat', publicatEl: ts(3000), sessionsIds: ['futura', 'np'], fins: '2099-12-31' }];
+    const html = await demana();
+    expect(html).not.toContain('difusio');
+    expect(html).toContain('calendar-wrapper');
+  });
+
   it('l\'id del flyer es codifica als enllaços', async () => {
-    flyers = [{ id: 'a b/c', nom: 'X', estat: 'publicat', publicatEl: ts(1000), fins: '2099-01-01' }];
+    flyers = [{ id: 'a b/c', nom: 'X', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['futura'], fins: '2099-01-01' }];
     const html = await demana();
     expect(html).toContain('href="/flyer/a%20b%2Fc/flyer.pdf"');
   });

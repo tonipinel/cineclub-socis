@@ -72,12 +72,26 @@ export async function sessionsDelFlyer(flyer, db = getDb(), { totes = false } = 
     .sort(ascendent);
 }
 
-// El de `publicatEl` més recent (un flyer retocat després no el supera: només compta quan es va publicar).
-export async function darrerFlyerPublicat(db = getDb()) {
+// Actiu = publicat, amb alguna sessió i totes les ids de `sessionsIds` corresponents a sessions que existeixen i són publicades.
+// Només un flyer actiu es veu sense la `clau` (pàgina, PDF i impressió) i es promociona a /programacio/.
+export async function flyerActiu(flyer, db = getDb()) {
+  if (flyer?.estat !== 'publicat') return false;
+  const ids = flyer.sessionsIds ?? [];
+  if (!ids.length) return false;
+  const docs = await llegir(db.getAll(...ids.map((id) => db.collection('sessions').doc(id))));
+  return docs.every((doc) => doc.exists && doc.data()?.publicada === true);
+}
+
+// El flyer ACTIU i vigent de `publicatEl` més recent (un flyer retocat després no el supera: només compta quan es va
+// publicar). Si el més nou no és actiu o ja ha acabat, el següent; si cap, null.
+export async function darrerFlyerPublicat(db = getDb(), ara = new Date()) {
   const snap = await llegir(db.collection('flyers').where('estat', '==', 'publicat').get());
   const flyers = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   const ms = (f) => f.publicatEl?.toMillis?.() ?? 0;
-  return flyers.sort((a, b) => ms(b) - ms(a))[0] ?? null;
+  for (const flyer of flyers.sort((a, b) => ms(b) - ms(a))) {
+    if (flyerVigent(flyer, ara) && await flyerActiu(flyer, db)) return flyer;
+  }
+  return null;
 }
 
 // Un programa que ja ha acabat (`fins` anterior a avui, a Europe/Madrid) no es promociona. `fins` és YYYY-MM-DD.
@@ -87,5 +101,5 @@ export const flyerVigent = (flyer, ara = new Date()) => {
   return flyer.fins >= avui;
 };
 
-export const potVeure = (flyer, clau) =>
-  flyer.estat === 'publicat' || (Boolean(clau) && clau === flyer.clauPrevia);
+// La `clau` de previsualització (admin i generació dels PDF): obre el flyer encara que no sigui actiu. Una clau buida mai.
+export const teClau = (flyer, clau) => Boolean(clau) && clau === flyer.clauPrevia;

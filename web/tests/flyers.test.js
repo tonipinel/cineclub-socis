@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, potVeure,
+  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, flyerActiu, teClau,
 } from '../src/lib/flyers.js';
 import { conWhere } from './helpers/firestore.js';
 
@@ -121,25 +121,56 @@ describe('flyerPerId', () => {
   });
 });
 
-describe('darrerFlyerPublicat', () => {
-  it('ignora esborranys i tria el publicatEl més nou', async () => {
-    const db = dbFals({ flyers: [
-      { id: 'vell', estat: 'publicat', publicatEl: ts(1000), actualitzatEl: ts(9000) },
-      { id: 'nou', estat: 'publicat', publicatEl: ts(2000), actualitzatEl: ts(2000) },
-      { id: 'esb', estat: 'esborrany', publicatEl: ts(5000) },
-    ] });
-    expect((await darrerFlyerPublicat(db)).id).toBe('nou');
+describe('flyerActiu', () => {
+  const db = dbFals({ sessions: [sessio('a', '2026-11-05', '19:00'), sessio('np', '2026-11-06', '19:00', {}, { publicada: false })] });
+  it('publicat i amb totes les sessions existents i publicades', async () => {
+    expect(await flyerActiu({ estat: 'publicat', sessionsIds: ['a'] }, db)).toBe(true);
   });
-  it('sense cap publicat, null', async () => {
-    expect(await darrerFlyerPublicat(dbFals({ flyers: [{ id: 'e', estat: 'esborrany' }] }))).toBeNull();
+  it('un esborrany no és actiu', async () => {
+    expect(await flyerActiu({ estat: 'esborrany', sessionsIds: ['a'] }, db)).toBe(false);
+  });
+  it('una sessió sense publicar o esborrada el fa no actiu', async () => {
+    expect(await flyerActiu({ estat: 'publicat', sessionsIds: ['a', 'np'] }, db)).toBe(false);
+    expect(await flyerActiu({ estat: 'publicat', sessionsIds: ['a', 'zz'] }, db)).toBe(false);
+  });
+  it('un publicat sense sessions no és actiu', async () => {
+    expect(await flyerActiu({ estat: 'publicat', sessionsIds: [] }, db)).toBe(false);
+    expect(await flyerActiu({ estat: 'publicat' }, db)).toBe(false);
   });
 });
 
-describe('potVeure', () => {
-  it('publicat, o esborrany amb la clau correcta', () => {
-    expect(potVeure({ estat: 'publicat', clauPrevia: 'k' }, undefined)).toBe(true);
-    expect(potVeure({ estat: 'esborrany', clauPrevia: 'k' }, 'k')).toBe(true);
-    expect(potVeure({ estat: 'esborrany', clauPrevia: 'k' }, 'altra')).toBe(false);
-    expect(potVeure({ estat: 'esborrany', clauPrevia: 'k' }, undefined)).toBe(false);
+describe('darrerFlyerPublicat', () => {
+  const ara = new Date('2026-11-04T12:00:00Z');
+  const sessions = [sessio('a', '2026-11-05', '19:00'), sessio('np', '2026-11-06', '19:00', {}, { publicada: false })];
+  it('ignora esborranys i tria el publicatEl més nou', async () => {
+    const db = dbFals({ sessions, flyers: [
+      { id: 'vell', estat: 'publicat', publicatEl: ts(1000), actualitzatEl: ts(9000), sessionsIds: ['a'] },
+      { id: 'nou', estat: 'publicat', publicatEl: ts(2000), actualitzatEl: ts(2000), sessionsIds: ['a'] },
+      { id: 'esb', estat: 'esborrany', publicatEl: ts(5000), sessionsIds: ['a'] },
+    ] });
+    expect((await darrerFlyerPublicat(db, ara)).id).toBe('nou');
+  });
+  it('salta els no actius i els caducats i tria el següent actiu i vigent', async () => {
+    const db = dbFals({ sessions, flyers: [
+      { id: 'actiu', estat: 'publicat', publicatEl: ts(1000), sessionsIds: ['a'], fins: '2026-11-30' },
+      { id: 'caducat', estat: 'publicat', publicatEl: ts(2000), sessionsIds: ['a'], fins: '2026-11-03' },
+      { id: 'pendent', estat: 'publicat', publicatEl: ts(3000), sessionsIds: ['a', 'np'], fins: '2026-11-30' },
+      { id: 'esborrada', estat: 'publicat', publicatEl: ts(4000), sessionsIds: ['a', 'zz'], fins: '2026-11-30' },
+    ] });
+    expect((await darrerFlyerPublicat(db, ara)).id).toBe('actiu');
+  });
+  it('sense cap actiu i vigent, null', async () => {
+    expect(await darrerFlyerPublicat(dbFals({ flyers: [{ id: 'e', estat: 'esborrany' }] }), ara)).toBeNull();
+    expect(await darrerFlyerPublicat(dbFals({ sessions, flyers: [{ id: 'p', estat: 'publicat', sessionsIds: ['np'] }] }), ara)).toBeNull();
+  });
+});
+
+describe('teClau', () => {
+  it('només amb la clau correcta i no buida', () => {
+    expect(teClau({ clauPrevia: 'k' }, 'k')).toBe(true);
+    expect(teClau({ clauPrevia: 'k' }, 'altra')).toBe(false);
+    expect(teClau({ clauPrevia: 'k' }, undefined)).toBe(false);
+    expect(teClau({ clauPrevia: '' }, '')).toBe(false);
+    expect(teClau({}, '')).toBe(false);
   });
 });

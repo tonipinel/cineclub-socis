@@ -132,6 +132,15 @@ describe('FlyerForm', () => {
     expect(within(esborrada).queryByRole('link')).toBeNull();
   });
 
+  it('un flyer publicat però no actiu: enllaços amb la clau i totes=1, sense «Copiar l\'enllaç»', async () => {
+    sessions = [...SESSIONS, DRAFT];
+    flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {}, sessionsIds: ['s1', 's2', 'draft'] });
+    renderExistent();
+    expect(await screen.findByRole('link', { name: 'Previsualització de la pàgina' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123&totes=1');
+    expect(screen.getByRole('link', { name: 'Previsualització d\'impressió' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/imprimir/?variant=simple&clau=abc123&totes=1');
+    expect(screen.queryByRole('button', { name: "Copiar l'enllaç" })).toBeNull();
+  });
+
   it('un flyer publicat amb totes les sessions publicades surt «Actiu»', async () => {
     flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {} });
     renderExistent();
@@ -247,7 +256,7 @@ describe('FlyerForm', () => {
     flyer = flyerExistent();
     const { unmount } = renderExistent();
     const previ = await screen.findByRole('link', { name: 'Previsualització de la pàgina' });
-    expect(previ).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123');
+    expect(previ).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123&totes=1');
     expect(screen.queryByRole('button', { name: "Copiar l'enllaç" })).toBeNull();
     unmount();
 

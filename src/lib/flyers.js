@@ -82,14 +82,15 @@ export function sessionsNoPublicades(flyer, sessionsPerId) {
   });
 }
 
-// Actiu = publicat i amb totes les sessions publicades. Es calcula, no es desa.
+// Actiu = publicat, amb alguna sessió i totes publicades. Es calcula, no es desa.
 export function flyerActiu(flyer, sessionsPerId) {
-  return flyer.estat === 'publicat' && sessionsNoPublicades(flyer, sessionsPerId).length === 0;
+  return flyer.estat === 'publicat' && (flyer.sessionsIds ?? []).length > 0 && sessionsNoPublicades(flyer, sessionsPerId).length === 0;
 }
 
 // «Esborrany», «Actiu» o «Publicat, pendent de publicar N sessions».
 export function etiquetaEstat(flyer, sessionsPerId) {
   if (flyer.estat !== 'publicat') return 'Esborrany';
+  if (!(flyer.sessionsIds ?? []).length) return 'Publicat, sense sessions';
   const n = sessionsNoPublicades(flyer, sessionsPerId).length;
   if (n === 0) return 'Actiu';
   return `Publicat, pendent de publicar ${n} ${n === 1 ? 'sessió' : 'sessions'}`;

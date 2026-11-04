@@ -7,30 +7,32 @@ import FlyerCaraB from '../../../components/FlyerCaraB.astro';
 import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { SITE_URL } from '../../../lib/env.js';
 import { CACHE_OK, CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerPerId, peliculaFlyer, potVeure, preuFlyer, sessionsDelFlyer } from '../../../lib/flyers.js';
+import { flyerActiu, flyerPerId, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
 
-// /flyer/<id>/: el flyer per mirar al mòbil i compartir. Un flyer inexistent, o un esborrany sense la
-// `clau` de previsualització, dóna el 404 de la web. No és al sitemap i és noindex.
+// /flyer/<id>/: el flyer per mirar al mòbil i compartir. Sense la `clau` de previsualització només es veu un flyer actiu
+// (publicat i amb totes les sessions publicades); si no, o si no existeix, el 404 de la web. No és al sitemap i és noindex.
 const { id } = Astro.params;
 const clau = Astro.url.searchParams.get('clau') ?? '';
 const flyer = await flyerPerId(id);
-if (!flyer || !potVeure(flyer, clau)) return Astro.rewrite('/404');
-const esborrany = flyer.estat !== 'publicat';
-// Amb la `clau` correcta es veuen també les sessions no publicades: aquesta resposta no es pot cachejar.
-// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin): la funció que genera
-// els PDF obre /imprimir/?clau=… sense `totes=1`, així que el PDF públic mai en porta.
-const totes = Boolean(clau) && clau === flyer.clauPrevia && Astro.url.searchParams.get('totes') === '1';
-Astro.response.headers.set('Cache-Control', esborrany || totes ? CACHE_ERROR : CACHE_OK);
+const ambClau = Boolean(flyer) && teClau(flyer, clau);
+const actiu = Boolean(flyer) && await flyerActiu(flyer);
+if (!flyer || !(actiu || ambClau)) return Astro.rewrite('/404');
+// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin i generació dels PDF).
+const totes = ambClau && Astro.url.searchParams.get('totes') === '1';
+// Només es cacheja la pàgina pública d'un flyer actiu; una URL amb la `clau` mai.
+Astro.response.headers.set('Cache-Control', actiu && !ambClau ? CACHE_OK : CACHE_ERROR);
 
 // Un flyer té de 3 a 5 sessions; un document antic amb més en pinta les 5 primeres (per data).
 const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
 const pelicules = sessions.map(peliculaFlyer);
 const preu = preuFlyer(sessions);
-// Només l'esborrany porta la clau als enllaços: una pàgina publicada (cacheable) no repeteix res de la petició.
-const consulta = esborrany ? `?clau=${encodeURIComponent(clau)}` : '';
+// Només un flyer no actiu (que només s'obre amb la clau) la porta als enllaços: la pàgina pública (cacheable) no repeteix res de la petició.
+const consulta = actiu ? '' : `?clau=${encodeURIComponent(clau)}`;
 const urlPagina = `${SITE_URL}/flyer/${encodeURIComponent(id)}/${consulta}`;
 const urlPdf = `/flyer/${encodeURIComponent(id)}/flyer.pdf${consulta}`;
-// L'esborrany no es comparteix: l'URL duria la clau, que també desbloqueja l'impremta.
+// El PDF porta totes les sessions del flyer: d'un flyer no actiu només s'ofereix si la pàgina també les mostra (`totes=1`).
+const ambPdf = actiu || totes;
+// Un flyer no actiu no es comparteix: l'URL duria la clau, que també desbloqueja l'impremta.
 const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${urlPagina}`)}`;
 ---
 <!DOCTYPE html>
@@ -46,9 +48,9 @@ const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(`${flyer.nom} ${ur
 <main class={`flyer-pagina__contingut${pelicules.length ? '' : ' flyer-pagina__contingut--buit'}`}>
   <h1 class="flyer-pagina__titol">{flyer.nom}</h1>
   <div class="flyer-pagina__accions">
-    <a class="flyer-pagina__boto" href={urlPdf}>Imprimeix</a>
+    {ambPdf && <a class="flyer-pagina__boto" href={urlPdf}>Imprimeix</a>}
     <button type="button" class="flyer-pagina__boto flyer-pagina__boto--secundari" onclick="window.print()">Imprimeix aquesta pàgina</button>
-    {!esborrany && <a class="flyer-pagina__boto flyer-pagina__boto--secundari" href={urlWhatsapp} rel="noopener">Comparteix per WhatsApp</a>}
+    {actiu && <a class="flyer-pagina__boto flyer-pagina__boto--secundari" href={urlWhatsapp} rel="noopener">Comparteix per WhatsApp</a>}
   </div>
   {pelicules.length > 0
     ? <div class="flyer-pagina__cara"><div class="flyer-pagina__escala"><FlyerCaraA pelicules={pelicules} /></div></div>

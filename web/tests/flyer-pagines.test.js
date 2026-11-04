@@ -33,6 +33,7 @@ const flyers = [
   { id: 'amb-preus', nom: 'Amb preus', estat: 'publicat', sessionsIds: ['p1', 'p2'], clauPrevia: 'secreta' },
   { id: 'sis', nom: 'Sis sessions', estat: 'publicat', sessionsIds: ['a', 'b', 'c', 'd', 'p1', 'p2'], clauPrevia: 'secreta' },
   { id: 'buit', nom: 'Sense pelis', estat: 'publicat', sessionsIds: ['d'], clauPrevia: 'secreta' },
+  { id: 'amb-esborrada', nom: 'Amb una esborrada', estat: 'publicat', sessionsIds: ['a', 'b', 'zz'], clauPrevia: 'secreta' },
 ];
 
 const doc = (id, dades) => ({ id, exists: Boolean(dades), data: () => dades });
@@ -72,7 +73,7 @@ describe('/flyer/<id>/', () => {
   it('esborrany: 404 sense clau o amb clau errònia; amb la clau es veu, no-store i els enllaços la conserven', async () => {
     expect((await demana(PaginaFlyer, 'esb')).status).toBe(404);
     expect((await demana(PaginaFlyer, 'esb', '?clau=altra')).status).toBe(404);
-    const { status, cache, html } = await demana(PaginaFlyer, 'esb', '?clau=secreta');
+    const { status, cache, html } = await demana(PaginaFlyer, 'esb', '?clau=secreta&totes=1');
     expect(status).toBe(200);
     expect(cache).toBe('no-store');
     expect(html).toContain('href="/flyer/esb/flyer.pdf?clau=secreta"');
@@ -88,6 +89,11 @@ describe('/flyer/<id>/', () => {
     expect((await demana(PaginaFlyer, 'pub', '?clau=secreta')).html).not.toContain('clau');
   });
 
+  it('amb una clau vàlida la resposta és no-store encara que el flyer sigui actiu', async () => {
+    expect((await demana(PaginaFlyer, 'pub', '?clau=secreta')).cache).toBe('no-store');
+    expect((await demana(PaginaFlyer, 'pub', '?clau=altra')).cache).toBe(CACHE_OK);
+  });
+
   it('una clau buida no obre un esborrany sense clauPrevia o amb clauPrevia buida', async () => {
     for (const id of ['sense-clau', 'clau-buida']) {
       expect((await demana(PaginaFlyer, id, '?clau=')).status).toBe(404);
@@ -101,15 +107,15 @@ describe('/flyer/<id>/', () => {
     expect((await demana(PaginaFlyer, 'no-existeix')).status).toBe(404);
   });
 
-  it('una sessió despublicada no surt ni trenca la pàgina', async () => {
-    const { status, html } = await demana(PaginaFlyer, 'trencat');
+  it('amb la clau (sense totes=1) una sessió despublicada no surt ni trenca la pàgina', async () => {
+    const { status, html } = await demana(PaginaFlyer, 'trencat', '?clau=secreta');
     expect(status).toBe(200);
     expect(html).toContain('Peli a');
     expect(html).not.toContain('Peli d');
   });
 
   it('sense cap pel·lícula pinta un missatge i la cara B', async () => {
-    const { status, html } = await demana(PaginaFlyer, 'buit');
+    const { status, html } = await demana(PaginaFlyer, 'buit', '?clau=secreta');
     expect(status).toBe(200);
     expect(html).toContain('encara no té cap pel·lícula');
     expect(html).toContain('flyer-tira--corporativa');
@@ -166,22 +172,18 @@ describe('sessions no publicades amb la clau (previsualització)', () => {
     expect(a).toBeLessThan(d);
   });
 
-  it.each([['imprimir', PaginaImprimir], ['pàgina', PaginaFlyer]])('%s: sense clau o amb clau errònia només les publicades', async (_nom, Pagina) => {
-    // Inclou la clau correcta SENSE `totes=1` (així obre la funció dels PDF: mai ha de dur sessions no publicades) i `totes=1` sense clau vàlida.
-    for (const consulta of ['', '?clau=', '?clau=altra', '?clau=secreta', '?totes=1', '?clau=altra&totes=1', '?clau=&totes=1']) {
-      const { html } = await demana(Pagina, 'amb-no-publicades', consulta);
-      expect(html).toContain('Peli a');
-      expect(html).not.toContain('Peli d');
-      expect(html).not.toContain('Peli f');
-    }
+  it.each([['imprimir', PaginaImprimir], ['pàgina', PaginaFlyer]])('%s: amb la clau sense totes=1, només les publicades', async (_nom, Pagina) => {
+    const { status, html } = await demana(Pagina, 'amb-no-publicades', '?clau=secreta');
+    expect(status).toBe(200);
+    expect(html).toContain('Peli a');
+    expect(html).not.toContain('Peli d');
+    expect(html).not.toContain('Peli f');
   });
 
-  it('la pàgina d\'un flyer publicat amb clau + totes=1 no es cacheja; amb la clau sola o sense, sí', async () => {
+  it('les respostes d\'un flyer no actiu (només amb la clau) no es cachegen', async () => {
     expect((await demana(PaginaFlyer, 'amb-no-publicades', '?clau=secreta&totes=1')).cache).toBe('no-store');
     expect((await demana(PaginaImprimir, 'amb-no-publicades', '?clau=secreta&totes=1')).cache).toBe('no-store');
-    expect((await demana(PaginaFlyer, 'amb-no-publicades', '?clau=secreta')).cache).toBe(CACHE_OK);
-    expect((await demana(PaginaFlyer, 'amb-no-publicades')).cache).toBe(CACHE_OK);
-    expect((await demana(PaginaFlyer, 'amb-no-publicades', '?clau=altra&totes=1')).cache).toBe(CACHE_OK);
+    expect((await demana(PaginaFlyer, 'amb-no-publicades', '?clau=secreta')).cache).toBe('no-store');
   });
 
   it('un esborrany amb clau errònia o sense, també amb totes=1, dona el mateix 404 que abans', async () => {
@@ -192,9 +194,47 @@ describe('sessions no publicades amb la clau (previsualització)', () => {
   });
 });
 
+describe('flyer actiu (publicat i amb totes les sessions publicades)', () => {
+  const rutes = [['pàgina', PaginaFlyer], ['imprimir', PaginaImprimir]];
+
+  it.each(rutes)('%s: un flyer publicat amb una sessió sense publicar, sense clau o amb clau errònia, dona el 404 d\'un esborrany', async (_nom, Pagina) => {
+    for (const id of ['amb-no-publicades', 'trencat', 'buit']) {
+      for (const consulta of ['', '?clau=', '?clau=altra', '?totes=1', '?clau=altra&totes=1']) {
+        const resposta = await demana(Pagina, id, consulta);
+        expect(resposta.status).toBe(404);
+        expect(resposta.html).not.toContain('Peli a');
+      }
+    }
+  });
+
+  it.each(rutes)('%s: una sessió esborrada fa el flyer no actiu (404 sense clau; amb la clau, 200)', async (_nom, Pagina) => {
+    expect((await demana(Pagina, 'amb-esborrada')).status).toBe(404);
+    const { status, html } = await demana(Pagina, 'amb-esborrada', '?clau=secreta&totes=1');
+    expect(status).toBe(200);
+    expect(html).toContain('Peli a');
+  });
+
+  it('la pàgina d\'un flyer no actiu amb la clau i totes=1 la conserva a l\'enllaç del PDF i no ofereix WhatsApp', async () => {
+    const { html } = await demana(PaginaFlyer, 'trencat', '?clau=secreta&totes=1');
+    expect(html).toContain('href="/flyer/trencat/flyer.pdf?clau=secreta"');
+    expect(html).not.toContain('wa.me');
+  });
+
+  it('sense totes=1 la pàgina d\'un flyer no actiu no ofereix el PDF (porta sessions que la pàgina no mostra)', async () => {
+    const { status, html } = await demana(PaginaFlyer, 'trencat', '?clau=secreta');
+    expect(status).toBe(200);
+    expect(html).not.toContain('flyer.pdf');
+  });
+
+  it('un flyer actiu es veu sense clau com sempre', async () => {
+    expect((await demana(PaginaFlyer, 'pub')).status).toBe(200);
+    expect((await demana(PaginaImprimir, 'pub')).status).toBe(200);
+  });
+});
+
 describe('flyer sense pel·lícules', () => {
   it('no té fulls i el contingut de pantalla és imprimible (no surt un full en blanc)', async () => {
-    const { html } = await demana(PaginaFlyer, 'buit');
+    const { html } = await demana(PaginaFlyer, 'buit', '?clau=secreta');
     expect(html).not.toContain('flyer-full');
     expect(html).toContain('flyer-pagina__contingut--buit');
     expect((await demana(PaginaFlyer, 'pub')).html).not.toContain('flyer-pagina__contingut--buit');
@@ -302,8 +342,8 @@ describe('/flyer/<id>/imprimir/', () => {
     expect(esbImpremta.status).toBe(200);
     expect(esbImpremta.cache).toBe('no-store');
     expect((await demana(PaginaImprimir, 'no-existeix')).status).toBe(404);
-    expect((await demana(PaginaImprimir, 'buit')).status).toBe(404);
-    const { html } = await demana(PaginaImprimir, 'trencat');
+    expect((await demana(PaginaImprimir, 'buit', '?clau=secreta')).status).toBe(404);
+    const { html } = await demana(PaginaImprimir, 'trencat', '?clau=secreta');
     expect(html).toContain('Peli a');
     expect(html).not.toContain('Peli d');
   });

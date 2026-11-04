@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canvisDesdeBase, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
+  canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
 } from './flyers.js';
 
 const sessio = (id, data, hora, extra = {}) => ({
@@ -48,8 +48,14 @@ describe('sessionsNoPublicades i flyerActiu', () => {
     ['un publicat complet', flyer('publicat', ['a', 'b']), true],
     ['un publicat amb una sessió sense publicar', flyer('publicat', ['a', 'p']), false],
     ['un publicat amb una sessió esborrada', flyer('publicat', ['a', 'x']), false],
+    ['un publicat sense sessions', flyer('publicat', []), false],
+    ['un publicat sense sessionsIds', { estat: 'publicat' }, false],
   ])('%s: actiu = %s', (_, f, esperat) => {
     expect(flyerActiu(f, sessionsPerId)).toBe(esperat);
+  });
+
+  it('l\'etiqueta d\'un publicat sense sessions no diu «Actiu»', () => {
+    expect(etiquetaEstat({ estat: 'publicat', sessionsIds: [] }, sessionsPerId)).toBe('Publicat, sense sessions');
   });
 });
 

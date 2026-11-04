@@ -51,19 +51,21 @@ const baseDe = (ids, sessionsPerId) => Object.fromEntries(
   ids.filter((id) => sessionsPerId[id]).map((id) => [id, instantaniaSegura(sessionsPerId[id])]),
 );
 
-// L'esborrany i el PDF d'impremta només s'obren amb la clau.
-const enllacos = (id, clauPrevia, publicat) => {
+// Un flyer no actiu (esborrany o pendent de publicar sessions) i el PDF d'impremta només s'obren amb la clau; les
+// previsualitzacions d'un flyer no actiu porten `totes=1` perquè s'hi vegin també les sessions no publicades (com al PDF).
+const enllacos = (id, clauPrevia, actiu) => {
   const clau = `clau=${clauPrevia}`;
+  const previa = !actiu && `${clau}&totes=1`;
   const q = (...parts) => {
     const text = parts.filter(Boolean).join('&');
     return text ? `?${text}` : '';
   };
   const arrel = `${URL_WEB}/flyer/${id}/`;
   return {
-    pagina: `${arrel}${q(!publicat && clau)}`,
-    pdfSimple: `${arrel}flyer.pdf${q(!publicat && clau)}`,
+    pagina: `${arrel}${q(previa)}`,
+    pdfSimple: `${arrel}flyer.pdf${q(!actiu && clau)}`,
     pdfImpremta: `${arrel}flyer.pdf${q('variant=impremta', clau)}`,
-    previsualitzacio: `${arrel}imprimir/${q('variant=simple', !publicat && clau)}`,
+    previsualitzacio: `${arrel}imprimir/${q('variant=simple', previa)}`,
   };
 };
 
@@ -324,7 +326,8 @@ function FitxaFlyer({ id, carregada }) {
   const pendentsDesat = publicat ? sessionsNoPublicades(estatFlyer, sessionsPerId) : [];
   const pendentsAlPublicar = sessionsNoPublicades(valors, sessionsPerId);
   const canvis = publicat ? canvisDesdeBase({ base: desat.base }, sessionsPerId) : [];
-  const links = editant ? enllacos(id, flyer.clauPrevia, publicat) : null;
+  const actiu = flyerActiu(estatFlyer, sessionsPerId);
+  const links = editant ? enllacos(id, flyer.clauPrevia, actiu) : null;
 
   const anarACamp = (camp) => document.getElementById(camp === 'sessionsIds' ? 'flyer-sessions' : camp)?.focus();
   const errorsBarra = [...CAMPS, 'sessionsIds'].filter((camp) => errors[camp]).map((camp) => ({
@@ -346,7 +349,7 @@ function FitxaFlyer({ id, carregada }) {
     >
       {editant && (
         <p className="flyer-form__estat">
-          <span className={`badge ${flyerActiu(estatFlyer, sessionsPerId) ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
+          <span className={`badge ${actiu ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
         </p>
       )}
       {pendentsDesat.length > 0 && (
@@ -435,10 +438,10 @@ function FitxaFlyer({ id, carregada }) {
         <section className="flyer-form__seccio" aria-labelledby="flyer-enllacos">
           <h2 className="flyer-form__titol-seccio" id="flyer-enllacos">Enllaços</h2>
           <ul className="flyer-form__enllacos">
-            <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{publicat ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
+            <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{actiu ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
             <li><a className="enllac" href={links.previsualitzacio} target="_blank" rel="noreferrer">Previsualització d&apos;impressió</a></li>
           </ul>
-          {publicat && (
+          {actiu && (
             <button type="button" className="btn btn--outline" disabled={ocupat} onClick={copia}>
               {copiat ? 'Enllaç copiat' : "Copiar l'enllaç"}
             </button>

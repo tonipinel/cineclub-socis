@@ -4,25 +4,26 @@ import '../../../styles/flyer.css';
 import '../../../styles/flyer-imprimir.css';
 import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerPerId, peliculaFlyer, potVeure, preuFlyer, sessionsDelFlyer } from '../../../lib/flyers.js';
+import { flyerActiu, flyerPerId, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
 
 // /flyer/<id>/imprimir/?variant=simple|impremta&clau=. Dues pàgines: la 1 és la cara A ×3 i la 2 la cara B ×3
 // (les tres tires d'un full són iguals: es talla en 3).
 // Impressió a doble cara: les dues cares es pinten amb la MATEIXA orientació (tires dretes en un full vertical),
 // de manera que amb «gira pel costat llarg» (flip on long edge) la cara B queda alineada amb la A.
 // `simple`: A4 (210 × 297 mm). `impremta`: 216 × 303 mm (A4 + 3 mm de sagnat per costat) amb marques de tall;
-// només amb la `clau`. Un esborrany també la requereix. Sense pel·lícules no hi ha res a imprimir: 404.
+// només amb la `clau`. Un flyer no actiu (esborrany, o publicat amb alguna sessió sense publicar o esborrada) també la
+// requereix. Sense pel·lícules no hi ha res a imprimir: 404.
 const { id } = Astro.params;
 const clau = Astro.url.searchParams.get('clau') ?? '';
 const variant = Astro.url.searchParams.get('variant') === 'impremta' ? 'impremta' : 'simple';
 const flyer = await flyerPerId(id);
-if (!flyer || !potVeure(flyer, clau) || (variant === 'impremta' && !(clau && clau === flyer.clauPrevia))) {
+const ambClau = Boolean(flyer) && teClau(flyer, clau);
+if (!flyer || (variant === 'impremta' && !ambClau) || !(ambClau || await flyerActiu(flyer))) {
   return Astro.rewrite('/404');
 }
-// Amb la `clau` correcta es veuen també les sessions no publicades.
-// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin): la funció que genera
-// els PDF obre /imprimir/?clau=… sense `totes=1`, així que el PDF públic mai en porta.
-const totes = Boolean(clau) && clau === flyer.clauPrevia && Astro.url.searchParams.get('totes') === '1';
+// Les sessions no publicades només es veuen amb la `clau` correcta I `totes=1` (previsualització de l'admin i la funció que
+// genera els PDF: per això el PDF desat només se serveix sense `clau` quan el flyer és actiu).
+const totes = ambClau && Astro.url.searchParams.get('totes') === '1';
 // Un flyer té de 3 a 5 sessions; un document antic amb més en pinta les 5 primeres (per data).
 const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
 const pelicules = sessions.map(peliculaFlyer);

@@ -548,11 +548,12 @@ const FLYERS = {
           <p>
             Pots publicar un flyer amb sessions encara sense publicar (surten com a «Sense publicar»): queda com a
             «Publicat, pendent de publicar N sessions» i no és actiu ni públic fins que es publiquin totes. Quan ho
-            estan, passa a «Actiu» sol, sense tocar el flyer.
+            estan, passa a «Actiu» sol, sense tocar el flyer. Si despubliques una sessió d'un flyer actiu, la pàgina i el
+            PDF públics poden trigar fins a uns 6 minuts a deixar de veure's.
           </p>
           <p>
-            <strong>Atenció:</strong> un esborrany només es veu amb l'enllaç de previsualització (porta una clau); no el
-            comparteixis com a públic.
+            <strong>Atenció:</strong> un flyer que no és actiu (esborrany o pendent de publicar sessions) només es veu amb
+            l'enllaç de previsualització (porta una clau); no el comparteixis com a públic.
           </p>
         </>
       ),
