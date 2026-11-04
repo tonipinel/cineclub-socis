@@ -108,7 +108,7 @@ function entorn({ flyerDades = flyer, sessionsDades = sessions } = {}) {
     }),
     getAll: (...refs) => Promise.all(refs.map((r) => r.get())),
   };
-  const bucket = { file: vi.fn(() => ({ save })) };
+  const bucket = { name: 'bucket-prova', file: vi.fn(() => ({ save })) };
   const renderPdf = vi.fn().mockResolvedValue(Buffer.from('pdf'));
   const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   return { db, bucket, renderPdf, logger, update, save };
@@ -117,10 +117,20 @@ function entorn({ flyerDades = flyer, sessionsDades = sessions } = {}) {
 describe('regenerarFlyer', () => {
   it('no fa res si les signatures coincideixen', async () => {
     const firma = firmaFlyer(flyer, sessions);
-    const e = entorn({ flyerDades: { ...flyer, pdfs: { simple: { firma }, impremta: { firma } } } });
+    const e = entorn({ flyerDades: { ...flyer, pdfs: { simple: { firma, url: 'u' }, impremta: { firma, url: 'u' } } } });
     await regenerarFlyer({ id: 'f1', ...e });
     expect(e.renderPdf).not.toHaveBeenCalled();
     expect(e.update).not.toHaveBeenCalled();
+  });
+
+  it('firma vigent però sense url: es regenera i desa la url (auto-reparació)', async () => {
+    const firma = firmaFlyer(flyer, sessions);
+    const e = entorn({ flyerDades: { ...flyer, pdfs: { simple: { firma }, impremta: { firma, url: 'u' } } } });
+    await regenerarFlyer({ id: 'f1', ...e });
+    expect(e.renderPdf).toHaveBeenCalledTimes(2);
+    const { pdfs } = e.update.mock.calls[0][0];
+    expect(pdfs.simple.url).toMatch(/^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/bucket-prova\/o\//);
+    expect(pdfs.impremta.url).toMatch(/token=/);
   });
 
   it('renderitza una vegada per variant, desa els PDF i escriu pdfs', async () => {
@@ -135,13 +145,19 @@ describe('regenerarFlyer', () => {
     expect(e.bucket.file.mock.calls.map(([p]) => p)).toEqual(['flyers/f1/flyer-simple.pdf', 'flyers/f1/flyer-impremta.pdf']);
     expect(e.save).toHaveBeenCalledWith(Buffer.from('pdf'), expect.objectContaining({ contentType: 'application/pdf' }));
     const firma = firmaFlyer(flyer, sessions);
+    const tokens = e.save.mock.calls.map(([, opcions]) => opcions.metadata.metadata.firebaseStorageDownloadTokens);
+    expect(new Set(tokens).size).toBe(2);
+    const urlDe = (variant, token) => `https://firebasestorage.googleapis.com/v0/b/bucket-prova/o/${encodeURIComponent(`flyers/f1/flyer-${variant}.pdf`)}?alt=media&token=${token}`;
     expect(e.update).toHaveBeenCalledWith({
       pdfs: {
-        simple: expect.objectContaining({ path: 'flyers/f1/flyer-simple.pdf', firma }),
-        impremta: expect.objectContaining({ path: 'flyers/f1/flyer-impremta.pdf', firma }),
+        simple: expect.objectContaining({ path: 'flyers/f1/flyer-simple.pdf', url: urlDe('simple', tokens[0]), firma }),
+        impremta: expect.objectContaining({ path: 'flyers/f1/flyer-impremta.pdf', url: urlDe('impremta', tokens[1]), firma }),
       },
       pdfsError: null,
     });
+    // el token no surt als registres
+    const registres = JSON.stringify([e.logger.info.mock.calls, e.logger.warn.mock.calls, e.logger.error.mock.calls]);
+    tokens.forEach((t) => expect(registres).not.toContain(t));
   });
 
   it('generatEl és un Date (la Admin SDK el desa com a Timestamp), no un text', async () => {
@@ -173,7 +189,7 @@ describe('regenerarFlyer', () => {
     const vigents = (extra) => {
       const firma = firmaFlyer(flyer, sessions);
       return entorn({
-        flyerDades: { ...flyer, pdfs: { simple: { firma, generatEl: ts(1000) }, impremta: { firma, generatEl: ts(1000) } }, ...extra },
+        flyerDades: { ...flyer, pdfs: { simple: { firma, url: 'u', generatEl: ts(1000) }, impremta: { firma, url: 'u', generatEl: ts(1000) } }, ...extra },
       });
     };
 
@@ -227,7 +243,7 @@ describe('regenerarFlyer', () => {
 
   it('regenera si només una variant està desactualitzada', async () => {
     const firma = firmaFlyer(flyer, sessions);
-    const e = entorn({ flyerDades: { ...flyer, pdfs: { simple: { firma }, impremta: { firma: 'vella' } } } });
+    const e = entorn({ flyerDades: { ...flyer, pdfs: { simple: { firma, url: 'u' }, impremta: { firma: 'vella', url: 'u' } } } });
     await regenerarFlyer({ id: 'f1', ...e });
     expect(e.renderPdf).toHaveBeenCalledTimes(2);
   });
@@ -235,7 +251,7 @@ describe('regenerarFlyer', () => {
   it('una sessió despublicada fa regenerar', async () => {
     const firma = firmaFlyer(flyer, sessions);
     const e = entorn({
-      flyerDades: { ...flyer, pdfs: { simple: { firma }, impremta: { firma } } },
+      flyerDades: { ...flyer, pdfs: { simple: { firma, url: 'u' }, impremta: { firma, url: 'u' } } },
       sessionsDades: [sessions[0], { ...sessions[1], publicada: false }],
     });
     await regenerarFlyer({ id: 'f1', ...e });
