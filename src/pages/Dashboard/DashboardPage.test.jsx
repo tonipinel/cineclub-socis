@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -9,6 +9,23 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
   getDocs: vi.fn(),
 }));
+
+// Recharts no dibuixa res en jsdom: els substituïm per elements que deixen veure les dades i les sèries.
+vi.mock('recharts', async () => {
+  const { createElement } = await import('react');
+  const envolta = (props, nom) => createElement('div', { 'data-chart': nom }, props.children);
+  const buit = () => null;
+  return {
+    ResponsiveContainer: (props) => createElement('div', { className: 'recharts-responsive-container' }, props.children),
+    LineChart: (props) => createElement('div', { 'data-testid': 'grafic-evolucio', 'data-dades': JSON.stringify(props.data) }, props.children),
+    Line: (props) => createElement('span', {
+      'data-testid': `linia-${props.dataKey}`, 'data-nom': props.name, 'data-guions': props.strokeDasharray, 'data-color': props.stroke, 'data-legend': props.legendType,
+    }),
+    BarChart: (props) => envolta(props, 'barres'),
+    PieChart: (props) => envolta(props, 'sectors'),
+    Bar: buit, Pie: buit, Cell: buit, XAxis: buit, YAxis: buit, CartesianGrid: buit, Tooltip: buit, Legend: buit, ReferenceLine: buit,
+  };
+});
 
 import { collection, getDocs } from 'firebase/firestore';
 import DashboardPage from './DashboardPage';
@@ -25,9 +42,12 @@ const MOVIMENTS = [
 ];
 const LOTS = [{ numeroInicial: 1, quantitat: 3, anulat: false, codisAnulats: [] }];
 
+const llista = (docs) => ({ docs: docs.map(({ id, ...d }) => ({ id, data: () => d })) });
+
 function mockCarrega(overrides = {}) {
   const dades = {
     socis: SOCIS, sessions: SESSIONS, accessLog: ACCESS_LOG, moviments: MOVIMENTS, lots: LOTS,
+    interns: [], distribuidores: [],
     ...overrides,
   };
   getDocs
@@ -36,6 +56,12 @@ function mockCarrega(overrides = {}) {
     .mockResolvedValueOnce({ docs: dades.accessLog.map((d) => ({ data: () => d })) })
     .mockResolvedValueOnce({ docs: dades.moviments.map((d, i) => ({ id: d.id ?? `m${i}`, data: () => d })) })
     .mockResolvedValueOnce({ docs: dades.lots.map((d) => ({ data: () => d })) });
+  // Lectures opcionals del cost de les pel·lícules programades (propostesInternes i distribuidores).
+  if (dades.lecturaCostosFalla) {
+    getDocs.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(llista(dades.distribuidores));
+  } else {
+    getDocs.mockResolvedValueOnce(llista(dades.interns)).mockResolvedValueOnce(llista(dades.distribuidores));
+  }
 }
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -59,7 +85,6 @@ const TANDA_OBERTA = {
 };
 const TANDA_TANCADA = { ...TANDA_OBERTA, id: 't0', tanca: new Date(Date.now() - DIA) };
 
-const llista = (docs) => ({ docs: docs.map(({ id, ...d }) => ({ id, data: () => d })) });
 
 // Lectures de la votació, després de les cinc del dashboard: tandes, i si n'hi ha d'oberta, vots i propostes.
 function mockVotacio(tandes = [TANDA_OBERTA]) {
@@ -312,10 +337,185 @@ describe('DashboardPage', () => {
     expect(m.getByText('Agost 2027')).toBeInTheDocument();
     const taulaPrevisio = within(m.getAllByRole('table')[0]);
     expect(taulaPrevisio.getAllByText('10.00€')).toHaveLength(12); // 30€/3 mesos, cada fila
-    expect(taulaPrevisio.getAllByText('6.67€')).toHaveLength(12); // 20€/3 mesos, cada fila
-    expect(taulaPrevisio.getAllByText('-150.00€')).toHaveLength(12); // el cost de pel·lícula més car, cada fila
+    // Aportacions: 20€ dels últims 3 mesos ÷ 1 sessió amb control ja feta (s1) × 1 pel·lícula al mes.
+    expect(taulaPrevisio.getAllByText('20.00€')).toHaveLength(12);
+    // Cost: mitjana de les despeses de pel·lícula amb cost > 0 ((80 + 150) / 2), cada fila.
+    expect(taulaPrevisio.getAllByText('-115.00€')).toHaveLength(12);
+    // Sense programació futura no hi ha fila «Resta de…» ni marques de cost.
+    expect(taulaPrevisio.queryByText(/^Resta de/)).not.toBeInTheDocument();
+    expect(taulaPrevisio.queryByText('cost real')).not.toBeInTheDocument();
 
     vi.useRealTimers();
+  });
+
+  describe('previsió amb la programació coneguda', () => {
+    // Avui 2026-08-10; les pel·lícules costen de mitjana 115€ i l'aportació per sessió és 20€.
+    const MOVIMENTS_PREVISIO = [
+      { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Aportacions', total: 20 },
+      { data: '2026-06-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 80 },
+      { data: '2026-07-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 150 },
+    ];
+    const PASSADA = { id: 's1', titol: 'The Artist', data: '2026-08-01' };
+    const INTERNS = [{ id: 'p1', preu: 90 }];
+
+    const dadesGrafic = () => JSON.parse(screen.getByTestId('grafic-evolucio').dataset.dades);
+    const fila = (etiqueta) => dadesGrafic().find((f) => f.etiqueta === etiqueta);
+    const valor = (etiqueta, clau) => fila(etiqueta)[clau] ?? null;
+    // Sèries de previsió amb valor en un mes (la pròpia, més el punt de canvi repetit si és el cas).
+    const series = (etiqueta) => Object.keys(fila(etiqueta))
+      .filter((k) => k.startsWith('tresoreriaPrevista') && fila(etiqueta)[k] !== null).sort();
+    const futura = (id, data) => ({ id, titol: id, data, propostaId: 'p1' });
+
+    async function renderPrevisio(overrides) {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 7, 10));
+      mockCarrega({ moviments: MOVIMENTS_PREVISIO, ...overrides });
+      render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+      await screen.findByRole('heading', { name: 'Evolució econòmica' });
+      const m = modul('Evolució econòmica');
+      fireEvent.click(m.getByRole('button', { name: 'Previsió pròxims 12 mesos' }));
+      return m;
+    }
+
+    afterEach(() => vi.useRealTimers());
+
+    it('amb una sessió futura de cost conegut: marca «cost real», aplica el cost i dibuixa la sèrie verda', async () => {
+      const m = await renderPrevisio({
+        sessions: [PASSADA, { id: 'f1', titol: 'Futura', data: '2026-10-15', propostaId: 'p1' }],
+        interns: INTERNS,
+      });
+      const taula = within(m.getAllByRole('table')[0]);
+      const filaOctubre = taula.getByText('Octubre 2026').closest('tr');
+      expect(within(filaOctubre).getByText('-90.00€')).toBeInTheDocument();
+      expect(within(filaOctubre).getByText('cost real')).toBeInTheDocument();
+      // Els altres mesos s'estimen amb la mitjana: sense marca.
+      expect(within(taula.getByText('Novembre 2026').closest('tr')).getByText('-115.00€')).toBeInTheDocument();
+      expect(taula.getAllByText('cost real')).toHaveLength(1);
+
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-guions', '5 4');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-color', '#15803d');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-nom', 'Tresoreria prevista (programació coneguda)');
+      expect(screen.getByTestId('linia-tresoreriaPrevista')).toHaveAttribute('data-nom', 'Tresoreria prevista (estimada)');
+      expect(fila('Octubre 2026').tresoreriaPrevistaPrecisa).not.toBeNull();
+      expect(valor('Novembre 2026', 'tresoreriaPrevista2')).not.toBeNull();
+      expect(valor('Novembre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
+      // Les sèries duplicades no surten a la llegenda: una sola entrada per color.
+      expect(screen.getByTestId('linia-tresoreriaPrevista2')).toHaveAttribute('data-legend', 'none');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa2')).toHaveAttribute('data-legend', 'none');
+      expect(screen.getByTestId('linia-tresoreriaPrevista2')).toHaveAttribute('data-guions', '5 4');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).not.toHaveAttribute('data-legend');
+    });
+
+    it('un mes precís entre dos d\'estimats: cada valor és només a la sèrie del seu color, més el punt de canvi', async () => {
+      await renderPrevisio({ sessions: [PASSADA, futura('f1', '2026-10-15')], interns: INTERNS });
+      // Agost (enllaç) i Setembre: tram estimat 1. Octubre: tram precís. Novembre i següents: tram estimat 2.
+      expect(series('Agost 2026')).toEqual(['tresoreriaPrevista']);
+      expect(series('Setembre 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
+      expect(valor('Setembre 2026', 'tresoreriaPrevistaPrecisa')).toBe(valor('Setembre 2026', 'tresoreriaPrevista'));
+      expect(series('Octubre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa']);
+      expect(valor('Octubre 2026', 'tresoreriaPrevista2')).toBe(valor('Octubre 2026', 'tresoreriaPrevistaPrecisa'));
+      expect(series('Novembre 2026')).toEqual(['tresoreriaPrevista2']);
+      expect(series('Agost 2027')).toEqual(['tresoreriaPrevista2']);
+    });
+
+    it('un mes estimat entre dos de precisos: cap sèrie es reutilitza entre trams contigus', async () => {
+      await renderPrevisio({
+        sessions: [PASSADA, futura('f1', '2026-09-15'), futura('f2', '2026-11-15')],
+        interns: INTERNS,
+      });
+      // Agost (estimat) -> Setembre (precís) -> Octubre (estimat) -> Novembre (precís) -> Desembre... (estimat).
+      expect(series('Agost 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
+      expect(series('Setembre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa']);
+      expect(series('Octubre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa2']);
+      expect(series('Novembre 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa2']);
+      expect(series('Desembre 2026')).toEqual(['tresoreriaPrevista']);
+      expect(series('Agost 2027')).toEqual(['tresoreriaPrevista']);
+    });
+
+    it('un sol mes precís al final: el tram arrenca des de l\'últim mes estimat', async () => {
+      await renderPrevisio({ sessions: [PASSADA, futura('f1', '2027-08-15')], interns: INTERNS });
+      expect(series('Juliol 2027')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
+      expect(series('Agost 2027')).toEqual(['tresoreriaPrevistaPrecisa']);
+      expect(series('Juny 2027')).toEqual(['tresoreriaPrevista']);
+    });
+
+    it('el tooltip mostra un sol valor previst per mes, el de la seva sèrie', async () => {
+      await renderPrevisio({ sessions: [PASSADA, futura('f1', '2026-10-15')], interns: INTERNS });
+      expect(fila('Setembre 2026').seriePropia).toBe('tresoreriaPrevista');
+      expect(fila('Octubre 2026').seriePropia).toBe('tresoreriaPrevistaPrecisa');
+      expect(fila('Novembre 2026').seriePropia).toBe('tresoreriaPrevista2');
+    });
+
+    it('amb la programació de la resta del mes: punt d\'enllaç, fila «Resta de…» i sèrie verda des de l\'últim punt real', async () => {
+      const m = await renderPrevisio({
+        sessions: [PASSADA, { id: 'f1', titol: 'Futura', data: '2026-08-20', propostaId: 'p1' }],
+        interns: INTERNS,
+      });
+      const taula = within(m.getAllByRole('table')[0]);
+      const filaResta = taula.getByText('Resta de Agost 2026').closest('tr');
+      expect(within(filaResta).getByText('-90.00€')).toBeInTheDocument();
+      expect(within(filaResta).getByText('cost real')).toBeInTheDocument();
+      expect(within(filaResta).getByText('20.00€')).toBeInTheDocument();
+      expect(within(filaResta).getByText('-70.00€')).toBeInTheDocument();
+
+      // Tresoreria real -180€ (30 + 20 - 80 - 150) + impacte de la resta (-70) = -250€.
+      expect(within(filaResta).getAllByText('-250.00€')).toHaveLength(1);
+      const agost = fila('Agost 2026');
+      expect(agost.tresoreriaReal).toBe(-180);
+      expect(agost.tresoreriaPrevistaPrecisa).toBe(-250);
+      // El mes següent (estimat) parteix d'aquest valor: 10 + 20 - 115 = -85 → -335, i enllaça des del punt d'agost.
+      expect(agost.tresoreriaPrevista).toBe(-250);
+      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
+      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
+    });
+
+    it('un moviment datat després del mes actual no fa divergir el gràfic i la taula (mateixa base)', async () => {
+      const m = await renderPrevisio({
+        moviments: [...MOVIMENTS_PREVISIO, { data: '2026-09-20', tipus: 'ingres', categoria: 'Altres ingressos', total: 500 }],
+        sessions: [PASSADA, futura('f1', '2026-08-20')],
+        interns: INTERNS,
+      });
+      const taula = within(m.getAllByRole('table')[0]);
+      // La base és la tresoreria real d'agost (-180), no el fons total (320).
+      expect(fila('Agost 2026').tresoreriaReal).toBe(-180);
+      expect(fila('Agost 2026').tresoreriaPrevistaPrecisa).toBe(-250);
+      expect(within(taula.getByText('Resta de Agost 2026').closest('tr')).getByText('-250.00€')).toBeInTheDocument();
+      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
+      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
+    });
+
+    it('si fallen les lectures opcionals no hi ha error i tots els mesos s\'estimen', async () => {
+      const m = await renderPrevisio({
+        sessions: [PASSADA, { id: 'f1', titol: 'Futura', data: '2026-10-15', propostaId: 'p1' }],
+        interns: INTERNS,
+        lecturaCostosFalla: true,
+      });
+      const taula = within(m.getAllByRole('table')[0]);
+      expect(screen.queryByText("No s'han pogut carregar les dades del dashboard.")).not.toBeInTheDocument();
+      expect(taula.queryByText('cost real')).not.toBeInTheDocument();
+      expect(taula.queryByText(/^Resta de/)).not.toBeInTheDocument();
+      expect(within(taula.getByText('Octubre 2026').closest('tr')).getByText('-115.00€')).toBeInTheDocument();
+      expect(dadesGrafic().every((f) => (f.tresoreriaPrevistaPrecisa ?? null) === null && (f.tresoreriaPrevistaPrecisa2 ?? null) === null)).toBe(true);
+      expect(valor('Octubre 2026', 'tresoreriaPrevista')).not.toBeNull();
+    });
+
+    it('amb una sessió de cost desconegut el mes és «cost parcial» i es dibuixa amb l\'estimació', async () => {
+      const m = await renderPrevisio({
+        sessions: [PASSADA, { id: 'f1', titol: 'Futura', data: '2026-10-15' }],
+      });
+      const taula = within(m.getAllByRole('table')[0]);
+      const filaOctubre = taula.getByText('Octubre 2026').closest('tr');
+      expect(within(filaOctubre).getByText('cost parcial')).toBeInTheDocument();
+      expect(within(filaOctubre).getByText('-115.00€')).toBeInTheDocument();
+      expect(valor('Octubre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
+    });
+
+    it('sota el gràfic explica la diferència entre el verd i el daurat', async () => {
+      await renderPrevisio({});
+      expect(screen.getByText(/Verd: mesos amb programació coneguda/)).toBeInTheDocument();
+      expect(screen.getByText(/Daurat: estimació/)).toBeInTheDocument();
+    });
   });
 
   describe('mòdul de votació', () => {
@@ -398,7 +598,7 @@ describe('DashboardPage', () => {
       mockVotacio([TANDA_TANCADA]);
       render(<MemoryRouter><DashboardPage /></MemoryRouter>);
       await screen.findByRole('heading', { name: 'Noves altes de socis' });
-      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(6));
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(8));
       expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
       expect(collection.mock.calls.some((args) => args.includes('vots'))).toBe(false);
     });
@@ -408,7 +608,7 @@ describe('DashboardPage', () => {
       getDocs.mockRejectedValueOnce(new Error('boom'));
       render(<MemoryRouter><DashboardPage /></MemoryRouter>);
       await screen.findByRole('heading', { name: 'Noves altes de socis' });
-      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(6));
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(8));
       expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
       expect(screen.queryByText("No s'han pogut carregar les dades del dashboard.")).not.toBeInTheDocument();
     });
@@ -418,7 +618,7 @@ describe('DashboardPage', () => {
       getDocs.mockResolvedValueOnce(llista([TANDA_OBERTA])).mockRejectedValueOnce(new Error('boom'));
       render(<MemoryRouter><DashboardPage /></MemoryRouter>);
       await screen.findByRole('heading', { name: 'Noves altes de socis' });
-      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(8));
+      await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(10));
       expect(screen.queryByText(/^Votació:/)).not.toBeInTheDocument();
     });
   });

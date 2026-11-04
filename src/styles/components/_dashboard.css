@@ -50,6 +50,15 @@
 .dashboard__subtitol {
   @apply mt-2 font-body text-xs font-semibold uppercase tracking-wide text-black/60;
 }
+.dashboard__previsio-nota {
+  @apply mt-1 font-body text-xs text-black/60;
+}
+.dashboard__previsio-marca {
+  @apply ml-2 font-body text-xs font-semibold text-black/60;
+}
+.dashboard__previsio-marca--precisa {
+  @apply text-green-700;
+}
 .dashboard__enllac {
   @apply mt-auto font-body text-sm text-black underline;
 }

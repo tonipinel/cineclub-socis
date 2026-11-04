@@ -12,7 +12,7 @@ import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
 import { resumVotacio, tandaOberta } from '../../lib/tandes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import {
-  resumComptable, resumReal, resumPrevisio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
+  resumComptable, resumReal, resumPrevisio, costRealSessio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
@@ -26,6 +26,12 @@ const PESTANYES_EVOLUCIO = [
   ['real', 'Últims 12 mesos (real)'],
   ['previsio', 'Previsió pròxims 12 mesos'],
 ];
+
+const COLOR_PREVISIO_ESTIMADA = '#BF9000';
+const COLOR_PREVISIO_PRECISA = '#15803d';
+
+// Sèries de la previsió: dues per color, que s'alternen en cada tram.
+const clauSerie = (precis, tram) => `${precis ? 'tresoreriaPrevistaPrecisa' : 'tresoreriaPrevista'}${Math.floor(tram / 2) % 2 === 0 ? '' : '2'}`;
 
 const PALETA_INGRESSOS = ['#15803d', '#16a34a', '#4ade80'];
 const PALETA_DESPESES = ['#b91c1c', '#f97316', '#7f1d1d'];
@@ -44,6 +50,30 @@ function TooltipAssistencia({ active, payload, label }) {
   );
 }
 
+function MarcaCost({ mes }) {
+  if (mes.precis) return <span className="dashboard__previsio-marca dashboard__previsio-marca--precisa">cost real</span>;
+  if (mes.parcial) return <span className="dashboard__previsio-marca">cost parcial</span>;
+  return null;
+}
+
+// Un sol valor per mes: la tresoreria real i la de la sèrie pròpia del mes (no la del punt de canvi repetit).
+function TooltipEvolucio({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const fila = payload[0].payload;
+  const precis = fila.seriePropia?.startsWith('tresoreriaPrevistaPrecisa');
+  return (
+    <div className="dashboard__tooltip">
+      <p className="dashboard__tooltip-titol">{label}</p>
+      {fila.tresoreriaReal !== null && <p style={{ color: '#000000' }}>Tresoreria real: {formatEuros(fila.tresoreriaReal)}</p>}
+      {fila.seriePropia && (
+        <p style={{ color: precis ? COLOR_PREVISIO_PRECISA : COLOR_PREVISIO_ESTIMADA }}>
+          Tresoreria prevista ({precis ? 'programació coneguda' : 'estimada'}): {formatEuros(fila[fila.seriePropia])}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // El dashboard ensenya com a molt les 8 millors pel·lícules de la votació.
 const FILMS_MAXIMS_DASHBOARD = 8;
 
@@ -55,6 +85,7 @@ export default function DashboardPage() {
     error, falla, reintenta, intent,
   } = useErrorCarrega();
   const [votacio, setVotacio] = useState(null);
+  const [programacio, setProgramacio] = useState(null);
   const [pestanyaEvolucio, setPestanyaEvolucio] = useState('real');
   const [categoriesDetallTancat, setCategoriesDetallTancat] = useState(
     () => new Set(CATEGORIES_DETALL_TANCAT_PER_DEFECTE)
@@ -85,6 +116,25 @@ export default function DashboardPage() {
       });
     }).catch(falla);
   }, [intent, falla]);
+
+  // Lectures opcionals dels costs de les pel·lícules programades: si fallen,
+  // tots els mesos de la previsió es calculen amb l'estimació.
+  useEffect(() => {
+    let viu = true;
+    Promise.all([
+      getDocs(collection(db, 'propostesInternes')),
+      getDocs(collection(db, 'distribuidores')),
+    ]).then(([internesSnap, distribuidoresSnap]) => {
+      if (!viu) return;
+      setProgramacio({
+        interns: Object.fromEntries(internesSnap.docs.map((d) => [d.id, d.data()])),
+        distribuidores: Object.fromEntries(distribuidoresSnap.docs.map((d) => [d.id, d.data()])),
+      });
+    }).catch(() => {
+      // Sense costos reals: tots els mesos s'estimen.
+    });
+    return () => { viu = false; };
+  }, []);
 
   // Lectures opcionals: si fallen, simplement no es mostra el bloc de votació.
   useEffect(() => {
@@ -127,21 +177,49 @@ export default function DashboardPage() {
     (m) => m.tipus === TIPUS_MOVIMENT.DESPESA && m.categoria === 'Gestió associació'
   );
   const real = resumReal(dades.moviments);
-  const previsio = resumPrevisio(dades.moviments, dades.socis, dades.sessions, dades.accessLog);
+  const dataAvui = avui();
+  const costsReals = programacio
+    ? Object.fromEntries(dades.sessions
+      .filter((s) => (s.data ?? '') > dataAvui)
+      .map((s) => [s.id, costRealSessio(s, programacio.interns, programacio.distribuidores)]))
+    : {};
+  const previsio = resumPrevisio(dades.moviments, dades.socis, dades.sessions, dades.accessLog, new Date(), { costsReals });
+  const resta = previsio.restaMesActual;
+  const hiHaResta = resta.sessionsProgramades > 0;
+  // Una sola base per a tot: la tresoreria de l'últim punt de la línia real, més el que queda del mes per programació.
+  const ultimReal = real.mesos[real.mesos.length - 1];
+  const excedentFinalMes = (ultimReal ? ultimReal.tresoreria : comptable.excedent) + resta.impacteNet;
   const mesosPrevisio = previsio.mesos.reduce((acc, mes) => {
-    const excedentProjectat = (acc.length > 0 ? acc[acc.length - 1].excedentProjectat : comptable.excedent) + mes.impacteNet;
+    const excedentProjectat = (acc.length > 0 ? acc[acc.length - 1].excedentProjectat : excedentFinalMes) + mes.impacteNet;
     acc.push({ ...mes, excedentProjectat });
     return acc;
   }, []);
   const dadesGrafic = [
-    ...real.mesos.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: mes.tresoreria, tresoreriaPrevista: null })),
-    ...mesosPrevisio.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: null, tresoreriaPrevista: mes.excedentProjectat })),
+    ...real.mesos.map((mes) => ({
+      etiqueta: mes.etiqueta, tresoreriaReal: mes.tresoreria, seriePropia: null,
+    })),
+    ...mesosPrevisio.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: null, seriePropia: null })),
   ];
-  if (real.mesos.length > 0 && mesosPrevisio.length > 0) {
-    dadesGrafic[real.mesos.length - 1].tresoreriaPrevista = dadesGrafic[real.mesos.length - 1].tresoreriaReal;
+  if (ultimReal) {
+    // Punts de la previsió: l'últim punt real (amb el valor a final de mes) i els mesos següents.
+    const punts = [
+      { fila: real.mesos.length - 1, valor: excedentFinalMes, precis: hiHaResta && resta.precis },
+      ...mesosPrevisio.map((mes, i) => ({ fila: real.mesos.length + i, valor: mes.excedentProjectat, precis: mes.precis })),
+    ];
+    // Cada tram del mateix color té la seva sèrie (alternant dues per color) perquè dos trams no se superposin.
+    // El punt de canvi es repeteix només com a primer punt de la sèrie del tram següent.
+    let tram = 0;
+    punts.forEach((punt, i) => {
+      if (i > 0 && punts[i - 1].precis !== punt.precis) {
+        tram += 1;
+        dadesGrafic[punts[i - 1].fila][clauSerie(punt.precis, tram)] = punts[i - 1].valor;
+      }
+      const clau = clauSerie(punt.precis, tram);
+      dadesGrafic[punt.fila][clau] = punt.valor;
+      dadesGrafic[punt.fila].seriePropia = clau;
+    });
   }
   const rendibilitatSessions = rendibilitatPerSessio(dades.moviments, dades.socis, dades.sessions);
-  const dataAvui = avui();
   const ultimesSessions = sessionsAmbControl(dades.sessions)
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
@@ -407,12 +485,19 @@ export default function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="etiqueta" tick={{ fontSize: 9 }} interval={1} angle={-40} textAnchor="end" height={50} />
               <YAxis tick={{ fontSize: 10 }} width={60} />
-              <Tooltip formatter={(valor) => formatEuros(valor)} />
+              <Tooltip content={<TooltipEvolucio />} />
               <Legend />
               <Line type="monotone" dataKey="tresoreriaReal" name="Tresoreria real" stroke="#000000" strokeWidth={2} dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tresoreriaPrevista" name="Tresoreria prevista" stroke="#BF9000" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tresoreriaPrevista" name="Tresoreria prevista (estimada)" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tresoreriaPrevistaPrecisa" name="Tresoreria prevista (programació coneguda)" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tresoreriaPrevista2" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} legendType="none" />
+              <Line type="monotone" dataKey="tresoreriaPrevistaPrecisa2" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} legendType="none" />
             </LineChart>
           </ResponsiveContainer>
+          <p className="dashboard__previsio-nota">
+            Verd: mesos amb programació coneguda (cost real de les pel·lícules; només l'assistència és estimada).
+            {' '}Daurat: estimació (mitjana del cost de les últimes pel·lícules de pagament).
+          </p>
 
           <div className="comptabilitat__pestanyes">
             {PESTANYES_EVOLUCIO.map(([valor, etiqueta]) => (
@@ -480,6 +565,18 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    {hiHaResta && (
+                      <tr>
+                        <td>Resta de {resta.etiqueta}</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>{formatEuros(resta.ingressosQuotes)}</td>
+                        <td>{formatEuros(resta.ingressosAportacions)}</td>
+                        <td>{formatEuros(-resta.costPellicula)}<MarcaCost mes={resta} /></td>
+                        <td className={classeSigne(resta.impacteNet)}>{formatEuros(resta.impacteNet)}</td>
+                        <td className={classeSigne(excedentFinalMes)}>{formatEuros(excedentFinalMes)}</td>
+                      </tr>
+                    )}
                     {mesosPrevisio.map((mes) => (
                       <tr key={mes.etiqueta}>
                         <td>{mes.etiqueta}</td>
@@ -487,7 +584,7 @@ export default function DashboardPage() {
                         <td>{mes.renovacionsEsperades} de {mes.sociesDeguts}</td>
                         <td>{formatEuros(mes.ingressosQuotes)}</td>
                         <td>{formatEuros(mes.ingressosAportacions)}</td>
-                        <td>{formatEuros(-mes.costPellicula)}</td>
+                        <td>{formatEuros(-mes.costPellicula)}<MarcaCost mes={mes} /></td>
                         <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
                         <td className={classeSigne(mes.excedentProjectat)}>{formatEuros(mes.excedentProjectat)}</td>
                       </tr>
