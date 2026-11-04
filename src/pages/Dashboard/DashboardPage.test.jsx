@@ -17,8 +17,8 @@ vi.mock('recharts', async () => {
   const buit = () => null;
   return {
     ResponsiveContainer: (props) => createElement('div', { className: 'recharts-responsive-container' }, props.children),
-    LineChart: (props) => createElement('div', { 'data-testid': 'grafic-evolucio', 'data-dades': JSON.stringify(props.data) }, props.children),
-    Line: (props) => createElement('span', {
+    AreaChart: (props) => createElement('div', { 'data-testid': 'grafic-evolucio', 'data-dades': JSON.stringify(props.data) }, props.children),
+    Area: (props) => createElement('span', {
       'data-testid': `linia-${props.dataKey}`, 'data-nom': props.name, 'data-guions': props.strokeDasharray, 'data-color': props.stroke, 'data-legend': props.legendType,
     }),
     BarChart: (props) => envolta(props, 'barres'),
@@ -394,9 +394,9 @@ describe('DashboardPage', () => {
       expect(taula.getAllByText('cost real')).toHaveLength(1);
 
       expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-guions', '5 4');
-      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-color', '#15803d');
-      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-nom', 'Tresoreria prevista (programació coneguda)');
-      expect(screen.getByTestId('linia-tresoreriaPrevista')).toHaveAttribute('data-nom', 'Tresoreria prevista (estimada)');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-color', '#f97316');
+      expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-nom', 'Previst');
+      expect(screen.getByTestId('linia-tresoreriaPrevista')).toHaveAttribute('data-nom', 'Estimat');
       expect(fila('Octubre 2026').tresoreriaPrevistaPrecisa).not.toBeNull();
       expect(valor('Novembre 2026', 'tresoreriaPrevista2')).not.toBeNull();
       expect(valor('Novembre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
@@ -463,9 +463,10 @@ describe('DashboardPage', () => {
       expect(within(filaResta).getAllByText('-250.00€')).toHaveLength(1);
       const agost = fila('Agost 2026');
       expect(agost.tresoreriaReal).toBe(-180);
-      expect(agost.tresoreriaPrevistaPrecisa).toBe(-250);
-      // El mes següent (estimat) parteix d'aquest valor: 10 + 20 - 115 = -85 → -335, i enllaça des del punt d'agost.
-      expect(agost.tresoreriaPrevista).toBe(-250);
+      // La línia prevista s'empalma amb la real: el punt d'agost és la tresoreria real (-180).
+      expect(agost.tresoreriaPrevistaPrecisa).toBe(-180);
+      // El mes següent (estimat) parteix de -250: 10 + 20 - 115 = -85 → -335, i enllaça des del punt d'agost.
+      expect(agost.tresoreriaPrevista).toBe(-180);
       expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
       expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
     });
@@ -479,7 +480,7 @@ describe('DashboardPage', () => {
       const taula = within(m.getAllByRole('table')[0]);
       // La base és la tresoreria real d'agost (-180), no el fons total (320).
       expect(fila('Agost 2026').tresoreriaReal).toBe(-180);
-      expect(fila('Agost 2026').tresoreriaPrevistaPrecisa).toBe(-250);
+      expect(fila('Agost 2026').tresoreriaPrevistaPrecisa).toBe(-180);
       expect(within(taula.getByText('Resta de Agost 2026').closest('tr')).getByText('-250.00€')).toBeInTheDocument();
       expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
       expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
@@ -511,11 +512,6 @@ describe('DashboardPage', () => {
       expect(valor('Octubre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
     });
 
-    it('sota el gràfic explica la diferència entre el verd i el daurat', async () => {
-      await renderPrevisio({});
-      expect(screen.getByText(/Verd: mesos amb programació coneguda/)).toBeInTheDocument();
-      expect(screen.getByText(/Daurat: estimació/)).toBeInTheDocument();
-    });
   });
 
   describe('mòdul de votació', () => {

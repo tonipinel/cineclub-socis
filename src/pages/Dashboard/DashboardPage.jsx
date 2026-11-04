@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import {
-  BarChart, Bar, Cell, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+  BarChart, Bar, Cell, AreaChart, Area, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import { db } from '../../firebase/firebase';
@@ -27,8 +27,9 @@ const PESTANYES_EVOLUCIO = [
   ['previsio', 'Previsió pròxims 12 mesos'],
 ];
 
-const COLOR_PREVISIO_ESTIMADA = '#BF9000';
-const COLOR_PREVISIO_PRECISA = '#15803d';
+const COLOR_REAL = '#16a34a';
+const COLOR_PREVISIO_ESTIMADA = '#6b7280';
+const COLOR_PREVISIO_PRECISA = '#f97316';
 
 // Sèries de la previsió: dues per color, que s'alternen en cada tram.
 const clauSerie = (precis, tram) => `${precis ? 'tresoreriaPrevistaPrecisa' : 'tresoreriaPrevista'}${Math.floor(tram / 2) % 2 === 0 ? '' : '2'}`;
@@ -64,7 +65,7 @@ function TooltipEvolucio({ active, payload, label }) {
   return (
     <div className="dashboard__tooltip">
       <p className="dashboard__tooltip-titol">{label}</p>
-      {fila.tresoreriaReal !== null && <p style={{ color: '#000000' }}>Tresoreria real: {formatEuros(fila.tresoreriaReal)}</p>}
+      {fila.tresoreriaReal !== null && <p style={{ color: COLOR_REAL }}>Tresoreria real: {formatEuros(fila.tresoreriaReal)}</p>}
       {fila.seriePropia && (
         <p style={{ color: precis ? COLOR_PREVISIO_PRECISA : COLOR_PREVISIO_ESTIMADA }}>
           Tresoreria prevista ({precis ? 'programació coneguda' : 'estimada'}): {formatEuros(fila[fila.seriePropia])}
@@ -201,9 +202,9 @@ export default function DashboardPage() {
     ...mesosPrevisio.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: null, seriePropia: null })),
   ];
   if (ultimReal) {
-    // Punts de la previsió: l'últim punt real (amb el valor a final de mes) i els mesos següents.
+    // Punts de la previsió: l'últim punt real (el mateix valor, perquè les línies s'empalmin) i els mesos següents.
     const punts = [
-      { fila: real.mesos.length - 1, valor: excedentFinalMes, precis: hiHaResta && resta.precis },
+      { fila: real.mesos.length - 1, valor: ultimReal.tresoreria, precis: hiHaResta && resta.precis },
       ...mesosPrevisio.map((mes, i) => ({ fila: real.mesos.length + i, valor: mes.excedentProjectat, precis: mes.precis })),
     ];
     // Cada tram del mateix color té la seva sèrie (alternant dues per color) perquè dos trams no se superposin.
@@ -480,24 +481,28 @@ export default function DashboardPage() {
         <div className="dashboard__modul dashboard__modul--ample">
           <h2 className="dashboard__modul-titol">Evolució econòmica</h2>
 
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={dadesGrafic}>
+          <ResponsiveContainer width="100%" height={290}>
+            <AreaChart data={dadesGrafic}>
+              <defs>
+                {[['real', COLOR_REAL], ['previst', COLOR_PREVISIO_PRECISA], ['estimat', COLOR_PREVISIO_ESTIMADA]].map(([id, color]) => (
+                  <linearGradient key={id} id={`degradat-${id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.03} />
+                  </linearGradient>
+                ))}
+              </defs>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="etiqueta" tick={{ fontSize: 9 }} interval={1} angle={-40} textAnchor="end" height={50} />
               <YAxis tick={{ fontSize: 10 }} width={60} />
               <Tooltip content={<TooltipEvolucio />} />
-              <Legend />
-              <Line type="monotone" dataKey="tresoreriaReal" name="Tresoreria real" stroke="#000000" strokeWidth={2} dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tresoreriaPrevista" name="Tresoreria prevista (estimada)" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tresoreriaPrevistaPrecisa" name="Tresoreria prevista (programació coneguda)" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tresoreriaPrevista2" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} legendType="none" />
-              <Line type="monotone" dataKey="tresoreriaPrevistaPrecisa2" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} legendType="none" />
-            </LineChart>
+              <Legend wrapperStyle={{ paddingTop: 10 }} itemSorter={null} />
+              <Area type="monotone" dataKey="tresoreriaReal" name="Real" stroke={COLOR_REAL} strokeWidth={2} fill="url(#degradat-real)" baseValue="dataMin" dot={false} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa" name="Previst" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={false} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevista" name="Estimat" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={false} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevista2" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={false} connectNulls={false} legendType="none" />
+              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa2" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={false} connectNulls={false} legendType="none" />
+            </AreaChart>
           </ResponsiveContainer>
-          <p className="dashboard__previsio-nota">
-            Verd: mesos amb programació coneguda (cost real de les pel·lícules; només l'assistència és estimada).
-            {' '}Daurat: estimació (mitjana del cost de les últimes pel·lícules de pagament).
-          </p>
 
           <div className="comptabilitat__pestanyes">
             {PESTANYES_EVOLUCIO.map(([valor, etiqueta]) => (
