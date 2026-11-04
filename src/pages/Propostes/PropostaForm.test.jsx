@@ -1572,6 +1572,11 @@ describe('PropostaForm: Programar sessió', () => {
       expect(tx.set).toHaveBeenCalledTimes(1);
       // La fitxa de la sessió no s'obre (ni la llegeix) fins que la galeria és escrita.
       expect(screen.queryByText(/Edició de sessió/)).not.toBeInTheDocument();
+      // Mentre triga, el botó ho indica (desactivat, «Programant…») i surt una nota d'estat.
+      const boto = screen.getByRole('button', { name: 'Programant…' });
+      expect(boto).toBeDisabled();
+      expect(boto).toHaveAttribute('aria-busy', 'true');
+      expect(screen.getByRole('status')).toHaveTextContent('Creant la sessió i important les imatges');
       acaba();
       expect(await screen.findByText('Edició de sessió a /sessions/proposta-p1')).toBeInTheDocument();
       expect(hiHaDialegConfirmacio()).toBe(false);

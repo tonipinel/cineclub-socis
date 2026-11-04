@@ -38,11 +38,15 @@ export default function CapcaleraProposta({
                     className="btn"
                     type="button"
                     disabled={programant || Boolean(notaProgramar)}
+                    aria-busy={programant || undefined}
                     aria-describedby={notaProgramar ? 'programar-nota' : undefined}
                     onClick={onProgramar}
                   >
-                    Programar sessió
+                    {programant ? 'Programant…' : 'Programar sessió'}
                   </button>
+                  {programant && (
+                    <p className="fitxa-proposta__nota" role="status">Creant la sessió i important les imatges: pot trigar uns segons.</p>
+                  )}
                   {notaProgramar && <p id="programar-nota" className="fitxa-proposta__nota">{notaProgramar}</p>}
                 </>
               )}
