@@ -221,6 +221,9 @@
 .session-version {
   @apply px-6 pt-4 font-display text-sm font-bold uppercase tracking-wide text-gold-dark;
 }
+.session-body__logo-filmoxarxa {
+  @apply my-4 h-auto max-h-16 w-auto max-w-full;
+}
 .session-body {
   @apply mx-4 mb-8 max-w-3xl border-2 border-t-0 border-dashed border-black bg-white p-6 shadow-lg-v3 sm:mx-auto;
 }

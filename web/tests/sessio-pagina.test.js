@@ -150,21 +150,32 @@ describe('pàgina de sessió', () => {
   describe('text fix de FilmoXarxa', () => {
     const amb = (publica) => ({ ...completa, publica: { ...completa.publica, ...publica } });
     const TEXT = "Aquesta projecció forma part de <strong>FilmoXarxa</strong>";
+    const LOGO_FX = 'https://firebasestorage.googleapis.com/v0/b/cineclub-socis.firebasestorage.app/o/web%2Fdistribuidores%2Ffilmoxarxa.png?alt=media';
 
     beforeEach(() => fixaDistribuidoresDeProva({
-      FilmoXarxa: { id: 'dfx', url: 'https://filmoxarxa.example/' },
+      FilmoXarxa: { id: 'dfx', logo: LOGO_FX, url: 'https://filmoxarxa.example/' },
       'A Contracorriente Films': { id: 'dacf', url: 'https://acontracorrientefilms.com/' },
     }));
 
     it('hi surt sota els textos editorials si la distribuïdora és FilmoXarxa (per id)', async () => {
       const html = await render(amb({ suportDistribucio: 'Nom antic', suportDistribucioId: 'dfx' }));
-      expect(html).toContain('<h2 id="filmoxarxa">FilmoXarxa</h2>');
       expect(html).toContain(TEXT);
+      // El logo (enllaçat a la web de la distribuïdora) substitueix el títol «FilmoXarxa».
+      expect(html).toMatch(/<a href="https:\/\/filmoxarxa\.example\/"[^>]*><img class="session-body__logo-filmoxarxa" src="[^"]*filmoxarxa\.png[^"]*" alt="FilmoXarxa">/);
+      expect(html).not.toContain('<h2 id="filmoxarxa">');
+      expect(html).not.toContain('<h2>FilmoXarxa</h2>');
       expect(html.indexOf('Sinopsi')).toBeLessThan(html.indexOf(TEXT));
     });
 
     it('també amb el nom en text (sessions antigues)', async () => {
       expect(await render(amb({ suportDistribucio: 'FilmoXarxa' }))).toContain(TEXT);
+    });
+
+    it('si la distribuïdora no té logo, hi surt el títol «FilmoXarxa» en el seu lloc', async () => {
+      fixaDistribuidoresDeProva({ FilmoXarxa: { id: 'dfx' } });
+      const html = await render(amb({ suportDistribucioId: 'dfx', suportDistribucio: 'FilmoXarxa' }));
+      expect(html).toContain('<h2>FilmoXarxa</h2>');
+      expect(html).not.toContain('session-body__logo-filmoxarxa');
     });
 
     it('no hi surt per ser de la secció «Xarxa» si la distribuïdora és una altra o no n\'hi ha', async () => {
