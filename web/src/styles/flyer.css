@@ -139,3 +139,45 @@
 .flyer-qr svg {
   @apply block h-full w-full;
 }
+
+/* Pàgina pública /flyer/<id>/: les cares (210 mm d'ample) s'escalen a l'ample de la pantalla. */
+.flyer-pagina {
+  @apply bg-neutral-900 font-sans text-white;
+  margin: 0;
+}
+.flyer-pagina__contingut {
+  @apply mx-auto flex flex-col;
+  max-width: 210mm;
+  padding: 16px;
+  gap: 16px;
+}
+.flyer-pagina__titol {
+  @apply font-display text-2xl font-semibold text-gold;
+  margin: 0;
+}
+.flyer-pagina__accions {
+  @apply flex flex-wrap;
+  gap: 8px;
+}
+.flyer-pagina__boto {
+  @apply rounded bg-gold font-bold text-black no-underline;
+  padding: 10px 16px;
+}
+.flyer-pagina__boto--secundari {
+  @apply bg-transparent text-white;
+  outline: 1px solid currentColor;
+}
+.flyer-pagina__buit {
+  @apply m-0 opacity-80;
+}
+.flyer-pagina__cara {
+  @apply relative w-full overflow-hidden;
+  container-type: inline-size;
+  aspect-ratio: 210 / 99;
+}
+.flyer-pagina__escala {
+  @apply absolute left-0 top-0;
+  width: 210mm;
+  transform-origin: top left;
+  scale: tan(atan2(100cqw, 210mm));
+}

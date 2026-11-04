@@ -1,0 +1,56 @@
+/* Ruta d'impressió del flyer: cada .flyer-full és un full (A4, o A4 + 3 mm de sagnat a l'impremta). */
+@reference "./main.css";
+
+.flyer-imprimir {
+  @apply bg-neutral-700;
+  margin: 0;
+}
+.flyer-imprimir__boto {
+  @apply cursor-pointer rounded bg-gold font-bold text-black;
+  position: fixed;
+  top: 4mm;
+  right: 4mm;
+  z-index: 10;
+  padding: 2mm 4mm;
+}
+.flyer-full {
+  @apply relative box-border bg-neutral-900;
+  width: 210mm;
+  margin: 6mm auto;
+  break-after: page;
+}
+.flyer-full--impremta {
+  width: 216mm;
+  padding: 3mm;
+}
+/* Marca de tall: filet de 0,15 mm i 2 mm de llarg (al sagnat, a 1 mm de la línia de tall). Blanca, perquè el sagnat és fosc. */
+.flyer-marca-tall {
+  @apply absolute bg-white;
+}
+.flyer-marca-tall--h {
+  width: 2mm;
+  height: 0.15mm;
+}
+.flyer-marca-tall--v {
+  width: 0.15mm;
+  height: 2mm;
+}
+
+@media print {
+  .flyer-imprimir {
+    @apply bg-transparent;
+  }
+  .flyer-imprimir__boto {
+    display: none;
+  }
+  .flyer-full {
+    margin: 0;
+  }
+  .flyer-full:last-of-type {
+    break-after: auto;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

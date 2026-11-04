@@ -340,6 +340,15 @@ describe('middleware', () => {
       expect((await onRequest(context('/api/img.webp'), ok)).headers.get('Cache-Control')).toBe(CACHE_OK);
     });
 
+    it('si el catàleg no s\'ha carregat, una pàgina 200 amb no-store (flyer, impressió) la conserva', async () => {
+      const { onRequest } = await carrega(true);
+      carregadesMock.mockReturnValue(false);
+      distribuidoresCarregadesMock.mockReturnValue(false);
+      const res = await onRequest(context('/flyer/x/imprimir/'), () => Promise.resolve(new Response('a', { status: 200, headers: { 'Cache-Control': 'no-store' } })));
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+    });
+
     it('un cop carregat el catàleg, la pàgina HTML porta la caché normal', async () => {
       const { onRequest } = await carrega(true);
       const { CACHE_OK, CACHE_AVUI } = await import('../src/lib/cache.js');
