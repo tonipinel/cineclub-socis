@@ -11,11 +11,12 @@ import { ESTATS } from '../campsProposta';
 // Per això «Programada» no es pot triar sense sessió, i una proposta programada amb sessió no en pot sortir.
 // Una de programada sense sessió (encallada) sí que pot canviar d'estat.
 export default function GestioProposta({
-  valors, canvia, errors, socis, distribuidores, internaDisponible, estatDesat, teSessio, onEliminar, eliminacioDesactivada = false,
+  valors, canvia, errors, socis, distribuidores, internaDisponible, estatDesat, sessio, onEliminar, eliminacioDesactivada = false,
   errorEliminar,
 }) {
   const distribuidora = distribuidores.find((d) => d.id === valors.distribuidoraId);
   const alCanvi = (camp) => (e) => canvia(camp, e.target.value);
+  const teSessio = Boolean(sessio);
   const estatFix = estatDesat === 'programada' && teSessio;
   const programadaNoTriable = estatDesat !== 'programada' && !teSessio;
   const ajudaEstat = (estatFix && "Té una sessió associada: l'estat es queda en «Programada».")
@@ -79,11 +80,24 @@ export default function GestioProposta({
         <div className="fitxa-proposta__graella">
           <div className="form__field">
             <label className="form__label" htmlFor="distribuidoraId">Distribuïdora</label>
-            <select id="distribuidoraId" className="form__input" value={valors.distribuidoraId} onChange={alCanvi('distribuidoraId')}>
+            <select
+              id="distribuidoraId"
+              className="form__input"
+              value={valors.distribuidoraId}
+              onChange={alCanvi('distribuidoraId')}
+              disabled={Boolean(sessio)}
+              aria-describedby={sessio ? 'distribuidora-ajuda' : undefined}
+            >
               <option value="">Sense distribuïdora</option>
               {distribuidores.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
             </select>
-            <Link className="enllac fitxa-proposta__afegir" to={ROUTES.DISTRIBUIDORES_NOVA}>Afegir una distribuïdora</Link>
+            {sessio ? (
+              <p id="distribuidora-ajuda" className="fitxa-proposta__ajuda">
+                Es canvia a la sessió. <Link className="enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', sessio.id)}>Obrir la sessió</Link>
+              </p>
+            ) : (
+              <Link className="enllac fitxa-proposta__afegir" to={ROUTES.DISTRIBUIDORES_NOVA}>Afegir una distribuïdora</Link>
+            )}
           </div>
           <div className="form__field">
             <label className="form__label" htmlFor="preu">Preu (€)</label>

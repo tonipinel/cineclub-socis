@@ -101,7 +101,7 @@ export function idYoutube(brut) {
 const unir = (llista) => llistaDe(llista).map(text).filter(Boolean).join(', ');
 const nomsDe = (llista) => llistaDe(llista).map((r) => text(typeof r === 'string' ? r : r?.nom)).filter(Boolean);
 
-export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}) {
+export function construirSessioDesDeProposta(proposta, { propostaId, avui, distribuidora } = {}) {
   proposta ??= {};
   // El títol principal és l'original; el de la proposta a Espanya (`titolLocal`) només va a la fitxa. El títol en
   // català (`titolTraduit`) no es dedueix: l'escriu qui programa, si n'hi ha.
@@ -133,6 +133,8 @@ export function construirSessioDesDeProposta(proposta, { propostaId, avui } = {}
     trailerYoutubeId: idYoutube(proposta.trailerUrl),
     cartell: imatgeUrl,
     seccio: 'cartellera',
+    suportDistribucio: distribuidora?.nom,
+    suportDistribucioId: distribuidora?.id,
   });
 
   return {

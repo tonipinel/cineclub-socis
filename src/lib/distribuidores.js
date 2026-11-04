@@ -43,7 +43,7 @@ export const sessionsQueUsen = ({ id, nom }, sessions) =>
 // Prefix de les opcions «no és al catàleg»: un id de document de Firestore no pot contenir `/`.
 const FORA_CATALEG = '/fora/';
 
-// Opcions del selector «Suport de distribució» (el valor és l'id del document) i la triada.
+// Opcions del selector «Distribuïdora» (el valor és l'id del document) i la triada.
 // `actual` i `desada` són `{ nom, id }` de la sessió (formulari i valor desat). Si no són al catàleg (per id, o pel
 // nom exacte si no tenen id) s'ofereixen com a «<nom> (no és al catàleg)» amb el parell sencer per no perdre'ls.
 export function opcionsDistribucio(distribuidores, actual, desada) {

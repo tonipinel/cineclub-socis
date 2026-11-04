@@ -111,6 +111,15 @@ describe('construirSessioDesDeProposta', () => {
     expect(sessio).not.toHaveProperty('activa');
   });
 
+  it('amb distribuïdora omple el nom i l\'id a publica; sense ella no hi posa res', () => {
+    const amb = construirSessioDesDeProposta(FLOATING_CLOUDS, { propostaId: 'p', avui: AVUI, distribuidora: { id: 'd1', nom: 'Atalante' } });
+    expect(amb.sessio.publica).toMatchObject({ suportDistribucio: 'Atalante', suportDistribucioId: 'd1' });
+    for (const sense of [sessio, construirSessioDesDeProposta(FLOATING_CLOUDS, { propostaId: 'p', avui: AVUI, distribuidora: null }).sessio]) {
+      expect(sense.publica).not.toHaveProperty('suportDistribucio');
+      expect(sense.publica).not.toHaveProperty('suportDistribucioId');
+    }
+  });
+
   it('suggereix el slug del títol original', () => {
     expect(slugSuggerit).toBe('floating-clouds');
   });

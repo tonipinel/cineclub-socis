@@ -1060,6 +1060,19 @@ describe('PropostaForm: l\'estat «Programada»', () => {
     expect(where).toHaveBeenCalledWith('propostaId', '==', 'p1');
   });
 
+  it('amb sessió, el selector de distribuïdora és desactivat amb la nota i l\'enllaç a la sessió', async () => {
+    await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' }, interna: { preu: null, condicions: '', distribuidoraId: 'd2' }, sessions: [SESSIO] });
+    await waitFor(() => expect(screen.getByLabelText('Distribuïdora')).toBeDisabled());
+    expect(screen.getByText(/Es canvia a la sessió\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Obrir la sessió' })).toHaveAttribute('href', `/sessions/${SESSIO.id}`);
+  });
+
+  it('sense sessió, el selector de distribuïdora és editable', async () => {
+    await obrirGestio();
+    expect(screen.getByLabelText('Distribuïdora')).toBeEnabled();
+    expect(screen.queryByText(/Es canvia a la sessió/)).not.toBeInTheDocument();
+  });
+
   it('una proposta programada amb sessió té l\'estat fix, amb l\'explicació', async () => {
     await obrirGestio({ proposta: { ...PROPOSTA, estat: 'programada' }, sessions: [SESSIO] });
     await waitFor(() => expect(screen.getByLabelText('Estat')).toBeDisabled());
@@ -1454,6 +1467,26 @@ describe('PropostaForm: Programar sessió', () => {
     expect(tx.update).toHaveBeenCalledWith({ path: 'propostes/p1', id: 'p1' }, { estat: 'programada' });
     expect(runTransaction).toHaveBeenCalledTimes(1);
     senseEscriptures();
+  });
+
+  it('programa amb la distribuïdora de la gestió interna a la sessió', async () => {
+    prepararProgramar();
+    const user = userEvent.setup();
+    renderFitxa();
+    await programar(user);
+    await screen.findByText(/Edició de sessió/);
+    expect(tx.set.mock.calls[0][1].publica).toMatchObject({ suportDistribucio: 'Atalante', suportDistribucioId: 'd1' });
+  });
+
+  it('una proposta sense distribuïdora es programa sense distribuïdora a la sessió', async () => {
+    prepararProgramar();
+    preparar({ proposta: APROVADA, interna: { preu: null, condicions: '', distribuidoraId: '' } });
+    const user = userEvent.setup();
+    renderFitxa();
+    await programar(user);
+    await screen.findByText(/Edició de sessió/);
+    expect(tx.set.mock.calls[0][1].publica).not.toHaveProperty('suportDistribucioId');
+    expect(tx.set.mock.calls[0][1].publica).not.toHaveProperty('suportDistribucio');
   });
 
   it('la sessió no conté cap dada interna de la proposta', async () => {
