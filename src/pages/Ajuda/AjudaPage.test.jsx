@@ -23,6 +23,12 @@ describe('AjudaPage', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Mode prova' })).toBeInTheDocument();
   });
 
+  it('admin: la secció de flyers explica què és un flyer actiu', () => {
+    renderAmbRol('admin');
+    expect(screen.getByText((_, el) => el.tagName === 'P' && /^Un flyer és actiu quan està publicat i totes les seves sessions/.test(el.textContent))).toBeInTheDocument();
+    expect(screen.getByText(/Publicat, pendent de publicar N sessions/, { selector: 'p' })).toBeInTheDocument();
+  });
+
   it('taquilla: només veu la guia d\'escaneig', () => {
     renderAmbRol('taquilla');
     expect(titolsSeccions()).toEqual(['Índex', "Guia d'escaneig a la porta"]);

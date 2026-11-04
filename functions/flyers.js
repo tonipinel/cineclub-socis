@@ -6,12 +6,18 @@ const crypto = require('node:crypto');
 const VARIANTS = ['simple', 'impremta'];
 const URL_BASE_PER_DEFECTE = 'https://cineclubrodadebera.cat';
 // Fora de `web/`: les regles de Storage no tenen cap regla per a `flyers/**` (denegat per defecte) i només hi accedeixen
-// la funció i l'endpoint de la web amb l'Admin SDK. Sota `web/` serien de lectura pública (l'id del flyer és públic).
+// la funció (Admin SDK). La web llegeix els PDF per la URL amb token de `pdfs.<variant>.url` (el compte de servei de la web
+// no té `storage.objects.get`). Sota `web/` serien de lectura pública (l'id del flyer és públic).
 const camiPdf = (id, variant) => `flyers/${id}/flyer-${variant}.pdf`;
 
 // Versió del disseny imprès: puja-la quan canviï el layout d'impressió, el CSS o `web/src/data/flyer.json`, perquè els
 // PDF existents es regenerin en el proper disparador (la signatura no mira cap d'aquests fitxers).
-const VERSIO_DISSENY = 1;
+// La v2 afegeix el token de descàrrega (`pdfs.<variant>.url`). La v3 és el disseny nou (cares blanques, targetes, logo i
+// preus) i els PDF amb totes les sessions del flyer, publicades o no.
+const VERSIO_DISSENY = 3;
+
+// URL de descàrrega amb token: secreta, només al document admin del flyer; no es registra ni es posa en errors.
+const urlDescarrega = (nomBucket, path, token) => `https://firebasestorage.googleapis.com/v0/b/${nomBucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
 
 // JSON amb les claus ordenades: el mateix valor dona sempre el mateix text.
 function estable(valor) {
@@ -22,11 +28,12 @@ function estable(valor) {
   return JSON.stringify(valor) ?? 'null';
 }
 
-// Hash del que surt imprès: el nom i, per cada sessió publicada (en l'ordre rebut), els seus camps visibles.
+// Hash del que surt imprès: el nom i, per cada sessió (en l'ordre rebut, publicada o no), els seus camps visibles i si és
+// publicada (així la signatura canvia, i els PDF es regeneren, quan es publica una sessió).
 // `sessions` són `{ id, ...dades }` en l'ordre del flyer.
 function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
   const imprimibles = (sessions ?? [])
-    .filter((s) => s?.publicada === true)
+    .filter(Boolean)
     .map((s) => ({
       id: s.id,
       slug: s.slug ?? null,
@@ -37,8 +44,10 @@ function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
       titolTraduit: s.publica?.titolTraduit ?? null,
       versioTipus: s.publica?.versioTipus ?? null,
       idioma: s.publica?.idioma ?? null,
-      generes: s.publica?.generes ?? null,
       cartell: s.publica?.cartell ?? null,
+      preu: s.publica?.preu ?? null,
+      seccio: s.publica?.seccio ?? null,
+      publicada: s.publicada === true,
     }));
   return crypto.createHash('sha256').update(estable({ versio, nom: flyer?.nom ?? null, sessions: imprimibles })).digest('hex');
 }
@@ -52,8 +61,11 @@ function calGenerar(abans, despres) {
   return !abans || sensePdfs(abans) !== sensePdfs(despres) || enMillis(abans.actualitzatEl) !== enMillis(despres.actualitzatEl);
 }
 
+// Amb la `clau` i `totes=1` la ruta d'impressió pinta totes les sessions del flyer, publicades o no. És segur: la web només
+// serveix el PDF desat sense `clau` quan el flyer és actiu (totes les sessions publicades) i les `sessionsIds` desades amb
+// el PDF són totes del flyer actual.
 function urlImpressio({ urlBase, id, variant, clau, ara }) {
-  const params = new URLSearchParams({ variant, clau: clau ?? '', t: String(ara) });
+  const params = new URLSearchParams({ variant, clau: clau ?? '', totes: '1', t: String(ara) });
   return `${urlBase}/flyer/${encodeURIComponent(id)}/imprimir/?${params}`;
 }
 
@@ -82,7 +94,7 @@ async function llegir(db, id) {
     const docs = await db.getAll(...ids.map((sessionId) => db.collection('sessions').doc(sessionId)));
     docs.forEach((s, i) => { if (s.exists) sessions.push({ id: ids[i], ...s.data() }); });
   }
-  return { flyer, firma: firmaFlyer(flyer, sessions) };
+  return { flyer, firma: firmaFlyer(flyer, sessions), sessionsIds: sessions.map((s) => s.id) };
 }
 
 // Llegeix el flyer i les seves sessions i, si la signatura no coincideix amb la dels PDF desats, els torna a generar.
@@ -95,9 +107,10 @@ async function regenerarFlyer({
   for (let intent = 0; intent < MAX_INTENTS; intent += 1) {
     const lectura = await llegir(db, id);
     if (!lectura) return null;
-    const { flyer, firma } = lectura;
-    if (VARIANTS.every((v) => flyer.pdfs?.[v]?.firma === firma)) {
-      // Cap canvi imprès (p. ex. Publicar o canviar només les dates): els PDF ja són vigents. L'admin compara
+    const { flyer, firma, sessionsIds } = lectura;
+    const vigent = (v) => flyer.pdfs?.[v]?.firma === firma && typeof flyer.pdfs[v].url === 'string' && Array.isArray(flyer.pdfs[v].sessionsIds);
+    if (VARIANTS.every(vigent)) {
+      // Cap canvi imprès i amb URL de descàrrega i `sessionsIds` (sense, es regenera: auto-reparació) (p. ex. Publicar o canviar només les dates): els PDF ja són vigents. L'admin compara
       // `actualitzatEl` amb l'última generació o comprovació; sense això «S'està actualitzant…» no s'acabaria mai.
       const desat = enMillis(flyer.actualitzatEl);
       const instants = [...VARIANTS.map((v) => enMillis(flyer.pdfs[v].generatEl)), enMillis(flyer.pdfsComprovatEl)];
@@ -124,8 +137,14 @@ async function regenerarFlyer({
     const pdfs = {};
     for (const variant of VARIANTS) {
       const path = camiPdf(id, variant);
-      await bucket.file(path).save(rendits[variant], { contentType: 'application/pdf', resumable: false });
-      pdfs[variant] = { path, firma, generatEl: new Date(ara()) };
+      const token = crypto.randomUUID();
+      await bucket.file(path).save(rendits[variant], {
+        contentType: 'application/pdf',
+        resumable: false,
+        metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+      });
+      // `sessionsIds`: les sessions pintades; la web no serveix el PDF sense `clau` si en porta alguna que ja no és del flyer.
+      pdfs[variant] = { path, url: urlDescarrega(bucket.name, path, token), firma, sessionsIds, generatEl: new Date(ara()) };
     }
     await db.collection('flyers').doc(id).update({ pdfs, pdfsError: null });
     logger.info('flyer: PDF generats', { id });

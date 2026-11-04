@@ -37,9 +37,20 @@ describe('FlyersList', () => {
     render(<MemoryRouter><FlyersList /></MemoryRouter>);
     const enllac = await screen.findByRole('link', { name: 'Novembre' });
     expect(enllac).toHaveAttribute('href', '/flyers/f1');
-    expect(screen.getByText('Publicat')).toBeInTheDocument();
+    expect(screen.getByText('Actiu')).toBeInTheDocument();
     expect(screen.getByText('Esborrany')).toBeInTheDocument();
     expect(screen.getByText('01/11/2026 – 30/11/2026')).toBeInTheDocument();
+  });
+
+  it('mostra «Publicat, pendent de publicar N sessions» si falta alguna sessió publicada o existent', async () => {
+    carrega([
+      { ...FLYERS[0], sessionsIds: ['s1', 's2', 'esborrada'] },
+      FLYERS[1],
+    ], [SESSIO, { ...SESSIO, id: 's2', publicada: false }]);
+    render(<MemoryRouter><FlyersList /></MemoryRouter>);
+    expect(await screen.findByText('Publicat, pendent de publicar 2 sessions')).toBeInTheDocument();
+    expect(screen.queryByText('Actiu')).toBeNull();
+    expect(screen.getByText('Esborrany')).toBeInTheDocument();
   });
 
   it('marca «Desactualitzat» només els flyers amb canvis respecte a la base', async () => {

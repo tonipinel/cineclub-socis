@@ -1,8 +1,9 @@
 // Lògica pura dels flyers (`flyers/{id}`): triar sessions i detectar canvis respecte a la base.
 // `versioTipus` viu a `sessio.publica.versioTipus`.
 
-const MIN_SESSIONS = 3;
-const MAX_SESSIONS = 6;
+// Un flyer té de 3 a 5 sessions (límit dur: més de 5 no es pot desar com a publicat ni publicar).
+export const MIN_SESSIONS = 3;
+export const MAX_SESSIONS = 5;
 
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
 const dataValida = (data) => {
@@ -16,14 +17,13 @@ const versioDe = (sessio) => sessio.publica?.versioTipus ?? '';
 
 export function sessionsDelRang(sessions, desde, fins) {
   return sessions
-    .filter((s) => s.publicada === true && s.data >= desde && s.data <= fins)
+    .filter((s) => s.data >= desde && s.data <= fins)
     .sort((a, b) => `${a.data} ${a.hora ?? ''}`.localeCompare(`${b.data} ${b.hora ?? ''}`))
     .map((s) => s.id);
 }
 
 export function validarFlyer({ nom, desde, fins, sessionsIds }, sessions) {
   const errors = {};
-  const avisos = [];
   if (!nom?.trim()) errors.nom = 'Cal un nom.';
   if (!dataValida(desde)) errors.desde = 'Cal una data d\'inici vàlida.';
   if (!dataValida(fins)) errors.fins = 'Cal una data de fi vàlida.';
@@ -32,15 +32,15 @@ export function validarFlyer({ nom, desde, fins, sessionsIds }, sessions) {
   const ids = sessionsIds ?? [];
   const missatges = [];
   if (ids.length < MIN_SESSIONS) missatges.push(`Calen almenys ${MIN_SESSIONS} sessions.`);
+  if (ids.length > MAX_SESSIONS) missatges.push(`Un flyer té de ${MIN_SESSIONS} a ${MAX_SESSIONS} sessions. Desmarca'n alguna.`);
   for (const id of ids) {
     const sessio = sessions.find((s) => s.id === id);
     if (!sessio) missatges.push(`La sessió ${id} ja no existeix.`);
     else if (!versioDe(sessio)) missatges.push(`«${sessio.titol}» no té versió.`);
   }
   if (missatges.length) errors.sessionsIds = missatges;
-  if (ids.length > MAX_SESSIONS) avisos.push(`Més de ${MAX_SESSIONS} sessions: el flyer pot quedar massa ple.`);
 
-  return { errors, avisos };
+  return { errors };
 }
 
 export function instantania(sessio) {
@@ -49,7 +49,7 @@ export function instantania(sessio) {
     hora: sessio.hora,
     titol: sessio.titol,
     versioTipus: versioDe(sessio),
-    publicada: sessio.publicada,
+    publicada: sessio.publicada === true,
   };
 }
 
@@ -63,11 +63,35 @@ export function canvisDesdeBase(flyer, sessionsPerId) {
     }
     const ara = instantania(actual);
     const push = (tipus) => canvis.push({ sessionId, titol: ara.titol, tipus });
-    if (ara.publicada !== true) push('despublicada');
+    // Una base anterior a aquest camp només podia tenir sessions publicades.
+    if (base.publicada !== false && ara.publicada !== true) push('despublicada');
     if (ara.data !== base.data) push('data');
     if (ara.hora !== base.hora) push('hora');
     if (ara.versioTipus !== base.versioTipus) push('versio');
     if (ara.titol !== base.titol) push('titol');
   }
   return canvis;
+}
+
+// Sessions del flyer que no existeixen o encara no són publicades.
+export function sessionsNoPublicades(flyer, sessionsPerId) {
+  return (flyer.sessionsIds ?? []).flatMap((sessionId) => {
+    const sessio = sessionsPerId[sessionId];
+    if (sessio?.publicada === true) return [];
+    return [{ sessionId, titol: sessio?.titol ?? `Sessió esborrada (${sessionId})` }];
+  });
+}
+
+// Actiu = publicat, amb alguna sessió i totes publicades. Es calcula, no es desa.
+export function flyerActiu(flyer, sessionsPerId) {
+  return flyer.estat === 'publicat' && (flyer.sessionsIds ?? []).length > 0 && sessionsNoPublicades(flyer, sessionsPerId).length === 0;
+}
+
+// «Esborrany», «Actiu» o «Publicat, pendent de publicar N sessions».
+export function etiquetaEstat(flyer, sessionsPerId) {
+  if (flyer.estat !== 'publicat') return 'Esborrany';
+  if (!(flyer.sessionsIds ?? []).length) return 'Publicat, sense sessions';
+  const n = sessionsNoPublicades(flyer, sessionsPerId).length;
+  if (n === 0) return 'Actiu';
+  return `Publicat, pendent de publicar ${n} ${n === 1 ? 'sessió' : 'sessions'}`;
 }

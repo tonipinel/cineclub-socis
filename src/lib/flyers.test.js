@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canvisDesdeBase, instantania, sessionsDelRang, validarFlyer } from './flyers.js';
+import {
+  canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
+} from './flyers.js';
 
 const sessio = (id, data, hora, extra = {}) => ({
   id, data, hora, titol: `Peli ${id}`, publicada: true, publica: { versioTipus: 'vose' }, ...extra,
@@ -17,11 +19,43 @@ describe('sessionsDelRang', () => {
   ];
 
   it('inclou els dos extrems i ordena per data i hora', () => {
-    expect(sessionsDelRang(sessions, '2026-12-01', '2026-12-31')).toEqual(['b', 'a', 'c', 'd']);
+    expect(sessionsDelRang(sessions, '2026-12-01', '2026-12-31')).toEqual(['b', 'a', 'esborrany', 'c', 'd']);
   });
 
-  it('només té en compte les sessions publicades', () => {
-    expect(sessionsDelRang(sessions, '2026-12-05', '2026-12-05')).toEqual([]);
+  it('inclou les sessions no publicades', () => {
+    expect(sessionsDelRang(sessions, '2026-12-05', '2026-12-05')).toEqual(['esborrany']);
+  });
+});
+
+describe('sessionsNoPublicades i flyerActiu', () => {
+  const sessionsPerId = {
+    a: sessio('a', '2026-12-01', '20:00'),
+    b: sessio('b', '2026-12-02', '20:00'),
+    p: sessio('p', '2026-12-03', '20:00', { publicada: false }),
+  };
+  const flyer = (estat, sessionsIds) => ({ estat, sessionsIds });
+
+  it('llista les sessions sense publicar i les ids que ja no existeixen', () => {
+    expect(sessionsNoPublicades(flyer('publicat', ['a', 'p', 'x']), sessionsPerId)).toEqual([
+      { sessionId: 'p', titol: 'Peli p' },
+      { sessionId: 'x', titol: 'Sessió esborrada (x)' },
+    ]);
+    expect(sessionsNoPublicades(flyer('publicat', ['a', 'b']), sessionsPerId)).toEqual([]);
+  });
+
+  it.each([
+    ['un esborrany', flyer('esborrany', ['a', 'b']), false],
+    ['un publicat complet', flyer('publicat', ['a', 'b']), true],
+    ['un publicat amb una sessió sense publicar', flyer('publicat', ['a', 'p']), false],
+    ['un publicat amb una sessió esborrada', flyer('publicat', ['a', 'x']), false],
+    ['un publicat sense sessions', flyer('publicat', []), false],
+    ['un publicat sense sessionsIds', { estat: 'publicat' }, false],
+  ])('%s: actiu = %s', (_, f, esperat) => {
+    expect(flyerActiu(f, sessionsPerId)).toBe(esperat);
+  });
+
+  it('l\'etiqueta d\'un publicat sense sessions no diu «Actiu»', () => {
+    expect(etiquetaEstat({ estat: 'publicat', sessionsIds: [] }, sessionsPerId)).toBe('Publicat, sense sessions');
   });
 });
 
@@ -35,13 +69,15 @@ describe('validarFlyer', () => {
   });
 
   it('és vàlid amb 3 sessions', () => {
-    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', '3'] }, sessions)).toEqual({ errors: {}, avisos: [] });
+    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', '3'] }, sessions)).toEqual({ errors: {} });
   });
 
-  it('avisa, sense error, amb més de 6 sessions', () => {
-    const r = validarFlyer({ ...base, sessionsIds: ['1', '2', '3', '4', '5', '6', '7'] }, sessions);
-    expect(r.errors).toEqual({});
-    expect(r.avisos).toHaveLength(1);
+  it('dona error amb més de 5 sessions (límit dur), i 5 és vàlid', () => {
+    const set = Array.from({ length: 7 }, (_, i) => String(i + 1));
+    expect(validarFlyer({ ...base, sessionsIds: set.slice(0, 5) }, sessions).errors).toEqual({});
+    const r = validarFlyer({ ...base, sessionsIds: set }, sessions);
+    expect(r.errors.sessionsIds).toContain("Un flyer té de 3 a 5 sessions. Desmarca'n alguna.");
+    expect(r.avisos).toBeUndefined();
   });
 
   it('dona error per una sessió sense versioTipus i n\'hi anomena el títol', () => {
@@ -49,6 +85,11 @@ describe('validarFlyer', () => {
     const { errors } = validarFlyer({ ...base, sessionsIds: ['1', '2', '8'] }, llista);
     expect(errors.sessionsIds).toHaveLength(1);
     expect(errors.sessionsIds[0]).toContain('Sense versió');
+  });
+
+  it('no dona error per una sessió no publicada', () => {
+    const amb = [...sessions, sessio('np', '2026-12-02', '20:00', { publicada: false })];
+    expect(validarFlyer({ ...base, sessionsIds: ['1', '2', 'np'] }, amb).errors).toEqual({});
   });
 
   it('dona error sense nom', () => {
@@ -94,6 +135,13 @@ describe('canvisDesdeBase', () => {
     expect(canvis({ ...original, ...canvi })).toEqual([
       { sessionId: 'a', titol: canvi.titol ?? 'Peli a', tipus },
     ]);
+  });
+
+  it('no dona «despublicada» si la sessió ja no era publicada a la base', () => {
+    const noPublicada = sessio('a', '2026-12-01', '20:00', { publicada: false });
+    const f = { base: { a: instantania(noPublicada) } };
+    expect(canvisDesdeBase(f, { a: noPublicada })).toEqual([]);
+    expect(canvisDesdeBase(f, { a: { ...noPublicada, publicada: undefined } })).toEqual([]);
   });
 
   it('detecta una sessió esborrada amb el títol de la base', () => {

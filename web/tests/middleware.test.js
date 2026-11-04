@@ -111,6 +111,12 @@ describe('middleware', () => {
     expect(res.headers.get('Cache-Control')).toBe(CACHE_NOT_FOUND);
   });
 
+  it('un 404 que la ruta marca no-store el conserva', async () => {
+    const { onRequest } = await carrega(true);
+    const res = await onRequest(context('/flyer/f1/flyer.pdf'), () => Promise.resolve(new Response('x', { status: 404, headers: { 'Cache-Control': 'no-store' } })));
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
   it('una resposta 200 que ja porta Cache-Control el conserva', async () => {
     const { onRequest } = await carrega(true);
     const res = await onRequest(context(), () => Promise.resolve(new Response('x', { status: 200, headers: { 'Cache-Control': 'public, max-age=5' } })));

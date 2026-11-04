@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
@@ -27,7 +27,6 @@ const sessio = (id, data, extra = {}) => ({
 const SESSIONS = [
   sessio('s1', '2026-11-03'), sessio('s2', '2026-11-10'), sessio('s3', '2026-11-17'), sessio('s4', '2026-11-24'),
   sessio('fora', '2026-12-05'),
-  sessio('draft', '2026-11-12', { publicada: false }),
 ];
 const resposta = (llista) => ({ docs: llista.map(({ id, ...d }) => ({ id, data: () => d })) });
 
@@ -72,19 +71,86 @@ const omple = async () => {
   fireEvent.change(screen.getByLabelText('Des de'), { target: { value: '2026-11-01' } });
   fireEvent.change(screen.getByLabelText('Fins a'), { target: { value: '2026-11-30' } });
 };
+const DRAFT = sessio('draft', '2026-11-12', { publicada: false });
 const casella = (titol) => screen.getByRole('checkbox', { name: new RegExp(titol) });
 
 describe('FlyerForm', () => {
-  it('en canviar les dates marca les sessions publicades del rang i es pot desmarcar una', async () => {
+  it('en canviar les dates marca les sessions del rang, també les no publicades, i es pot desmarcar una', async () => {
+    sessions = [...SESSIONS, DRAFT];
     renderNou();
     await omple();
     expect(casella('Film s1')).toBeChecked();
     expect(casella('Film s4')).toBeChecked();
     expect(screen.queryByRole('checkbox', { name: /Film fora/ })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: /Film draft/ })).toBeNull();
+    expect(casella('Film draft')).toBeChecked();
     await userEvent.click(casella('Film s2'));
     expect(casella('Film s2')).not.toBeChecked();
-    expect(screen.getByText('Sessions (3)')).toBeInTheDocument();
+    expect(screen.getByText('Sessions (4 de 5)')).toBeInTheDocument();
+  });
+
+  it('cada fila diu si la sessió és publicada i enllaça a editar-la', async () => {
+    sessions = [...SESSIONS, DRAFT];
+    renderNou();
+    await omple();
+    const fila = (titol) => casella(titol).closest('li');
+    expect(within(fila('Film s1')).getByText('Publicada')).toBeInTheDocument();
+    expect(within(fila('Film s1')).getByRole('link', { name: 'Editar sessió' })).toHaveAttribute('href', '/sessions/s1');
+    expect(within(fila('Film draft')).getByText('Sense publicar')).toBeInTheDocument();
+    expect(within(fila('Film draft')).getByRole('link', { name: 'Editar sessió' })).toHaveAttribute('href', '/sessions/draft');
+  });
+
+  it('una sessió no publicada deixa publicar, amb l\'avís i el llistat de les que falten', async () => {
+    sessions = [...SESSIONS, DRAFT];
+    renderNou();
+    await omple();
+    expect(screen.getByRole('button', { name: 'Publicar' })).toBeEnabled();
+    expect(screen.getByText(/El flyer no serà actiu fins que totes les sessions estiguin publicades/)).toBeInTheDocument();
+    const avis = screen.getByText(/El flyer no serà actiu/).closest('div');
+    expect(within(avis).getByText(/Film draft/)).toBeInTheDocument();
+    expect(within(avis).getByRole('link', { name: 'Editar sessió' })).toHaveAttribute('href', '/sessions/draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    expect(addDoc.mock.calls[0][1].sessionsIds).toContain('draft');
+  });
+
+  it('sense cap sessió no publicada no surt l\'avís', async () => {
+    renderNou();
+    await omple();
+    expect(screen.queryByText(/El flyer no serà actiu/)).toBeNull();
+  });
+
+  it('un flyer publicat amb sessions no publicades o esborrades surt «pendent de publicar», només amb enllaç a les que existeixen', async () => {
+    sessions = [...SESSIONS, DRAFT];
+    flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {}, sessionsIds: ['s1', 'draft', 'borrada'] });
+    renderExistent();
+    expect(await screen.findByText('Publicat, pendent de publicar 2 sessions')).toBeInTheDocument();
+    expect(screen.queryByText('Actiu')).toBeNull();
+    const llista = screen.getByText(/Falta publicar aquestes sessions/).closest('div');
+    expect(within(llista).getByText(/Film draft/)).toBeInTheDocument();
+    expect(within(llista).getAllByRole('link', { name: 'Editar sessió' })).toHaveLength(1);
+    const esborrada = casella('Sessió esborrada').closest('li');
+    expect(within(esborrada).queryByRole('link')).toBeNull();
+  });
+
+  it('un flyer publicat però no actiu: enllaços amb la clau i totes=1, sense «Copiar l\'enllaç»', async () => {
+    sessions = [...SESSIONS, DRAFT];
+    flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {}, sessionsIds: ['s1', 's2', 'draft'] });
+    renderExistent();
+    expect(await screen.findByRole('link', { name: 'Previsualització de la pàgina' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123&totes=1');
+    expect(screen.getByRole('link', { name: 'Previsualització d\'impressió' })).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/imprimir/?variant=simple&clau=abc123&totes=1');
+    expect(screen.queryByRole('button', { name: "Copiar l'enllaç" })).toBeNull();
+  });
+
+  it('un flyer publicat amb totes les sessions publicades surt «Actiu»', async () => {
+    flyer = flyerExistent({ estat: 'publicat', publicatEl: 'abans', base: {} });
+    renderExistent();
+    expect(await screen.findByText('Actiu')).toBeInTheDocument();
+  });
+
+  it('un esborrany surt «Esborrany»', async () => {
+    flyer = flyerExistent();
+    renderExistent();
+    expect(await screen.findByText('Esborrany')).toBeInTheDocument();
   });
 
   it('amb menys de 3 marcades Publicar és desactivat i surt l\'error', async () => {
@@ -105,12 +171,14 @@ describe('FlyerForm', () => {
     expect(screen.getByText('Falta la versió')).toBeInTheDocument();
   });
 
-  it('amb 7 sessions només avisa', async () => {
+  it('amb més de 5 sessions és un error que bloqueja Publicar (i s\'hi veu el recompte «7 de 5»)', async () => {
     sessions = Array.from({ length: 7 }, (_, i) => sessio(`m${i}`, `2026-11-0${i + 1}`));
     renderNou();
     await omple();
-    expect(screen.getByText(/Més de 6 sessions/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Publicar' })).toBeEnabled();
+    expect(screen.getByText("Un flyer té de 3 a 5 sessions. Desmarca'n alguna.")).toBeInTheDocument();
+    expect(screen.getByText('Sessions (7 de 5)')).toBeInTheDocument();
+    expect(screen.queryByText(/massa ple/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publicar' })).toBeDisabled();
   });
 
   it('en publicar escriu estat, publicatEl, base, sessionsIds i la clau prèvia', async () => {
@@ -188,7 +256,7 @@ describe('FlyerForm', () => {
     flyer = flyerExistent();
     const { unmount } = renderExistent();
     const previ = await screen.findByRole('link', { name: 'Previsualització de la pàgina' });
-    expect(previ).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123');
+    expect(previ).toHaveAttribute('href', 'https://cineclubrodadebera.cat/flyer/f1/?clau=abc123&totes=1');
     expect(screen.queryByRole('button', { name: "Copiar l'enllaç" })).toBeNull();
     unmount();
 

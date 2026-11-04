@@ -12,7 +12,7 @@ import ErrorCarrega from '../../components/ErrorCarrega';
 import useErrorCarrega from '../../lib/useErrorCarrega';
 import useFitxaEditable from '../../lib/useFitxaEditable';
 import {
-  canvisDesdeBase, instantania, sessionsDelRang, validarFlyer,
+  MAX_SESSIONS, canvisDesdeBase, etiquetaEstat, flyerActiu, instantania, sessionsDelRang, sessionsNoPublicades, validarFlyer,
 } from '../../lib/flyers';
 import { formatData, formatDataHora } from '../../lib/data';
 import { URL_WEB } from '../../lib/sessioPublica';
@@ -51,19 +51,21 @@ const baseDe = (ids, sessionsPerId) => Object.fromEntries(
   ids.filter((id) => sessionsPerId[id]).map((id) => [id, instantaniaSegura(sessionsPerId[id])]),
 );
 
-// L'esborrany i el PDF d'impremta només s'obren amb la clau.
-const enllacos = (id, clauPrevia, publicat) => {
+// Un flyer no actiu (esborrany o pendent de publicar sessions) i el PDF d'impremta només s'obren amb la clau; les
+// previsualitzacions d'un flyer no actiu porten `totes=1` perquè s'hi vegin també les sessions no publicades (com al PDF).
+const enllacos = (id, clauPrevia, actiu) => {
   const clau = `clau=${clauPrevia}`;
+  const previa = !actiu && `${clau}&totes=1`;
   const q = (...parts) => {
     const text = parts.filter(Boolean).join('&');
     return text ? `?${text}` : '';
   };
   const arrel = `${URL_WEB}/flyer/${id}/`;
   return {
-    pagina: `${arrel}${q(!publicat && clau)}`,
-    pdfSimple: `${arrel}flyer.pdf${q(!publicat && clau)}`,
+    pagina: `${arrel}${q(previa)}`,
+    pdfSimple: `${arrel}flyer.pdf${q(!actiu && clau)}`,
     pdfImpremta: `${arrel}flyer.pdf${q('variant=impremta', clau)}`,
-    previsualitzacio: `${arrel}imprimir/${q('variant=simple', !publicat && clau)}`,
+    previsualitzacio: `${arrel}imprimir/${q('variant=simple', previa)}`,
   };
 };
 
@@ -108,8 +110,29 @@ function ErrorCamp({ errors, camp }) {
   return <p id={idError(camp)} className="form__error">{errors[camp]}</p>;
 }
 
+// S'obre en una pestanya nova perquè el formulari pot tenir canvis sense desar.
+function EnllacSessio({ id }) {
+  return (
+    <a className="enllac" href={ROUTES.SESSIONS_EDITAR.replace(':id', id)} target="_blank" rel="noreferrer">Editar sessió</a>
+  );
+}
+
+// Títols de les sessions pendents de publicar; les esborrades no tenen fitxa on enllaçar.
+function PendentsDePublicar({ pendents, sessionsPerId }) {
+  return (
+    <ul>
+      {pendents.map((p) => (
+        <li key={p.sessionId}>
+          {p.titol}
+          {sessionsPerId[p.sessionId] && <>{' '}<EnllacSessio id={p.sessionId} /></>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
-  if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió publicada en aquest rang.</p>;
+  if (ids.length === 0) return <p className="form__ajuda">No hi ha cap sessió en aquest rang.</p>;
   return (
     <ul className="flyer-form__sessions">
       {ids.map((id) => {
@@ -134,8 +157,11 @@ function LlistaSessions({ ids, sessionsPerId, triades, onAlterna }) {
               {versio
                 ? <span className="badge badge--al-dia">{ETIQUETA_VERSIO[versio] ?? versio}</span>
                 : <span className="badge badge--vencut">Falta la versió</span>}
-              {s.publicada !== true && <span className="badge badge--pendent">No publicada</span>}
+              {s.publicada === true
+                ? <span className="badge badge--al-dia">Publicada</span>
+                : <span className="badge badge--pendent">Sense publicar</span>}
             </label>
+            <EnllacSessio id={id} />
           </li>
         );
       })}
@@ -238,7 +264,7 @@ function FitxaFlyer({ id, carregada }) {
     valors, canvia, estat, desa, descarta, errorDesat, errors, reinicia,
   } = useFitxaEditable({ inicial, onDesar });
 
-  const { errors: errorsValidacio, avisos } = validarFlyer(valors, sessions);
+  const { errors: errorsValidacio } = validarFlyer(valors, sessions);
   const hiHaErrors = Object.keys(errorsValidacio).length > 0;
 
   const canviaDates = (camp, valor) => {
@@ -296,8 +322,12 @@ function FitxaFlyer({ id, carregada }) {
     setTimeout(() => setCopiat(false), 2500);
   });
 
+  const estatFlyer = { estat: desat.estat, sessionsIds: desat.sessionsIds };
+  const pendentsDesat = publicat ? sessionsNoPublicades(estatFlyer, sessionsPerId) : [];
+  const pendentsAlPublicar = sessionsNoPublicades(valors, sessionsPerId);
   const canvis = publicat ? canvisDesdeBase({ base: desat.base }, sessionsPerId) : [];
-  const links = editant ? enllacos(id, flyer.clauPrevia, publicat) : null;
+  const actiu = flyerActiu(estatFlyer, sessionsPerId);
+  const links = editant ? enllacos(id, flyer.clauPrevia, actiu) : null;
 
   const anarACamp = (camp) => document.getElementById(camp === 'sessionsIds' ? 'flyer-sessions' : camp)?.focus();
   const errorsBarra = [...CAMPS, 'sessionsIds'].filter((camp) => errors[camp]).map((camp) => ({
@@ -319,8 +349,14 @@ function FitxaFlyer({ id, carregada }) {
     >
       {editant && (
         <p className="flyer-form__estat">
-          <span className={`badge ${publicat ? 'badge--al-dia' : 'badge--pendent'}`}>{publicat ? 'Publicat' : 'Esborrany'}</span>
+          <span className={`badge ${actiu ? 'badge--al-dia' : 'badge--pendent'}`}>{etiquetaEstat(estatFlyer, sessionsPerId)}</span>
         </p>
+      )}
+      {pendentsDesat.length > 0 && (
+        <div className="form__ajuda">
+          <p>Falta publicar aquestes sessions; fins llavors el flyer no és actiu:</p>
+          <PendentsDePublicar pendents={pendentsDesat} sessionsPerId={sessionsPerId} />
+        </div>
       )}
 
       {canvis.length > 0 && (
@@ -375,16 +411,21 @@ function FitxaFlyer({ id, carregada }) {
       </div>
 
       <section className="flyer-form__seccio" aria-labelledby="flyer-sessions">
-        <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length})`}</h2>
-        <p className="form__ajuda">En triar les dates es marquen les sessions publicades del rang. Pots desmarcar-ne.</p>
+        <h2 className="flyer-form__titol-seccio" id="flyer-sessions" tabIndex={-1}>{`Sessions (${valors.sessionsIds.length} de ${MAX_SESSIONS})`}</h2>
+        <p className="form__ajuda">En triar les dates es marquen les sessions del rang, publicades o no. Pots desmarcar-ne.</p>
         <LlistaSessions ids={candidates} sessionsPerId={sessionsPerId} triades={new Set(valors.sessionsIds)} onAlterna={alterna} />
         {errorsValidacio.sessionsIds?.map((m) => <p key={m} className="form__error">{m}</p>)}
-        {avisos.map((m) => <p key={m} className="flyer-form__avis">{m}</p>)}
       </section>
 
       {!publicat && (
         <div className="flyer-form__publicar">
           <button type="button" className="btn btn--negre" disabled={hiHaErrors || ocupat || estat === 'desant'} onClick={publica}>Publicar</button>
+          {pendentsAlPublicar.length > 0 && (
+            <div className="flyer-form__avis">
+              <p>El flyer no serà actiu fins que totes les sessions estiguin publicades. Falta publicar:</p>
+              <PendentsDePublicar pendents={pendentsAlPublicar} sessionsPerId={sessionsPerId} />
+            </div>
+          )}
           {hiHaErrors && <p className="form__ajuda">Per publicar cal corregir els errors.</p>}
           {CAMPS.filter((camp) => errorsValidacio[camp]).map((camp) => (
             <p key={camp} className="form__error">{errorsValidacio[camp]}</p>
@@ -397,10 +438,10 @@ function FitxaFlyer({ id, carregada }) {
         <section className="flyer-form__seccio" aria-labelledby="flyer-enllacos">
           <h2 className="flyer-form__titol-seccio" id="flyer-enllacos">Enllaços</h2>
           <ul className="flyer-form__enllacos">
-            <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{publicat ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
+            <li><a className="enllac" href={links.pagina} target="_blank" rel="noreferrer">{actiu ? 'Pàgina pública' : 'Previsualització de la pàgina'}</a></li>
             <li><a className="enllac" href={links.previsualitzacio} target="_blank" rel="noreferrer">Previsualització d&apos;impressió</a></li>
           </ul>
-          {publicat && (
+          {actiu && (
             <button type="button" className="btn btn--outline" disabled={ocupat} onClick={copia}>
               {copiat ? 'Enllaç copiat' : "Copiar l'enllaç"}
             </button>

@@ -80,7 +80,8 @@ export const onRequest = async (context, next) => {
     response = new Response(ERROR_HTML, { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
   const headers = new Headers(response.headers);
-  if (response.status !== 200 || !headers.has('Cache-Control')) headers.set('Cache-Control', cacheControlFor(response.status));
+  // Un `no-store` explícit de la ruta (p. ex. un 404 d'una URL amb la clau d'un flyer) no es relaxa mai.
+  if (headers.get('Cache-Control') !== CACHE_ERROR && (response.status !== 200 || !headers.has('Cache-Control'))) headers.set('Cache-Control', cacheControlFor(response.status));
   // Si falta algun catàleg (entitats o distribuïdores mai llegits en aquesta instància) la pàgina pot sortir
   // sense logos: el CDN no la pot guardar gaire (excepte si ja és `no-store`: no es relaxa mai).
   if (html && response.status === 200 && headers.get('Cache-Control') !== CACHE_ERROR && !(entitatsCarregades() && distribuidoresCarregades())) headers.set('Cache-Control', CACHE_CLIENT);
