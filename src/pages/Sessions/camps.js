@@ -25,7 +25,7 @@ export const GESTIO = [
 ];
 
 export const VERSIONS = [
-  ['', '—'], ['vo', 'V.O.'], ['vose', 'V.O.S.E.'], ['vosc', 'V.O.S.C.'], ['doblada-cat', 'Doblada al català'], ['doblada-cast', 'Doblada al castellà'],
+  ['', '—'], ['vo', 'V.O.'], ['vose', 'VOSC'], ['vosc', 'VOSCAT'], ['doblada-cat', 'Doblada al català'], ['doblada-cast', 'Doblada al castellà'],
 ];
 export const SECCIONS = [['', 'Cartellera (per defecte)'], ['cartellera', 'Cartellera'], ['xarxa', 'Xarxa'], ['extra', 'Extra']];
 
