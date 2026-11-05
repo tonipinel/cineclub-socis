@@ -4,7 +4,6 @@ import '../styles/flyer.css';
 import { resizedUrl } from '../lib/images.js';
 import flyer from '../data/flyer.json';
 import seccions from '../data/seccions.json';
-import Icon from './Icon.astro';
 
 // Una tira de programació (210 × 99 mm). `pelicules`: resultat de `peliculaFlyer`, ORDENADES per data
 // (el lateral pinta el rang de la primera a l'última; amb exactament 3 pel·lícules, el lateral es repeteix a la dreta,
@@ -90,8 +89,8 @@ const seccio = (clau) => (Object.hasOwn(seccions, clau) ? seccions[clau] : null)
               <div class="flyer-columna__titol">{titolMostrat(p)}</div>
             </div>
             {p.versio
-              ? <span class="flyer-columna__versio"><Icon name="film" />{p.versio}{p.idioma && <span class="flyer-columna__idioma"> · {p.idioma}</span>}</span>
-              : <span class="flyer-columna__versio flyer-columna__versio--incompleta"><Icon name="film" />Versió per confirmar</span>}
+              ? <span class="flyer-columna__versio">{p.versio}{p.idioma && <span class="flyer-columna__idioma"> · {p.idioma}</span>}</span>
+              : <span class="flyer-columna__versio flyer-columna__versio--incompleta">Versió per confirmar</span>}
           </div>
         </div>
       </div>

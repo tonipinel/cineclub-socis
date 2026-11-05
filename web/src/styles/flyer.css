@@ -188,31 +188,21 @@
   -webkit-line-clamp: 3;
   line-clamp: 3;
 }
-/* Versió + idioma en UNA pastilla quadrada amb vora gold (com `session-card__badge`), sempre a baix de la targeta. Text blanc
-   sobre negre: el gold sobre fons fosc no es llegeix bé imprès. */
+/* Versió + idioma en UNA línia de text, sempre a baix de la targeta, sense vora ni icona. Text blanc sobre negre: el gold
+   sobre fons fosc no es llegeix bé imprès. */
 .flyer-columna__versio {
-  @apply inline-block max-w-full self-center border border-gold font-sans font-bold uppercase text-white;
-  /* Una sola línia amb el text complet («VOSE · Àrab, Hebreu»); només a les targetes estretes passa a dues si de debò no hi cap. */
+  @apply inline-block max-w-full self-center font-sans font-bold uppercase text-white;
+  /* Una sola línia amb el text complet («VOSC · Àrab, Hebreu»); només a les targetes estretes passa a dues si de debò no hi cap. */
   @apply overflow-hidden whitespace-nowrap;
   margin-top: auto;
   text-align: center;
   padding: 0.4mm 2.2mm;
-  border-width: 0.25mm;
   font-size: clamp(2.4mm, 5cqw, 2.8mm);
   line-height: 1.3;
   background-color: #000;
 }
-.flyer-columna__versio .icon {
-  @apply inline-block align-text-bottom;
-  width: 2.8mm;
-  height: 2.8mm;
-  margin-right: 0.8mm;
-}
-/* Targetes estretes (5 pel·lícules): sense icona i amb menys farciment perquè «VOSE · Idioma» càpiga en una línia. */
+/* Targetes estretes (5 pel·lícules): amb menys farciment perquè «VOSC · Idioma» càpiga en una línia. */
 @container (max-width: 40mm) {
-  .flyer-columna__versio .icon {
-    @apply hidden;
-  }
   .flyer-columna__text {
     padding-inline: 1.2mm;
   }
@@ -330,9 +320,9 @@
 /* Pastilla daurada amb l'etiqueta en majúscules fosques (com la «CARTELLERA» de les targetes); amplada fixa per alinear els valors. */
 .flyer-info__etiqueta {
   @apply flex-none bg-gold text-center font-display font-bold uppercase text-black;
-  width: 19mm;
+  width: 22mm;
   padding: 0.5mm 1mm;
-  font-size: 3mm;
+  font-size: 2.8mm;
   line-height: 1.3;
   letter-spacing: 0.15mm;
 }
