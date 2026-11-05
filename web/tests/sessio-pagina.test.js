@@ -108,7 +108,7 @@ describe('pàgina de sessió', () => {
     const html = await render(completa);
     expect(html).toContain('src="/images/icaa/icaa-7.svg"');
     expect(html).toContain('No recomanada per a menors de 7 anys');
-    expect(html).toContain('<span class="info-item__icon info-item__icon--text">VOSC</span>');
+    expect(html).toContain('<span class="info-item__icon info-item__icon--text">VOSE</span>');
     expect(html).toContain('<a class="session-fitxa__taxonomy-link" href="/directors/michael-sarnoski/">Michael Sarnoski</a>');
     expect(html).toContain('href="/generes/drama-psicol%C3%B2gic/">Drama psicològic</a>');
     expect(html).toContain('href="/interprets/nicolas-cage/">Nicolas Cage</a>, <a');

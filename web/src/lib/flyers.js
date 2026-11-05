@@ -4,8 +4,8 @@ import { ascendent, dataValida, normalitzaSessio, publicable } from './sessions.
 import { subtitolSessio, titolSessio } from './sessio-camps.js';
 
 const VERSIONS = {
-  vose: 'VOSC',
-  vosc: 'VOSCAT',
+  vose: 'VOSE',
+  vosc: 'VOSC',
   vo: 'VO',
   'doblada-cat': 'En català',
   'doblada-cast': 'En castellà',

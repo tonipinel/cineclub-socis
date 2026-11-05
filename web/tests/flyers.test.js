@@ -28,7 +28,7 @@ function dbFals({ sessions = [], flyers = [] }) {
 
 describe('etiquetaVersio', () => {
   it.each([
-    ['vose', 'VOSC'], ['vosc', 'VOSCAT'], ['vo', 'VO'], ['doblada-cat', 'En català'], ['doblada-cast', 'En castellà'],
+    ['vose', 'VOSE'], ['vosc', 'VOSC'], ['vo', 'VO'], ['doblada-cat', 'En català'], ['doblada-cast', 'En castellà'],
   ])('%s -> %s', (versioTipus, text) => {
     expect(etiquetaVersio({ publica: { versioTipus, idioma: 'Anglès' } })).toEqual({ text, idioma: 'Anglès' });
   });
@@ -45,7 +45,7 @@ describe('peliculaFlyer', () => {
     });
     expect(peliculaFlyer(s)).toEqual({
       id: 'anatomie', titol: 'Anatomie', titolTraduit: 'Anatomia', dataText: 'Dj 5 nov', hora: '19:00', seccio: 'cartellera', imatge: '/c.jpg',
-      versio: 'VOSC', idioma: 'Alemany', enquadrament: 'dalt',
+      versio: 'VOSE', idioma: 'Alemany', enquadrament: 'dalt',
     });
   });
   it('l\'enquadrament del cartell surt dels `enquadraments` del flyer; per defecte (o invàlid) «dalt»', () => {
