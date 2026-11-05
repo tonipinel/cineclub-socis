@@ -153,9 +153,18 @@ export const MINIM_SESSIONS_ANY = 12;
 // lligats a la sessió que no són quotes) més la part que li toca de les
 // quotes vigents aquell dia. Cada quota es reparteix per igual entre les
 // sessions del seu període, o entre MINIM_SESSIONS_ANY si n'hi ha menys.
-export function rendibilitatPerSessio(moviments, socis, sessionsTotes) {
+// `costsReals` ({ [sessioId]: number | null }, vegeu `costsRealsSessions`): el cost conegut de la pel·lícula (distribuïdora i preu).
+// Mentre la sessió no té registrada la despesa de pel·lícula, es resta com a cost previst; en registrar-la, mana la real.
+export function rendibilitatPerSessio(moviments, socis, sessionsTotes, costsReals = {}) {
   const sessions = sessionsAmbControl(sessionsTotes);
   const rendibilitat = {};
+  const ambDespesaPellicula = new Set(moviments
+    .filter((m) => m.sessionId && m.tipus === TIPUS_MOVIMENT.DESPESA && m.categoria === 'Gestió pel·lícules')
+    .map((m) => m.sessionId));
+  for (const sessio of sessions) {
+    const cost = costsReals[sessio.id];
+    if (esNombre(cost) && cost > 0 && !ambDespesaPellicula.has(sessio.id)) rendibilitat[sessio.id] = -cost;
+  }
   for (const moviment of moviments) {
     if (!moviment.sessionId || moviment.tipus === TIPUS_MOVIMENT.TRASPAS) continue;
     if (moviment.categoria === CATEGORIA_QUOTA_SOCI) continue;
@@ -363,6 +372,11 @@ export function costRealSessio(sessio, interns, distribuidores) {
   const preuDistribuidora = distribuidores?.[intern.distribuidoraId]?.preu;
   return esNombre(preuDistribuidora) ? preuDistribuidora : null;
 }
+
+// Cost conegut de cada sessió: `{ [sessioId]: number | null }` (vegeu `costRealSessio`).
+export const costsRealsSessions = (sessions, interns, distribuidores) => Object.fromEntries(
+  (sessions ?? []).map((s) => [s.id, costRealSessio(s, interns, distribuidores)]),
+);
 
 // Mitjana de les últimes 6 despeses de pel·lícula que han costat diners
 // (omet les de cost 0). Sense cap → 0.

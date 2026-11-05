@@ -1,10 +1,10 @@
 {
   "logo": "/images/entitats/cineclub-roda-de-bera.webp",
   "_nota": "PROVISIONAL: «quan» i «preu» són textos d'exemple i s'han de confirmar amb el Cineclub abans d'imprimir.",
-  "quan": "Projeccions un cop al mes a les 19:00 h",
+  "quan": "Mínim una projecció al mes",
   "preu": "preu per confirmar",
   "titular": "Cinema en {versió original}",
-  "socisImport": "Entrada gratuïta.",
+  "socisImport": "Entrada gratuïta:",
   "quota": "30 €/any",
   "socisResta": " Fes-te soci/a per {quota}!",
   "qrText": "Escaneja per saber-ne més!",

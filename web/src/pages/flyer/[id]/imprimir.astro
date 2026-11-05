@@ -4,7 +4,7 @@ import '../../../styles/flyer.css';
 import '../../../styles/flyer-imprimir.css';
 import FlyerFulls from '../../../components/FlyerFulls.astro';
 import { CACHE_ERROR } from '../../../lib/cache.js';
-import { flyerActiu, flyerPerId, logosFlyer, peliculaFlyer, preuFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
+import { flyerActiu, flyerPerId, logosFlyer, peliculaFlyer, preuFlyer, preuXiquetsFlyer, seccionsFlyer, sessionsDelFlyer, teClau } from '../../../lib/flyers.js';
 
 // /flyer/<id>/imprimir/?variant=simple|impremta&clau=. Dues pàgines: la 1 és la cara A i la 2 la cara B.
 // `simple` (el PDF descarregable): cada pàgina és UNA tira de 210 × 99 mm, sense full A4 ni guies de tall.
@@ -28,6 +28,8 @@ const totes = ambClau && Astro.url.searchParams.get('totes') === '1';
 const sessions = (await sessionsDelFlyer(flyer, undefined, { totes })).slice(0, 5);
 const pelicules = sessions.map((s) => peliculaFlyer(s, flyer.enquadraments));
 const preu = preuFlyer(sessions);
+const xiquets = preuXiquetsFlyer(sessions);
+const seccionsPreu = seccionsFlyer(sessions);
 const distribuidores = logosFlyer(sessions);
 if (!pelicules.length) return Astro.rewrite('/404');
 Astro.response.headers.set('Cache-Control', CACHE_ERROR);
@@ -46,6 +48,6 @@ const pagina = impremta ? '216mm 303mm' : '210mm 99mm';
 </head>
 <body class="flyer-imprimir">
 <button type="button" class="flyer-imprimir__boto" onclick="window.print()">Imprimeix / Desa PDF</button>
-<FlyerFulls pelicules={pelicules} preu={preu} distribuidores={distribuidores} impremta={impremta} unaTira={!impremta} />
+<FlyerFulls pelicules={pelicules} preu={preu} xiquets={xiquets} seccionsPreu={seccionsPreu} distribuidores={distribuidores} impremta={impremta} unaTira={!impremta} />
 </body>
 </html>

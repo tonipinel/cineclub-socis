@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
-import { rendibilitatPerSessio, formatEuros } from '../../lib/moviments';
+import { rendibilitatPerSessio, costsRealsSessions, formatEuros } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
 import { imatgeDeSessio } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
@@ -21,6 +21,7 @@ export default function SessionsList() {
   const [resumPerSessioState, setResumPerSessioState] = useState({});
   const [moviments, setMoviments] = useState([]);
   const [socis, setSocis] = useState([]);
+  const [programacio, setProgramacio] = useState(null);
   const [sincronitzant, setSincronitzant] = useState(false);
   const tancarSincro = useCallback(() => setSincronitzant(false), []);
   const {
@@ -54,10 +55,28 @@ export default function SessionsList() {
     }).catch(falla);
   }, [intent, falla]);
 
+  // Lectura opcional dels costs de les pel·lícules: si falla, la rendibilitat només compta els moviments reals.
+  useEffect(() => {
+    Promise.all([
+      getDocs(collection(db, 'propostesInternes')),
+      getDocs(collection(db, 'distribuidores')),
+    ]).then(([internesSnap, distribuidoresSnap]) => {
+      setProgramacio({
+        interns: Object.fromEntries(internesSnap.docs.map((d) => [d.id, d.data()])),
+        distribuidores: Object.fromEntries(distribuidoresSnap.docs.map((d) => [d.id, d.data()])),
+      });
+    }).catch(() => {});
+  }, [intent]);
+
   // Una lectura fallida donaria xifres falses (0 socis, rendibilitat sense moviments): millor dir-ho.
   if (error) return <ErrorCarrega titol="Sessions" missatge="No s'han pogut carregar les sessions." onReintenta={reintenta} />;
 
-  const rendibilitat = rendibilitatPerSessio(moviments, socis, sessions);
+  const rendibilitat = rendibilitatPerSessio(
+    moviments,
+    socis,
+    sessions,
+    programacio ? costsRealsSessions(sessions, programacio.interns, programacio.distribuidores) : {},
+  );
 
   return (
     <PaginaAdmin

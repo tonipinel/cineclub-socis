@@ -265,6 +265,9 @@
 .session-info {
   @apply mx-auto grid max-w-[1000px] grid-cols-2 gap-8 p-6 text-center sm:grid-cols-5;
 }
+.session-info__avis {
+  @apply mx-auto max-w-[1000px] px-6 pb-6 text-center text-sm font-semibold text-black;
+}
 .info-item {
   @apply flex flex-col items-center gap-2;
 }

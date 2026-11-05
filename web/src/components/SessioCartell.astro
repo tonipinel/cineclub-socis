@@ -17,6 +17,8 @@ const titol = titolSessio(sessio);
 const gratis = p.preu === 0;
 const ambPreu = typeof p.preu === 'number' && Number.isFinite(p.preu) && p.preu > 0;
 const xarxa = p.seccio === 'xarxa';
+const xiquets = p.seccio === 'xiquets';
+const ambPreuNenExtra = typeof p.preuNenExtra === 'number' && Number.isFinite(p.preuNenExtra) && p.preuNenExtra >= 0;
 
 const VERSIONS = {
   vo: ['Versió original', p.idioma ? `en ${p.idioma}` : ''],
@@ -59,7 +61,14 @@ const forats = Array.from({ length: 42 });
   <header class="cartell__header">
     <div class={`cartell__price${gratis ? ' cartell__price--free' : ''}`}>
       {gratis && <span class="cartell__price-line cartell__price-line--free">Entrada gratuïta</span>}
-      {ambPreu && (
+      {xiquets && ambPreu && (
+        <Fragment>
+          <span class="cartell__price-line">Adult + xiquet/a: <strong>{p.preu}€</strong></span>
+          {ambPreuNenExtra && <span class="cartell__price-line">Xiquet/a extra: <strong>{p.preuNenExtra}€</strong></span>}
+          <span class="cartell__price-line">Socis/es: adult gratuït</span>
+        </Fragment>
+      )}
+      {!xiquets && ambPreu && (
         <Fragment>
           <span class="cartell__price-line">Soci/a: <strong>Gratuït</strong></span>
           <span class="cartell__price-line">No soci/a: <strong>{p.preu}€</strong></span>

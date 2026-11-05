@@ -301,7 +301,7 @@
 /* Titular en l'estil de la web: Oswald, majúscules, negreta, blanc amb una part daurada. */
 .flyer-info__titular {
   @apply m-0 font-display font-bold uppercase text-white;
-  text-shadow: 0 0 1.4mm #000, 0 0 0.6mm #000;
+  text-shadow: -0.25mm 0 #000, 0.25mm 0 #000, 0 -0.25mm #000, 0 0.25mm #000, -0.18mm -0.18mm #000, 0.18mm -0.18mm #000, -0.18mm 0.18mm #000, 0.18mm 0.18mm #000;
   font-size: 8.5mm;
   line-height: 1.05;
   letter-spacing: 0.2mm;
@@ -329,9 +329,60 @@
 .flyer-info__valor {
   @apply min-w-0 font-bold text-white;
   /* Halo negre: contrast alt encara que el patró es vegi a sota (el degradat és molt gradual). */
-  text-shadow: 0 0 1.4mm #000, 0 0 0.6mm #000;
+  text-shadow: -0.25mm 0 #000, 0.25mm 0 #000, 0 -0.25mm #000, 0 0.25mm #000, -0.18mm -0.18mm #000, 0.18mm -0.18mm #000, -0.18mm 0.18mm #000, 0.18mm 0.18mm #000;
   font-size: 3.5mm;
   line-height: 1.25;
+}
+.flyer-info__item--grup {
+  @apply items-stretch border-solid border-gold;
+  border-width: 0.4mm;
+  gap: 0;
+  background-color: #000;
+}
+/* L'etiqueta fa de capçalera del requadre: enganxada a l'esquerra, a dalt i a baix, a tota l'alçada del grup. */
+.flyer-info__item--grup .flyer-info__etiqueta {
+  @apply flex flex-col items-center justify-center;
+  padding: 1mm;
+}
+.flyer-info__subetiqueta {
+  @apply block font-sans font-bold normal-case;
+  font-size: 2.3mm;
+  letter-spacing: 0;
+}
+.flyer-info__grup {
+  @apply flex min-w-0 flex-col justify-center;
+  gap: 1.2mm;
+  padding: 1.4mm 2mm;
+}
+.flyer-info__subfila {
+  @apply flex items-center;
+  gap: 3mm;
+}
+/* Línia de puntets entre les files del grup perquè no s'ajuntin. */
+.flyer-info__subfila + .flyer-info__subfila {
+  @apply border-0 border-t border-dotted border-gold;
+  border-top-width: 0.3mm;
+  padding-top: 1.2mm;
+}
+/* Cada fila del grup és la pastilla (o pastilles) de la secció i, a continuació, el seu text: no s'alineen entre files. */
+.flyer-info__pastilles {
+  @apply flex flex-none items-center;
+  gap: 1.6mm;
+}
+/* Pastilla de secció (com la de la barra de les targetes de la cara A), amb el color de la secció. */
+.flyer-info__seccio {
+  @apply font-display font-bold uppercase;
+  padding: 0.4mm 1.2mm;
+  font-size: 2.3mm;
+  line-height: 1.3;
+  letter-spacing: 0.1mm;
+}
+.flyer-info__item .flyer-info__grup .flyer-info__valor {
+  font-size: 3.1mm;
+  line-height: 1.2;
+}
+.flyer-info__item .flyer-info__grup .flyer-info__import {
+  font-size: 3.9mm;
 }
 /* Jerarquia: titular > preu i quan > on > web. */
 .flyer-info__item--destacat .flyer-info__valor {

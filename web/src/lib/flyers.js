@@ -1,6 +1,7 @@
 import { getDb, llegir } from './db.js';
 import { distribuidoraPerId, distribuidoraPerNom } from './distribuidores.js';
 import { ascendent, dataValida, normalitzaSessio, publicable } from './sessions.js';
+import seccions from '../data/seccions.json';
 import { subtitolSessio, titolSessio } from './sessio-camps.js';
 
 const VERSIONS = {
@@ -46,8 +47,11 @@ export const peliculaFlyer = (sessio, enquadraments) => ({
 // Cada sessió ha de dur un preu numèric (0 = gratuïta); si QUALSEVOL en falta o no és vàlid, el preu es desconeix i es retorna
 // `null` (el flyer cau al text provisional de `flyer.json`): mai no s'afirma «gratis» o un import que no és de totes.
 const euros = (n) => `${String(n).replace('.', ',')} €`;
+const esXiquets = (s) => s.publica?.seccio === 'xiquets';
+// Les sessions de Xiquets (preu «adult + xiquet») no entren al preu general: van a `preuXiquetsFlyer`.
 export const preuFlyer = (sessions) => {
-  const preus = sessions.map((s) => s.publica?.preu);
+  const preus = sessions.filter((s) => !esXiquets(s)).map((s) => s.publica?.preu);
+  if (!preus.length && sessions.length) return { text: 'gratis' };
   if (!preus.length || preus.some((p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0)) return null;
   const pagats = preus.filter((p) => p > 0);
   const gratis = pagats.length < preus.length;
@@ -56,6 +60,27 @@ export const preuFlyer = (sessions) => {
   const max = Math.max(...pagats);
   const quantitat = min === max ? euros(min) : `de ${String(min).replace('.', ',')} a ${euros(max)}`;
   return { text: gratis ? `gratis o ${quantitat} segons la sessió` : `${quantitat} ${min === max ? 'per sessió' : 'segons sessió'}` };
+};
+
+// Preus de les sessions de Xiquets del flyer: `{ adultNen, extra }` (textos com «5 €» o «de 3 a 5 €»; `extra` pot ser null), o `null`
+// si no n'hi ha cap amb preu.
+const rang = (valors) => {
+  const v = valors.filter((n) => typeof n === 'number' && Number.isFinite(n) && n > 0);
+  if (!v.length) return null;
+  const min = Math.min(...v);
+  const max = Math.max(...v);
+  return min === max ? euros(min) : `de ${String(min).replace('.', ',')} a ${euros(max)}`;
+};
+export const preuXiquetsFlyer = (sessions) => {
+  const xiquets = sessions.filter(esXiquets);
+  const adultNen = rang(xiquets.map((s) => s.publica?.preu));
+  return adultNen ? { adultNen, extra: rang(xiquets.map((s) => s.publica?.preuNenExtra)) } : null;
+};
+
+// Seccions de les sessions del flyer que no són Xiquets (per a les pastilles del preu dels no socis), en l'ordre de `seccions.json`.
+export const seccionsFlyer = (sessions) => {
+  const hi = new Set(sessions.filter((s) => !esXiquets(s)).map((s) => s.publica?.seccio || 'cartellera'));
+  return Object.keys(seccions).filter((clau) => hi.has(clau));
 };
 
 // Logos de les distribuïdores de les sessions del flyer per a la franja de la cara B: `[{ nom, logo, url? }]`, només les que

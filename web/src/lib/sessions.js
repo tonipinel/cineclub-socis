@@ -64,6 +64,7 @@ const NORMALITZADORS = {
   ...Object.fromEntries(CAMPS_TEXT_LLIURE.map((c) => [c, textLliure])),
   cartell: imatge,
   preu: nombre,
+  preuNenExtra: nombre,
   durada: (v) => (nombre(v) > 0 ? nombre(v) : undefined),
   edatMinimaRecomanada: (v) => (Number.isInteger(nombre(v)) ? nombre(v) : undefined),
   queInclou: (v) => (v === true ? true : text(v)),

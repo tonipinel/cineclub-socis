@@ -76,7 +76,7 @@ const seccio = (clau) => (Object.hasOwn(seccions, clau) ? seccions[clau] : null)
       <div class="flyer-columna">
         <div class="flyer-columna__capcalera">
           {seccio(p.seccio) && <span class="flyer-columna__seccio" style={`background-color: ${seccio(p.seccio).color}; color: ${textSobre(seccio(p.seccio).color)};`}>{seccio(p.seccio).nom}</span>}
-          <span class="flyer-columna__data"><b>{senseDia(p.dataText)}</b>{p.hora && <span class="flyer-columna__hora"> {p.hora}</span>}</span>
+          <span class="flyer-columna__data"><b>{senseDia(p.dataText)}</b>{p.hora && <span class="flyer-columna__hora"> {p.hora}h</span>}</span>
         </div>
         <div class="flyer-columna__marc">
           <div class="flyer-columna__cartell">

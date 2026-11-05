@@ -255,6 +255,15 @@ describe('rendibilitatPerSessio', () => {
     expect(rendibilitatPerSessio(moviments, [], [])).toEqual({ s1: 60, s2: 30 });
   });
 
+  it('resta el cost conegut mentre no hi ha despesa de pel·lícula, i deixa manar la real quan existeix', () => {
+    const sessions = [sessio('s1', '2026-12-03'), sessio('s2', '2026-12-17'), sessio('s3', '2027-01-14')];
+    const moviments = [
+      { sessionId: 's2', tipus: 'ingres', categoria: 'Aportacions', total: 100 },
+      { sessionId: 's2', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 40 },
+    ];
+    expect(rendibilitatPerSessio(moviments, [], sessions, { s1: 90, s2: 90, s3: null })).toEqual({ s1: -90, s2: 60 });
+  });
+
   it('ignora els moviments sense sessió i els traspassos', () => {
     const moviments = [
       { sessionId: '', tipus: 'ingres', total: 100 },

@@ -12,7 +12,7 @@ import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
 import { resumVotacio, tandaOberta } from '../../lib/tandes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import {
-  resumComptable, resumReal, resumPrevisio, costRealSessio, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
+  resumComptable, resumReal, resumPrevisio, costRealSessio, costsRealsSessions, rendibilitatPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
 } from '../../lib/moviments';
 import * as ROUTES from '../../constants/routes';
@@ -220,7 +220,12 @@ export default function DashboardPage() {
       dadesGrafic[punt.fila].seriePropia = clau;
     });
   }
-  const rendibilitatSessions = rendibilitatPerSessio(dades.moviments, dades.socis, dades.sessions);
+  const rendibilitatSessions = rendibilitatPerSessio(
+    dades.moviments,
+    dades.socis,
+    dades.sessions,
+    programacio ? costsRealsSessions(dades.sessions, programacio.interns, programacio.distribuidores) : {},
+  );
   const ultimesSessions = sessionsAmbControl(dades.sessions)
     .filter((s) => (s.data ?? '') <= dataAvui)
     .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))

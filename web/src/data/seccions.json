@@ -13,5 +13,10 @@
     "nom": "Extra",
     "descripcio": "Sessions especials",
     "color": "#8b2e2e"
+  },
+  "xiquets": {
+    "nom": "Xiquis",
+    "descripcio": "Sessions per a xiquets i xiquetes, sempre amb una persona adulta responsable",
+    "color": "#a78bd4"
   }
 }

@@ -197,6 +197,7 @@ export function afegirAlias(aliases, alias) {
 const CAMPS_LLISTA = ['directors', 'interprets', 'generes', 'participa', 'collabora'];
 const CAMPS_NUMERO = {
   preu: 'El preu ha de ser un número igual o superior a 0.',
+  preuNenExtra: 'El preu per xiquet/a extra ha de ser un número igual o superior a 0.',
   durada: 'La durada ha de ser un nombre enter de minuts.',
   edatMinimaRecomanada: "L'edat mínima ha de ser un nombre enter (0 = tots els públics).",
 };

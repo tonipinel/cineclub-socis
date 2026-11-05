@@ -15,7 +15,7 @@ const camiPdf = (id, variant) => `flyers/${id}/flyer-${variant}.pdf`;
 // La v2 afegeix el token de descàrrega (`pdfs.<variant>.url`). La v3 és el disseny nou (cares blanques, targetes, logo i
 // preus) i els PDF amb totes les sessions del flyer, publicades o no. La v4 fa el PDF `simple` de dues pàgines de 210 × 99 mm
 // (una tira de la cara A i una de la cara B). La v6 afegeix a la cara B la franja amb els logos de l'Ajuntament i les distribuïdores.
-const VERSIO_DISSENY = 9;
+const VERSIO_DISSENY = 10;
 
 // URL de descàrrega amb token: secreta, només al document admin del flyer; no es registra ni es posa en errors.
 const urlDescarrega = (nomBucket, path, token) => `https://firebasestorage.googleapis.com/v0/b/${nomBucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
@@ -51,6 +51,7 @@ function firmaFlyer(flyer, sessions, versio = VERSIO_DISSENY) {
       idioma: s.publica?.idioma ?? null,
       cartell: s.publica?.cartell ?? null,
       preu: s.publica?.preu ?? null,
+      preuNenExtra: s.publica?.preuNenExtra ?? null,
       seccio: s.publica?.seccio ?? null,
       suportDistribucioId: s.publica?.suportDistribucioId ?? null,
       suportDistribucio: s.publica?.suportDistribucio ?? null,

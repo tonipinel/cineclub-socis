@@ -19,7 +19,8 @@ export const FITXA = [
 ];
 
 export const GESTIO = [
-  ['preu', "Preu d'entrada (€)", '0 = entrada gratuïta; buit = sense preu'],
+  ['preu', "Preu d'entrada (€)", "0 = entrada gratuïta; buit = sense preu. A Xiquis és el preu d'adult + xiquet/a"],
+  ['preuNenExtra', 'Preu per xiquet/a extra (€)', 'Només a Xiquis: cada xiquet/a més amb el mateix adult. Buit = no se\'n parla'],
   ['queInclou', 'Què inclou'],
   ['edatMinimaRecomanada', 'Edat mínima recomanada', '0 = tots els públics'],
 ];
@@ -27,7 +28,7 @@ export const GESTIO = [
 export const VERSIONS = [
   ['', '—'], ['vo', 'V.O.'], ['vose', 'VOSE'], ['vosc', 'VOSC'], ['doblada-cat', 'Doblada al català'], ['doblada-cast', 'Doblada al castellà'],
 ];
-export const SECCIONS = [['', 'Cartellera (per defecte)'], ['cartellera', 'Cartellera'], ['xarxa', 'Xarxa'], ['extra', 'Extra']];
+export const SECCIONS = [['', 'Cartellera (per defecte)'], ['cartellera', 'Cartellera'], ['xarxa', 'Xarxa'], ['extra', 'Extra'], ['xiquets', 'Xiquis']];
 
 export const ESQUELET = "## Sinopsi\n\n\n\n## Context\n\n\n\n## Curiositats\n\n\n\n## Per què l'hem programat?\n\n";
 

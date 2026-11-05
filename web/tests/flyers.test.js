@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, flyerActiu, teClau, logosFlyer,
+  etiquetaVersio, peliculaFlyer, preuFlyer, flyerPerId, sessionsDelFlyer, darrerFlyerPublicat, flyerActiu, teClau, logosFlyer, preuXiquetsFlyer,
 } from '../src/lib/flyers.js';
 import { fixaDistribuidoresDeProva } from '../src/lib/distribuidores.js';
 import { conWhere } from './helpers/firestore.js';
@@ -223,5 +223,21 @@ describe('logosFlyer', () => {
     fixaDistribuidoresDeProva({ Avalon: { id: 'd2' } });
     expect(logosFlyer([])).toEqual([]);
     expect(logosFlyer([ambDist('a', { suportDistribucioId: 'd2' })])).toEqual([]);
+  });
+});
+
+describe('Xiquets al flyer', () => {
+  const s = (seccio, preu, preuNenExtra) => ({ publica: { seccio, preu, preuNenExtra } });
+
+  it('preuFlyer no compta les sessions de Xiquets i preuXiquetsFlyer en dona els preus', () => {
+    const sessions = [s('cartellera', 5), s('xiquets', 5, 3), s('extra', 3)];
+    expect(preuFlyer(sessions)).toEqual({ text: 'de 3 a 5 € segons sessió' });
+    expect(preuXiquetsFlyer(sessions)).toEqual({ adultNen: '5 €', extra: '3 €' });
+  });
+
+  it('sense sessions de Xiquets (o sense preu) no hi ha preus de xiquets', () => {
+    expect(preuXiquetsFlyer([s('cartellera', 5)])).toBeNull();
+    expect(preuXiquetsFlyer([s('xiquets', undefined)])).toBeNull();
+    expect(preuXiquetsFlyer([s('xiquets', 5)])).toEqual({ adultNen: '5 €', extra: null });
   });
 });

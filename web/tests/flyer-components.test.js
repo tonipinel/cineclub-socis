@@ -25,10 +25,10 @@ const renderitza = async (component, props) => {
 const compta = (html, re) => (html.match(re) ?? []).length;
 
 describe('FlyerCaraB preu', () => {
-  it('dues pastilles: socis «Entrada gratuïta. Fes-te soci/a per 30 €/any!» i no socis amb el preu calculat', async () => {
+  it('dues pastilles: socis «Entrada gratuïta: Fes-te soci/a per 30 €/any!» i no socis amb el preu calculat', async () => {
     const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € segons sessió' } });
-    expect(html).toMatch(/flyer-info__etiqueta">Soci\/a<\/span>.*<strong class="flyer-info__import">Entrada gratuïta\.<\/strong> Fes-te soci\/a per 30 €\/any!/s);
-    expect(html).toMatch(/flyer-info__etiqueta">No socis\/es<\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> segons sessió/s);
+    expect(html).toMatch(/flyer-info__etiqueta">Soci\/a<\/span>.*<strong class="flyer-info__import">Entrada gratuïta:<\/strong> Fes-te soci\/a per 30 €\/any!/s);
+    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> segons sessió/s);
     expect(html).not.toContain('>Preu<');
   });
   it('sense preu calculat, el text provisional de flyer.json', async () => {
@@ -74,7 +74,7 @@ describe('FlyerCaraA', () => {
     expect(posicions).toEqual([...posicions].sort((x, y) => x - y));
     expect(html).toMatch(/flyer-columna__seccio" style="background-color: #2f6f76; color: #fff;">Xarxa/);
     // Pastilla composta d'una sola línia (secció + data sense dia de la setmana, amb l'hora).
-    expect(html).toMatch(/<div class="flyer-columna__capcalera"><span class="flyer-columna__seccio"[^>]*>Xarxa<\/span><span class="flyer-columna__data"><b>1 nov<\/b><span class="flyer-columna__hora"> 19:00<\/span><\/span><\/div>/);
+    expect(html).toMatch(/<div class="flyer-columna__capcalera"><span class="flyer-columna__seccio"[^>]*>Xarxa<\/span><span class="flyer-columna__data"><b>1 nov<\/b><span class="flyer-columna__hora"> 19:00h<\/span><\/span><\/div>/);
     expect(html).not.toContain('Dj 1 nov</b>');
     const senseSeccio = await renderitza(FlyerCaraA, { pelicules: [peli(1, { seccio: 'inexistent' })] });
     expect(senseSeccio).not.toContain('flyer-columna__seccio');
@@ -139,7 +139,7 @@ describe('FlyerCaraB tipografia', () => {
     const html = await renderitza(FlyerCaraB, {});
     expect(html).toMatch(/<h2 class="flyer-info__titular">Cinema en <span class="flyer-info__titular-or">versió original<\/span><\/h2>/);
     const etiquetes = [...html.matchAll(/flyer-info__etiqueta">([^<]+)</g)].map((m) => m[1]);
-    expect(etiquetes).toEqual(['Quan', 'Soci/a', 'No soci/a', 'On', 'Més info']);
+    expect(etiquetes).toEqual(['Soci/a', 'Quan', 'On', 'Més info', 'No soci/a']);
     expect(html).toContain(flyer.qrText);
   });
 });
@@ -319,7 +319,7 @@ describe('FlyerCaraA fora de rang (3-5)', () => {
 });
 
 describe('FlyerCaraB: redacció del preu dels no socis', () => {
-  const noSocis = async (text) => (await renderitza(FlyerCaraB, { preu: { text } })).match(/No socis\/es<\/span>.*?<span class="flyer-info__valor">(.*?)<\/span>/s)?.[1].replace(/<[^>]+>/g, '');
+  const noSocis = async (text) => (await renderitza(FlyerCaraB, { preu: { text } })).match(/No soci\/a<\/span>.*?<span class="flyer-info__valor">(.*?)<\/span>/s)?.[1].replace(/<[^>]+>/g, '');
   it('«Aportació de 3 a 5 € segons sessió»; un sol preu: «Aportació de 5 € per sessió»; amb gratuïtes barrejades, «Aportació: gratis o …»; tot gratis: «Gratis»', async () => {
     expect(await noSocis('de 3 a 5 € segons sessió')).toBe('Aportació de 3 a 5 € segons sessió');
     expect(await noSocis('5 € per sessió')).toBe('Aportació de 5 € per sessió');
@@ -373,5 +373,17 @@ describe('FlyerCaraB franja de logos', () => {
     expect(html.indexOf('flyer-info__llista')).toBeLessThan(html.indexOf('flyer-franja'));
     // Dins el bloc dret (titular + files + franja), que es centra com a unitat respecte del logo i el QR.
     expect(html).toMatch(/class="flyer-info__cos".*class="flyer-franja"/s);
+  });
+});
+
+describe('FlyerCaraB Xiquets', () => {
+  it('agrupa sota «No soci/a» les pastilles de les seccions i la de Xiquets amb els dos preus', async () => {
+    const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € segons sessió' }, seccionsPreu: ['cartellera', 'extra'], xiquets: { adultNen: '5 €', extra: '3 €' } });
+    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<\/span>.*Cartellera.*Extra.*Xiquis.*<strong class="flyer-info__import">5 €<\/strong> adult \+ xiquet\/a.*<strong class="flyer-info__import">3 €<\/strong> xiquet\/a extra.*/s);
+  });
+  it('sense Xiquets, només la pastilla de la secció', async () => {
+    const html = await renderitza(FlyerCaraB, { preu: { text: '5 € per sessió' }, seccionsPreu: ['cartellera'] });
+    expect(html).toContain('Cartellera');
+    expect(html).not.toContain("Xiquis");
   });
 });
