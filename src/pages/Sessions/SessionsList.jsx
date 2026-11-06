@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import { resumPerSessio } from '../../lib/escaneig';
-import { rendibilitatPerSessio, costsRealsSessions, formatEuros } from '../../lib/moviments';
+import { rendibilitatPerSessio, quotaPerSessio, costsRealsSessions, formatEuros } from '../../lib/moviments';
 import { formatData } from '../../lib/data';
 import { imatgeDeSessio } from '../../lib/sessions';
 import * as ROUTES from '../../constants/routes';
@@ -73,10 +73,11 @@ export default function SessionsList() {
 
   const rendibilitat = rendibilitatPerSessio(
     moviments,
-    socis,
     sessions,
     programacio ? costsRealsSessions(sessions, programacio.interns, programacio.distribuidores) : {},
   );
+
+  const quota = quotaPerSessio(moviments, socis, sessions);
 
   return (
     <PaginaAdmin
@@ -112,7 +113,7 @@ export default function SessionsList() {
       <ul className="sessions-list__graella">
         {sessions.map((s) => {
           const resum = resumPerSessioState[s.id] ?? RESUM_INICIAL;
-          const rendibilitatSessio = rendibilitat[s.id] ?? 0;
+          const rendibilitatSessio = (rendibilitat[s.id] ?? 0) + (quota[s.id] ?? 0);
           return (
             <li key={s.id} className="sessions-list__targeta">
               <Link className="sessions-list__enllac" to={ROUTES.SESSIONS_EDITAR.replace(':id', s.id)}>

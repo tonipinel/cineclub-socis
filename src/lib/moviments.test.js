@@ -7,6 +7,7 @@ import {
   ordenarMoviments,
   subtotalsPerMetode,
   rendibilitatPerSessio,
+  quotaPerSessio,
   resumEconomicSessio,
   formatEuros,
   resumComptable,
@@ -240,7 +241,7 @@ describe('resumEconomicSessio', () => {
   });
 });
 
-describe('rendibilitatPerSessio', () => {
+describe('rendibilitatPerSessio i quotaPerSessio', () => {
   const quota = (numeroSoci, data, total = 20, extra = {}) => ({
     tipus: 'ingres', categoria: 'Quotes socis', numeroSoci, data, total, ...extra,
   });
@@ -252,7 +253,7 @@ describe('rendibilitatPerSessio', () => {
       { sessionId: 's1', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 40 },
       { sessionId: 's2', tipus: 'ingres', categoria: 'Aportacions', total: 30 },
     ];
-    expect(rendibilitatPerSessio(moviments, [], [])).toEqual({ s1: 60, s2: 30 });
+    expect(rendibilitatPerSessio(moviments, [])).toEqual({ s1: 60, s2: 30 });
   });
 
   it('resta el cost conegut mentre no hi ha despesa de pel·lícula, i deixa manar la real quan existeix', () => {
@@ -261,7 +262,7 @@ describe('rendibilitatPerSessio', () => {
       { sessionId: 's2', tipus: 'ingres', categoria: 'Aportacions', total: 100 },
       { sessionId: 's2', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 40 },
     ];
-    expect(rendibilitatPerSessio(moviments, [], sessions, { s1: 90, s2: 90, s3: null })).toEqual({ s1: -90, s2: 60 });
+    expect(rendibilitatPerSessio(moviments, sessions, { s1: 90, s2: 90, s3: null })).toEqual({ s1: -90, s2: 60 });
   });
 
   it('ignora els moviments sense sessió i els traspassos', () => {
@@ -269,22 +270,22 @@ describe('rendibilitatPerSessio', () => {
       { sessionId: '', tipus: 'ingres', total: 100 },
       { sessionId: 's1', tipus: 'traspas', direccio: 'caixa-a-banc', total: 50 },
     ];
-    expect(rendibilitatPerSessio(moviments, [], [])).toEqual({});
+    expect(rendibilitatPerSessio(moviments, [])).toEqual({});
   });
 
   it('retorna un objecte buit sense moviments', () => {
-    expect(rendibilitatPerSessio([], [], [])).toEqual({});
+    expect(rendibilitatPerSessio([], [])).toEqual({});
   });
 
   it('reparteix una quota per igual entre 12 sessions quan el període en té menys', () => {
     const sessions = [sessio('s1', '2024-02-01'), sessio('s2', '2024-06-01'), sessio('s3', '2024-10-01'), sessio('s4', '2024-12-01')];
-    const resultat = rendibilitatPerSessio([quota(1, '2024-01-15', 24)], [], sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-01-15', 24)], [], sessions);
     expect(resultat).toEqual({ s1: 2, s2: 2, s3: 2, s4: 2 });
   });
 
   it('si el període té més de 12 sessions, la reparteix entre totes', () => {
     const sessions = Array.from({ length: 14 }, (_, i) => sessio(`s${i}`, `2024-${String(i % 12 + 1).padStart(2, '0')}-${i < 12 ? '10' : '20'}`));
-    const resultat = rendibilitatPerSessio([quota(1, '2024-01-05', 28)], [], sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-01-05', 28)], [], sessions);
     expect(Object.values(resultat)).toHaveLength(14);
     expect(resultat.s0).toBe(2);
   });
@@ -292,27 +293,27 @@ describe('rendibilitatPerSessio', () => {
   it('no atribueix la quota a la sessió on el soci es va fer soci, sinó a totes les del període', () => {
     const sessions = [sessio('s1', '2024-01-15'), sessio('s2', '2024-03-01')];
     const moviments = [quota(1, '2024-01-15', 24, { sessionId: 's1', tipusQuota: 'alta' })];
-    expect(rendibilitatPerSessio(moviments, [], sessions)).toEqual({ s1: 2, s2: 2 });
+    expect(quotaPerSessio(moviments, [], sessions)).toEqual({ s1: 2, s2: 2 });
   });
 
   it('no compta les sessions fora de la vigència de la quota', () => {
     const sessions = [sessio('abans', '2024-01-01'), sessio('dins', '2024-06-01'), sessio('despres', '2025-03-01')];
-    const resultat = rendibilitatPerSessio([quota(1, '2024-02-01', 24)], [], sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-02-01', 24)], [], sessions);
     expect(resultat).toEqual({ dins: 2 });
   });
 
   it('suma les quotes de diversos socis i les renovacions', () => {
     const sessions = [sessio('s1', '2024-06-01'), sessio('s2', '2025-06-01')];
     const moviments = [quota(1, '2024-03-01', 24), quota(1, '2025-03-01', 24), quota(2, '2024-03-01', 12)];
-    expect(rendibilitatPerSessio(moviments, [], sessions)).toEqual({ s1: 3, s2: 2 });
+    expect(quotaPerSessio(moviments, [], sessions)).toEqual({ s1: 3, s2: 2 });
   });
 
   it('ignora les sessions senseControl: no reben quota ni canvien el divisor', () => {
     const sessions = Array.from({ length: 13 }, (_, i) => sessio(`s${i}`, `2024-${String(i % 12 + 1).padStart(2, '0')}-${i < 12 ? '10' : '20'}`));
     const especial = { id: 'e1', data: '2024-06-15', senseControl: true };
     const moviments = [quota(1, '2024-01-05', 26)];
-    const sense = rendibilitatPerSessio(moviments, [], sessions);
-    const amb = rendibilitatPerSessio(moviments, [], [...sessions, especial]);
+    const sense = quotaPerSessio(moviments, [], sessions);
+    const amb = quotaPerSessio(moviments, [], [...sessions, especial]);
     expect(amb).toEqual(sense);
     expect(amb).not.toHaveProperty('e1');
   });
@@ -320,33 +321,51 @@ describe('rendibilitatPerSessio', () => {
   it('en l\'última quota d\'un soci, el període comença a inicPeriode', () => {
     const sessions = [sessio('abans', '2024-03-01'), sessio('dins', '2024-06-01')];
     const socis = [{ numeroSoci: 1, inicPeriode: '2024-05-01' }];
-    const resultat = rendibilitatPerSessio([quota(1, '2024-02-01', 24)], socis, sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-02-01', 24)], socis, sessions);
     expect(resultat).toEqual({ dins: 2 });
   });
 
   it('una renovació anticipada reparteix la quota al període que paga (des del venciment de l\'anterior), no des del dia que es paga', () => {
     // La primera quota cobreix 2024-01-10 → 2025-01-10; la segona, pagada el 2024-06-01, cobreix 2025-01-10 → 2026-01-10.
     const sessions = [sessio('primer', '2024-08-01'), sessio('segon', '2025-03-01')];
-    const resultat = rendibilitatPerSessio([quota(1, '2024-01-10', 24), quota(1, '2024-06-01', 36)], [], sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-01-10', 24), quota(1, '2024-06-01', 36)], [], sessions);
     expect(resultat).toEqual({ primer: 2, segon: 3 });
+  });
+
+  it('la quota només es reparteix entre les sessions de Cartellera (la secció buida també ho és)', () => {
+    const sessions = [
+      sessio('c1', '2024-02-01'),
+      { ...sessio('c2', '2024-03-01'), publica: { seccio: 'cartellera' } },
+      { ...sessio('e', '2024-04-01'), publica: { seccio: 'extra' } },
+      { ...sessio('x', '2024-05-01'), publica: { seccio: 'xarxa' } },
+      { ...sessio('q', '2024-06-01'), publica: { seccio: 'xiquets' } },
+    ];
+    expect(quotaPerSessio([quota(1, '2024-01-15', 24)], [], sessions)).toEqual({ c1: 2, c2: 2 });
+  });
+
+  it('el resultat d\'una sessió d\'Extra no inclou quota: només taquilla menys cost', () => {
+    const sessions = [{ ...sessio('e', '2024-04-01'), publica: { seccio: 'extra' } }];
+    const moviments = [{ sessionId: 'e', tipus: 'ingres', categoria: 'Aportacions', total: 15 }, quota(1, '2024-01-15', 24)];
+    expect(rendibilitatPerSessio(moviments, sessions)).toEqual({ e: 15 });
+    expect(quotaPerSessio(moviments, [], sessions)).toEqual({});
   });
 
   it('les quotes sense número de soci no s\'encadenen entre elles', () => {
     const sessions = [sessio('s1', '2024-08-01')];
-    const resultat = rendibilitatPerSessio([quota(null, '2024-01-10', 24), quota(null, '2024-06-01', 36)], [], sessions);
+    const resultat = quotaPerSessio([quota(null, '2024-01-10', 24), quota(null, '2024-06-01', 36)], [], sessions);
     expect(resultat).toEqual({ s1: 5 });
   });
 
   it('una quota pagada després de vèncer l\'anterior compta des del dia del pagament', () => {
     const sessions = [sessio('buit', '2025-02-01'), sessio('dins', '2025-04-01')];
-    const resultat = rendibilitatPerSessio([quota(1, '2024-01-10', 24), quota(1, '2025-03-01', 36)], [], sessions);
+    const resultat = quotaPerSessio([quota(1, '2024-01-10', 24), quota(1, '2025-03-01', 36)], [], sessions);
     expect(resultat).toEqual({ dins: 3 });
   });
 
   it('una activació (inicPeriode) anterior a l\'inici de la quota no l\'avança', () => {
     const sessions = [sessio('abans', '2024-03-01'), sessio('dins', '2024-06-01')];
     const socis = [{ numeroSoci: 1, inicPeriode: '2024-01-15' }];
-    expect(rendibilitatPerSessio([quota(1, '2024-02-01', 24)], socis, sessions)).toEqual({ abans: 2, dins: 2 });
+    expect(quotaPerSessio([quota(1, '2024-02-01', 24)], socis, sessions)).toEqual({ abans: 2, dins: 2 });
   });
 });
 
@@ -800,7 +819,7 @@ describe('LLINDAR_COST_SESSIO_RENOVACIO', () => {
   });
 });
 
-describe('rendibilitatPerSessio — ordre dels moviments', () => {
+describe('quotaPerSessio — ordre dels moviments', () => {
   it('dues quotes del mateix soci el mateix dia reparteixen igual en qualsevol ordre', () => {
     const q = (id, total, extra = {}) => ({
       id, tipus: 'ingres', categoria: 'Quotes socis', numeroSoci: 1, data: '2024-01-10', total, ...extra,
@@ -809,8 +828,8 @@ describe('rendibilitatPerSessio — ordre dels moviments', () => {
     const renovacio = q('b', 36, { vencimentAnterior: '2025-01-10' });
     const sessions = [{ id: 's1', data: '2024-08-01' }, { id: 's2', data: '2025-03-01' }];
     const esperat = { s1: 2, s2: 3 };
-    expect(rendibilitatPerSessio([alta, renovacio], [], sessions)).toEqual(esperat);
-    expect(rendibilitatPerSessio([renovacio, alta], [], sessions)).toEqual(esperat);
+    expect(quotaPerSessio([alta, renovacio], [], sessions)).toEqual(esperat);
+    expect(quotaPerSessio([renovacio, alta], [], sessions)).toEqual(esperat);
   });
 });
 

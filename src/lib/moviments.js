@@ -148,14 +148,14 @@ function periodesDeQuotes(moviments, socis) {
 // les poques ja programades no s'emportin tot el pes de les quotes.
 export const MINIM_SESSIONS_ANY = 12;
 
-// Rendibilitat imputada de cada sessió: el que aporta la pel·lícula per si
-// mateixa (aportacions de la porta i el seu cost, és a dir, els moviments
-// lligats a la sessió que no són quotes) més la part que li toca de les
-// quotes vigents aquell dia. Cada quota es reparteix per igual entre les
-// sessions del seu període, o entre MINIM_SESSIONS_ANY si n'hi ha menys.
+// Només les sessions de Cartellera (la secció per defecte) es paguen amb les quotes dels socis.
+const esCartellera = (sessio) => (sessio.publica?.seccio || 'cartellera') === 'cartellera';
+
+// Resultat de cada sessió per si mateixa: aportacions de la porta menys el cost de la pel·lícula
+// (els moviments lligats a la sessió que no són quotes).
 // `costsReals` ({ [sessioId]: number | null }, vegeu `costsRealsSessions`): el cost conegut de la pel·lícula (distribuïdora i preu).
 // Mentre la sessió no té registrada la despesa de pel·lícula, es resta com a cost previst; en registrar-la, mana la real.
-export function rendibilitatPerSessio(moviments, socis, sessionsTotes, costsReals = {}) {
+export function rendibilitatPerSessio(moviments, sessionsTotes, costsReals = {}) {
   const sessions = sessionsAmbControl(sessionsTotes);
   const rendibilitat = {};
   const ambDespesaPellicula = new Set(moviments
@@ -171,15 +171,22 @@ export function rendibilitatPerSessio(moviments, socis, sessionsTotes, costsReal
     const signe = moviment.tipus === TIPUS_MOVIMENT.DESPESA ? -1 : 1;
     rendibilitat[moviment.sessionId] = (rendibilitat[moviment.sessionId] ?? 0) + signe * (Number(moviment.total) || 0);
   }
+  return rendibilitat;
+}
 
+// Part de les quotes dels socis que toca a cada sessió de Cartellera: cada quota es reparteix per igual
+// entre les sessions de Cartellera del seu període, o entre MINIM_SESSIONS_ANY si n'hi ha menys.
+export function quotaPerSessio(moviments, socis, sessionsTotes) {
+  const sessions = sessionsAmbControl(sessionsTotes).filter(esCartellera);
+  const quota = {};
   for (const periode of periodesDeQuotes(moviments, socis)) {
     const sessionsDelPeriode = sessions.filter((s) => s.data && s.data >= periode.inici && s.data <= periode.fi);
     const divisor = Math.max(sessionsDelPeriode.length, MINIM_SESSIONS_ANY);
     for (const sessio of sessionsDelPeriode) {
-      rendibilitat[sessio.id] = (rendibilitat[sessio.id] ?? 0) + periode.total / divisor;
+      quota[sessio.id] = (quota[sessio.id] ?? 0) + periode.total / divisor;
     }
   }
-  return rendibilitat;
+  return quota;
 }
 
 export function subtotalsPerMetode(moviments) {
