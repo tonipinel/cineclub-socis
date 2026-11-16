@@ -109,7 +109,7 @@ describe('portada', () => {
       '@id': 'https://cineclub-web.web.app/#organitzacio',
       address: adreca,
       areaServed: 'Roda de Berà',
-      description: 'Cineclub de Roda de Berà (Tarragona): cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.',
+      description: 'Cineclub Roda de Berà (Tarragona): el club de cinema de Roda de Berà. Cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.',
       email: 'cineclub.rodadebera@gmail.com',
       location: {
         '@type': 'Place',
@@ -127,7 +127,7 @@ describe('portada', () => {
 
   it('el <head> de la portada: descripció pròpia i mides de l\'og:image per defecte', async () => {
     const { html } = await renderitza(Portada, '/');
-    expect(html).toContain('<meta name="description" content="Cineclub de Roda de Berà (Tarragona): cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.">');
+    expect(html).toContain('<meta name="description" content="Cineclub Roda de Berà (Tarragona): el club de cinema de Roda de Berà. Cada mes, una pel·lícula en versió original subtitulada, si cal, al Teatre del Casino Municipal.">');
     expect(html).toContain('<meta property="og:title" content="Cineclub Roda de Berà">');
     expect(html).toContain('<meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1220"><meta property="og:image:height" content="784">');
   });
@@ -236,7 +236,7 @@ describe('/programacio/', () => {
 
   it('el filtre de seccions segueix l\'ordre alfabètic de claus de Hugo', async () => {
     const { html } = await renderitza(Programacio, '/programacio/');
-    expect([...html.matchAll(/data-filter-value="([^"]+)"/g)].map((m) => m[1])).toEqual(['all', 'cartellera', 'extra', 'xarxa']);
+    expect([...html.matchAll(/data-filter-value="([^"]+)"/g)].map((m) => m[1])).toEqual(['all', 'cartellera', 'extra', 'xarxa', 'xiquets']);
     expect(html).toContain('<button type="button" class="section-filter__btn" data-filter-value="xarxa" style="--filter-color: #2f6f76;">Xarxa</button>');
   });
 

@@ -28,12 +28,12 @@ describe('FlyerCaraB preu', () => {
   it('dues pastilles: socis «Entrada gratuïta: Fes-te soci/a per 30 €/any!» i no socis amb el preu calculat', async () => {
     const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € segons sessió' } });
     expect(html).toMatch(/flyer-info__etiqueta">Soci\/a<\/span>.*<strong class="flyer-info__import">Entrada gratuïta:<\/strong> Fes-te soci\/a per 30 €\/any!/s);
-    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> segons sessió/s);
+    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<small[^>]*>[^<]*<\/small><\/span>.*Aportació <strong class="flyer-info__import">de 3 a 5 €<\/strong> segons sessió/s);
     expect(html).not.toContain('>Preu<');
   });
   it('sense preu calculat, el text provisional de flyer.json', async () => {
     const html = await renderitza(FlyerCaraB, {});
-    expect(html).toMatch(new RegExp(`flyer-info__etiqueta">No soci/a</span>.*<strong class="flyer-info__import">${flyer.preu.charAt(0).toUpperCase()}${flyer.preu.slice(1)}</strong>`, 's'));
+    expect(html).toMatch(new RegExp(`flyer-info__etiqueta">No soci/a<small[^>]*>[^<]*</small></span>.*<strong class="flyer-info__import">${flyer.preu.charAt(0).toUpperCase()}${flyer.preu.slice(1)}</strong>`, 's'));
   });
 });
 
@@ -319,7 +319,7 @@ describe('FlyerCaraA fora de rang (3-5)', () => {
 });
 
 describe('FlyerCaraB: redacció del preu dels no socis', () => {
-  const noSocis = async (text) => (await renderitza(FlyerCaraB, { preu: { text } })).match(/No soci\/a<\/span>.*?<span class="flyer-info__valor">(.*?)<\/span>/s)?.[1].replace(/<[^>]+>/g, '');
+  const noSocis = async (text) => (await renderitza(FlyerCaraB, { preu: { text } })).match(/No soci\/a<small[^>]*>[^<]*<\/small><\/span>.*?<span class="flyer-info__valor">(.*?)<\/span>/s)?.[1].replace(/<[^>]+>/g, '');
   it('«Aportació de 3 a 5 € segons sessió»; un sol preu: «Aportació de 5 € per sessió»; amb gratuïtes barrejades, «Aportació: gratis o …»; tot gratis: «Gratis»', async () => {
     expect(await noSocis('de 3 a 5 € segons sessió')).toBe('Aportació de 3 a 5 € segons sessió');
     expect(await noSocis('5 € per sessió')).toBe('Aportació de 5 € per sessió');
@@ -379,7 +379,7 @@ describe('FlyerCaraB franja de logos', () => {
 describe('FlyerCaraB Xiquets', () => {
   it('agrupa sota «No soci/a» les pastilles de les seccions i la de Xiquets amb els dos preus', async () => {
     const html = await renderitza(FlyerCaraB, { preu: { text: 'de 3 a 5 € segons sessió' }, seccionsPreu: ['cartellera', 'extra'], xiquets: { adultNen: '5 €', extra: '3 €' } });
-    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<\/span>.*Cartellera.*Extra.*Xiquis.*<strong class="flyer-info__import">5 €<\/strong> adult \+ xiquet\/a.*<strong class="flyer-info__import">3 €<\/strong> xiquet\/a extra.*/s);
+    expect(html).toMatch(/flyer-info__etiqueta">No soci\/a<small[^>]*>[^<]*<\/small><\/span>.*Cartellera.*Extra.*Xiquis.*<strong class="flyer-info__import">5 €<\/strong> adult \+ xiquet\/a.*<strong class="flyer-info__import">3 €<\/strong> xiquet\/a extra.*/s);
   });
   it('sense Xiquets, només la pastilla de la secció', async () => {
     const html = await renderitza(FlyerCaraB, { preu: { text: '5 € per sessió' }, seccionsPreu: ['cartellera'] });
