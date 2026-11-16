@@ -1,15 +1,13 @@
 import { getDb, llegir } from './db.js';
 import { dataIso } from './format.js';
 import { SLUGS_CONTINGUT, paginaPerSlug } from './pagines.js';
-import { urlSessioCodificada, urlTerme } from './sessio-camps.js';
+import { urlSessioCodificada } from './sessio-camps.js';
 import { sessionsPubliques } from './sessions.js';
-import { termeIndexable, termesDe } from './taxonomies.js';
 import { creaMemo } from './memo.js';
 import { escapaXml } from './xml.js';
 
 const memo = creaMemo();
 
-const TAXONOMIES = ['directors', 'generes', 'interprets'];
 const PAGINES = [...SLUGS_CONTINGUT, 'fes-te-socia'];
 
 // Data ISO vàlida (W3C datetime): `AAAA-MM-DD` o instant amb hora i, opcionalment, ofset.
@@ -82,8 +80,8 @@ const mesRecent = (lastmods) => lastmods.filter(Boolean).reduce((a, b) => (a ===
 // Entrades `{ cami, lastmod? }` del sitemap (camins amb barra final i percent-encoded, com els de
 // Hugo). Surten de les mateixes funcions que les pàgines (`sessionsPubliques`, `termesDe`,
 // `paginaPerSlug`): una URL que aquí apareix també es resol allà, i un terme sense sessions
-// publicades no hi apareix; tampoc els que no s'indexen (`termeIndexable`). `lastmod`: sessions =
-// `lastmodSessio`; termes i índexs de taxonomia = la sessió amb el `lastmod` més recent que contenen;
+// publicades no hi apareix. Les taxonomies (índexs i termes) no hi són: són `noindex`. `lastmod`: sessions =
+// `lastmodSessio`;
 // portada i programació (pinten les sessions) = el més recent entre el `date` del seu front matter i el
 // de totes les sessions; pàgines = el `date` del seu front matter (les que no en tenen, no emeten
 // `lastmod`); /propostes/ = la proposta aprovada més recent.
@@ -103,13 +101,6 @@ export async function entradesSitemap(db = getDb(), ara = new Date()) {
     entrada('/programacio/', mesRecent([lastmodPagina(programacio), lastmodSessions])),
     entrada('/propostes/', lastmodProp),
     ...sessions.map((s) => entrada(urlSessioCodificada(s), lastmodSessio(s, ara))),
-    ...TAXONOMIES.flatMap((taxonomia) => {
-      const termes = termesDe(sessions, taxonomia);
-      return [
-        entrada(`/${taxonomia}/`, lastmodsDe(termes.flatMap((t) => t.sessions))),
-        ...termes.filter(termeIndexable).map((terme) => entrada(urlTerme(taxonomia, terme.nom), lastmodsDe(terme.sessions))),
-      ];
-    }),
     ...PAGINES.flatMap((slug, i) => (pagines[i] ? [entrada(`/${slug}/`, lastmodPagina(pagines[i]))] : [])),
   ];
 }

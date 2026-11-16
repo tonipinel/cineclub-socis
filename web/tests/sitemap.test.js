@@ -41,16 +41,13 @@ const pagines = {
 const db = dbFals({ sessions, pagines });
 
 describe('urlsSitemap', () => {
-  it('llista portada, programació, sessions publicades, índexs de les taxonomies i pàgines (cap terme), amb barra final', async () => {
+  it('llista portada, programació, sessions publicades, pàgines (cap taxonomia), amb barra final', async () => {
     const segona = sessio('segona', '2026-10-01', { directors: ['Alauda Ruiz de Azúa'], interprets: ['Miguel Garcés'], generes: ['Drama'] });
     const urls = await urlsSitemap(dbFals({ sessions: [...sessions, segona], pagines }));
-    // Els termes (gènere, intèrpret, director) no s'indexen: només els índexs de cada taxonomia.
+    // Les taxonomies (índexs i termes de gènere, intèrpret i director) són noindex: no hi són.
     expect([...urls].sort()).toEqual([
       '/',
-      '/directors/',
       '/fes-te-socia/',
-      '/generes/',
-      '/interprets/',
       '/preguntes-frequents/',
       '/privacitat/',
       '/programacio/',
@@ -82,9 +79,9 @@ describe('urlsSitemap', () => {
     expect(urls).not.toContain('/fes-te-socia/');
   });
 
-  it('sense sessions publicades queden la portada, la programació, les taxonomies i les pàgines', async () => {
+  it('sense sessions publicades queden la portada, la programació i les pàgines', async () => {
     const urls = await urlsSitemap(dbFals({ pagines }));
-    expect([...urls].sort()).toEqual(['/', '/directors/', '/fes-te-socia/', '/generes/', '/interprets/', '/preguntes-frequents/', '/privacitat/', '/programacio/', '/propostes/'].sort());
+    expect([...urls].sort()).toEqual(['/', '/fes-te-socia/', '/preguntes-frequents/', '/privacitat/', '/programacio/', '/propostes/'].sort());
   });
 
   // Cap URL del sitemap pot donar 404: cadascuna es resol amb les mateixes funcions que les pàgines.
@@ -246,7 +243,6 @@ describe('entradesSitemap (lastmod)', () => {
     expect(lm['/programacio/2027/futura/']).toBe('2026-10-25T10:00:00Z');
     expect(lm['/programacio/2026/los-domingos/']).toBe('2026-09-03T19:00:00+02:00');
     expect(lm).not.toHaveProperty(['/generes/drama/']);
-    expect(lm['/directors/']).toBe('2026-10-25T10:00:00Z');
     expect(lm['/']).toBe('2026-10-25T10:00:00Z');
     for (const [cami, lastmod] of Object.entries(lm)) {
       if (lastmod) expect(Date.parse(lastmod), cami).toBeLessThanOrEqual(ARA.getTime());
@@ -258,28 +254,20 @@ describe('entradesSitemap (lastmod)', () => {
     const llista = await entradesSitemap(dbFals({ sessions: [...llistaSessions, futura], pagines: paginesDades }), ARA);
     const lm = Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
     expect(lm).toHaveProperty(['/programacio/2027/futura/'], null);
-    expect(lm['/generes/']).toBe('2026-10-08T19:00:00+02:00');
+    expect(lm).not.toHaveProperty(['/generes/']);
   });
 
-  it('cap terme no hi és (noindex); els índexs de les taxonomies sí', async () => {
+  it('cap taxonomia no hi és (noindex): ni els índexs ni els termes', async () => {
     const lm = await entrades();
-    expect(lm).not.toHaveProperty(['/generes/drama/']);
-    expect(lm).not.toHaveProperty(['/directors/alauda-ruiz-de-az%C3%BAa/']);
-    expect(lm).not.toHaveProperty(['/interprets/duane-jones/']);
-    expect(lm['/generes/']).toBe('2026-10-08T19:00:00+02:00');
+    for (const cami of ['/generes/', '/directors/', '/interprets/', '/generes/drama/', '/directors/alauda-ruiz-de-az%C3%BAa/', '/interprets/duane-jones/']) {
+      expect(lm).not.toHaveProperty([cami]);
+    }
   });
 
   it('cada sessió, la seva data amb ofset de Madrid', async () => {
     const lm = await entrades();
     expect(lm['/programacio/2025/night-of-the-living-dead/']).toBe('2025-10-22T19:00:00+02:00');
     expect(lm['/programacio/2026/los-domingos/']).toBe('2026-09-03T19:00:00+02:00');
-  });
-
-  it('l\'índex de cada taxonomia té la data de la sessió publicada més recent (l\'oculta del 2027 no compta)', async () => {
-    const lm = await entrades();
-    expect(lm['/generes/']).toBe('2026-10-08T19:00:00+02:00');
-    expect(lm['/directors/']).toBe('2026-10-08T19:00:00+02:00');
-    expect(lm['/interprets/']).toBe('2026-10-08T19:00:00+02:00');
   });
 
   it('/propostes/ té com a lastmod la proposta aprovada més recent (les pendents no compten)', async () => {
@@ -326,12 +314,11 @@ describe('entradesSitemap (lastmod)', () => {
     expect(senseRes.find((e) => e.cami === '/')).toEqual({ cami: '/' });
   });
 
-  it('actualitzatEl d\'una sessió reemplaça la seva data al sitemap, també a l\'índex', async () => {
+  it('actualitzatEl d\'una sessió reemplaça la seva data al sitemap', async () => {
     const amb = llistaSessions.map((s) => (s.slug === 'un-altre' ? { ...s, publica: { ...s.publica, actualitzatEl: '2026-10-15T09:00:00+02:00' } } : s));
     const llista = await entradesSitemap(dbFals({ sessions: amb, pagines: paginesDades }), ARA);
     const lm = Object.fromEntries(llista.map((e) => [e.cami, e.lastmod ?? null]));
     expect(lm['/programacio/2026/un-altre/']).toBe('2026-10-15T09:00:00+02:00');
-    expect(lm['/generes/']).toBe('2026-10-15T09:00:00+02:00');
     expect(lm['/programacio/2026/los-domingos/']).toBe('2026-09-03T19:00:00+02:00');
   });
 });

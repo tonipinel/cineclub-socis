@@ -60,7 +60,8 @@ describe('índex de taxonomies', () => {
     expect(html).toContain('<title>Directors i directores · Cineclub Roda de Berà</title>');
     expect(html).toContain('<meta property="og:title" content="Directors i directores">');
     expect(html).toContain('<meta name="description" content="Totes les directores i directors de les pel·lícules programades pel Cineclub Roda de Berà.">');
-    expect(html).toContain('<link rel="canonical" href="https://cineclub-web.web.app/directors/">');
+    expect(html).toContain('<meta name="robots" content="noindex,follow">');
+    expect(html).not.toContain('rel="canonical"');
     expect(html).toContain('<h1 class="page-hero__title">Directors i directores</h1>');
     expect(html).toContain('<p class="page-hero__hook">Totes les directores i directors de les pel·lícules programades pel Cineclub Roda de Berà.</p>');
   });
