@@ -12,9 +12,11 @@ import { resumDashboardTiquets, resumPerSessio } from '../../lib/escaneig';
 import { resumVotacio, tandaOberta } from '../../lib/tandes';
 import { sessionsAmbControl } from '../../lib/sessions';
 import {
-  resumComptable, resumReal, resumPrevisio, costRealSessio, costsRealsSessions, rendibilitatPerSessio, quotaPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
+  resumComptable, resumReal, resumPrevisio, costsRealsSessions, rendibilitatPerSessio, quotaPerSessio, formatEuros, classeSigne, ETIQUETES_METODE,
   LLINDAR_COST_SESSIO_RENOVACIO, CATEGORIA_QUOTA_SOCI, TIPUS_QUOTA, TIPUS_MOVIMENT,
 } from '../../lib/moviments';
+import { puntsEvolucio, etiquetaMes, rangEvolucio } from '../../lib/evolucioEconomica';
+import { formatData } from '../../lib/data';
 import * as ROUTES from '../../constants/routes';
 import TopVotacio from '../../components/TopVotacio';
 import Carregant from '../../components/Carregant';
@@ -30,9 +32,6 @@ const PESTANYES_EVOLUCIO = [
 const COLOR_REAL = '#16a34a';
 const COLOR_PREVISIO_ESTIMADA = '#6b7280';
 const COLOR_PREVISIO_PRECISA = '#f97316';
-
-// Sèries de la previsió: dues per color, que s'alternen en cada tram.
-const clauSerie = (precis, tram) => `${precis ? 'tresoreriaPrevistaPrecisa' : 'tresoreriaPrevista'}${Math.floor(tram / 2) % 2 === 0 ? '' : '2'}`;
 
 const PALETA_INGRESSOS = ['#15803d', '#16a34a', '#4ade80'];
 const PALETA_DESPESES = ['#b91c1c', '#f97316', '#7f1d1d'];
@@ -57,19 +56,29 @@ function MarcaCost({ mes }) {
   return null;
 }
 
-// Un sol valor per mes: la tresoreria real i la de la sèrie pròpia del mes (no la del punt de canvi repetit).
-function TooltipEvolucio({ active, payload, label }) {
+// Un sol valor per punt (una sessió o un mes): la tresoreria real i la de la sèrie pròpia del punt (no la del punt de canvi repetit).
+function TooltipEvolucio({ active, payload }) {
   if (!active || !payload || payload.length === 0) return null;
   const fila = payload[0].payload;
   const precis = fila.seriePropia?.startsWith('tresoreriaPrevistaPrecisa');
   return (
     <div className="dashboard__tooltip">
-      <p className="dashboard__tooltip-titol">{label}</p>
+      <p className="dashboard__tooltip-titol">{fila.titol || fila.etiqueta}</p>
+      {fila.titol && <p>{formatData(fila.etiqueta)}</p>}
       {fila.tresoreriaReal !== null && <p style={{ color: COLOR_REAL }}>Tresoreria real: {formatEuros(fila.tresoreriaReal)}</p>}
       {fila.seriePropia && (
         <p style={{ color: precis ? COLOR_PREVISIO_PRECISA : COLOR_PREVISIO_ESTIMADA }}>
           Tresoreria prevista ({precis ? 'programació coneguda' : 'estimada'}): {formatEuros(fila[fila.seriePropia])}
         </p>
+      )}
+      {fila.detall && (
+        <div className="dashboard__tooltip-detall">
+          <p>Quotes: {fila.detall.quotes} ({formatEuros(fila.detall.importQuotes)})</p>
+          <p>Entrades (aportacions): {formatEuros(fila.detall.aportacions)}</p>
+          <p>Pel·lícula: {formatEuros(-fila.detall.cost)}</p>
+          {Math.abs(fila.detall.altres) >= 0.005 && <p>Altres moviments: {formatEuros(fila.detall.altres)}</p>}
+          <p><strong>Variació: {formatEuros(fila.detall.variacio)}</strong></p>
+        </div>
       )}
     </div>
   );
@@ -177,13 +186,12 @@ export default function DashboardPage() {
   const despesesGestioAssociacio = dades.moviments.filter(
     (m) => m.tipus === TIPUS_MOVIMENT.DESPESA && m.categoria === 'Gestió associació'
   );
-  const real = resumReal(dades.moviments);
   const dataAvui = avui();
-  const costsReals = programacio
-    ? Object.fromEntries(dades.sessions
-      .filter((s) => (s.data ?? '') > dataAvui)
-      .map((s) => [s.id, costRealSessio(s, programacio.interns, programacio.distribuidores)]))
-    : {};
+  const costsPerSessio = programacio ? costsRealsSessions(dades.sessions, programacio.interns, programacio.distribuidores) : {};
+  const real = resumReal(dades.moviments, new Date(), { sessions: dades.sessions, costsReals: costsPerSessio });
+  // Per a la previsió només compten les sessions futures.
+  const costsReals = Object.fromEntries(Object.entries(costsPerSessio)
+    .filter(([id]) => (dades.sessions.find((s) => s.id === id)?.data ?? '') > dataAvui));
   const previsio = resumPrevisio(dades.moviments, dades.socis, dades.sessions, dades.accessLog, new Date(), { costsReals });
   const resta = previsio.restaMesActual;
   const hiHaResta = resta.sessionsProgramades > 0;
@@ -195,31 +203,12 @@ export default function DashboardPage() {
     acc.push({ ...mes, excedentProjectat });
     return acc;
   }, []);
-  const dadesGrafic = [
-    ...real.mesos.map((mes) => ({
-      etiqueta: mes.etiqueta, tresoreriaReal: mes.tresoreria, seriePropia: null,
-    })),
-    ...mesosPrevisio.map((mes) => ({ etiqueta: mes.etiqueta, tresoreriaReal: null, seriePropia: null })),
-  ];
-  if (ultimReal) {
-    // Punts de la previsió: l'últim punt real (el mateix valor, perquè les línies s'empalmin) i els mesos següents.
-    const punts = [
-      { fila: real.mesos.length - 1, valor: ultimReal.tresoreria, precis: hiHaResta && resta.precis },
-      ...mesosPrevisio.map((mes, i) => ({ fila: real.mesos.length + i, valor: mes.excedentProjectat, precis: mes.precis })),
-    ];
-    // Cada tram del mateix color té la seva sèrie (alternant dues per color) perquè dos trams no se superposin.
-    // El punt de canvi es repeteix només com a primer punt de la sèrie del tram següent.
-    let tram = 0;
-    punts.forEach((punt, i) => {
-      if (i > 0 && punts[i - 1].precis !== punt.precis) {
-        tram += 1;
-        dadesGrafic[punts[i - 1].fila][clauSerie(punt.precis, tram)] = punts[i - 1].valor;
-      }
-      const clau = clauSerie(punt.precis, tram);
-      dadesGrafic[punt.fila][clau] = punt.valor;
-      dadesGrafic[punt.fila].seriePropia = clau;
-    });
-  }
+  const dadesGrafic = ultimReal
+    ? puntsEvolucio({
+      moviments: dades.moviments, sessions: dades.sessions, costsReals: costsPerSessio, real, previsio, avui: new Date(),
+    })
+    : [];
+  const { domini: dominiEvolucio, ticks: ticksMesos } = rangEvolucio(new Date());
   const rendibilitatSessions = rendibilitatPerSessio(
     dades.moviments,
     dades.sessions,
@@ -497,15 +486,27 @@ export default function DashboardPage() {
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="etiqueta" tick={{ fontSize: 9 }} interval={1} angle={-40} textAnchor="end" height={50} />
+              <XAxis
+                dataKey="t"
+                type="number"
+                scale="time"
+                domain={dominiEvolucio}
+                ticks={ticksMesos}
+                tickFormatter={(t) => etiquetaMes(new Date(t))}
+                tick={{ fontSize: 9 }}
+                interval={1}
+                angle={-40}
+                textAnchor="end"
+                height={50}
+              />
               <YAxis tick={{ fontSize: 10 }} width={60} />
               <Tooltip content={<TooltipEvolucio />} />
               <Legend wrapperStyle={{ paddingTop: 10 }} itemSorter={null} />
-              <Area type="monotone" dataKey="tresoreriaReal" name="Real" stroke={COLOR_REAL} strokeWidth={2} fill="url(#degradat-real)" baseValue="dataMin" dot={false} connectNulls={false} />
-              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa" name="Previst" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={false} connectNulls={false} />
-              <Area type="monotone" dataKey="tresoreriaPrevista" name="Estimat" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={false} connectNulls={false} />
-              <Area type="monotone" dataKey="tresoreriaPrevista2" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={false} connectNulls={false} legendType="none" />
-              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa2" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={false} connectNulls={false} legendType="none" />
+              <Area type="monotone" dataKey="tresoreriaReal" name="Real" stroke={COLOR_REAL} strokeWidth={2} fill="url(#degradat-real)" baseValue="dataMin" dot={{ r: 3 }} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa" name="Previst" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={{ r: 3 }} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevista" name="Estimat" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={{ r: 3 }} connectNulls={false} />
+              <Area type="monotone" dataKey="tresoreriaPrevista2" stroke={COLOR_PREVISIO_ESTIMADA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-estimat)" baseValue="dataMin" dot={{ r: 3 }} connectNulls={false} legendType="none" />
+              <Area type="monotone" dataKey="tresoreriaPrevistaPrecisa2" stroke={COLOR_PREVISIO_PRECISA} strokeWidth={2} strokeDasharray="5 4" fill="url(#degradat-previst)" baseValue="dataMin" dot={{ r: 3 }} connectNulls={false} legendType="none" />
             </AreaChart>
           </ResponsiveContainer>
 
@@ -543,7 +544,7 @@ export default function DashboardPage() {
                       <td>{mes.nombreQuotes}</td>
                       <td>{formatEuros(mes.ingressosQuotes)}</td>
                       <td>{formatEuros(mes.ingressosAportacions)}</td>
-                      <td>{formatEuros(-mes.costPellicula)}</td>
+                      <td>{formatEuros(-mes.costPellicula)}{mes.costPendent > 0 && <span className="dashboard__previsio-marca">pendent de factura</span>}</td>
                       <td className={classeSigne(mes.impacteNet)}>{formatEuros(mes.impacteNet)}</td>
                       <td className={classeSigne(mes.tresoreria)}>{formatEuros(mes.tresoreria)}</td>
                     </tr>
@@ -590,7 +591,7 @@ export default function DashboardPage() {
                     {mesosPrevisio.map((mes) => (
                       <tr key={mes.etiqueta}>
                         <td>{mes.etiqueta}</td>
-                        <td>{Math.round(mes.novesAltes)}</td>
+                        <td>{mes.novesAltes}</td>
                         <td>{mes.renovacionsEsperades} de {mes.sociesDeguts}</td>
                         <td>{formatEuros(mes.ingressosQuotes)}</td>
                         <td>{formatEuros(mes.ingressosAportacions)}</td>

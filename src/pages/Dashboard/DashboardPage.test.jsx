@@ -336,7 +336,7 @@ describe('DashboardPage', () => {
     expect(m.getByText('Febrer 2027')).toBeInTheDocument();
     expect(m.getByText('Agost 2027')).toBeInTheDocument();
     const taulaPrevisio = within(m.getAllByRole('table')[0]);
-    expect(taulaPrevisio.getAllByText('10.00€')).toHaveLength(12); // 30€/3 mesos, cada fila
+    expect(taulaPrevisio.getAllByText('30.00€')).toHaveLength(4); // 1 alta cada 3 mesos (0,33 al mes), de 30€
     // Aportacions: 20€ dels últims 3 mesos ÷ 1 sessió amb control ja feta (s1) × 1 pel·lícula al mes.
     expect(taulaPrevisio.getAllByText('20.00€')).toHaveLength(12);
     // Cost: mitjana de les despeses de pel·lícula amb cost > 0 ((80 + 150) / 2), cada fila.
@@ -397,7 +397,7 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-color', '#f97316');
       expect(screen.getByTestId('linia-tresoreriaPrevistaPrecisa')).toHaveAttribute('data-nom', 'Previst');
       expect(screen.getByTestId('linia-tresoreriaPrevista')).toHaveAttribute('data-nom', 'Estimat');
-      expect(fila('Octubre 2026').tresoreriaPrevistaPrecisa).not.toBeNull();
+      expect(fila('2026-10-15').tresoreriaPrevistaPrecisa).not.toBeNull();
       expect(valor('Novembre 2026', 'tresoreriaPrevista2')).not.toBeNull();
       expect(valor('Novembre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
       // Les sèries duplicades no surten a la llegenda: una sola entrada per color.
@@ -409,12 +409,12 @@ describe('DashboardPage', () => {
 
     it('un mes precís entre dos d\'estimats: cada valor és només a la sèrie del seu color, més el punt de canvi', async () => {
       await renderPrevisio({ sessions: [PASSADA, futura('f1', '2026-10-15')], interns: INTERNS });
-      // Agost (enllaç) i Setembre: tram estimat 1. Octubre: tram precís. Novembre i següents: tram estimat 2.
-      expect(series('Agost 2026')).toEqual(['tresoreriaPrevista']);
+      // Avui (enllaç) i Setembre: tram estimat 1. La sessió del 15/10: tram precís. Novembre i següents: tram estimat 2.
+      expect(series('Avui')).toEqual(['tresoreriaPrevista']);
       expect(series('Setembre 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
       expect(valor('Setembre 2026', 'tresoreriaPrevistaPrecisa')).toBe(valor('Setembre 2026', 'tresoreriaPrevista'));
-      expect(series('Octubre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa']);
-      expect(valor('Octubre 2026', 'tresoreriaPrevista2')).toBe(valor('Octubre 2026', 'tresoreriaPrevistaPrecisa'));
+      expect(series('2026-10-15')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa']);
+      expect(valor('2026-10-15', 'tresoreriaPrevista2')).toBe(valor('2026-10-15', 'tresoreriaPrevistaPrecisa'));
       expect(series('Novembre 2026')).toEqual(['tresoreriaPrevista2']);
       expect(series('Agost 2027')).toEqual(['tresoreriaPrevista2']);
     });
@@ -424,26 +424,26 @@ describe('DashboardPage', () => {
         sessions: [PASSADA, futura('f1', '2026-09-15'), futura('f2', '2026-11-15')],
         interns: INTERNS,
       });
-      // Agost (estimat) -> Setembre (precís) -> Octubre (estimat) -> Novembre (precís) -> Desembre... (estimat).
-      expect(series('Agost 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
-      expect(series('Setembre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa']);
-      expect(series('Octubre 2026')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa2']);
-      expect(series('Novembre 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa2']);
-      expect(series('Desembre 2026')).toEqual(['tresoreriaPrevista']);
-      expect(series('Agost 2027')).toEqual(['tresoreriaPrevista']);
+      // Avui i sessió del 15/9 (precisos) -> Octubre (estimat) -> sessió del 15/11 (precís) -> Desembre... (estimat).
+      expect(series('Avui')).toEqual(['tresoreriaPrevistaPrecisa']);
+      expect(series('2026-09-15')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
+      expect(series('Octubre 2026')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa2']);
+      expect(series('2026-11-15')).toEqual(['tresoreriaPrevista2', 'tresoreriaPrevistaPrecisa2']);
+      expect(series('Desembre 2026')).toEqual(['tresoreriaPrevista2']);
+      expect(series('Agost 2027')).toEqual(['tresoreriaPrevista2']);
     });
 
     it('un sol mes precís al final: el tram arrenca des de l\'últim mes estimat', async () => {
       await renderPrevisio({ sessions: [PASSADA, futura('f1', '2027-08-15')], interns: INTERNS });
       expect(series('Juliol 2027')).toEqual(['tresoreriaPrevista', 'tresoreriaPrevistaPrecisa']);
-      expect(series('Agost 2027')).toEqual(['tresoreriaPrevistaPrecisa']);
+      expect(series('2027-08-15')).toEqual(['tresoreriaPrevistaPrecisa']);
       expect(series('Juny 2027')).toEqual(['tresoreriaPrevista']);
     });
 
     it('el tooltip mostra un sol valor previst per mes, el de la seva sèrie', async () => {
       await renderPrevisio({ sessions: [PASSADA, futura('f1', '2026-10-15')], interns: INTERNS });
       expect(fila('Setembre 2026').seriePropia).toBe('tresoreriaPrevista');
-      expect(fila('Octubre 2026').seriePropia).toBe('tresoreriaPrevistaPrecisa');
+      expect(fila('2026-10-15').seriePropia).toBe('tresoreriaPrevistaPrecisa');
       expect(fila('Novembre 2026').seriePropia).toBe('tresoreriaPrevista2');
     });
 
@@ -461,14 +461,16 @@ describe('DashboardPage', () => {
 
       // Tresoreria real -180€ (30 + 20 - 80 - 150) + impacte de la resta (-70) = -250€.
       expect(within(filaResta).getAllByText('-250.00€')).toHaveLength(1);
-      const agost = fila('Agost 2026');
+      const agost = fila('Avui');
       expect(agost.tresoreriaReal).toBe(-180);
-      // La línia prevista s'empalma amb la real: el punt d'agost és la tresoreria real (-180).
+      // La línia prevista s'empalma amb la real: el punt d'avui és la tresoreria real (-180).
       expect(agost.tresoreriaPrevistaPrecisa).toBe(-180);
-      // El mes següent (estimat) parteix de -250: 10 + 20 - 115 = -85 → -335, i enllaça des del punt d'agost.
-      expect(agost.tresoreriaPrevista).toBe(-180);
-      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
-      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
+      // La sessió del 20/8 és un punt previst amb el seu títol: -180 + 20 - 90 = -250.
+      expect(fila('2026-08-20').tresoreriaPrevistaPrecisa).toBe(-250);
+      // El mes següent (estimat) parteix de -250: 0 (sense alta) + 20 - 115 = -95 → -345, i enllaça des de la sessió.
+      expect(fila('2026-08-20').tresoreriaPrevista).toBe(-250);
+      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-345);
+      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-345.00€')).toBeInTheDocument();
     });
 
     it('un moviment datat després del mes actual no fa divergir el gràfic i la taula (mateixa base)', async () => {
@@ -479,11 +481,11 @@ describe('DashboardPage', () => {
       });
       const taula = within(m.getAllByRole('table')[0]);
       // La base és la tresoreria real d'agost (-180), no el fons total (320).
-      expect(fila('Agost 2026').tresoreriaReal).toBe(-180);
-      expect(fila('Agost 2026').tresoreriaPrevistaPrecisa).toBe(-180);
+      expect(fila('Avui').tresoreriaReal).toBe(-180);
+      expect(fila('Avui').tresoreriaPrevistaPrecisa).toBe(-180);
       expect(within(taula.getByText('Resta de Agost 2026').closest('tr')).getByText('-250.00€')).toBeInTheDocument();
-      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-335);
-      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-335.00€')).toBeInTheDocument();
+      expect(fila('Setembre 2026').tresoreriaPrevista).toBe(-345);
+      expect(within(taula.getByText('Setembre 2026').closest('tr')).getByText('-345.00€')).toBeInTheDocument();
     });
 
     it('si fallen les lectures opcionals no hi ha error i tots els mesos s\'estimen', async () => {
@@ -498,7 +500,7 @@ describe('DashboardPage', () => {
       expect(taula.queryByText(/^Resta de/)).not.toBeInTheDocument();
       expect(within(taula.getByText('Octubre 2026').closest('tr')).getByText('-115.00€')).toBeInTheDocument();
       expect(dadesGrafic().every((f) => (f.tresoreriaPrevistaPrecisa ?? null) === null && (f.tresoreriaPrevistaPrecisa2 ?? null) === null)).toBe(true);
-      expect(valor('Octubre 2026', 'tresoreriaPrevista')).not.toBeNull();
+      expect(valor('2026-10-15', 'tresoreriaPrevista')).not.toBeNull();
     });
 
     it('amb una sessió de cost desconegut el mes és «cost parcial» i es dibuixa amb l\'estimació', async () => {
@@ -509,7 +511,7 @@ describe('DashboardPage', () => {
       const filaOctubre = taula.getByText('Octubre 2026').closest('tr');
       expect(within(filaOctubre).getByText('cost parcial')).toBeInTheDocument();
       expect(within(filaOctubre).getByText('-115.00€')).toBeInTheDocument();
-      expect(valor('Octubre 2026', 'tresoreriaPrevistaPrecisa')).toBeNull();
+      expect(valor('2026-10-15', 'tresoreriaPrevistaPrecisa')).toBeNull();
     });
 
   });

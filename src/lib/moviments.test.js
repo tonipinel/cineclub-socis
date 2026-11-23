@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  aportacioPrevista,
   aportacionsPerRegistrar,
   calcularTotal,
   calcularSaldos,
@@ -495,6 +496,50 @@ describe('resumComptable', () => {
 describe('resumReal', () => {
   const avui = new Date(2026, 7, 31);
 
+  describe('cost de pel·lícula encara sense factura', () => {
+    const sessio = { id: 's1', data: '2026-08-14', control: true };
+    const opcions = (extra = {}) => ({ sessions: [sessio], costsReals: { s1: 120 }, ...extra });
+    const agostDe = (res) => res.mesos.find((m) => m.etiqueta === 'Agost 2026');
+
+    it('una sessió ja feta sense despesa registrada compta com a cost real del seu mes (impacte i tresoreria)', () => {
+      const moviments = [{ data: '2026-08-01', tipus: 'ingres', categoria: 'Quotes socis', metodePagament: 'efectiu', total: 500 }];
+      const agost = agostDe(resumReal(moviments, avui, opcions()));
+      expect(agost.costPellicula).toBe(120);
+      expect(agost.costPendent).toBe(120);
+      expect(agost.impacteNet).toBe(500 - 120);
+      expect(agost.tresoreria).toBe(380);
+    });
+
+    it('el cost pendent arrossega la tresoreria dels mesos següents', () => {
+      const res = resumReal([], new Date(2026, 8, 10), opcions());
+      expect(res.mesos.find((m) => m.etiqueta === 'Agost 2026').tresoreria).toBe(-120);
+      expect(res.mesos.find((m) => m.etiqueta === 'Setembre 2026').tresoreria).toBe(-120);
+      expect(res.mesos.find((m) => m.etiqueta === 'Setembre 2026').costPellicula).toBe(0);
+    });
+
+    it('en registrar la despesa de la sessió, mana la real i no es compta dos cops', () => {
+      const moviments = [{ data: '2026-08-20', tipus: 'despesa', categoria: 'Gestió pel·lícules', sessionId: 's1', total: 130 }];
+      const agost = agostDe(resumReal(moviments, avui, opcions()));
+      expect(agost.costPellicula).toBe(130);
+      expect(agost.costPendent).toBe(0);
+      expect(agost.tresoreria).toBe(-130);
+    });
+
+    it('no compta sessions futures, sense cost conegut o de cost 0', () => {
+      const opc = {
+        sessions: [{ id: 'f', data: '2026-09-02', control: true }, { id: 'n', data: '2026-08-02', control: true }, { id: 'z', data: '2026-08-03', control: true }],
+        costsReals: { f: 100, n: null, z: 0 },
+      };
+      const agost = agostDe(resumReal([], avui, opc));
+      expect(agost.costPellicula).toBe(0);
+      expect(agost.tresoreria).toBe(0);
+    });
+
+    it('sense opcions funciona com abans', () => {
+      expect(agostDe(resumReal([], avui)).costPendent).toBe(0);
+    });
+  });
+
   it('retorna 12 mesos, acabant amb el mes actual, amb el nom i any correctes', () => {
     const resultat = resumReal([], avui);
     expect(resultat.mesos).toHaveLength(12);
@@ -552,6 +597,53 @@ describe('resumReal', () => {
   });
 });
 
+describe('resumPrevisio — aportacions per tipus de sessió', () => {
+  const avui = new Date(2026, 7, 10);
+  const ses = (id, data, seccio) => ({ id, data, titol: id, publica: seccio ? { seccio } : {} });
+  const apo = (sessionId, total, data) => ({ data, tipus: 'ingres', categoria: 'Aportacions', sessionId, total });
+  const SESSIONS = [
+    ses('c1', '2026-06-10'), ses('c2', '2026-07-10'), ses('x1', '2026-07-20', 'xarxa'), ses('e1', '2026-08-01', 'extra'),
+    ses('fc', '2026-09-15'), ses('fx', '2026-09-20', 'xarxa'), ses('fe', '2026-10-15', 'extra'),
+  ];
+  const MOV = [apo('c1', 100, '2026-06-10'), apo('c2', 80, '2026-07-10'), apo('x1', 20, '2026-07-20'), apo('e1', 40, '2026-08-01')];
+
+  it('cada sessió futura usa la mitjana d\'aportacions del seu tipus', () => {
+    const p = resumPrevisio(MOV, [], SESSIONS, [], avui);
+    expect(p.aportacionsPerSeccio).toEqual({ cartellera: 90, xarxa: 20, extra: 40 });
+    const setembre = p.mesos.find((m) => m.etiqueta === 'Setembre 2026');
+    expect(setembre.ingressosAportacions).toBe(90 + 20);
+    expect(p.mesos.find((m) => m.etiqueta === 'Octubre 2026').ingressosAportacions).toBe(40);
+  });
+
+  it('un mes sense sessions usa la mitjana de Cartellera', () => {
+    const p = resumPrevisio(MOV, [], SESSIONS, [], avui);
+    expect(p.mesos.find((m) => m.etiqueta === 'Novembre 2026').ingressosAportacions).toBe(90);
+  });
+
+  it('un tipus sense sessions a l\'últim període usa tot el seu historial; sense cap, la mitjana general', () => {
+    const sessions = [ses('c2', '2026-07-10'), ses('xv', '2025-01-10', 'xarxa'), ses('xw', '2025-03-10', 'xarxa'), ses('fx', '2026-09-20', 'xarxa'), ses('ff', '2026-11-10', 'filmoxarxa')];
+    const moviments = [apo('c2', 80, '2026-07-10'), apo('xv', 60, '2025-01-10'), apo('xw', 20, '2025-03-10')];
+    const p = resumPrevisio(moviments, [], sessions, [], avui);
+    // Xarxa: només hi ha dades fora del període → mitjana de tot el seu historial (60 i 20 → 40)
+    expect(p.aportacionsPerSeccio.xarxa).toBe(40);
+    expect(p.mesos.find((m) => m.etiqueta === 'Setembre 2026').ingressosAportacions).toBe(40);
+    // Un tipus que mai ha fet cap sessió usa la mitjana general
+    expect(p.mesos.find((m) => m.etiqueta === 'Novembre 2026').ingressosAportacions).toBe(p.aportacionsPerSessio);
+  });
+
+  it('si hi ha aportacions sense sessió, no es pot repartir per tipus: mitjana general com abans', () => {
+    const p = resumPrevisio([...MOV, { data: '2026-07-01', tipus: 'ingres', categoria: 'Aportacions', total: 10 }], [], SESSIONS, [], avui);
+    expect(p.aportacionsPerSeccio).toEqual({});
+    expect(p.mesos.find((m) => m.etiqueta === 'Setembre 2026').ingressosAportacions).toBeCloseTo(p.aportacionsPerSessio * 2);
+  });
+
+  it('aportacioPrevista dóna la del tipus de la sessió o, si no la coneix, la general', () => {
+    const p = resumPrevisio(MOV, [], SESSIONS, [], avui);
+    expect(aportacioPrevista(ses('n', '2026-12-01', 'xarxa'), p)).toBe(20);
+    expect(aportacioPrevista(ses('n', '2026-12-01', 'desconeguda'), p)).toBe(p.aportacionsPerSessio);
+  });
+});
+
 describe('resumPrevisio', () => {
   // Constructor de 3 arguments (any, mes, dia), sempre hora local.
   const avui = new Date(2026, 7, 31);
@@ -579,9 +671,21 @@ describe('resumPrevisio', () => {
     ];
     const resultat = previsio(moviments, avui);
     expect(resultat.novesAltesPerMes).toBe(1);
-    expect(resultat.importMitjaQuota).toBe(30);
+    expect(resultat.preuQuota).toBe(30);
     expect(resultat.mesos[0].novesAltes).toBe(1);
     expect(resultat.mesos[11].ingressosQuotes).toBe(30);
+  });
+
+  it('cada quota prevista val 30 €, encara que les últimes altes hagin pagat una quota reduïda', () => {
+    const moviments = [
+      { data: '2026-06-05', tipus: 'ingres', categoria: 'Quotes socis', total: 25 },
+      { data: '2026-07-05', tipus: 'ingres', categoria: 'Quotes socis', total: 30 },
+      { data: '2026-08-05', tipus: 'ingres', categoria: 'Quotes socis', total: 25 },
+    ];
+    const resultat = previsio(moviments, avui);
+    expect(resultat.preuQuota).toBe(30);
+    expect(resultat.mesos[0].ingressosQuotes).toBe(30 * resultat.mesos[0].novesAltes);
+    expect(resultat.mesos[0].ingressosQuotes).toBe(30);
   });
 
   it('exclou les renovacions (tipusQuota "renovacio") del ritme de noves altes', () => {
@@ -637,10 +741,12 @@ describe('resumPrevisio', () => {
       { data: '2026-08-15', tipus: 'despesa', categoria: 'Gestió pel·lícules', total: 100 },
     ];
     const resultat = previsio(moviments, avui);
-    // Noves altes: 1/3 de mitjana * 30€ = 10€, aportacions: 20/3 = 6.67€, pel·lícula: 100€.
-    const impacteNetPerMes = 10 + 20 / 3 - 100;
-    expect(resultat.mesos[0].impacteNet).toBeCloseTo(impacteNetPerMes);
-    expect(resultat.impacteNetAcumulat).toBeCloseTo(impacteNetPerMes * 12);
+    // Noves altes: 1/3 al mes, en enters (una quota de 30€ cada tres mesos: mesos 2, 5, 8 i 11); aportacions: 20/3 = 6.67€; pel·lícula: 100€.
+    const sense = 20 / 3 - 100;
+    expect(resultat.mesos[0].impacteNet).toBeCloseTo(sense);
+    expect(resultat.mesos[1].impacteNet).toBeCloseTo(sense + 30);
+    expect(resultat.mesos.map((m) => m.novesAltes)).toEqual([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]);
+    expect(resultat.impacteNetAcumulat).toBeCloseTo(sense * 12 + 120);
   });
 
   it('retorna zeros si no hi ha moviments en els últims 3 mesos', () => {
@@ -773,8 +879,7 @@ describe('resumPrevisio — renovacions per data de venciment real', () => {
       { tipus: 'soci', numeroSoci: 10, sessionId: 'sB' },
     ];
     const resultat = resumPrevisio(moviments, socis, sessions, accessLog, avui);
-    // Cap quota en els últims 3 mesos -> importMitjaQuota per defecte 30€.
-    expect(resultat.importMitjaQuota).toBe(30);
+    expect(resultat.preuQuota).toBe(30);
     const octubre = resultat.mesos.find((m) => m.etiqueta === 'Octubre 2026');
     expect(octubre.renovacionsEsperades).toBe(1);
     expect(octubre.ingressosQuotes).toBe(30);
