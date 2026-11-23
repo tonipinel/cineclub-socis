@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://associacio.cineclubrodadebera.cat",
+      "https://cineclub-socis.web.app",
+      "https://cineclub-socis.firebaseapp.com",
+      "http://localhost:3040"
+    ],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

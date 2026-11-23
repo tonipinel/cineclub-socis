@@ -36,7 +36,7 @@ export function slugDisponible(slug, data, sessions, idPropia) {
 }
 
 // `AAAA-MM-DD` d'un dia que existeix (el 31 de febrer no).
-const dataValida = (data) => {
+export const dataValida = (data) => {
   if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
   const [any, mes, dia] = data.split('-').map(Number);
   const d = new Date(Date.UTC(any, mes - 1, dia));

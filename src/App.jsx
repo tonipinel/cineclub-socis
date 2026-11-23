@@ -42,6 +42,7 @@ const EntitatsList = lazy(() => import('./pages/Entitats/EntitatsList'));
 const EntitatForm = lazy(() => import('./pages/Entitats/EntitatForm'));
 const FlyersList = lazy(() => import('./pages/Flyers/FlyersList'));
 const FlyerForm = lazy(() => import('./pages/Flyers/FlyerForm'));
+const SocialMedia = lazy(() => import('./pages/SocialMedia/SocialMedia'));
 const TandesList = lazy(() => import('./pages/Tandes/TandesList'));
 const TandaForm = lazy(() => import('./pages/Tandes/TandaForm'));
 const TandaResultats = lazy(() => import('./pages/Tandes/TandaResultats'));
@@ -348,6 +349,16 @@ export default function App() {
                   <RequireAuth>
                     <RequireRole roles={[ROLE_ADMIN]}>
                       <EntitatForm />
+                    </RequireRole>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path={ROUTES.SOCIAL_MEDIA}
+                element={
+                  <RequireAuth>
+                    <RequireRole roles={[ROLE_ADMIN]}>
+                      <SocialMedia />
                     </RequireRole>
                   </RequireAuth>
                 }

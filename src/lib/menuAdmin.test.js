@@ -11,7 +11,7 @@ describe('GRUPS_ADMIN', () => {
     ]);
     expect(GRUPS_ADMIN[1].elements.map((e) => [e.etiqueta, e.to])).toEqual([
       ['Propostes', '/propostes/pendents'], ['Tandes', '/tandes'], ['Sessions', '/sessions'],
-      ['Distribuïdores', '/distribuidores'], ['Entitats', '/entitats'], ['Flyers', '/flyers'],
+      ['Distribuïdores', '/distribuidores'], ['Entitats', '/entitats'], ['Flyers', '/flyers'], ['Social media', '/social-media'],
     ]);
     expect(GRUPS_ADMIN[2].elements.map((e) => [e.etiqueta, e.to])).toEqual([
       ['Escaneig', '/escaneig'], ['Tiquets', '/tickets'],
@@ -37,6 +37,7 @@ describe('grupActiu', () => {
       '/distribuidores', '/distribuidores/nova', '/distribuidores/d1',
       '/entitats', '/entitats/nova', '/entitats/e1',
       '/flyers', '/flyers/nou', '/flyers/f1',
+      '/social-media',
     ],
     sala: ['/escaneig', '/escaneig/log', '/tickets', '/tickets/lot1'],
     configuracio: ['/configuracio', '/usuaris-taquilla', '/usuaris-taquilla/nou', '/usuaris-taquilla/u1'],

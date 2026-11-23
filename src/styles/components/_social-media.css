@@ -1,0 +1,106 @@
+/* Pàgina «Social media» (pages/SocialMedia/SocialMedia.jsx): pestanyes i targetes com les de la fitxa de sessió i del flyer. */
+.social-media {
+  @apply flex flex-col gap-4;
+}
+.social-media__panell {
+  @apply flex flex-col gap-6;
+}
+.social-media__targeta {
+  @apply flex min-w-0 flex-col gap-3 rounded border border-black/10 p-4;
+}
+.social-media__targeta-capcalera {
+  @apply flex flex-wrap items-center justify-between gap-3;
+}
+.social-media__targeta-titol {
+  @apply m-0 font-display text-sm font-bold uppercase tracking-wide text-black;
+}
+.social-media__ajuda {
+  @apply m-0 font-body text-xs text-black/60;
+}
+.social-media__buit {
+  @apply m-0 rounded border border-dashed border-black/20 p-4 text-center font-body text-sm text-black/60;
+}
+.social-media__boto {
+  @apply self-start px-4 py-2 text-sm;
+}
+
+/* Avisos i errors: la mateixa caixa que als formularis de flyers i sessions. */
+.social-media__alerta {
+  @apply m-0 flex flex-wrap items-baseline gap-x-2 rounded border border-dashed border-amber-600 bg-amber-50 p-3 font-body text-sm text-black;
+}
+.social-media__alerta--error {
+  @apply border-red-600 bg-red-50 text-red-700;
+}
+
+/* Imatges generades: la diapositiva a mida real escalada a 1/4 (270 × 337,5 px). */
+.social-media__diapositives {
+  @apply m-0 grid list-none gap-6 p-0;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+}
+.social-media__item {
+  @apply flex flex-col items-start gap-2;
+}
+.social-media__etiqueta {
+  @apply m-0 font-body text-sm font-semibold;
+}
+.social-previa {
+  @apply relative overflow-hidden rounded border border-black/10;
+  width: 270px;
+  height: 337.5px;
+}
+.social-previa__escala {
+  width: 1080px;
+  height: 1350px;
+  transform: scale(0.25);
+  transform-origin: top left;
+}
+
+/* Triar sessions: cerca i una targeta per sessió (casella o radio, cartell, data i títol), com al selector dels flyers. */
+.social-sessions {
+  @apply flex flex-col gap-3;
+}
+.social-sessions__scroll {
+  @apply flex max-h-96 flex-col gap-2 overflow-y-auto pr-1;
+}
+.social-sessions__grup {
+  @apply m-0 mt-1 font-body text-xs font-semibold uppercase tracking-wide text-black/60;
+}
+.social-sessions__llista {
+  @apply m-0 flex list-none flex-col gap-2 p-0;
+}
+.social-sessio {
+  @apply flex rounded border border-black/10 p-2 transition;
+}
+.social-sessio--triada {
+  @apply border-gold-dark/40 bg-gold/5;
+}
+.social-sessio__casella {
+  @apply flex min-w-0 flex-1 cursor-pointer items-center gap-3;
+}
+.social-sessio__check {
+  @apply h-4 w-4 shrink-0 accent-black;
+}
+.social-sessio__miniatura {
+  @apply block aspect-[4/5] w-12 shrink-0 rounded-sm bg-black/10 object-cover;
+  object-position: top center;
+}
+.social-sessio__text {
+  @apply flex min-w-0 flex-col gap-1;
+}
+.social-sessio__data {
+  @apply font-body text-xs font-semibold text-black/60;
+}
+.social-sessio__titol {
+  @apply font-display text-sm font-bold uppercase tracking-wide text-black wrap-anywhere;
+}
+
+/* Curiositats: cada una és una caixa de text sota la seva diapositiva. */
+.social-media__accions {
+  @apply flex flex-wrap items-center gap-2;
+}
+.social-media__curiositat {
+  @apply flex w-full flex-col gap-1;
+}
+.social-media__avis {
+  @apply m-0 font-body text-xs text-amber-700;
+}

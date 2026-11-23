@@ -22,6 +22,7 @@ export const GRUPS_ADMIN = [
       { to: ROUTES.DISTRIBUIDORES, etiqueta: 'Distribuïdores' },
       { to: ROUTES.ENTITATS, etiqueta: 'Entitats' },
       { to: ROUTES.FLYERS, etiqueta: 'Flyers' },
+      { to: ROUTES.SOCIAL_MEDIA, etiqueta: 'Social media' },
     ],
   },
   {

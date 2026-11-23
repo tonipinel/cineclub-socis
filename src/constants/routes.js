@@ -23,6 +23,7 @@ export const ENTITATS_EDITAR = '/entitats/:id';
 export const FLYERS = '/flyers';
 export const FLYERS_NOU = '/flyers/nou';
 export const FLYERS_EDITAR = '/flyers/:id';
+export const SOCIAL_MEDIA = '/social-media';
 export const TICKETS = '/tickets';
 export const TICKETS_LOT = '/tickets/:id';
 export const ESCANEIG = '/escaneig';
