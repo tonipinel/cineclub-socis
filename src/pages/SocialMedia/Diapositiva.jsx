@@ -253,7 +253,7 @@ const Diapositiva = forwardRef(function Diapositiva({
               <p className="social-slide__invitacio">
                 <span className="social-slide__invitacio-linia">Vine al <strong>Cineclub Roda de Berà</strong></span>
                 <span className="social-slide__invitacio-linia">{programacio ? 'i gaudeix del cinema' : 'i gaudeix de la pel·lícula'}</span>
-                {programacio && diapositiva.versio && <span className="social-slide__invitacio-linia"><strong>en Versió Original</strong></span>}
+                {programacio && diapositiva.versio && <span className="social-slide__invitacio-linia"><strong>en versió original</strong></span>}
                 {!programacio && fraseVersio(sessio) && <span className="social-slide__invitacio-linia"><strong>{fraseVersio(sessio)}</strong></span>}
               </p>
               <div className="social-slide__separador" />

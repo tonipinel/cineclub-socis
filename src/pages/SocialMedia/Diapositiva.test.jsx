@@ -306,10 +306,10 @@ describe('Diapositiva tancament de Programació', () => {
     expect(container.querySelector('.social-slide--tancament')).not.toBeNull();
   });
 
-  it('diu «gaudeix del cinema en Versió Original» si totes les sessions són en versió original', () => {
+  it('diu «gaudeix del cinema en versió original» si totes les sessions són en versió original', () => {
     const { rerender } = render(<Diapositiva sessio={{}} diapositiva={tancament} />);
     expect(screen.getByText(/gaudeix del cinema/)).toBeInTheDocument();
-    expect(screen.getByText('en Versió Original')).toBeInTheDocument();
+    expect(screen.getByText('en versió original')).toBeInTheDocument();
     rerender(<Diapositiva sessio={{}} diapositiva={{ ...tancament, versio: false }} />);
     expect(screen.getByText(/gaudeix del cinema/)).toBeInTheDocument();
     expect(screen.queryByText(/Versió Original/)).not.toBeInTheDocument();

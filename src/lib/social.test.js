@@ -180,7 +180,7 @@ describe('diapositivaTancamentProgramacio', () => {
     expect(diapositivaTancamentProgramacio(sessions)).toMatchObject({ tipus: 'tancament-programacio', imatges: ['g1', 'c2', 'g4', 'g5'] });
   });
 
-  it('«en Versió Original» només si totes les sessions són VO, VOSE o VOSC', () => {
+  it('«en versió original» només si totes les sessions són VO, VOSE o VOSC', () => {
     expect(diapositivaTancamentProgramacio([sessio({ versioTipus: 'vose' }), sessio({ versioTipus: 'vosc' }), sessio({ versioTipus: 'vo' })]).versio).toBe(true);
     expect(diapositivaTancamentProgramacio([sessio({ versioTipus: 'vose' }), sessio({ versioTipus: 'doblada-cat' })]).versio).toBe(false);
     expect(diapositivaTancamentProgramacio([]).versio).toBe(false);
