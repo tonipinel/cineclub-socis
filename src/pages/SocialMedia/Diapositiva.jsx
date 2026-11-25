@@ -138,7 +138,6 @@ function Collage({ fotogrames, font }) {
           {fila.map((url, i) => (
             <figure key={`${i}-${url}`} className="social-slide__negatiu">
               <img className="social-slide__negatiu-imatge" src={font(url)} alt="" />
-              <figcaption className="social-slide__negatiu-text">Film negative</figcaption>
             </figure>
           ))}
         </div>

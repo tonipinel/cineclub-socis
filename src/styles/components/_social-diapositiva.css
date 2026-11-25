@@ -222,22 +222,16 @@
   @apply flex justify-center gap-5;
 }
 .social-slide__negatiu {
-  @apply m-0 flex flex-col gap-2;
+  @apply m-0 flex flex-col;
   width: 440px;
   background: #3a2a08;
-  padding: 12px 12px 10px;
+  padding: 12px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
 }
 .social-slide__negatiu-imatge {
   width: 100%;
   height: 220px;
   object-fit: cover;
-}
-.social-slide__negatiu-text {
-  @apply font-bold uppercase text-gold;
-  font-size: 14px;
-  letter-spacing: 0.12em;
-  text-align: left;
 }
 .social-slide__invitacio {
   @apply m-0;

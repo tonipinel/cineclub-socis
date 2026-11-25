@@ -208,6 +208,14 @@ describe('Diapositiva curiositat', () => {
 });
 
 describe('Diapositiva tancament', () => {
+  it('els fotogrames del collage no porten cap text', () => {
+    const galeria = ['https://x/g1.jpg', 'https://x/g2.jpg'];
+    const { container } = render(<Diapositiva sessio={{ ...SESSIO, publica: { ...SESSIO.publica, galeria } }} diapositiva={{ tipus: 'tancament' }} />);
+    expect(container.querySelectorAll('.social-slide__negatiu')).toHaveLength(2);
+    expect(screen.queryByText('Film negative')).not.toBeInTheDocument();
+    expect(container.querySelector('.social-slide__negatiu figcaption')).toBeNull();
+  });
+
   it('fa un collage de fins a 4 fotogrames i no en pinta cap si no n\'hi ha', () => {
     const galeria = ['g1', 'g2', 'g3', 'g4', 'g5'].map((g) => `https://x/${g}.jpg`);
     const { container, rerender } = render(<Diapositiva sessio={{ ...SESSIO, publica: { ...SESSIO.publica, galeria } }} diapositiva={{ tipus: 'tancament' }} />);
